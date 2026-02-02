@@ -1,0 +1,22 @@
+{
+  "name": "continuum",
+  "private": true,
+  "packageManager": "pnpm@10.11.1",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "audit": "pnpm audit",
+    "audit:fix": "pnpm audit --fix",
+    "update:critical:web": "pnpm --filter web up next react react-dom",
+    "dev:infra": "docker compose up -d postgres redis minio",
+    "dev:backend": "docker compose up -d api worker",
+    "dev:web": "PORT=3001 NEXT_PUBLIC_API_BASE_URL=http://localhost:3000 pnpm --filter web dev",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "devDependencies": {
+    "turbo": "^2.8.1"
+  }
+}

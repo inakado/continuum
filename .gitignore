@@ -1,0 +1,28 @@
+.DS_Store
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+logs
+*.log
+
+# Node / TypeScript
+node_modules/
+.pnpm-store/
+dist/
+build/
+.turbo/
+
+# Next.js
+.next/
+out/
+
+# Nest / TS + coverage
+coverage/
+
+# Docker volumes (later)
+.docker/
+volumes/
