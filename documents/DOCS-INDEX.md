@@ -81,6 +81,7 @@
 - DDD карта мира: поддомены/BC, границы модулей
 - Modular monolith структура NestJS
 - Интеграции и основные принципы (без схем БД)
+- Frontend Architecture (Next.js) — обязательные правила слоёв (app/features/components/lib) и “тонких страниц” перед любыми UI-изменениями.
 
 ### 1.3 TECH-STACK.md
 - Технологии и библиотеки (backend/frontend/storage/queue/PDF)
@@ -106,6 +107,7 @@
 ### 1.7 DECISIONS.md
 - Decision Cards (DEC-xx)
 - Фиксации трактовок требований: 2 метрики, 3+3 попытки, required гейты, фото review, ревизии, publish/unpublish пересчёт, PDF view и т.д.
+- DEC-AUTH-01 — JWT в httpOnly cookie (auth + CORS credentials)
 
 ### 1.8 DESIGN-SYSTEM.md
 - UI стиль: шрифты/цвета/геометрия/кнопки/формы
@@ -122,6 +124,8 @@
 
 Краткий контрольный контур для dev‑запуска.
 
+### 1.11 VERTICAL-SLICE-VS-01.md
+план работ по VS-01 (Identity/RBAC → контентные таблицы → Teacher CRUD+publish → Student read-only published views → минимальные UI), без деталей реализации.
 ---
 
 ## 2) Как агенту отвечать/действовать (процесс)

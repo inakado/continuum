@@ -1,0 +1,12 @@
+.label {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 14px;
+}
+
+.input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--text-primary);
+}

@@ -1,0 +1,187 @@
+import { apiRequest } from "./client";
+
+export type ContentStatus = "draft" | "published";
+
+export type Course = {
+  id: string;
+  title: string;
+  description: string | null;
+  status: ContentStatus;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Section = {
+  id: string;
+  courseId: string;
+  title: string;
+  status: ContentStatus;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Unit = {
+  id: string;
+  sectionId: string;
+  title: string;
+  status: ContentStatus;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Task = {
+  id: string;
+  unitId: string;
+  title: string | null;
+  statementLite: string;
+  answerType: string;
+  isRequired: boolean;
+  status: ContentStatus;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CourseWithSections = Course & { sections: Section[] };
+export type SectionWithUnits = Section & { units: Unit[] };
+export type UnitWithTasks = Unit & { tasks: Task[] };
+
+export type LoginResponse = {
+  accessToken: string;
+  user: { id: string; login: string; role: string };
+};
+
+export const teacherApi = {
+  login(login: string, password: string) {
+    return apiRequest<LoginResponse>("/auth/login", {
+      method: "POST",
+      body: { login, password },
+    });
+  },
+
+  logout() {
+    return apiRequest<{ ok: boolean }>("/auth/logout", { method: "POST" });
+  },
+
+  me() {
+    return apiRequest<{ user: { id: string; login: string; role: string } }>("/auth/me");
+  },
+
+  listCourses() {
+    return apiRequest<Course[]>("/teacher/courses");
+  },
+
+  getCourse(id: string) {
+    return apiRequest<CourseWithSections>(`/teacher/courses/${id}`);
+  },
+
+  createCourse(data: { title: string; description?: string | null }) {
+    return apiRequest<Course>("/teacher/courses", { method: "POST", body: data });
+  },
+
+  updateCourse(id: string, data: { title?: string; description?: string | null }) {
+    return apiRequest<Course>(`/teacher/courses/${id}`, { method: "PATCH", body: data });
+  },
+
+  publishCourse(id: string) {
+    return apiRequest<Course>(`/teacher/courses/${id}/publish`, { method: "POST" });
+  },
+
+  unpublishCourse(id: string) {
+    return apiRequest<Course>(`/teacher/courses/${id}/unpublish`, { method: "POST" });
+  },
+
+  getSection(id: string) {
+    return apiRequest<SectionWithUnits>(`/teacher/sections/${id}`);
+  },
+
+  createSection(data: { courseId: string; title: string; sortOrder?: number }) {
+    return apiRequest<Section>("/teacher/sections", { method: "POST", body: data });
+  },
+
+  updateSection(id: string, data: { title?: string; sortOrder?: number }) {
+    return apiRequest<Section>(`/teacher/sections/${id}`, { method: "PATCH", body: data });
+  },
+
+  publishSection(id: string) {
+    return apiRequest<Section>(`/teacher/sections/${id}/publish`, { method: "POST" });
+  },
+
+  unpublishSection(id: string) {
+    return apiRequest<Section>(`/teacher/sections/${id}/unpublish`, { method: "POST" });
+  },
+
+  getUnit(id: string) {
+    return apiRequest<UnitWithTasks>(`/teacher/units/${id}`);
+  },
+
+  createUnit(data: { sectionId: string; title: string; sortOrder?: number }) {
+    return apiRequest<Unit>("/teacher/units", { method: "POST", body: data });
+  },
+
+  updateUnit(id: string, data: { title?: string; sortOrder?: number }) {
+    return apiRequest<Unit>(`/teacher/units/${id}`, { method: "PATCH", body: data });
+  },
+
+  publishUnit(id: string) {
+    return apiRequest<Unit>(`/teacher/units/${id}/publish`, { method: "POST" });
+  },
+
+  unpublishUnit(id: string) {
+    return apiRequest<Unit>(`/teacher/units/${id}/unpublish`, { method: "POST" });
+  },
+
+  getTask(id: string) {
+    return apiRequest<Task>(`/teacher/tasks/${id}`);
+  },
+
+  createTask(data: {
+    unitId: string;
+    title?: string | null;
+    statementLite: string;
+    answerType: string;
+    isRequired?: boolean;
+    sortOrder?: number;
+  }) {
+    return apiRequest<Task>("/teacher/tasks", { method: "POST", body: data });
+  },
+
+  updateTask(
+    id: string,
+    data: {
+      title?: string | null;
+      statementLite?: string;
+      answerType?: string;
+      isRequired?: boolean;
+      sortOrder?: number;
+    },
+  ) {
+    return apiRequest<Task>(`/teacher/tasks/${id}`, { method: "PATCH", body: data });
+  },
+
+  publishTask(id: string) {
+    return apiRequest<Task>(`/teacher/tasks/${id}/publish`, { method: "POST" });
+  },
+
+  unpublishTask(id: string) {
+    return apiRequest<Task>(`/teacher/tasks/${id}/unpublish`, { method: "POST" });
+  },
+
+  deleteCourse(id: string) {
+    return apiRequest<Course>(`/teacher/courses/${id}`, { method: "DELETE" });
+  },
+
+  deleteSection(id: string) {
+    return apiRequest<Section>(`/teacher/sections/${id}`, { method: "DELETE" });
+  },
+
+  deleteUnit(id: string) {
+    return apiRequest<Unit>(`/teacher/units/${id}`, { method: "DELETE" });
+  },
+
+  deleteTask(id: string) {
+    return apiRequest<Task>(`/teacher/tasks/${id}`, { method: "DELETE" });
+  },
+};

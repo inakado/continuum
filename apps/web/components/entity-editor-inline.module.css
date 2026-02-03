@@ -1,0 +1,45 @@
+.form {
+  border: 2px solid var(--border-primary);
+  padding: 16px;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-bottom: 2px solid var(--border-primary);
+  padding-bottom: 8px;
+}
+
+.title {
+  font-family: var(--font-unbounded), sans-serif;
+  font-weight: 300;
+  font-size: 16px;
+}
+
+.description {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.fields {
+  display: grid;
+  gap: 10px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.error {
+  border: 2px solid var(--border-primary);
+  padding: 8px;
+  background: var(--bg-accent);
+  color: var(--text-accent);
+  font-size: 13px;
+}

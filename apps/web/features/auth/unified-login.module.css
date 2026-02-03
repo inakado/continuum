@@ -1,0 +1,215 @@
+.page {
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+}
+
+.pageLight {
+  --bg-primary: #ffffff;
+  --text-primary: #0f172a;
+  --border-primary: #0f172a;
+  --bg-accent: #0f172a;
+  --text-accent: #f8fafc;
+  --text-muted: #475569;
+  --overlay-start: rgba(255, 255, 255, 0.1);
+  --overlay-end: rgba(255, 255, 255, 0.1);
+  --panel-bg: #ffffff;
+  --panel-border: #0f172a;
+  --hero-button-bg: #ffffff;
+  --hero-button-text: #0f172a;
+  --hero-button-border: #0f172a;
+}
+
+.pageDark {
+  --bg-primary: #0f172a;
+  --text-primary: #e2e8f0;
+  --border-primary: #ffffff;
+  --bg-accent: #e2e8f0;
+  --text-accent: #0f172a;
+  --text-muted: #94a3b8;
+  --overlay-start: rgba(2, 6, 23, 0.1);
+  --overlay-end: rgba(2, 6, 23, 0.1);
+  --panel-bg: #0f172a;
+  --panel-border: #ffffff;
+  --hero-button-bg: #0f172a;
+  --hero-button-text: #ffffff;
+  --hero-button-border: #ffffff;
+}
+
+.background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  z-index: 1;
+}
+
+.content {
+  position: relative;
+  z-index: 2;
+  margin: 0 auto;
+  padding: 24px 20px 96px;
+  display: grid;
+  gap: 20px;
+}
+
+.topBar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.themeToggle {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid var(--border-primary);
+  background: var(--panel-bg);
+  color: var(--text-primary);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.themeToggle:hover {
+  transform: translateY(-1px);
+}
+
+.themeIcon {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.hero {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  gap: 24px;
+  text-align: center;
+  animation: rise 1s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 2000ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 2000ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+.heroHidden {
+  opacity: 0;
+  transform: scale(0.96);
+  pointer-events: none;
+}
+
+.heroTitle {
+  font-family: var(--font-unbounded), sans-serif;
+  font-weight: 400;
+  font-size: clamp(44px, 12vw, 120px);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.heroButton {
+  padding: 14px 26px;
+  font-size: 14px;
+  background: var(--hero-button-bg);
+  color: var(--hero-button-text);
+  border-color: var(--hero-button-border);
+}
+
+.heroButton:hover:not(:disabled) {
+  background: var(--hero-button-bg);
+  color: var(--hero-button-text);
+}
+
+.stage {
+  position: relative;
+  min-height: 70vh;
+  display: grid;
+  place-items: center;
+  padding: 16px 0;
+}
+
+.formSection {
+  display: grid;
+  gap: 18px;
+  justify-items: center;
+  scroll-margin-top: 80px;
+  opacity: 0;
+  transform: translateY(18px) scale(0.98);
+  pointer-events: none;
+  transition: opacity 2000ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 2000ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+.formVisible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.formTitle {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.card {
+  width: min(420px, 90vw);
+  border: 1px solid var(--panel-border);
+  padding: 20px;
+  background: var(--panel-bg);
+  display: grid;
+  gap: 12px;
+  animation: rise 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+.label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.error {
+  border: 1px solid var(--border-primary);
+  padding: 8px;
+  background: var(--bg-accent);
+  color: var(--text-accent);
+  font-size: 13px;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 720px) {
+  .content {
+    padding: 20px 16px 72px;
+  }
+
+  .stage {
+    min-height: 60vh;
+  }
+}

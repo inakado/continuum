@@ -1,0 +1,21 @@
+.wrapper {
+  border: 2px dashed var(--border-primary);
+  padding: 20px;
+  background: var(--bg-primary);
+}
+
+.card {
+  display: grid;
+  gap: 8px;
+}
+
+.title {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.text {
+  color: var(--text-muted);
+  font-size: 14px;
+}

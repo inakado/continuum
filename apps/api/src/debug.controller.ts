@@ -1,6 +1,10 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Role } from '@prisma/client';
 import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
+import { Roles } from './auth/decorators/roles.decorator';
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { RolesGuard } from './auth/guards/roles.guard';
 
 @Controller('debug')
 export class DebugController {
@@ -16,5 +20,19 @@ export class DebugController {
     await queue.close();
     await connection.quit();
     return { queued: true, jobId: job.id };
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.teacher)
+  @Get('teacher-only')
+  teacherOnly() {
+    return { ok: true, role: 'teacher' };
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.student)
+  @Get('student-only')
+  studentOnly() {
+    return { ok: true, role: 'student' };
   }
 }
