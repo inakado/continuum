@@ -1,7 +1,7 @@
 .button {
-  border: 2px solid var(--border-primary);
-  background: transparent;
-  color: var(--text-primary);
+  border: 2px solid var(--button-border, var(--border-primary));
+  background: var(--button-bg, transparent);
+  color: var(--button-text, var(--text-primary));
   text-transform: uppercase;
   font-weight: 700;
   letter-spacing: 0.05em;

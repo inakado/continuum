@@ -6,6 +6,7 @@ import { StudentCoursesController } from './student-courses.controller';
 import { StudentSectionsController } from './student-sections.controller';
 import { StudentUnitsController } from './student-units.controller';
 import { TeacherCoursesController } from './teacher-courses.controller';
+import { TeacherSectionGraphController } from './teacher-section-graph.controller';
 import { TeacherSectionsController } from './teacher-sections.controller';
 import { TeacherUnitsController } from './teacher-units.controller';
 import { TeacherTasksController } from './teacher-tasks.controller';
@@ -17,6 +18,7 @@ import { TeacherTasksController } from './teacher-tasks.controller';
     StudentSectionsController,
     StudentUnitsController,
     TeacherCoursesController,
+    TeacherSectionGraphController,
     TeacherSectionsController,
     TeacherUnitsController,
     TeacherTasksController,

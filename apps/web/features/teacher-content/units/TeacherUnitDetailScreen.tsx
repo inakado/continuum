@@ -184,7 +184,7 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
       onLogout={handleLogout}
     >
       <div className={styles.topActions}>
-        <Link href="/teacher/courses">← Все курсы</Link>
+        <Link href="/teacher">← К панели преподавателя</Link>
         {unit ? (
           <Button variant="ghost" onClick={handlePublishToggle}>
             {unit.status === "published" ? "Снять с публикации" : "Опубликовать"}

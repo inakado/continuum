@@ -1,4 +1,4 @@
-import TeacherSectionDetailScreen from "@/features/teacher-content/sections/TeacherSectionDetailScreen";
+import TeacherDashboardScreen from "@/features/teacher-dashboard/TeacherDashboardScreen";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -6,5 +6,5 @@ type PageProps = {
 
 export default async function TeacherSectionDetailPage({ params }: PageProps) {
   const { id } = await params;
-  return <TeacherSectionDetailScreen sectionId={id} />;
+  return <TeacherDashboardScreen active="edit" initialSectionId={id} />;
 }

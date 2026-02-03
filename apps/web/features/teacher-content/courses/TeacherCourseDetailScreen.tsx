@@ -160,7 +160,7 @@ export default function TeacherCourseDetailScreen({ courseId }: Props) {
       onLogout={handleLogout}
     >
       <div className={styles.topActions}>
-        <Link href="/teacher/courses">← Все курсы</Link>
+        <Link href="/teacher">← К панели преподавателя</Link>
         {course ? (
           <Button variant="ghost" onClick={handlePublishToggle}>
             {course.status === "published" ? "Снять с публикации" : "Опубликовать"}

@@ -15,4 +15,9 @@ export class StudentSectionsController {
   get(@Param('id') id: string) {
     return this.contentService.getPublishedSection(id);
   }
+
+  @Get(':id/graph')
+  getGraph(@Param('id') id: string) {
+    return this.contentService.getPublishedSectionGraph(id);
+  }
 }

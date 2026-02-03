@@ -1,18 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import LandingTopology from "@/components/LandingTopology";
+import { useTheme } from "@/components/useTheme";
 import { teacherApi } from "@/lib/api/teacher";
 import { ApiError } from "@/lib/api/client";
 import styles from "./unified-login.module.css";
 
 export default function UnifiedLoginScreen() {
   const router = useRouter();
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [manualTheme, setManualTheme] = useState<"light" | "dark" | null>(null);
+  const { theme, toggle } = useTheme();
   const [started, setStarted] = useState(false);
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
@@ -20,34 +20,6 @@ export default function UnifiedLoginScreen() {
   const [loading, setLoading] = useState(false);
   const formRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    const saved = window.localStorage.getItem("continuum-theme");
-    if (saved === "light" || saved === "dark") {
-      setTheme(saved);
-      setManualTheme(saved);
-      return;
-    }
-
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const update = () => {
-      if (manualTheme) return;
-      setTheme(media.matches ? "dark" : "light");
-    };
-    update();
-    if (media.addEventListener) {
-      media.addEventListener("change", update);
-      return () => media.removeEventListener("change", update);
-    }
-    media.addListener(update);
-    return () => media.removeListener(update);
-  }, [manualTheme]);
-
-  const handleThemeToggle = () => {
-    const nextTheme = theme === "dark" ? "light" : "dark";
-    setTheme(nextTheme);
-    setManualTheme(nextTheme);
-    window.localStorage.setItem("continuum-theme", nextTheme);
-  };
 
   const handleStart = () => {
     setStarted(true);
@@ -61,9 +33,9 @@ export default function UnifiedLoginScreen() {
       const result = await teacherApi.login(login, password);
       const role = result.user?.role;
       if (role === "teacher") {
-        router.push("/teacher/courses");
+        router.push("/teacher");
       } else if (role === "student") {
-        router.push("/student/courses");
+        router.push("/student");
       } else {
         router.push("/");
       }
@@ -89,7 +61,7 @@ export default function UnifiedLoginScreen() {
           <button
             className={styles.themeToggle}
             type="button"
-            onClick={handleThemeToggle}
+            onClick={toggle}
             aria-label={theme === "dark" ? "Светлая тема" : "Тёмная тема"}
           >
             {theme === "dark" ? (

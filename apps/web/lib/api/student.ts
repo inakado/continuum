@@ -1,4 +1,5 @@
 import { apiRequest } from "./client";
+import type { MeResponse } from "./auth";
 
 export type ContentStatus = "draft" | "published";
 
@@ -48,6 +49,25 @@ export type CourseWithSections = Course & { sections: Section[] };
 export type SectionWithUnits = Section & { units: Unit[] };
 export type UnitWithTasks = Unit & { tasks: Task[] };
 
+export type GraphNode = {
+  unitId: string;
+  title: string;
+  status: ContentStatus;
+  position: { x: number; y: number };
+};
+
+export type GraphEdge = {
+  id: string;
+  fromUnitId: string;
+  toUnitId: string;
+};
+
+export type SectionGraphResponse = {
+  sectionId: string;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+};
+
 export type LoginResponse = {
   accessToken: string;
   user: { id: string; login: string; role: string };
@@ -65,6 +85,10 @@ export const studentApi = {
     return apiRequest<{ ok: boolean }>("/auth/logout", { method: "POST" });
   },
 
+  me() {
+    return apiRequest<MeResponse>("/auth/me");
+  },
+
   listCourses() {
     return apiRequest<Course[]>("/courses");
   },
@@ -75,6 +99,10 @@ export const studentApi = {
 
   getSection(id: string) {
     return apiRequest<SectionWithUnits>(`/sections/${id}`);
+  },
+
+  getSectionGraph(id: string) {
+    return apiRequest<SectionGraphResponse>(`/sections/${id}/graph`);
   },
 
   getUnit(id: string) {

@@ -21,7 +21,7 @@ export default function TeacherLoginScreen() {
     setLoading(true);
     try {
       await teacherApi.login(login, password);
-      router.push("/teacher/courses");
+      router.push("/teacher");
     } catch (err) {
       setError(getApiErrorMessage(err));
     } finally {

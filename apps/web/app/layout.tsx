@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Inter, Unbounded } from "next/font/google";
 import "./globals.css";
+import ThemeHydration from "@/components/ThemeHydration";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -25,8 +26,26 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <html lang="ru">
+    <html lang="ru" data-theme="light" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(() => {
+  try {
+    const stored = localStorage.getItem("continuum-theme");
+    const theme = stored === "light" || stored === "dark"
+      ? stored
+      : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.dataset.theme = theme;
+  } catch (err) {
+    document.documentElement.dataset.theme = "light";
+  }
+})();`,
+          }}
+        />
+      </head>
       <body className={`${inter.variable} ${unbounded.variable}`}>
+        <ThemeHydration />
         {children}
       </body>
     </html>

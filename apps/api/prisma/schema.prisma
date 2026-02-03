@@ -63,6 +63,9 @@ model Section {
   course Course @relation(fields: [courseId], references: [id], onDelete: Restrict)
   units  Unit[]
 
+  graphEdges   UnitGraphEdge[]
+  graphLayouts UnitGraphLayout[]
+
   @@index([courseId, status])
   @@index([courseId, sortOrder])
   @@map("sections")
@@ -80,9 +83,46 @@ model Unit {
   section Section @relation(fields: [sectionId], references: [id], onDelete: Restrict)
   tasks   Task[]
 
+  graphPrereqEdges UnitGraphEdge[]   @relation("GraphPrereqUnit")
+  graphNextEdges   UnitGraphEdge[]   @relation("GraphUnit")
+  graphLayouts     UnitGraphLayout[] @relation("GraphLayoutUnit")
+
   @@index([sectionId, status])
   @@index([sectionId, sortOrder])
   @@map("units")
+}
+
+model UnitGraphEdge {
+  id           String   @id @default(uuid()) @db.Uuid
+  sectionId    String   @map("section_id") @db.Uuid
+  prereqUnitId String   @map("prereq_unit_id") @db.Uuid
+  unitId       String   @map("unit_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  section    Section @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  prereqUnit Unit    @relation("GraphPrereqUnit", fields: [prereqUnitId], references: [id], onDelete: Restrict)
+  unit       Unit    @relation("GraphUnit", fields: [unitId], references: [id], onDelete: Restrict)
+
+  @@unique([sectionId, prereqUnitId, unitId])
+  @@index([sectionId, unitId])
+  @@index([sectionId, prereqUnitId])
+  @@map("unit_graph_edges")
+}
+
+model UnitGraphLayout {
+  id        String   @id @default(uuid()) @db.Uuid
+  sectionId String   @map("section_id") @db.Uuid
+  unitId    String   @map("unit_id") @db.Uuid
+  x         Float
+  y         Float
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  section Section @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  unit    Unit    @relation("GraphLayoutUnit", fields: [unitId], references: [id], onDelete: Restrict)
+
+  @@unique([sectionId, unitId])
+  @@index([sectionId])
+  @@map("unit_graph_layout")
 }
 
 model Task {

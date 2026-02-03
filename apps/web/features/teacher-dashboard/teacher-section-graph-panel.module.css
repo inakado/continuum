@@ -1,0 +1,131 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.topActions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 2px solid var(--border-primary);
+  padding: 12px;
+  background: var(--bg-primary);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.kicker {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+
+.title {
+  font-family: var(--font-unbounded), sans-serif;
+  font-weight: 300;
+  font-size: 18px;
+}
+
+.toolbar {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) auto auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.error {
+  border: 2px solid var(--border-primary);
+  padding: 10px;
+  background: var(--bg-accent);
+  color: var(--text-accent);
+  font-size: 13px;
+}
+
+.status {
+  border: 2px solid var(--border-primary);
+  padding: 10px;
+  background: var(--bg-primary);
+  font-size: 13px;
+}
+
+.graphPanel {
+  border: 2px solid var(--border-primary);
+  background: var(--bg-primary);
+  height: 60vh;
+  min-height: 420px;
+  position: relative;
+}
+
+.loading {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  pointer-events: none;
+  padding: 16px;
+}
+
+.node {
+  border: 2px solid var(--border-primary);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  padding: 10px 12px;
+  min-width: 160px;
+  text-align: left;
+  position: relative;
+}
+
+.nodeTitle {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.nodeStatus {
+  margin-top: 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.handle {
+  width: 16px;
+  height: 16px;
+  border-radius: 0;
+  border: 0;
+  background: transparent;
+  opacity: 0;
+}
+
+.handleTop {
+  top: -8px;
+}
+
+.handleBottom {
+  bottom: -8px;
+}
+
+@media (max-width: 960px) {
+  .toolbar {
+    grid-template-columns: 1fr;
+  }
+}

@@ -120,9 +120,9 @@
 .heroButton {
   padding: 14px 26px;
   font-size: 14px;
-  background: var(--hero-button-bg);
-  color: var(--hero-button-text);
-  border-color: var(--hero-button-border);
+  --button-bg: var(--hero-button-bg);
+  --button-text: var(--hero-button-text);
+  --button-border: var(--hero-button-border);
 }
 
 .heroButton:hover:not(:disabled) {

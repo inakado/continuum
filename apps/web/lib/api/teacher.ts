@@ -1,4 +1,5 @@
 import { apiRequest } from "./client";
+import type { MeResponse } from "./auth";
 
 export type ContentStatus = "draft" | "published";
 
@@ -67,6 +68,30 @@ export type CourseWithSections = Course & { sections: Section[] };
 export type SectionWithUnits = Section & { units: Unit[] };
 export type UnitWithTasks = Unit & { tasks: Task[] };
 
+export type GraphNode = {
+  unitId: string;
+  title: string;
+  status: ContentStatus;
+  position: { x: number; y: number };
+};
+
+export type GraphEdge = {
+  id: string;
+  fromUnitId: string;
+  toUnitId: string;
+};
+
+export type SectionGraphResponse = {
+  sectionId: string;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+};
+
+export type SectionGraphUpdateRequest = {
+  nodes: { unitId: string; position: { x: number; y: number } }[];
+  edges: { fromUnitId: string; toUnitId: string }[];
+};
+
 export type LoginResponse = {
   accessToken: string;
   user: { id: string; login: string; role: string };
@@ -85,7 +110,7 @@ export const teacherApi = {
   },
 
   me() {
-    return apiRequest<{ user: { id: string; login: string; role: string } }>("/auth/me");
+    return apiRequest<MeResponse>("/auth/me");
   },
 
   listCourses() {
@@ -114,6 +139,17 @@ export const teacherApi = {
 
   getSection(id: string) {
     return apiRequest<SectionWithUnits>(`/teacher/sections/${id}`);
+  },
+
+  getSectionGraph(id: string) {
+    return apiRequest<SectionGraphResponse>(`/teacher/sections/${id}/graph`);
+  },
+
+  updateSectionGraph(id: string, payload: SectionGraphUpdateRequest) {
+    return apiRequest<SectionGraphResponse>(`/teacher/sections/${id}/graph`, {
+      method: "PUT",
+      body: payload,
+    });
   },
 
   createSection(data: { courseId: string; title: string; sortOrder?: number }) {

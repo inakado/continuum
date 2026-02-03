@@ -1,0 +1,123 @@
+.page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 10% 20%, rgba(15, 23, 42, 0.12), transparent 45%),
+    radial-gradient(circle at 80% 10%, rgba(15, 23, 42, 0.15), transparent 40%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.06), transparent 30%);
+}
+
+.container {
+  max-width: none;
+  width: 100%;
+  margin: 0 auto;
+  padding: 32px clamp(24px, 4vw, 96px) 56px;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 28px;
+  align-items: stretch;
+  min-height: calc(100vh - 88px);
+}
+
+.sidebar {
+  border: 2px solid var(--border-primary);
+  background: var(--bg-primary);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 100%;
+}
+
+.sidebarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.kicker {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.sidebarTitle {
+  font-family: var(--font-unbounded), sans-serif;
+  font-weight: 300;
+  font-size: 20px;
+  margin-top: 2px;
+}
+
+.sidebarSubtitle {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.navLink {
+  border: 2px solid var(--border-primary);
+  padding: 12px 14px;
+  text-transform: uppercase;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.navLink:hover {
+  background: var(--bg-accent);
+  color: var(--text-accent);
+}
+
+.navLinkActive {
+  background: var(--bg-accent);
+  color: var(--text-accent);
+}
+
+.main {
+  border: 2px solid var(--border-primary);
+  background: var(--bg-primary);
+  padding: clamp(20px, 3vw, 36px);
+  min-height: 100%;
+}
+
+@media (min-width: 1600px) {
+  .shell {
+    grid-template-columns: 320px minmax(0, 1fr);
+    gap: 32px;
+  }
+}
+
+@media (min-width: 2000px) {
+  .shell {
+    grid-template-columns: 360px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .shell {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .main {
+    min-height: 320px;
+  }
+}
+
+[data-theme="dark"] .page {
+  background:
+    radial-gradient(circle at 10% 20%, rgba(255, 255, 255, 0.12), transparent 45%),
+    radial-gradient(circle at 80% 10%, rgba(255, 255, 255, 0.12), transparent 40%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 30%);
+}
