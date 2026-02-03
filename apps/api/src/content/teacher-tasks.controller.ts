@@ -7,12 +7,15 @@ import {
   Param,
   Patch,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { EventCategory, Role } from '@prisma/client';
+import { AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { EventsLogService } from '../events/events-log.service';
 import { ContentService } from './content.service';
 import { CreateTaskDto, UpdateTaskDto } from './dto/task.dto';
 
@@ -20,7 +23,10 @@ import { CreateTaskDto, UpdateTaskDto } from './dto/task.dto';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.teacher)
 export class TeacherTasksController {
-  constructor(private readonly contentService: ContentService) {}
+  constructor(
+    private readonly contentService: ContentService,
+    private readonly eventsLogService: EventsLogService,
+  ) {}
 
   @Get(':id')
   get(@Param('id') id: string) {
@@ -28,29 +34,92 @@ export class TeacherTasksController {
   }
 
   @Post()
-  create(@Body() dto: CreateTaskDto) {
-    return this.contentService.createTask(dto);
+  async create(@Body() dto: CreateTaskDto, @Req() req: AuthRequest) {
+    const task = await this.contentService.createTask(dto);
+    await this.eventsLogService.append({
+      category: EventCategory.admin,
+      eventType: 'TaskCreated',
+      actorUserId: req.user.id,
+      actorRole: req.user.role,
+      entityType: 'task',
+      entityId: task.id,
+      payload: {
+        title: task.title,
+        status: task.status,
+        unitId: task.unitId,
+        answerType: task.answerType,
+        isRequired: task.isRequired,
+      },
+    });
+    return task;
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateTaskDto) {
-    return this.contentService.updateTask(id, dto);
+  async update(@Param('id') id: string, @Body() dto: UpdateTaskDto, @Req() req: AuthRequest) {
+    const task = await this.contentService.updateTask(id, dto);
+    await this.eventsLogService.append({
+      category: EventCategory.admin,
+      eventType: 'TaskRevised',
+      actorUserId: req.user.id,
+      actorRole: req.user.role,
+      entityType: 'task',
+      entityId: task.id,
+      payload: {
+        title: task.title,
+        status: task.status,
+        unitId: task.unitId,
+        answerType: task.answerType,
+        isRequired: task.isRequired,
+        changes: dto,
+      },
+    });
+    return task;
   }
 
   @Post(':id/publish')
   @HttpCode(200)
-  publish(@Param('id') id: string) {
-    return this.contentService.publishTask(id);
+  async publish(@Param('id') id: string, @Req() req: AuthRequest) {
+    const task = await this.contentService.publishTask(id);
+    await this.eventsLogService.append({
+      category: EventCategory.admin,
+      eventType: 'TaskPublished',
+      actorUserId: req.user.id,
+      actorRole: req.user.role,
+      entityType: 'task',
+      entityId: task.id,
+      payload: { title: task.title, status: task.status, unitId: task.unitId },
+    });
+    return task;
   }
 
   @Post(':id/unpublish')
   @HttpCode(200)
-  unpublish(@Param('id') id: string) {
-    return this.contentService.unpublishTask(id);
+  async unpublish(@Param('id') id: string, @Req() req: AuthRequest) {
+    const task = await this.contentService.unpublishTask(id);
+    await this.eventsLogService.append({
+      category: EventCategory.admin,
+      eventType: 'TaskUnpublished',
+      actorUserId: req.user.id,
+      actorRole: req.user.role,
+      entityType: 'task',
+      entityId: task.id,
+      payload: { title: task.title, status: task.status, unitId: task.unitId },
+    });
+    return task;
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.contentService.deleteTask(id);
+  async remove(@Param('id') id: string, @Req() req: AuthRequest) {
+    const task = await this.contentService.deleteTask(id);
+    await this.eventsLogService.append({
+      category: EventCategory.admin,
+      eventType: 'TaskDeleted',
+      actorUserId: req.user.id,
+      actorRole: req.user.role,
+      entityType: 'task',
+      entityId: task.id,
+      payload: { title: task.title, status: task.status, unitId: task.unitId },
+    });
+    return task;
   }
 }

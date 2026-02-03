@@ -24,6 +24,9 @@ export default function TeacherShell({ title, subtitle, onLogout, children }: Te
             <Link className={styles.navLink} href="/teacher/courses">
               Курсы
             </Link>
+            <Link className={styles.navLink} href="/teacher/events">
+              События
+            </Link>
             {onLogout ? (
               <Button variant="ghost" onClick={onLogout}>
                 Выйти

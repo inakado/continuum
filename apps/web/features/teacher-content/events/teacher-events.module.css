@@ -1,0 +1,53 @@
+.table {
+  display: grid;
+  gap: 8px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 160px 180px 140px 200px 1fr;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--border-primary);
+  padding: 10px 12px;
+  background: var(--bg-primary);
+  font-size: 13px;
+}
+
+.header {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 12px;
+}
+
+.payload {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.error {
+  border: 1px solid var(--border-primary);
+  padding: 10px 12px;
+  background: var(--bg-accent);
+  color: var(--text-accent);
+}
+
+.loading,
+.empty {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+}

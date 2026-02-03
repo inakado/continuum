@@ -44,6 +44,25 @@ export type Task = {
   updatedAt: string;
 };
 
+export type EventLog = {
+  id: string;
+  category: "admin" | "learning" | "system";
+  eventType: string;
+  actorUserId: string | null;
+  actorUser?: { id: string; login: string; role: string } | null;
+  entityType: string;
+  entityId: string;
+  payload: Record<string, unknown>;
+  occurredAt: string;
+};
+
+export type EventsResponse = {
+  items: EventLog[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
 export type CourseWithSections = Course & { sections: Section[] };
 export type SectionWithUnits = Section & { units: Unit[] };
 export type UnitWithTasks = Unit & { tasks: Task[] };
@@ -183,5 +202,22 @@ export const teacherApi = {
 
   deleteTask(id: string) {
     return apiRequest<Task>(`/teacher/tasks/${id}`, { method: "DELETE" });
+  },
+
+  listEvents(params?: {
+    category?: "admin" | "learning" | "system";
+    limit?: number;
+    offset?: number;
+    entityType?: string;
+    entityId?: string;
+  }) {
+    const search = new URLSearchParams();
+    if (params?.category) search.set("category", params.category);
+    if (params?.limit !== undefined) search.set("limit", String(params.limit));
+    if (params?.offset !== undefined) search.set("offset", String(params.offset));
+    if (params?.entityType) search.set("entityType", params.entityType);
+    if (params?.entityId) search.set("entityId", params.entityId);
+    const suffix = search.toString();
+    return apiRequest<EventsResponse>(`/teacher/events${suffix ? `?${suffix}` : ""}`);
   },
 };

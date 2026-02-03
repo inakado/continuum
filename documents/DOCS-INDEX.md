@@ -126,6 +126,9 @@
 
 ### 1.11 VERTICAL-SLICE-VS-01.md
 план работ по VS-01 (Identity/RBAC → контентные таблицы → Teacher CRUD+publish → Student read-only published views → минимальные UI), без деталей реализации.
+
+### 1.12 VERTICAL-SLICE-VS-02.md
+план работ по VS-02 Dashboards + Graph Editor + Unit Tabs (Theory/Method/Tasks/Video/Attachments), без прогресса/attempts/unlock`
 ---
 
 ## 2) Как агенту отвечать/действовать (процесс)
