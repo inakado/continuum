@@ -12,6 +12,12 @@
   border: 2px solid var(--border-primary);
   background: var(--bg-primary);
   cursor: pointer;
+  touch-action: manipulation;
+}
+
+.input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--border-primary);
 }
 
 .input:checked {

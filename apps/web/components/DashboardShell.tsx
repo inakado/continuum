@@ -20,6 +20,9 @@ export default function DashboardShell({ title, subtitle, navItems, children }: 
   return (
     <div className={styles.page}>
       <div className={styles.container}>
+        <a className={styles.skipLink} href="#dashboard-main">
+          Перейти к содержимому
+        </a>
         <div className={styles.shell}>
           <aside className={styles.sidebar}>
             <div className={styles.sidebarHeader}>
@@ -30,7 +33,7 @@ export default function DashboardShell({ title, subtitle, navItems, children }: 
               <ThemeToggle compact />
             </div>
             {subtitle ? <div className={styles.sidebarSubtitle}>{subtitle}</div> : null}
-            <nav className={styles.nav}>
+            <nav className={styles.nav} aria-label="Разделы">
               {navItems.map((item) => (
                 <Link
                   key={item.href}
@@ -43,7 +46,9 @@ export default function DashboardShell({ title, subtitle, navItems, children }: 
               ))}
             </nav>
           </aside>
-          <main className={styles.main}>{children}</main>
+          <main id="dashboard-main" className={styles.main}>
+            {children}
+          </main>
         </div>
       </div>
     </div>

@@ -21,9 +21,7 @@ export default function TeacherShell({ title, subtitle, onLogout, children }: Te
             {subtitle ? <p className={styles.subtitle}>{subtitle}</p> : null}
           </div>
           <div className={styles.headerActions}>
-            <Link className={styles.navLink} href="/teacher/courses">
-              Курсы
-            </Link>
+            <Link className={styles.navLink} href="/teacher">Панель</Link>
             <Link className={styles.navLink} href="/teacher/events">
               События
             </Link>

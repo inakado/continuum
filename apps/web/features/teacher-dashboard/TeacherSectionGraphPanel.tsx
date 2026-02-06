@@ -232,7 +232,9 @@ export default function TeacherSectionGraphPanel({ sectionId, sectionTitle, onBa
           <Input
             value={newUnitTitle}
             onChange={(event) => setNewUnitTitle(event.target.value)}
-            placeholder="Название юнита"
+            name="unitTitle"
+            autoComplete="off"
+            placeholder="Название юнита…"
           />
           <Button onClick={handleCreateUnit} disabled={!newUnitTitle.trim()}>
             Создать юнит
@@ -246,12 +248,16 @@ export default function TeacherSectionGraphPanel({ sectionId, sectionTitle, onBa
         </div>
       </div>
 
-      {error ? <div className={styles.error}>{error}</div> : null}
+      {error ? (
+        <div className={styles.error} role="status" aria-live="polite">
+          {error}
+        </div>
+      ) : null}
       {status ? <div className={styles.status}>{status}</div> : null}
 
-      <div className={styles.graphPanel}>
+      <div className={styles.graphPanel} aria-busy={loading}>
         {loading ? (
-          <div className={styles.loading}>Загрузка графа...</div>
+          <div className={styles.loading}>Загрузка графа…</div>
         ) : (
           <>
             <ReactFlow

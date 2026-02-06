@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Inter, Unbounded } from "next/font/google";
 import "./globals.css";
+import "katex/dist/katex.min.css";
 import ThemeHydration from "@/components/ThemeHydration";
 
 const inter = Inter({

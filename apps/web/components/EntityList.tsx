@@ -28,9 +28,9 @@ export default function EntityList({ title, items, emptyLabel }: EntityListProps
       {items.length === 0 ? (
         <div className={styles.empty}>{emptyLabel ?? "Пока пусто"}</div>
       ) : (
-        <div className={styles.list}>
+        <ul className={styles.list}>
           {items.map((item) => (
-            <div key={item.id} className={styles.card}>
+            <li key={item.id} className={styles.card}>
               <div className={styles.info}>
                 <div className={styles.nameRow}>
                   {item.href ? (
@@ -45,9 +45,9 @@ export default function EntityList({ title, items, emptyLabel }: EntityListProps
                 {item.meta ? <div className={styles.meta}>{item.meta}</div> : null}
               </div>
               <div className={styles.actions}>{item.actions}</div>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </section>
   );

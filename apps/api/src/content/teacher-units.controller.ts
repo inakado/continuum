@@ -56,6 +56,32 @@ export class TeacherUnitsController {
   @Patch(':id')
   async update(@Param('id') id: string, @Body() dto: UpdateUnitDto, @Req() req: AuthRequest) {
     const unit = await this.contentService.updateUnit(id, dto);
+    const changedFields = Object.entries(dto)
+      .filter(([, value]) => value !== undefined)
+      .map(([key]) => key);
+
+    const sizes: Record<string, number> = {};
+    if ('theoryRichLatex' in dto && dto.theoryRichLatex !== undefined) {
+      sizes.theory = (dto.theoryRichLatex ?? '').length;
+    }
+    if ('methodRichLatex' in dto && dto.methodRichLatex !== undefined) {
+      sizes.method = (dto.methodRichLatex ?? '').length;
+    }
+    if ('videosJson' in dto && dto.videosJson !== undefined) {
+      try {
+        sizes.videos = JSON.stringify(dto.videosJson ?? []).length;
+      } catch {
+        // ignore
+      }
+    }
+    if ('attachmentsJson' in dto && dto.attachmentsJson !== undefined) {
+      try {
+        sizes.attachments = JSON.stringify(dto.attachmentsJson ?? []).length;
+      } catch {
+        // ignore
+      }
+    }
+
     await this.eventsLogService.append({
       category: EventCategory.admin,
       eventType: 'UnitUpdated',
@@ -68,7 +94,8 @@ export class TeacherUnitsController {
         status: unit.status,
         sectionId: unit.sectionId,
         sortOrder: unit.sortOrder,
-        changes: dto,
+        changedFields,
+        sizes: Object.keys(sizes).length > 0 ? sizes : undefined,
       },
     });
     return unit;

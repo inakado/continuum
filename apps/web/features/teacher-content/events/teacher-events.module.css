@@ -1,6 +1,7 @@
 .table {
-  display: grid;
-  gap: 8px;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 8px;
 }
 
 .row {
@@ -8,10 +9,15 @@
   grid-template-columns: 160px 180px 140px 200px 1fr;
   gap: 12px;
   align-items: center;
-  border: 1px solid var(--border-primary);
-  padding: 10px 12px;
+  outline: 1px solid var(--border-primary);
   background: var(--bg-primary);
   font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.row > th,
+.row > td {
+  padding: 10px 12px;
 }
 
 .header {
@@ -49,5 +55,10 @@
   .row {
     grid-template-columns: 1fr;
     gap: 6px;
+  }
+
+  .row > th,
+  .row > td {
+    padding: 8px 10px;
   }
 }

@@ -1,13 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import DashboardShell from "@/components/DashboardShell";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { teacherApi, Course, CourseWithSections, Section } from "@/lib/api/teacher";
 import { getApiErrorMessage } from "@/features/teacher-content/shared/api-errors";
-import TeacherSectionGraphPanel from "./TeacherSectionGraphPanel";
 import styles from "./teacher-dashboard.module.css";
 
 type ActiveSection = "edit" | "students" | "analytics";
@@ -22,6 +22,16 @@ type ContentConfig = {
   subtitle: string;
 };
 
+const TeacherSectionGraphPanel = dynamic(() => import("./TeacherSectionGraphPanel"), {
+  ssr: false,
+  loading: () => (
+    <div className={styles.placeholder}>
+      <div className={styles.placeholderTitle}>Загрузка графа…</div>
+      <div className={styles.placeholderSubtitle}>Подготавливаем редактор.</div>
+    </div>
+  ),
+});
+
 export default function TeacherDashboardScreen({ active, initialSectionId }: TeacherDashboardScreenProps) {
   const router = useRouter();
   const isEditMode = active === "edit";
@@ -34,12 +44,13 @@ export default function TeacherDashboardScreen({ active, initialSectionId }: Tea
   const [loadingSections, setLoadingSections] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [courseTitle, setCourseTitle] = useState("");
-  const [courseDescription, setCourseDescription] = useState("");
   const [sectionTitle, setSectionTitle] = useState("");
   const [courseFormError, setCourseFormError] = useState<string | null>(null);
   const [sectionFormError, setSectionFormError] = useState<string | null>(null);
   const [creatingCourse, setCreatingCourse] = useState(false);
   const [creatingSection, setCreatingSection] = useState(false);
+  const [showCourseForm, setShowCourseForm] = useState(false);
+  const [showSectionForm, setShowSectionForm] = useState(false);
 
   const content = useMemo<ContentConfig>(() => {
     switch (active) {
@@ -62,23 +73,26 @@ export default function TeacherDashboardScreen({ active, initialSectionId }: Tea
     }
   }, [active]);
 
-  const navItems = [
-    {
-      label: "Создание и редактирование",
-      href: "/teacher",
-      active: active === "edit",
-    },
-    {
-      label: "Ученики",
-      href: "/teacher/students",
-      active: active === "students",
-    },
-    {
-      label: "Аналитика",
-      href: "/teacher/analytics",
-      active: active === "analytics",
-    },
-  ];
+  const navItems = useMemo(
+    () => [
+      {
+        label: "Создание и редактирование",
+        href: "/teacher",
+        active: active === "edit",
+      },
+      {
+        label: "Ученики",
+        href: "/teacher/students",
+        active: active === "students",
+      },
+      {
+        label: "Аналитика",
+        href: "/teacher/analytics",
+        active: active === "analytics",
+      },
+    ],
+    [active],
+  );
 
   const sortedSections = useMemo(() => {
     if (!selectedCourse) return [];
@@ -105,6 +119,7 @@ export default function TeacherDashboardScreen({ active, initialSectionId }: Tea
     setSelectedCourse(null);
     setLoadingSections(true);
     setSectionTitle("");
+    setShowSectionForm(false);
     setSectionFormError(null);
     try {
       const data = await teacherApi.getCourse(courseId);
@@ -133,10 +148,10 @@ export default function TeacherDashboardScreen({ active, initialSectionId }: Tea
     try {
       const created = await teacherApi.createCourse({
         title: courseTitle.trim(),
-        description: courseDescription.trim() || null,
+        description: null,
       });
       setCourseTitle("");
-      setCourseDescription("");
+      setShowCourseForm(false);
       await fetchCourses();
       await selectCourse(created.id);
     } catch (err) {
@@ -157,11 +172,70 @@ export default function TeacherDashboardScreen({ active, initialSectionId }: Tea
         sortOrder: 0,
       });
       setSectionTitle("");
+      setShowSectionForm(false);
       await selectCourse(selectedCourse.id);
     } catch (err) {
       setSectionFormError(getApiErrorMessage(err));
     } finally {
       setCreatingSection(false);
+    }
+  };
+
+  const handlePublishCourseToggle = async (course: Course) => {
+    setError(null);
+    try {
+      if (course.status === "published") {
+        await teacherApi.unpublishCourse(course.id);
+      } else {
+        await teacherApi.publishCourse(course.id);
+      }
+      await fetchCourses();
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+    }
+  };
+
+  const handleDeleteCourse = async (course: Course) => {
+    const confirmed = window.confirm("Удалить курс? Удаление возможно только если в курсе нет разделов.");
+    if (!confirmed) return;
+    setError(null);
+    try {
+      await teacherApi.deleteCourse(course.id);
+      if (selectedCourseId === course.id) {
+        setSelectedCourse(null);
+        setSelectedCourseId(null);
+      }
+      await fetchCourses();
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+    }
+  };
+
+  const handlePublishSectionToggle = async (section: Section) => {
+    if (!selectedCourse) return;
+    setError(null);
+    try {
+      if (section.status === "published") {
+        await teacherApi.unpublishSection(section.id);
+      } else {
+        await teacherApi.publishSection(section.id);
+      }
+      await selectCourse(selectedCourse.id);
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+    }
+  };
+
+  const handleDeleteSection = async (section: Section) => {
+    if (!selectedCourse) return;
+    const confirmed = window.confirm("Удалить раздел? Удаление возможно только если в разделе нет юнитов.");
+    if (!confirmed) return;
+    setError(null);
+    try {
+      await teacherApi.deleteSection(section.id);
+      await selectCourse(selectedCourse.id);
+    } catch (err) {
+      setError(getApiErrorMessage(err));
     }
   };
 
@@ -189,7 +263,11 @@ export default function TeacherDashboardScreen({ active, initialSectionId }: Tea
           </div>
         </div>
 
-        {error ? <div className={styles.error}>{error}</div> : null}
+        {error ? (
+          <div className={styles.error} role="status" aria-live="polite">
+            {error}
+          </div>
+        ) : null}
 
         {active !== "edit" ? (
           <div className={styles.placeholder}>
@@ -203,105 +281,63 @@ export default function TeacherDashboardScreen({ active, initialSectionId }: Tea
             onBack={handleBackToList}
           />
         ) : (
-          <div className={styles.panels}>
-            <section className={styles.panel}>
-              <div className={styles.panelHeader}>
-                <div>
-                  <div className={styles.panelKicker}>Курсы</div>
-                  <div className={styles.panelTitle}>Структура контента</div>
+          <section className={styles.panel}>
+            <div className={styles.panelHeader}>
+              <div>
+                <div className={styles.panelKicker}>Структура контента</div>
+                <div className={styles.panelTitle}>
+                  {selectedCourse ? selectedCourse.title : "Курсы"}
                 </div>
               </div>
-              <div className={styles.panelBody}>
-                <div className={styles.formStack}>
-                  <label className={styles.label}>
-                    Название курса
-                    <Input
-                      value={courseTitle}
-                      onChange={(event) => setCourseTitle(event.target.value)}
-                      placeholder="Например, Математика 7 класс"
-                    />
-                  </label>
-                  <label className={styles.label}>
-                    Описание
-                    <Input
-                      value={courseDescription}
-                      onChange={(event) => setCourseDescription(event.target.value)}
-                      placeholder="Короткая заметка (опционально)"
-                    />
-                  </label>
-                  {courseFormError ? (
-                    <div className={styles.formError}>{courseFormError}</div>
-                  ) : null}
-                  <div className={styles.actions}>
-                    <Button
-                      onClick={handleCreateCourse}
-                      disabled={!courseTitle.trim() || creatingCourse}
-                    >
-                      Создать курс
-                    </Button>
-                    <Button variant="ghost" onClick={fetchCourses} disabled={loadingCourses}>
-                      Обновить список
-                    </Button>
-                  </div>
-                </div>
-
-                <div className={styles.list}>
-                  {loadingCourses ? (
-                    <div className={styles.empty}>Загрузка курсов...</div>
-                  ) : courses.length === 0 ? (
-                    <div className={styles.empty}>Пока нет курсов. Создайте первый.</div>
-                  ) : (
-                    courses.map((course) => (
-                      <button
-                        key={course.id}
-                        type="button"
-                        onClick={() => selectCourse(course.id)}
-                        className={`${styles.listItem} ${
-                          selectedCourseId === course.id ? styles.listItemActive : ""
-                        }`}
-                      >
-                        <div className={styles.itemInfo}>
-                          <div className={styles.itemTitle}>{course.title}</div>
-                          <div className={styles.itemMeta}>
-                            {course.description ? course.description : "Без описания"}
-                          </div>
-                        </div>
-                        <span
-                          className={styles.status}
-                          data-status={course.status}
-                        >
-                          {course.status === "published" ? "Опубликован" : "Черновик"}
-                        </span>
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
-            </section>
-
-            <section className={styles.panel}>
-              <div className={styles.panelHeader}>
-                <div>
-                  <div className={styles.panelKicker}>Разделы</div>
-                  <div className={styles.panelTitle}>
-                    {selectedCourse ? selectedCourse.title : "Выберите курс"}
-                  </div>
-                </div>
-              </div>
-              <div className={styles.panelBody}>
-                {!selectedCourse ? (
-                  <div className={styles.empty}>Нажмите на курс слева, чтобы увидеть разделы.</div>
-                ) : loadingSections ? (
-                  <div className={styles.empty}>Загрузка разделов...</div>
-                ) : (
+              <div className={styles.panelActions}>
+                {selectedCourse ? (
                   <>
-                    <div className={styles.formStack}>
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setSelectedCourse(null);
+                        setSelectedCourseId(null);
+                        setShowSectionForm(false);
+                        setSectionTitle("");
+                      }}
+                    >
+                      ← Курсы
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setShowSectionForm((prev) => !prev);
+                        setSectionFormError(null);
+                      }}
+                    >
+                      Новый раздел
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    onClick={() => {
+                      setShowCourseForm((prev) => !prev);
+                      setCourseFormError(null);
+                    }}
+                  >
+                    Создать курс
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className={styles.panelBody}>
+              {selectedCourse ? (
+                <>
+                  {showSectionForm ? (
+                    <div className={styles.inlineForm}>
                       <label className={styles.label}>
                         Название раздела
                         <Input
                           value={sectionTitle}
                           onChange={(event) => setSectionTitle(event.target.value)}
-                          placeholder="Например, Дроби и проценты"
+                          name="sectionTitle"
+                          autoComplete="off"
+                          placeholder="Например, Дроби и проценты…"
                         />
                       </label>
                       {sectionFormError ? (
@@ -312,44 +348,138 @@ export default function TeacherDashboardScreen({ active, initialSectionId }: Tea
                           onClick={handleCreateSection}
                           disabled={!sectionTitle.trim() || creatingSection}
                         >
-                          Создать раздел
+                          Сохранить раздел
                         </Button>
-                        <Button
-                          variant="ghost"
-                          onClick={() => selectCourse(selectedCourse.id)}
-                        >
-                          Обновить разделы
+                        <Button variant="ghost" onClick={() => setShowSectionForm(false)}>
+                          Отмена
                         </Button>
                       </div>
                     </div>
+                  ) : null}
 
-                    <div className={styles.list}>
-                      {sortedSections.length === 0 ? (
-                        <div className={styles.empty}>Разделов пока нет.</div>
-                      ) : (
-                        sortedSections.map((section) => (
+                  {loadingSections ? (
+                    <div className={styles.empty}>Загрузка разделов…</div>
+                  ) : sortedSections.length === 0 ? (
+                    <div className={styles.empty}>Разделов пока нет.</div>
+                  ) : (
+                    <div className={styles.cardGrid}>
+                      {sortedSections.map((section) => (
+                        <div
+                          key={section.id}
+                          className={styles.card}
+                        >
                           <button
-                            key={section.id}
                             type="button"
-                            className={styles.listItem}
+                            className={styles.cardMain}
                             onClick={() => handleSectionClick(section)}
                           >
-                            <div className={styles.itemInfo}>
-                              <div className={styles.itemTitle}>{section.title}</div>
-                              <div className={styles.itemMeta}>Перейти к графу раздела</div>
+                            <div className={styles.cardTitleRow}>
+                              <div className={styles.cardTitle}>{section.title}</div>
+                              <span className={styles.status} data-status={section.status}>
+                                {section.status === "published" ? "Опубликован" : "Черновик"}
+                              </span>
                             </div>
-                            <span className={styles.status} data-status={section.status}>
-                              {section.status === "published" ? "Опубликован" : "Черновик"}
-                            </span>
+                            <div className={styles.cardMeta}>Открыть граф</div>
                           </button>
-                        ))
-                      )}
+                          <div className={styles.cardActions}>
+                            <Button
+                              variant="ghost"
+                              onClick={() => handlePublishSectionToggle(section)}
+                            >
+                              {section.status === "published" ? "В черновик" : "Опубликовать"}
+                            </Button>
+                            <Button variant="ghost" onClick={() => handleDeleteSection(section)}>
+                              Удалить
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </>
-                )}
-              </div>
-            </section>
-          </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  {showCourseForm ? (
+                    <div className={styles.inlineForm}>
+                      <label className={styles.label}>
+                        Название курса
+                        <Input
+                          value={courseTitle}
+                          onChange={(event) => setCourseTitle(event.target.value)}
+                          name="courseTitle"
+                          autoComplete="off"
+                          placeholder="Например, Математика 7 класс…"
+                        />
+                      </label>
+                      {courseFormError ? (
+                        <div className={styles.formError}>{courseFormError}</div>
+                      ) : null}
+                      <div className={styles.actions}>
+                        <Button
+                          onClick={handleCreateCourse}
+                          disabled={!courseTitle.trim() || creatingCourse}
+                        >
+                          Сохранить курс
+                        </Button>
+                        <Button variant="ghost" onClick={() => setShowCourseForm(false)}>
+                          Отмена
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {loadingCourses ? (
+                    <div className={styles.empty}>Загрузка курсов…</div>
+                  ) : courses.length === 0 ? (
+                    <div className={styles.empty}>Пока нет курсов. Создайте первый.</div>
+                  ) : (
+                    <div className={styles.cardGrid}>
+                      {courses.map((course) => (
+                        <div
+                          key={course.id}
+                          className={`${styles.card} ${
+                            selectedCourseId === course.id ? styles.cardActive : ""
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            className={styles.cardMain}
+                            onClick={() => {
+                              setShowCourseForm(false);
+                              setCourseTitle("");
+                              setCourseFormError(null);
+                              selectCourse(course.id);
+                            }}
+                          >
+                            <div className={styles.cardTitleRow}>
+                              <div className={styles.cardTitle}>{course.title}</div>
+                              <span className={styles.status} data-status={course.status}>
+                                {course.status === "published" ? "Опубликован" : "Черновик"}
+                              </span>
+                            </div>
+                            <div className={styles.cardMeta}>
+                              {course.description ? course.description : "Без описания"}
+                            </div>
+                          </button>
+                          <div className={styles.cardActions}>
+                            <Button
+                              variant="ghost"
+                              onClick={() => handlePublishCourseToggle(course)}
+                            >
+                              {course.status === "published" ? "В черновик" : "Опубликовать"}
+                            </Button>
+                            <Button variant="ghost" onClick={() => handleDeleteCourse(course)}>
+                              Удалить
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </section>
         )}
       </div>
     </DashboardShell>

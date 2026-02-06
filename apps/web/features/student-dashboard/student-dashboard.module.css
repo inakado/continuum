@@ -1,15 +1,124 @@
 .content {
-  display: grid;
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .title {
   font-family: var(--font-unbounded), sans-serif;
   font-weight: 300;
-  font-size: 24px;
+  font-size: clamp(22px, 2vw, 30px);
+  text-wrap: balance;
 }
 
 .subtitle {
   color: var(--text-muted);
   font-size: 14px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.error {
+  border: 2px solid var(--border-primary);
+  background: var(--bg-accent);
+  color: var(--text-accent);
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.panel {
+  border: 2px solid var(--border-primary);
+  background: var(--bg-primary);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cardGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.card {
+  border: 2px solid var(--border-primary);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  background: var(--bg-primary);
+  cursor: pointer;
+  min-height: 110px;
+  justify-content: space-between;
+  touch-action: manipulation;
+}
+
+.card:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--border-primary);
+}
+
+.cardActive {
+  background: var(--bg-accent);
+  color: var(--text-accent);
+}
+
+.cardTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cardTitle {
+  font-weight: 700;
+  font-size: 14px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardMeta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.cardActive .cardMeta {
+  color: inherit;
+}
+
+.status {
+  border: 2px solid var(--border-primary);
+  padding: 2px 8px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  flex-shrink: 0;
+  width: fit-content;
+}
+
+.cardActive .status {
+  border-color: currentColor;
+}
+
+.empty {
+  border: 2px dashed var(--border-primary);
+  padding: 14px;
+  font-size: 12px;
+  color: var(--text-muted);
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
@@ -19,12 +19,19 @@ export default function UnifiedLoginScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const formRef = useRef<HTMLDivElement | null>(null);
-
+  const loginInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleStart = () => {
     setStarted(true);
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
+
+  useEffect(() => {
+    if (!started) return;
+    // Avoid unexpected auto-focus on touch devices.
+    if (!window.matchMedia("(pointer: fine)").matches) return;
+    loginInputRef.current?.focus();
+  }, [started]);
 
   const handleSubmit = async () => {
     setError(null);
@@ -63,6 +70,7 @@ export default function UnifiedLoginScreen() {
             type="button"
             onClick={toggle}
             aria-label={theme === "dark" ? "Светлая тема" : "Тёмная тема"}
+            aria-pressed={theme === "dark"}
           >
             {theme === "dark" ? (
               <svg viewBox="0 0 24 24" role="img" aria-hidden="true" className={styles.themeIcon}>
@@ -107,10 +115,13 @@ export default function UnifiedLoginScreen() {
               <label className={styles.label}>
                 Логин
                 <Input
+                  ref={loginInputRef}
                   value={login}
                   onChange={(event) => setLogin(event.target.value)}
-                  placeholder="teacher1 / student1"
-                  autoFocus={started}
+                  name="login"
+                  autoComplete="username"
+                  spellCheck={false}
+                  placeholder="Например: teacher1 / student1…"
                 />
               </label>
               <label className={styles.label}>
@@ -119,12 +130,18 @@ export default function UnifiedLoginScreen() {
                   type="password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Pass123!"
+                  name="password"
+                  autoComplete="current-password"
+                  placeholder="Pass123!…"
                 />
               </label>
-              {error ? <div className={styles.error}>{error}</div> : null}
+              {error ? (
+                <div className={styles.error} role="alert">
+                  {error}
+                </div>
+              ) : null}
               <Button disabled={loading || !login || !password} onClick={handleSubmit}>
-                {loading ? "Вход..." : "Войти"}
+                {loading ? "Вход…" : "Войти"}
               </Button>
             </div>
           </section>

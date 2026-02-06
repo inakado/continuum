@@ -1,25 +1,205 @@
-.topActions {
+.content {
   display: flex;
-  gap: 12px;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
   flex-wrap: wrap;
-  align-items: center;
+}
+
+.title {
+  font-family: var(--font-unbounded), sans-serif;
+  font-weight: 300;
+  font-size: clamp(22px, 2vw, 30px);
+  text-wrap: balance;
+}
+
+.subtitle {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.saveStatus {
   border: 2px solid var(--border-primary);
-  padding: 12px;
+  padding: 8px 10px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 .error {
   border: 2px solid var(--border-primary);
-  padding: 10px;
+  padding: 10px 12px;
   background: var(--bg-accent);
   color: var(--text-accent);
   font-size: 13px;
 }
 
-.label {
+.editorGrid {
   display: grid;
-  gap: 6px;
-  font-size: 12px;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+  align-items: start;
+}
+
+.editorPanel,
+.previewPanel {
+  border: 2px solid var(--border-primary);
+  background: var(--bg-primary);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.kicker {
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+
+.previewStub {
+  border: 2px dashed var(--border-primary);
+  padding: 14px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.editorLoading {
+  border: 2px dashed var(--border-primary);
+  padding: 14px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.videoPanel {
+  display: grid;
+  gap: 12px;
+}
+
+.videoHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  border: 2px solid var(--border-primary);
+  background: var(--bg-primary);
+  padding: 12px;
+}
+
+.hint {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.videoList {
+  display: grid;
+  gap: 12px;
+}
+
+.videoCard {
+  border: 2px solid var(--border-primary);
+  background: var(--bg-primary);
+  padding: 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.videoActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tasksPanel {
+  display: grid;
+  gap: 12px;
+}
+
+.tasksHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  border: 2px solid var(--border-primary);
+  background: var(--bg-primary);
+  padding: 12px;
+}
+
+.taskList {
+  display: grid;
+  gap: 12px;
+}
+
+.taskCard {
+  border: 2px solid var(--border-primary);
+  background: var(--bg-primary);
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  cursor: grab;
+}
+
+.taskCardDragging {
+  opacity: 0.8;
+  cursor: grabbing;
+}
+
+.taskHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.taskNumber {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.taskTitle {
+  font-weight: 700;
+}
+
+.taskMeta {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.taskStatement {
+  border: 2px dashed var(--border-primary);
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+}
+
+.taskActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 1100px) {
+  .editorGrid {
+    grid-template-columns: 1fr;
+  }
 }

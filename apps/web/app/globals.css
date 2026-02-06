@@ -41,6 +41,14 @@ a {
   text-decoration: none;
 }
 
+a,
+button,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
 [data-theme="dark"] {
   color-scheme: dark;
 }

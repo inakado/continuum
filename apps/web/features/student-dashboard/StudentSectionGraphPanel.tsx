@@ -4,17 +4,16 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import ReactFlow, { Background, Controls, MarkerType, type Edge, type Node, type NodeProps } from "reactflow";
 import "reactflow/dist/style.css";
-import Link from "next/link";
-import StudentShell from "@/components/StudentShell";
+import Button from "@/components/ui/Button";
 import { studentApi, type GraphEdge, type GraphNode } from "@/lib/api/student";
-import { getStudentErrorMessage } from "../shared/student-errors";
-import StudentAuthRequired from "../auth/StudentAuthRequired";
-import StudentNotFound from "../shared/StudentNotFound";
-import { useStudentLogout } from "../auth/use-student-logout";
-import styles from "./student-section-detail.module.css";
+import { ApiError } from "@/lib/api/client";
+import styles from "./student-section-graph-panel.module.css";
 
 type Props = {
   sectionId: string;
+  sectionTitle?: string | null;
+  onBack: () => void;
+  onNotFound: () => void;
 };
 
 type UnitNodeData = {
@@ -50,34 +49,34 @@ const buildFlowEdges = (edges: GraphEdge[]): Edge[] =>
     style: { stroke: "var(--border-primary)" },
   }));
 
-export default function StudentSectionDetailScreen({ sectionId }: Props) {
+export default function StudentSectionGraphPanel({ sectionId, sectionTitle, onBack, onNotFound }: Props) {
   const router = useRouter();
-  const handleLogout = useStudentLogout();
   const [nodes, setNodes] = useState<Node<UnitNodeData>[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [authRequired, setAuthRequired] = useState(false);
-  const [notFound, setNotFound] = useState(false);
 
   const fetchGraph = useCallback(async () => {
-    if (authRequired) return;
     setError(null);
-    setNotFound(false);
     setLoading(true);
     try {
       const graph = await studentApi.getSectionGraph(sectionId);
       setNodes(buildFlowNodes(graph.nodes));
       setEdges(buildFlowEdges(graph.edges));
     } catch (err) {
-      const message = getStudentErrorMessage(err);
-      if (message === "Перелогиньтесь") setAuthRequired(true);
-      if (message === "Не найдено или недоступно") setNotFound(true);
-      setError(message);
+      if (err instanceof ApiError && err.status === 404) {
+        onNotFound();
+        return;
+      }
+      if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+        setError("Нужна авторизация");
+        return;
+      }
+      setError(err instanceof Error ? err.message : "Ошибка загрузки графа");
     } finally {
       setLoading(false);
     }
-  }, [authRequired, sectionId]);
+  }, [onNotFound, sectionId]);
 
   useEffect(() => {
     fetchGraph();
@@ -85,26 +84,29 @@ export default function StudentSectionDetailScreen({ sectionId }: Props) {
 
   const nodeTypes = useMemo(() => ({ unit: UnitNode }), []);
 
-  if (authRequired) {
-    return (
-      <StudentShell title="Раздел" onLogout={handleLogout}>
-        <StudentAuthRequired />
-      </StudentShell>
-    );
-  }
-
   return (
-    <StudentShell title="Раздел" subtitle="Граф юнитов" onLogout={handleLogout}>
+    <div className={styles.wrapper}>
       <div className={styles.topActions}>
-        <Link href="/student/courses">← Все курсы</Link>
+        <div className={styles.header}>
+          <Button variant="ghost" onClick={onBack}>
+            ← К разделам
+          </Button>
+          <div>
+            <div className={styles.kicker}>Раздел</div>
+            <div className={styles.title}>{sectionTitle || "Раздел"}</div>
+          </div>
+        </div>
       </div>
 
-      {notFound ? <StudentNotFound /> : null}
-      {error && !notFound ? <div className={styles.error}>{error}</div> : null}
+      {error ? (
+        <div className={styles.error} role="status" aria-live="polite">
+          {error}
+        </div>
+      ) : null}
 
-      <div className={styles.graphPanel}>
+      <div className={styles.graphPanel} aria-busy={loading}>
         {loading ? (
-          <div className={styles.loading}>Загрузка графа...</div>
+          <div className={styles.loading}>Загрузка графа…</div>
         ) : nodes.length === 0 ? (
           <div className={styles.empty}>В разделе пока нет опубликованных юнитов</div>
         ) : (
@@ -128,6 +130,6 @@ export default function StudentSectionDetailScreen({ sectionId }: Props) {
           </ReactFlow>
         )}
       </div>
-    </StudentShell>
+    </div>
   );
 }

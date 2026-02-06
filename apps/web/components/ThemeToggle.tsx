@@ -16,6 +16,7 @@ export default function ThemeToggle({ compact = false }: ThemeToggleProps) {
       className={`${styles.toggle} ${compact ? styles.compact : ""}`}
       onClick={toggle}
       aria-label={theme === "dark" ? "Светлая тема" : "Тёмная тема"}
+      aria-pressed={theme === "dark"}
       title={theme === "dark" ? "Светлая тема" : "Тёмная тема"}
     >
       {theme === "dark" ? (

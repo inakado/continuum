@@ -58,7 +58,7 @@ export default function RoleGuard({ requiredRole, children }: RoleGuardProps) {
   }, [allowBypass, requiredRole]);
 
   if (state === "loading") {
-    return <div className={styles.state}>Проверка доступа...</div>;
+    return <div className={styles.state}>Проверка доступа…</div>;
   }
 
   if (state === "unauthorized") {

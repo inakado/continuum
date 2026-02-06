@@ -21,7 +21,7 @@ export default function StudentShell({ title, subtitle, onLogout, children }: St
             {subtitle ? <p className={styles.subtitle}>{subtitle}</p> : null}
           </div>
           <div className={styles.headerActions}>
-            <Link className={styles.navLink} href="/student/courses">
+            <Link className={styles.navLink} href="/student">
               Курсы
             </Link>
             {onLogout ? (

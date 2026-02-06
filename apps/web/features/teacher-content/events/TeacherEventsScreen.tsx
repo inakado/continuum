@@ -38,7 +38,7 @@ export default function TeacherEventsScreen() {
   const rows = useMemo(() => {
     return events.map((event) => {
       const when = new Date(event.occurredAt).toLocaleString("ru-RU");
-      const actor = event.actorUser?.login ?? event.actorUserId ?? "system";
+      const actor = event.actorUser?.login ?? event.actorUserId ?? "система";
       const entity = `${event.entityType}:${event.entityId}`;
       const payloadText = JSON.stringify(event.payload ?? {});
       const payload =
@@ -57,26 +57,34 @@ export default function TeacherEventsScreen() {
 
   return (
     <TeacherShell title="События" subtitle="Журнал действий по контенту" onLogout={handleLogout}>
-      {error ? <div className={styles.error}>{error}</div> : null}
-      <div className={styles.table}>
-        <div className={`${styles.row} ${styles.header}`}>
-          <div>Когда</div>
-          <div>Событие</div>
-          <div>Actor</div>
-          <div>Entity</div>
-          <div>Payload</div>
+      {error ? (
+        <div className={styles.error} role="status" aria-live="polite">
+          {error}
         </div>
-        {rows.map((row) => (
-          <div key={row.id} className={styles.row}>
-            <div>{row.when}</div>
-            <div>{row.eventType}</div>
-            <div>{row.actor}</div>
-            <div className={styles.mono}>{row.entity}</div>
-            <div className={styles.payload}>{row.payload}</div>
-          </div>
-        ))}
-      </div>
-      {loading ? <div className={styles.loading}>Загрузка...</div> : null}
+      ) : null}
+      <table className={styles.table} aria-busy={loading}>
+        <thead>
+          <tr className={`${styles.row} ${styles.header}`}>
+            <th scope="col">Когда</th>
+            <th scope="col">Событие</th>
+            <th scope="col">Кто</th>
+            <th scope="col">Сущность</th>
+            <th scope="col">Данные</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.id} className={styles.row}>
+              <td>{row.when}</td>
+              <td>{row.eventType}</td>
+              <td>{row.actor}</td>
+              <td className={styles.mono}>{row.entity}</td>
+              <td className={styles.payload}>{row.payload}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {loading ? <div className={styles.loading}>Загрузка…</div> : null}
       {!loading && rows.length === 0 ? (
         <div className={styles.empty}>Событий пока нет</div>
       ) : null}

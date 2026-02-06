@@ -75,8 +75,15 @@ model Unit {
   id        String        @id @default(uuid()) @db.Uuid
   sectionId String        @map("section_id") @db.Uuid
   title     String
+  description String?     @map("description")
   status    ContentStatus @default(draft)
   sortOrder Int           @default(0) @map("sort_order")
+  theoryRichLatex    String? @map("theory_rich_latex")
+  theoryPdfAssetKey  String? @map("theory_pdf_asset_key")
+  methodRichLatex    String? @map("method_rich_latex")
+  methodPdfAssetKey  String? @map("method_pdf_asset_key")
+  videosJson         Json?   @map("videos_json")
+  attachmentsJson    Json?   @map("attachments_json")
   createdAt DateTime      @default(now()) @map("created_at")
   updatedAt DateTime      @updatedAt @map("updated_at")
 
@@ -131,6 +138,10 @@ model Task {
   title         String?
   statementLite String        @map("statement_lite")
   answerType    String        @map("answer_type")
+  numericPartsJson Json?      @map("numeric_parts_json")
+  choicesJson      Json?      @map("choices_json")
+  correctAnswerJson Json?     @map("correct_answer_json")
+  solutionLite   String?      @map("solution_lite")
   isRequired    Boolean       @default(false) @map("is_required")
   status        ContentStatus @default(draft)
   sortOrder     Int           @default(0) @map("sort_order")

@@ -1,10 +1,22 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { ContentStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCourseDto, UpdateCourseDto } from './dto/course.dto';
 import { CreateSectionDto, UpdateSectionDto } from './dto/section.dto';
 import { CreateUnitDto, UpdateUnitDto } from './dto/unit.dto';
 import { CreateTaskDto, UpdateTaskDto } from './dto/task.dto';
+
+type UnitVideo = { id: string; title: string; embedUrl: string };
+type UnitAttachment = { id: string; name: string; urlOrKey?: string | null };
+type NumericPart = { key: string; labelLite?: string | null; correctValue: string };
+type Choice = { key: string; textLite: string };
+type CorrectAnswer = { key?: string; keys?: string[] };
+type TaskAnswerType = 'numeric' | 'single_choice' | 'multi_choice' | 'photo';
 
 type GraphNode = {
   unitId: string;
@@ -362,9 +374,30 @@ export class ContentService {
     const exists = await this.prisma.unit.findUnique({ where: { id } });
     if (!exists) throw new NotFoundException('Unit not found');
 
-    const data: { title?: string; sortOrder?: number } = {};
+    const data: {
+      title?: string;
+      description?: string | null;
+      sortOrder?: number;
+      theoryRichLatex?: string | null;
+      methodRichLatex?: string | null;
+      videosJson?: UnitVideo[] | null;
+      attachmentsJson?: UnitAttachment[] | null;
+    } = {};
     if (dto.title !== undefined) data.title = dto.title;
+    if (dto.description !== undefined) data.description = dto.description;
     if (dto.sortOrder !== undefined) data.sortOrder = dto.sortOrder;
+    if (dto.theoryRichLatex !== undefined) {
+      data.theoryRichLatex = this.sanitizeRichText(dto.theoryRichLatex);
+    }
+    if (dto.methodRichLatex !== undefined) {
+      data.methodRichLatex = this.sanitizeRichText(dto.methodRichLatex);
+    }
+    if (dto.videosJson !== undefined) {
+      data.videosJson = this.validateVideosJson(dto.videosJson);
+    }
+    if (dto.attachmentsJson !== undefined) {
+      data.attachmentsJson = this.validateAttachmentsJson(dto.attachmentsJson);
+    }
 
     return this.prisma.unit.update({ where: { id }, data });
   }
@@ -418,12 +451,25 @@ export class ContentService {
     const unit = await this.prisma.unit.findUnique({ where: { id: dto.unitId } });
     if (!unit) throw new NotFoundException('Unit not found');
 
+    const normalized = this.normalizeTaskPayload({
+      answerType: dto.answerType,
+      statementLite: dto.statementLite,
+      numericPartsJson: dto.numericPartsJson,
+      choicesJson: dto.choicesJson,
+      correctAnswerJson: dto.correctAnswerJson,
+      solutionLite: dto.solutionLite ?? null,
+    });
+
     return this.prisma.task.create({
       data: {
         unitId: dto.unitId,
-        title: dto.title ?? null,
-        statementLite: dto.statementLite,
-        answerType: dto.answerType,
+        title: null,
+        statementLite: normalized.statementLite,
+        answerType: normalized.answerType,
+        numericPartsJson: normalized.numericPartsJson,
+        choicesJson: normalized.choicesJson,
+        correctAnswerJson: normalized.correctAnswerJson,
+        solutionLite: normalized.solutionLite,
         isRequired: dto.isRequired ?? false,
         sortOrder: dto.sortOrder ?? 0,
       },
@@ -431,22 +477,43 @@ export class ContentService {
   }
 
   async updateTask(id: string, dto: UpdateTaskDto) {
-    const exists = await this.prisma.task.findUnique({ where: { id } });
-    if (!exists) throw new NotFoundException('Task not found');
+    const current = await this.prisma.task.findUnique({ where: { id } });
+    if (!current) throw new NotFoundException('Task not found');
 
-    const data: {
-      title?: string | null;
-      statementLite?: string;
-      answerType?: string;
-      isRequired?: boolean;
-      sortOrder?: number;
-    } = {};
+    const merged = {
+      title: null,
+      statementLite: dto.statementLite ?? current.statementLite,
+      answerType: dto.answerType ?? current.answerType,
+      numericPartsJson:
+        dto.numericPartsJson !== undefined ? dto.numericPartsJson : current.numericPartsJson,
+      choicesJson: dto.choicesJson !== undefined ? dto.choicesJson : current.choicesJson,
+      correctAnswerJson:
+        dto.correctAnswerJson !== undefined ? dto.correctAnswerJson : current.correctAnswerJson,
+      solutionLite: dto.solutionLite !== undefined ? dto.solutionLite : current.solutionLite,
+      isRequired: dto.isRequired ?? current.isRequired,
+      sortOrder: dto.sortOrder ?? current.sortOrder,
+    };
 
-    if (dto.title !== undefined) data.title = dto.title;
-    if (dto.statementLite !== undefined) data.statementLite = dto.statementLite;
-    if (dto.answerType !== undefined) data.answerType = dto.answerType;
-    if (dto.isRequired !== undefined) data.isRequired = dto.isRequired;
-    if (dto.sortOrder !== undefined) data.sortOrder = dto.sortOrder;
+    const normalized = this.normalizeTaskPayload({
+      answerType: merged.answerType,
+      statementLite: merged.statementLite,
+      numericPartsJson: merged.numericPartsJson,
+      choicesJson: merged.choicesJson,
+      correctAnswerJson: merged.correctAnswerJson,
+      solutionLite: merged.solutionLite ?? null,
+    });
+
+    const data = {
+      title: null,
+      statementLite: normalized.statementLite,
+      answerType: normalized.answerType,
+      numericPartsJson: normalized.numericPartsJson,
+      choicesJson: normalized.choicesJson,
+      correctAnswerJson: normalized.correctAnswerJson,
+      solutionLite: normalized.solutionLite,
+      isRequired: merged.isRequired,
+      sortOrder: merged.sortOrder,
+    };
 
     return this.prisma.task.update({ where: { id }, data });
   }
@@ -483,6 +550,281 @@ export class ContentService {
     if (!exists) throw new NotFoundException('Task not found');
 
     return this.prisma.task.delete({ where: { id } });
+  }
+
+  private sanitizeRichText(value: string | null | undefined): string | null {
+    if (value === null) return null;
+    if (value === undefined) return null;
+    if (typeof value !== 'string') throw new BadRequestException('InvalidRichText');
+    const trimmed = value.trim();
+    // Keep a generous limit; autosave should never allow unbounded payloads.
+    if (trimmed.length > 200_000) throw new BadRequestException('InvalidRichText');
+    return trimmed.length === 0 ? null : trimmed;
+  }
+
+  private sanitizeOptionalTitle(value: string | null | undefined): string | null {
+    if (value === null || value === undefined) return null;
+    if (typeof value !== 'string') throw new BadRequestException('InvalidTaskTitle');
+    const trimmed = value.trim();
+    if (trimmed.length === 0) return null;
+    if (trimmed.length > 200) throw new BadRequestException('InvalidTaskTitle');
+    return trimmed;
+  }
+
+  private sanitizeLiteText(
+    value: unknown,
+    options: { required: boolean; maxLength?: number; errorCode: string },
+  ): string | null {
+    const maxLength = options.maxLength ?? 20_000;
+    if (value === null || value === undefined) {
+      if (options.required) throw new BadRequestException(options.errorCode);
+      return null;
+    }
+    if (typeof value !== 'string') throw new BadRequestException(options.errorCode);
+    const trimmed = value.trim();
+    if (options.required && trimmed.length === 0) throw new BadRequestException(options.errorCode);
+    if (trimmed.length > maxLength) throw new BadRequestException(options.errorCode);
+    return trimmed.length === 0 ? null : trimmed;
+  }
+
+  private normalizeAnswerType(value: unknown): TaskAnswerType {
+    if (value !== 'numeric' && value !== 'single_choice' && value !== 'multi_choice' && value !== 'photo') {
+      throw new BadRequestException('InvalidAnswerType');
+    }
+    return value;
+  }
+
+  private normalizeKey(value: unknown, errorCode: string): string {
+    if (typeof value !== 'string') throw new BadRequestException(errorCode);
+    const trimmed = value.trim();
+    if (!trimmed) throw new BadRequestException(errorCode);
+    if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) throw new BadRequestException(errorCode);
+    return trimmed;
+  }
+
+  private normalizeNumericParts(value: unknown): NumericPart[] {
+    if (!Array.isArray(value) || value.length === 0) {
+      throw new BadRequestException('InvalidNumericParts');
+    }
+
+    const keys = new Set<string>();
+    return value.map((item, index) => {
+      if (!item || typeof item !== 'object') throw new BadRequestException('InvalidNumericParts');
+      const part = item as Record<string, unknown>;
+      const rawKey = typeof part.key === 'string' ? part.key : '';
+      const normalizedKey = rawKey.trim() || String(index + 1);
+      const key = this.normalizeKey(normalizedKey, 'InvalidNumericParts');
+      if (keys.has(key)) throw new BadRequestException('InvalidNumericParts');
+      keys.add(key);
+
+      const labelLite = this.sanitizeLiteText(part.labelLite, {
+        required: false,
+        maxLength: 2000,
+        errorCode: 'InvalidNumericParts',
+      });
+      const correctValue = this.sanitizeLiteText(part.correctValue, {
+        required: true,
+        maxLength: 2000,
+        errorCode: 'InvalidNumericParts',
+      });
+
+      return { key, labelLite: labelLite ?? null, correctValue: correctValue ?? '' };
+    });
+  }
+
+  private normalizeChoices(value: unknown): Choice[] {
+    if (!Array.isArray(value) || value.length < 2) {
+      throw new BadRequestException('InvalidChoices');
+    }
+
+    const keys = new Set<string>();
+    return value.map((item, index) => {
+      if (!item || typeof item !== 'object') throw new BadRequestException('InvalidChoices');
+      const choice = item as Record<string, unknown>;
+      const rawKey = typeof choice.key === 'string' ? choice.key : '';
+      const normalizedKey = rawKey.trim() || String(index + 1);
+      const key = this.normalizeKey(normalizedKey, 'InvalidChoices');
+      if (keys.has(key)) throw new BadRequestException('InvalidChoices');
+      keys.add(key);
+
+      const textLite = this.sanitizeLiteText(choice.textLite, {
+        required: true,
+        maxLength: 2000,
+        errorCode: 'InvalidChoices',
+      });
+
+      return { key, textLite: textLite ?? '' };
+    });
+  }
+
+  private normalizeCorrectAnswerSingle(value: unknown, choiceKeys: Set<string>): CorrectAnswer {
+    if (!value || typeof value !== 'object') throw new BadRequestException('InvalidCorrectAnswer');
+    const v = value as Record<string, unknown>;
+    const key = this.normalizeKey(v.key, 'InvalidCorrectAnswer');
+    if (!choiceKeys.has(key)) throw new BadRequestException('InvalidCorrectAnswer');
+    return { key };
+  }
+
+  private normalizeCorrectAnswerMulti(value: unknown, choiceKeys: Set<string>): CorrectAnswer {
+    if (!value || typeof value !== 'object') throw new BadRequestException('InvalidCorrectAnswer');
+    const v = value as Record<string, unknown>;
+    if (!Array.isArray(v.keys) || v.keys.length === 0) {
+      throw new BadRequestException('InvalidCorrectAnswer');
+    }
+    const unique = new Set<string>();
+    const keys = v.keys.map((item) => {
+      const key = this.normalizeKey(item, 'InvalidCorrectAnswer');
+      if (!choiceKeys.has(key)) throw new BadRequestException('InvalidCorrectAnswer');
+      unique.add(key);
+      return key;
+    });
+    if (unique.size === 0) throw new BadRequestException('InvalidCorrectAnswer');
+    return { keys: Array.from(unique) };
+  }
+
+  private normalizeTaskPayload(payload: {
+    answerType: unknown;
+    statementLite: unknown;
+    numericPartsJson?: unknown;
+    choicesJson?: unknown;
+    correctAnswerJson?: unknown;
+    solutionLite?: unknown;
+  }): {
+    answerType: TaskAnswerType;
+    statementLite: string;
+    numericPartsJson: NumericPart[] | null;
+    choicesJson: Choice[] | null;
+    correctAnswerJson: CorrectAnswer | null;
+    solutionLite: string | null;
+  } {
+    const answerType = this.normalizeAnswerType(payload.answerType);
+    const statementLite =
+      this.sanitizeLiteText(payload.statementLite, {
+        required: true,
+        maxLength: 20_000,
+        errorCode: 'InvalidStatementLite',
+      }) ?? '';
+    const solutionLite = this.sanitizeLiteText(payload.solutionLite, {
+      required: false,
+      maxLength: 20_000,
+      errorCode: 'InvalidSolutionLite',
+    });
+
+    if (answerType === 'numeric') {
+      const numericParts = this.normalizeNumericParts(payload.numericPartsJson);
+      return {
+        answerType,
+        statementLite,
+        numericPartsJson: numericParts,
+        choicesJson: null,
+        correctAnswerJson: null,
+        solutionLite,
+      };
+    }
+
+    if (answerType === 'single_choice' || answerType === 'multi_choice') {
+      const choices = this.normalizeChoices(payload.choicesJson);
+      const choiceKeys = new Set(choices.map((choice) => choice.key));
+      const correctAnswer =
+        answerType === 'single_choice'
+          ? this.normalizeCorrectAnswerSingle(payload.correctAnswerJson, choiceKeys)
+          : this.normalizeCorrectAnswerMulti(payload.correctAnswerJson, choiceKeys);
+      return {
+        answerType,
+        statementLite,
+        numericPartsJson: null,
+        choicesJson: choices,
+        correctAnswerJson: correctAnswer,
+        solutionLite,
+      };
+    }
+
+    if (payload.numericPartsJson !== null && payload.numericPartsJson !== undefined) {
+      throw new BadRequestException('InvalidNumericParts');
+    }
+    if (payload.choicesJson !== null && payload.choicesJson !== undefined) {
+      throw new BadRequestException('InvalidChoices');
+    }
+    if (payload.correctAnswerJson !== null && payload.correctAnswerJson !== undefined) {
+      throw new BadRequestException('InvalidCorrectAnswer');
+    }
+
+    return {
+      answerType,
+      statementLite,
+      numericPartsJson: null,
+      choicesJson: null,
+      correctAnswerJson: null,
+      solutionLite,
+    };
+  }
+
+  private validateVideosJson(value: unknown): UnitVideo[] | null {
+    if (value === null) return null;
+    if (!Array.isArray(value)) throw new BadRequestException('InvalidVideosJson');
+    if (value.length > 20) throw new BadRequestException('InvalidVideosJson');
+
+    const videos: UnitVideo[] = [];
+    for (const item of value) {
+      if (!item || typeof item !== 'object') throw new BadRequestException('InvalidVideosJson');
+      const v = item as Record<string, unknown>;
+
+      const id = typeof v.id === 'string' ? v.id.trim() : '';
+      const title = typeof v.title === 'string' ? v.title.trim() : '';
+      const embedUrl = typeof v.embedUrl === 'string' ? v.embedUrl.trim() : '';
+
+      if (!id) throw new BadRequestException('InvalidVideosJson');
+      // Title can be empty while the teacher is drafting the entry.
+      if (title.length > 120) throw new BadRequestException('InvalidVideosJson');
+      // URL can be empty while the teacher is drafting the entry.
+      if (embedUrl.length > 2048) throw new BadRequestException('InvalidVideosJson');
+
+      if (embedUrl.length > 0) {
+        let parsed: URL;
+        try {
+          parsed = new URL(embedUrl);
+        } catch {
+          throw new BadRequestException('InvalidVideosJson');
+        }
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+          throw new BadRequestException('InvalidVideosJson');
+        }
+      }
+
+      videos.push({ id, title, embedUrl });
+    }
+
+    return videos;
+  }
+
+  private validateAttachmentsJson(value: unknown): UnitAttachment[] | null {
+    if (value === null) return null;
+    if (!Array.isArray(value)) throw new BadRequestException('InvalidAttachmentsJson');
+    if (value.length > 50) throw new BadRequestException('InvalidAttachmentsJson');
+
+    const attachments: UnitAttachment[] = [];
+    for (const item of value) {
+      if (!item || typeof item !== 'object') throw new BadRequestException('InvalidAttachmentsJson');
+      const a = item as Record<string, unknown>;
+      const id = typeof a.id === 'string' ? a.id.trim() : '';
+      const name = typeof a.name === 'string' ? a.name.trim() : '';
+      const urlOrKey =
+        a.urlOrKey === null
+          ? null
+          : typeof a.urlOrKey === 'string'
+            ? a.urlOrKey.trim()
+            : undefined;
+
+      if (!id) throw new BadRequestException('InvalidAttachmentsJson');
+      if (!name || name.length > 140) throw new BadRequestException('InvalidAttachmentsJson');
+      if (urlOrKey !== undefined && urlOrKey !== null && urlOrKey.length > 2048) {
+        throw new BadRequestException('InvalidAttachmentsJson');
+      }
+
+      attachments.push({ id, name, urlOrKey });
+    }
+
+    return attachments;
   }
 
   private async buildSectionGraph(

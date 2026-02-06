@@ -1,123 +1,325 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import TeacherShell from "@/components/TeacherShell";
-import EntityList, { EntityListItem } from "@/components/EntityList";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import DashboardShell from "@/components/DashboardShell";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
-import EntityEditorInline from "@/components/EntityEditorInline";
-import { teacherApi, UnitWithTasks, Task } from "@/lib/api/teacher";
+import Tabs from "@/components/ui/Tabs";
+import type { Task, UnitVideo, UnitWithTasks } from "@/lib/api/teacher";
+import { teacherApi } from "@/lib/api/teacher";
 import { getApiErrorMessage } from "../shared/api-errors";
-import AuthRequired from "../auth/AuthRequired";
-import { useTeacherLogout } from "../auth/use-teacher-logout";
-import TaskForm, { TaskFormData } from "../tasks/TaskForm";
+import TaskForm, { type TaskFormData } from "../tasks/TaskForm";
 import styles from "./teacher-unit-detail.module.css";
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import LiteTex from "@/components/LiteTex";
+
+const CodeMirror = dynamic(() => import("@uiw/react-codemirror"), {
+  ssr: false,
+  loading: () => <div className={styles.editorLoading}>Загрузка редактора…</div>,
+});
 
 type Props = {
   unitId: string;
 };
 
+type TabKey = "theory" | "method" | "tasks" | "video" | "attachments";
+
+type SaveState =
+  | { state: "idle" }
+  | { state: "saving" }
+  | { state: "saved"; at: number }
+  | { state: "error"; message: string };
+
+const AUTOSAVE_DEBOUNCE_MS = 1000;
+
+const answerTypeLabels: Record<TaskFormData["answerType"], string> = {
+  numeric: "Числовая",
+  single_choice: "Один вариант",
+  multi_choice: "Несколько вариантов",
+  photo: "Фото-ответ",
+};
+
+const buildSnapshot = (theory: string, method: string, videos: UnitVideo[]) => ({
+  theory,
+  method,
+  videos: JSON.stringify(videos),
+});
+
+const sortTasks = (tasks: Task[]) =>
+  [...tasks].sort((a, b) => {
+    if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  });
+
+type SortableTaskCardProps = {
+  task: Task;
+  index: number;
+  onEdit: (task: Task) => void;
+  onDelete: (task: Task) => void;
+  onPublishToggle: (task: Task) => void;
+};
+
+function SortableTaskCard({ task, index, onEdit, onDelete, onPublishToggle }: SortableTaskCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: task.id,
+  });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`${styles.taskCard} ${isDragging ? styles.taskCardDragging : ""}`}
+      {...attributes}
+      {...listeners}
+    >
+      <div className={styles.taskHeader}>
+        <div className={styles.taskNumber}>Задача №{index + 1}</div>
+        <div className={styles.taskMeta}>
+          {answerTypeLabels[task.answerType]} • {task.isRequired ? "обязательная" : "необязательная"} •{" "}
+          {task.status === "published" ? "опубликована" : "черновик"}
+        </div>
+      </div>
+      <div className={styles.taskStatement}>
+        <LiteTex value={task.statementLite} block />
+      </div>
+      <div className={styles.taskActions}>
+        <Button variant="ghost" onClick={() => onPublishToggle(task)}>
+          {task.status === "published" ? "В черновик" : "Опубликовать"}
+        </Button>
+        <Button variant="ghost" onClick={() => onEdit(task)}>
+          Редактировать
+        </Button>
+        <Button variant="ghost" onClick={() => onDelete(task)}>
+          Удалить
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+const buildTaskPayload = (data: TaskFormData) => {
+  const base = {
+    statementLite: data.statementLite,
+    answerType: data.answerType,
+    isRequired: data.isRequired,
+    sortOrder: data.sortOrder,
+    solutionLite: data.solutionLite.trim() ? data.solutionLite : null,
+  };
+
+  if (data.answerType === "numeric") {
+    return {
+      ...base,
+      numericPartsJson: data.numericParts,
+      choicesJson: null,
+      correctAnswerJson: null,
+    };
+  }
+
+  if (data.answerType === "single_choice" || data.answerType === "multi_choice") {
+    return {
+      ...base,
+      numericPartsJson: null,
+      choicesJson: data.choices,
+      correctAnswerJson: data.correctAnswer,
+    };
+  }
+
+  return {
+    ...base,
+    numericPartsJson: null,
+    choicesJson: null,
+    correctAnswerJson: null,
+  };
+};
+
+const mapTaskToFormData = (task: Task): TaskFormData => ({
+  statementLite: task.statementLite ?? "",
+  answerType: task.answerType,
+  numericParts: task.numericPartsJson ?? [],
+  choices: task.choicesJson ?? [],
+  correctAnswer: task.correctAnswerJson ?? null,
+  solutionLite: task.solutionLite ?? "",
+  isRequired: task.isRequired,
+  sortOrder: task.sortOrder,
+});
+
 export default function TeacherUnitDetailScreen({ unitId }: Props) {
-  const handleLogout = useTeacherLogout();
+  const tabsId = useId();
   const [unit, setUnit] = useState<UnitWithTasks | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const [authRequired, setAuthRequired] = useState(false);
-  const [editing, setEditing] = useState<UnitWithTasks | null>(null);
-  const [unitTitle, setUnitTitle] = useState("");
+
+  const [activeTab, setActiveTab] = useState<TabKey>("theory");
+
+  const [theoryText, setTheoryText] = useState("");
+  const [methodText, setMethodText] = useState("");
+  const [videos, setVideos] = useState<UnitVideo[]>([]);
+
+  const [creatingTask, setCreatingTask] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [saveState, setSaveState] = useState<SaveState>({ state: "idle" });
+  const [taskOrder, setTaskOrder] = useState<Task[]>([]);
+  const [taskOrderStatus, setTaskOrderStatus] = useState<string | null>(null);
+
+  const snapshotRef = useRef<ReturnType<typeof buildSnapshot> | null>(null);
+  const timerRef = useRef<number | null>(null);
+  const inflightRef = useRef(0);
+
+  const navItems = useMemo(
+    () => [
+      { label: "Создание и редактирование", href: "/teacher", active: true },
+      { label: "Ученики", href: "/teacher/students" },
+      { label: "Аналитика", href: "/teacher/analytics" },
+    ],
+    [],
+  );
+
+  const tabs = useMemo(
+    () => [
+      { key: "theory" as const, label: "Теория" },
+      { key: "method" as const, label: "Методика" },
+      { key: "tasks" as const, label: "Задачи" },
+      { key: "video" as const, label: "Видео" },
+      { key: "attachments" as const, label: "Вложения" },
+    ],
+    [],
+  );
+
+  const nextTaskOrder = useMemo(() => {
+    if (!taskOrder.length) return 1;
+    const maxOrder = Math.max(...taskOrder.map((task) => task.sortOrder ?? 0));
+    return Math.max(maxOrder + 1, taskOrder.length + 1);
+  }, [taskOrder]);
+
+  const editingTaskNumber = useMemo(() => {
+    if (!editingTask) return null;
+    const index = taskOrder.findIndex((task) => task.id === editingTask.id);
+    return index >= 0 ? index + 1 : null;
+  }, [editingTask, taskOrder]);
 
   const fetchUnit = useCallback(async () => {
-    if (authRequired) return;
     setError(null);
     try {
       const data = await teacherApi.getUnit(unitId);
       setUnit(data);
+
+      const nextTheory = data.theoryRichLatex ?? "";
+      const nextMethod = data.methodRichLatex ?? "";
+      const nextVideos = data.videosJson ?? [];
+
+      setTheoryText(nextTheory);
+      setMethodText(nextMethod);
+      setVideos(nextVideos);
+      snapshotRef.current = buildSnapshot(nextTheory, nextMethod, nextVideos);
+      setSaveState({ state: "idle" });
+      setTaskOrder(sortTasks(data.tasks));
+      setTaskOrderStatus(null);
     } catch (err) {
-      const message = getApiErrorMessage(err);
-      if (message === "Перелогиньтесь") setAuthRequired(true);
-      setError(message);
+      setError(getApiErrorMessage(err));
     }
-  }, [authRequired, unitId]);
+  }, [unitId]);
 
   useEffect(() => {
     fetchUnit();
   }, [fetchUnit]);
 
-  const handleUnitUpdate = async () => {
-    if (authRequired || !editing) return;
-    setFormError(null);
-    try {
-      await teacherApi.updateUnit(editing.id, { title: unitTitle, sortOrder: editing.sortOrder });
-      setEditing(null);
-      fetchUnit();
-    } catch (err) {
-      const message = getApiErrorMessage(err);
-      if (message === "Перелогиньтесь") setAuthRequired(true);
-      setFormError(message);
-    }
-  };
+  const scheduleAutosave = useCallback(() => {
+    if (!unit) return;
+    const snapshot = snapshotRef.current;
+    if (!snapshot) return;
 
-  const handlePublishToggle = async () => {
-    if (authRequired || !unit) return;
-    setError(null);
-    try {
-      if (unit.status === "published") {
-        await teacherApi.unpublishUnit(unit.id);
-      } else {
-        await teacherApi.publishUnit(unit.id);
+    if (timerRef.current) window.clearTimeout(timerRef.current);
+
+    timerRef.current = window.setTimeout(async () => {
+      const currentSnapshot = snapshotRef.current;
+      if (!currentSnapshot) return;
+
+      const next = buildSnapshot(theoryText, methodText, videos);
+      const changedTheory = next.theory !== currentSnapshot.theory;
+      const changedMethod = next.method !== currentSnapshot.method;
+      const changedVideos = next.videos !== currentSnapshot.videos;
+      if (!changedTheory && !changedMethod && !changedVideos) return;
+
+      const payload: {
+        theoryRichLatex?: string | null;
+        methodRichLatex?: string | null;
+        videosJson?: UnitVideo[] | null;
+      } = {};
+      if (changedTheory) payload.theoryRichLatex = theoryText;
+      if (changedMethod) payload.methodRichLatex = methodText;
+      if (changedVideos) payload.videosJson = videos;
+
+      setSaveState({ state: "saving" });
+      inflightRef.current += 1;
+      const requestId = inflightRef.current;
+
+      try {
+        const updated = await teacherApi.updateUnit(unit.id, payload);
+        if (requestId !== inflightRef.current) return;
+
+        setUnit((prev) => (prev ? { ...prev, ...updated } : prev));
+        const mergedTheory = updated.theoryRichLatex ?? theoryText;
+        const mergedMethod = updated.methodRichLatex ?? methodText;
+        const mergedVideos = updated.videosJson ?? videos;
+        snapshotRef.current = buildSnapshot(mergedTheory, mergedMethod, mergedVideos);
+        setSaveState({ state: "saved", at: Date.now() });
+      } catch (err) {
+        if (requestId !== inflightRef.current) return;
+        setSaveState({ state: "error", message: getApiErrorMessage(err) });
       }
-      fetchUnit();
-    } catch (err) {
-      const message = getApiErrorMessage(err);
-      if (message === "Перелогиньтесь") setAuthRequired(true);
-      setError(message);
-    }
-  };
+    }, AUTOSAVE_DEBOUNCE_MS);
+  }, [methodText, theoryText, unit, videos]);
+
+  useEffect(() => {
+    scheduleAutosave();
+    return () => {
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+    };
+  }, [scheduleAutosave]);
 
   const handleTaskSubmit = async (data: TaskFormData) => {
-    if (authRequired || !unit) return;
+    if (!unit) return;
     setFormError(null);
     try {
-      await teacherApi.createTask({
-        unitId: unit.id,
-        title: data.title || null,
-        statementLite: data.statementLite,
-        answerType: data.answerType,
-        isRequired: data.isRequired,
-        sortOrder: data.sortOrder,
-      });
-      fetchUnit();
+      await teacherApi.createTask({ unitId: unit.id, ...buildTaskPayload(data) });
+      setCreatingTask(false);
+      await fetchUnit();
     } catch (err) {
-      const message = getApiErrorMessage(err);
-      if (message === "Перелогиньтесь") setAuthRequired(true);
-      setFormError(message);
+      setFormError(getApiErrorMessage(err));
     }
   };
 
   const handleTaskUpdate = async (data: TaskFormData) => {
-    if (authRequired || !editingTask) return;
+    if (!editingTask) return;
     setFormError(null);
     try {
-      await teacherApi.updateTask(editingTask.id, {
-        title: data.title || null,
-        statementLite: data.statementLite,
-        answerType: data.answerType,
-        isRequired: data.isRequired,
-        sortOrder: data.sortOrder,
-      });
+      await teacherApi.updateTask(editingTask.id, buildTaskPayload(data));
       setEditingTask(null);
-      fetchUnit();
+      await fetchUnit();
     } catch (err) {
-      const message = getApiErrorMessage(err);
-      if (message === "Перелогиньтесь") setAuthRequired(true);
-      setFormError(message);
+      setFormError(getApiErrorMessage(err));
     }
   };
 
   const handleTaskPublishToggle = async (task: Task) => {
-    if (authRequired) return;
     setError(null);
     try {
       if (task.status === "published") {
@@ -125,120 +327,281 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
       } else {
         await teacherApi.publishTask(task.id);
       }
-      fetchUnit();
+      await fetchUnit();
     } catch (err) {
-      const message = getApiErrorMessage(err);
-      if (message === "Перелогиньтесь") setAuthRequired(true);
-      setError(message);
+      setError(getApiErrorMessage(err));
     }
   };
 
   const handleTaskDelete = async (task: Task) => {
-    if (authRequired) return;
     const confirmed = window.confirm("Удалить задачу? Действие нельзя отменить.");
     if (!confirmed) return;
     setError(null);
     try {
       await teacherApi.deleteTask(task.id);
-      fetchUnit();
+      await fetchUnit();
     } catch (err) {
-      const message = getApiErrorMessage(err);
-      if (message === "Перелогиньтесь") setAuthRequired(true);
-      setError(message);
+      setError(getApiErrorMessage(err));
     }
   };
 
-  const items: EntityListItem[] =
-    unit?.tasks.map((task) => ({
-      id: task.id,
-      title: task.title ?? "Без названия",
-      status: task.status,
-      meta: `${task.answerType} · обязательная: ${task.isRequired ? "да" : "нет"}`,
-      actions: (
-        <>
-          <Button variant="ghost" onClick={() => handleTaskPublishToggle(task)}>
-            {task.status === "published" ? "В черновик" : "Опубликовать"}
-          </Button>
-          <Button variant="ghost" onClick={() => setEditingTask(task)}>
-            Редактировать
-          </Button>
-          <Button variant="ghost" onClick={() => handleTaskDelete(task)}>
-            Удалить
-          </Button>
-        </>
-      ),
-    })) ?? [];
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
-  if (authRequired) {
-    return (
-      <TeacherShell title="Юнит" onLogout={handleLogout}>
-        <AuthRequired />
-      </TeacherShell>
-    );
-  }
+  const persistTaskOrder = useCallback(
+    async (nextOrder: Task[]) => {
+      if (!nextOrder.length) return;
+      const updates = nextOrder.map((task, index) => ({
+        id: task.id,
+        sortOrder: index + 1,
+      }));
+      const changed = updates.filter((update) => {
+        const current = nextOrder.find((task) => task.id === update.id);
+        return current ? current.sortOrder !== update.sortOrder : false;
+      });
+      if (!changed.length) return;
+
+      setTaskOrderStatus("Сохранение порядка…");
+      try {
+        await Promise.all(
+          changed.map((update) => teacherApi.updateTask(update.id, { sortOrder: update.sortOrder })),
+        );
+        setTaskOrderStatus("Порядок сохранён");
+        await fetchUnit();
+      } catch (err) {
+        setTaskOrderStatus(getApiErrorMessage(err));
+      }
+    },
+    [fetchUnit],
+  );
+
+  const saveStatusText =
+    saveState.state === "saving"
+      ? "Сохранение…"
+      : saveState.state === "saved"
+        ? "Сохранено"
+        : saveState.state === "error"
+          ? `Ошибка: ${saveState.message}`
+          : "";
+
+  const activePanelId = `${tabsId}-${activeTab}-panel`;
+  const activeTabId = `${tabsId}-${activeTab}`;
 
   return (
-    <TeacherShell
-      title={unit?.title ?? "Юнит"}
-      subtitle="Задачи и публикация"
-      onLogout={handleLogout}
-    >
-      <div className={styles.topActions}>
-        <Link href="/teacher">← К панели преподавателя</Link>
-        {unit ? (
-          <Button variant="ghost" onClick={handlePublishToggle}>
-            {unit.status === "published" ? "Снять с публикации" : "Опубликовать"}
-          </Button>
+    <DashboardShell title="Преподаватель" subtitle="Панель" navItems={navItems}>
+      <div className={styles.content}>
+        <div className={styles.header}>
+          <div>
+            <h1 className={styles.title}>{unit?.title ?? "Юнит"}</h1>
+            <p className={styles.subtitle}>Редактор юнита</p>
+          </div>
+          <div className={styles.saveStatus} role="status" aria-live="polite">
+            {saveStatusText}
+          </div>
+        </div>
+
+        {error ? (
+          <div className={styles.error} role="status" aria-live="polite">
+            {error}
+          </div>
         ) : null}
-        {unit ? (
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setEditing(unit);
-              setUnitTitle(unit.title);
-            }}
-          >
-            Редактировать юнит
-          </Button>
-        ) : null}
-      </div>
 
-      {error ? <div className={styles.error}>{error}</div> : null}
-
-      {editing ? (
-        <EntityEditorInline
-          title="Редактировать юнит"
-          submitLabel="Сохранить"
-          onSubmit={handleUnitUpdate}
-          error={formError}
-          disabled={!unitTitle}
-        >
-          <label className={styles.label}>
-            Название
-            <Input value={unitTitle} onChange={(event) => setUnitTitle(event.target.value)} />
-          </label>
-        </EntityEditorInline>
-      ) : null}
-
-      <TaskForm title="Новая задача" submitLabel="Создать" onSubmit={handleTaskSubmit} error={formError} />
-
-      {editingTask ? (
-        <TaskForm
-          title="Редактировать задачу"
-          submitLabel="Сохранить"
-          onSubmit={handleTaskUpdate}
-          error={formError}
-          initial={{
-            title: editingTask.title ?? "",
-            statementLite: editingTask.statementLite,
-            answerType: editingTask.answerType,
-            isRequired: editingTask.isRequired,
-            sortOrder: editingTask.sortOrder,
-          }}
+        <Tabs
+          idBase={tabsId}
+          tabs={tabs}
+          active={activeTab}
+          onChange={setActiveTab}
+          ariaLabel="Вкладки юнита"
         />
-      ) : null}
 
-      <EntityList title="Задачи" items={items} emptyLabel="Задач пока нет" />
-    </TeacherShell>
+        <div id={activePanelId} role="tabpanel" aria-labelledby={activeTabId}>
+          {activeTab === "theory" ? (
+            <div className={styles.editorGrid}>
+              <div className={styles.editorPanel}>
+                <div className={styles.kicker}>Теория</div>
+                <CodeMirror value={theoryText} height="420px" onChange={setTheoryText} />
+              </div>
+              <div className={styles.previewPanel}>
+                <div className={styles.kicker}>Предпросмотр</div>
+                <div className={styles.previewStub}>Предпросмотр PDF появится здесь после сборки.</div>
+              </div>
+            </div>
+          ) : activeTab === "method" ? (
+            <div className={styles.editorGrid}>
+              <div className={styles.editorPanel}>
+                <div className={styles.kicker}>Методика</div>
+                <CodeMirror value={methodText} height="420px" onChange={setMethodText} />
+              </div>
+              <div className={styles.previewPanel}>
+                <div className={styles.kicker}>Предпросмотр</div>
+                <div className={styles.previewStub}>Предпросмотр PDF появится здесь после сборки.</div>
+              </div>
+            </div>
+          ) : activeTab === "video" ? (
+            <div className={styles.videoPanel}>
+              <div className={styles.videoHeader}>
+                <div>
+                  <div className={styles.kicker}>Видео</div>
+                  <div className={styles.hint}>Ссылки сохраняются автоматически</div>
+                </div>
+                <Button
+                  onClick={() =>
+                    setVideos((prev) => [
+                      ...prev,
+                      { id: crypto.randomUUID(), title: "", embedUrl: "" },
+                    ])
+                  }
+                >
+                  Добавить видео
+                </Button>
+              </div>
+
+              {videos.length === 0 ? (
+                <div className={styles.previewStub}>Видео пока не добавлены.</div>
+              ) : (
+                <div className={styles.videoList}>
+                  {videos.map((video, index) => (
+                    <div key={video.id} className={styles.videoCard}>
+                      <label className={styles.label}>
+                        Название
+                        <Input
+                          value={video.title}
+                          name={`videoTitle-${index}`}
+                          autoComplete="off"
+                          onChange={(event) =>
+                            setVideos((prev) =>
+                              prev.map((v) =>
+                                v.id === video.id ? { ...v, title: event.target.value } : v,
+                              ),
+                            )
+                          }
+                        />
+                      </label>
+                      <label className={styles.label}>
+                        Embed URL
+                        <Input
+                          value={video.embedUrl}
+                          name={`videoUrl-${index}`}
+                          autoComplete="off"
+                          onChange={(event) =>
+                            setVideos((prev) =>
+                              prev.map((v) =>
+                                v.id === video.id ? { ...v, embedUrl: event.target.value } : v,
+                              ),
+                            )
+                          }
+                        />
+                      </label>
+                      <div className={styles.videoActions}>
+                        <Button
+                          variant="ghost"
+                          onClick={() => setVideos((prev) => prev.filter((v) => v.id !== video.id))}
+                        >
+                          Удалить
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : activeTab === "attachments" ? (
+            <div className={styles.previewStub}>Вложения будут добавлены позже.</div>
+          ) : (
+            <div className={styles.tasksPanel}>
+              <div className={styles.tasksHeader}>
+                <div>
+                  <div className={styles.kicker}>Задачи</div>
+                  <div className={styles.hint}>Создавайте задачи для этого юнита.</div>
+                </div>
+                <Button
+                  onClick={() => {
+                    setCreatingTask(true);
+                    setEditingTask(null);
+                    setFormError(null);
+                  }}
+                >
+                  Создать задачу
+                </Button>
+              </div>
+
+              {!creatingTask && !editingTask ? (
+                <>
+                  {taskOrderStatus ? <div className={styles.hint}>{taskOrderStatus}</div> : null}
+                  {taskOrder.length ? (
+                    <div className={styles.taskList}>
+                      <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={(event) => {
+                          const { active, over } = event;
+                          if (!over || active.id === over.id) return;
+                          const oldIndex = taskOrder.findIndex((task) => task.id === active.id);
+                          const newIndex = taskOrder.findIndex((task) => task.id === over.id);
+                          if (oldIndex < 0 || newIndex < 0) return;
+                          const nextOrder = arrayMove(taskOrder, oldIndex, newIndex).map(
+                            (task, index) => ({
+                              ...task,
+                              sortOrder: index + 1,
+                            }),
+                          );
+                          setTaskOrder(nextOrder);
+                          persistTaskOrder(nextOrder);
+                        }}
+                      >
+                        <SortableContext
+                          items={taskOrder.map((task) => task.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          {taskOrder.map((task, index) => (
+                            <SortableTaskCard
+                              key={task.id}
+                              task={task}
+                              index={index}
+                              onEdit={(selected) => {
+                                setEditingTask(selected);
+                                setCreatingTask(false);
+                              }}
+                              onDelete={handleTaskDelete}
+                              onPublishToggle={handleTaskPublishToggle}
+                            />
+                          ))}
+                        </SortableContext>
+                      </DndContext>
+                    </div>
+                  ) : (
+                    <div className={styles.previewStub}>Задач пока нет.</div>
+                  )}
+                </>
+              ) : null}
+
+              {editingTask || creatingTask ? (
+                <TaskForm
+                  title={
+                    editingTaskNumber
+                      ? `Задача №${editingTaskNumber}`
+                      : `Задача №${nextTaskOrder}`
+                  }
+                  submitLabel={editingTask ? "Сохранить" : "Создать"}
+                  onSubmit={editingTask ? handleTaskUpdate : handleTaskSubmit}
+                  error={formError}
+                  onCancel={() => {
+                    setEditingTask(null);
+                    setCreatingTask(false);
+                    setFormError(null);
+                  }}
+                  initial={
+                    editingTask
+                      ? mapTaskToFormData(editingTask)
+                      : {
+                          sortOrder: nextTaskOrder,
+                        }
+                  }
+                />
+              ) : null}
+            </div>
+          )}
+        </div>
+      </div>
+    </DashboardShell>
   );
 }

@@ -57,6 +57,39 @@ export class TeacherTasksController {
   @Patch(':id')
   async update(@Param('id') id: string, @Body() dto: UpdateTaskDto, @Req() req: AuthRequest) {
     const task = await this.contentService.updateTask(id, dto);
+    const changedFields = Object.entries(dto)
+      .filter(([, value]) => value !== undefined)
+      .map(([key]) => key);
+
+    const sizes: Record<string, number> = {};
+    if ('statementLite' in dto && dto.statementLite !== undefined) {
+      sizes.statementLite = (dto.statementLite ?? '').length;
+    }
+    if ('solutionLite' in dto && dto.solutionLite !== undefined) {
+      sizes.solutionLite = (dto.solutionLite ?? '').length;
+    }
+    if ('numericPartsJson' in dto && dto.numericPartsJson !== undefined) {
+      try {
+        sizes.numericParts = JSON.stringify(dto.numericPartsJson ?? []).length;
+      } catch {
+        // ignore
+      }
+    }
+    if ('choicesJson' in dto && dto.choicesJson !== undefined) {
+      try {
+        sizes.choices = JSON.stringify(dto.choicesJson ?? []).length;
+      } catch {
+        // ignore
+      }
+    }
+    if ('correctAnswerJson' in dto && dto.correctAnswerJson !== undefined) {
+      try {
+        sizes.correctAnswer = JSON.stringify(dto.correctAnswerJson ?? {}).length;
+      } catch {
+        // ignore
+      }
+    }
+
     await this.eventsLogService.append({
       category: EventCategory.admin,
       eventType: 'TaskRevised',
@@ -70,7 +103,8 @@ export class TeacherTasksController {
         unitId: task.unitId,
         answerType: task.answerType,
         isRequired: task.isRequired,
-        changes: dto,
+        changedFields,
+        sizes: Object.keys(sizes).length > 0 ? sizes : undefined,
       },
     });
     return task;

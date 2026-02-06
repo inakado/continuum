@@ -52,6 +52,12 @@
   border-bottom: 2px solid var(--border-primary);
   padding-bottom: 2px;
   font-weight: 700;
+  touch-action: manipulation;
+}
+
+.navLink:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--border-primary);
 }
 
 .main {

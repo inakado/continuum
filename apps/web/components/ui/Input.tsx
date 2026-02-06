@@ -1,8 +1,12 @@
-import type { InputHTMLAttributes } from "react";
+import { forwardRef, type InputHTMLAttributes } from "react";
 import styles from "./input.module.css";
 
 type InputProps = InputHTMLAttributes<HTMLInputElement>;
 
-export default function Input({ className = "", ...props }: InputProps) {
-  return <input className={`${styles.input} ${className}`} {...props} />;
-}
+const Input = forwardRef<HTMLInputElement, InputProps>(({ className = "", ...props }, ref) => {
+  return <input ref={ref} className={`${styles.input} ${className}`} {...props} />;
+});
+
+Input.displayName = "Input";
+
+export default Input;

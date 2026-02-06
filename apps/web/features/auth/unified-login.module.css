@@ -76,10 +76,16 @@
   place-items: center;
   cursor: pointer;
   transition: transform 0.2s ease, background 0.2s ease;
+  touch-action: manipulation;
 }
 
 .themeToggle:hover {
   transform: translateY(-1px);
+}
+
+.themeToggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--border-primary);
 }
 
 .themeIcon {
@@ -115,6 +121,7 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-primary);
+  text-wrap: balance;
 }
 
 .heroButton {
@@ -201,6 +208,20 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero,
+  .formSection,
+  .card {
+    animation: none;
+    transition: none;
+  }
+
+  .themeToggle,
+  .heroButton {
+    transition: none;
   }
 }
 

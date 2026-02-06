@@ -1,7 +1,282 @@
-.label {
+.section {
+  border: 2px solid var(--border-primary);
+  background: linear-gradient(90deg, rgba(60, 90, 220, 0.08), rgba(60, 90, 220, 0) 40%);
+  padding: 12px;
   display: grid;
-  gap: 6px;
+  gap: 10px;
+}
+
+.sectionTitle {
   font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.12em;
+  color: var(--text-primary);
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.fieldGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  align-items: end;
+}
+
+.fieldGrid > * {
+  min-height: 44px;
+}
+
+.checkboxField {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 2px solid var(--border-primary);
+  background: var(--bg-primary);
+  padding: 10px 12px;
+  min-height: 44px;
+  height: 44px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  line-height: 1;
+  box-sizing: border-box;
+}
+
+.checkboxField span {
+  line-height: 1;
+}
+
+.advancedGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 240px));
+  align-items: end;
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.label input[type="text"],
+.label input[type="number"],
+.label input:not([type]) {
+  min-height: 44px;
+}
+
+.label textarea {
+  min-height: 160px;
+}
+
+.textarea {
+  min-height: 160px;
+  flex: 1;
+}
+
+.select {
+  border: 2px solid var(--border-primary);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 15px;
+  min-height: 44px;
+  padding-right: 44px;
+  box-sizing: border-box;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%230F172A' stroke-width='2'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: calc(100% - 16px) 50%;
+}
+
+.typeWarning {
+  color: var(--text-accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.preview {
+  border: 2px dashed var(--border-primary);
+  padding: 12px;
+  background: rgba(60, 90, 220, 0.06);
+  min-height: 160px;
+  height: 100%;
+}
+
+.previewBlock {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  grid-template-rows: auto 1fr;
+}
+
+.previewLabel {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-primary);
+}
+
+.dualGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.partList,
+.choiceList {
+  display: grid;
+  gap: 10px;
+}
+
+.partRow {
+  border: 2px solid var(--border-primary);
+  padding: 10px;
+  display: grid;
+  gap: 10px;
+  background: rgba(60, 90, 220, 0.04);
+}
+
+.partIndex {
+  border: 2px solid var(--border-primary);
+  padding: 8px 10px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+}
+
+.inlinePreview {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.inlinePreviewLabel {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.inlinePreviewBox {
+  border: 2px dashed var(--border-primary);
+  padding: 8px 10px;
+  background: rgba(60, 90, 220, 0.06);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.choiceRow {
+  border: 2px solid var(--border-primary);
+  padding: 12px;
+  display: grid;
+  gap: 12px;
+  background: rgba(60, 90, 220, 0.04);
+  grid-template-columns: 120px 1fr 1fr 150px 120px;
+  align-items: end;
+}
+
+.choiceRow > * {
+  align-self: end;
+}
+
+.choiceRow .label,
+.choiceRow .inlinePreview {
+  margin-top: 0;
+}
+
+.choiceIndex {
+  border: 2px solid var(--border-primary);
+  padding: 8px 10px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+}
+
+.rowActions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.rowActions button {
+  height: 44px;
+  min-width: 100px;
+}
+
+.correctMark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-primary);
+  min-height: 44px;
+  height: 44px;
+  border: 2px solid var(--border-primary);
+  background: var(--bg-primary);
+  padding: 0 10px;
+}
+
+.correctMark input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+}
+
+.stub {
+  border: 2px dashed var(--border-primary);
+  padding: 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.fieldError {
+  border: 2px solid var(--border-primary);
+  background: var(--bg-accent);
+  color: var(--text-accent);
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+@media (min-width: 900px) {
+  .dualGrid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .partRow {
+    grid-template-columns: minmax(0, 130px) minmax(0, 1fr) minmax(0, 200px) minmax(0, 1fr) auto;
+    align-items: end;
+  }
+
+  .choiceRow {
+    grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1fr) 150px 120px;
+    align-items: end;
+  }
 }

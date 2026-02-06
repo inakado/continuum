@@ -12,7 +12,14 @@ export class StudentUnitsController {
   constructor(private readonly contentService: ContentService) {}
 
   @Get(':id')
-  get(@Param('id') id: string) {
-    return this.contentService.getPublishedUnit(id);
+  async get(@Param('id') id: string) {
+    const unit = await this.contentService.getPublishedUnit(id);
+    return {
+      ...unit,
+      tasks: unit.tasks.map((task) => {
+        const { solutionLite, correctAnswerJson, ...rest } = task as Record<string, unknown>;
+        return rest;
+      }),
+    };
   }
 }

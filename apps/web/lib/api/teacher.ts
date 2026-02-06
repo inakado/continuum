@@ -12,6 +12,13 @@ export type Course = {
   updatedAt: string;
 };
 
+export type UnitVideo = { id: string; title: string; embedUrl: string };
+export type UnitAttachment = { id: string; name: string; urlOrKey?: string | null };
+export type TaskAnswerType = "numeric" | "single_choice" | "multi_choice" | "photo";
+export type NumericPart = { key: string; labelLite?: string | null; correctValue: string };
+export type Choice = { key: string; textLite: string };
+export type CorrectAnswer = { key?: string; keys?: string[] };
+
 export type Section = {
   id: string;
   courseId: string;
@@ -26,8 +33,15 @@ export type Unit = {
   id: string;
   sectionId: string;
   title: string;
+  description?: string | null;
   status: ContentStatus;
   sortOrder: number;
+  theoryRichLatex?: string | null;
+  theoryPdfAssetKey?: string | null;
+  methodRichLatex?: string | null;
+  methodPdfAssetKey?: string | null;
+  videosJson?: UnitVideo[] | null;
+  attachmentsJson?: UnitAttachment[] | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -37,7 +51,11 @@ export type Task = {
   unitId: string;
   title: string | null;
   statementLite: string;
-  answerType: string;
+  answerType: TaskAnswerType;
+  numericPartsJson?: NumericPart[] | null;
+  choicesJson?: Choice[] | null;
+  correctAnswerJson?: CorrectAnswer | null;
+  solutionLite?: string | null;
   isRequired: boolean;
   status: ContentStatus;
   sortOrder: number;
@@ -176,7 +194,18 @@ export const teacherApi = {
     return apiRequest<Unit>("/teacher/units", { method: "POST", body: data });
   },
 
-  updateUnit(id: string, data: { title?: string; sortOrder?: number }) {
+  updateUnit(
+    id: string,
+    data: {
+      title?: string;
+      description?: string | null;
+      sortOrder?: number;
+      theoryRichLatex?: string | null;
+      methodRichLatex?: string | null;
+      videosJson?: UnitVideo[] | null;
+      attachmentsJson?: UnitAttachment[] | null;
+    },
+  ) {
     return apiRequest<Unit>(`/teacher/units/${id}`, { method: "PATCH", body: data });
   },
 
@@ -196,7 +225,11 @@ export const teacherApi = {
     unitId: string;
     title?: string | null;
     statementLite: string;
-    answerType: string;
+    answerType: TaskAnswerType;
+    numericPartsJson?: NumericPart[] | null;
+    choicesJson?: Choice[] | null;
+    correctAnswerJson?: CorrectAnswer | null;
+    solutionLite?: string | null;
     isRequired?: boolean;
     sortOrder?: number;
   }) {
@@ -208,7 +241,11 @@ export const teacherApi = {
     data: {
       title?: string | null;
       statementLite?: string;
-      answerType?: string;
+      answerType?: TaskAnswerType;
+      numericPartsJson?: NumericPart[] | null;
+      choicesJson?: Choice[] | null;
+      correctAnswerJson?: CorrectAnswer | null;
+      solutionLite?: string | null;
       isRequired?: boolean;
       sortOrder?: number;
     },
