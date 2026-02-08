@@ -1,5 +1,5 @@
 .section {
-  border: 2px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   padding: 16px;
   background: var(--bg-primary);
 }
@@ -9,7 +9,7 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
-  border-bottom: 2px solid var(--border-primary);
+  border-bottom: var(--border-width) solid var(--border-primary);
   padding-bottom: 8px;
 }
 
@@ -38,7 +38,7 @@
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  border: 2px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   padding: 12px;
 }
 
@@ -79,7 +79,7 @@
 .empty {
   padding: 12px;
   color: var(--text-muted);
-  border: 2px dashed var(--border-primary);
+  border: var(--border-width) dashed var(--border-primary);
 }
 
 @media (max-width: 720px) {

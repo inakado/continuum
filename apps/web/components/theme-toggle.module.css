@@ -1,14 +1,22 @@
 .toggle {
-  width: 40px;
-  height: 40px;
-  border: 2px solid var(--border-primary);
-  background: var(--bg-primary);
+  width: var(--theme-toggle-size, 40px);
+  height: var(--theme-toggle-size, 40px);
+  min-width: var(--theme-toggle-size, 40px);
+  min-height: var(--theme-toggle-size, 40px);
+  border: var(--border-width) solid var(--panel-border);
+  background: var(--panel-bg);
   color: var(--text-primary);
   display: grid;
   place-items: center;
+  flex: 0 0 auto;
   cursor: pointer;
-  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+  transition: width var(--sidebar-motion-duration, 0.2s)
+      var(--sidebar-motion-ease, ease),
+    height var(--sidebar-motion-duration, 0.2s) var(--sidebar-motion-ease, ease),
+    border-radius var(--sidebar-motion-duration, 0.2s) var(--sidebar-motion-ease, ease),
+    transform 0.2s ease, background 0.2s ease, color 0.2s ease;
   touch-action: manipulation;
+  border-radius: var(--theme-toggle-radius, var(--control-radius));
 }
 
 .toggle:hover {
@@ -18,17 +26,19 @@
 }
 
 .toggle:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--border-primary);
+  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .compact {
-  width: 34px;
-  height: 34px;
+  width: var(--theme-toggle-compact, 34px);
+  height: var(--theme-toggle-compact, 34px);
+  min-width: var(--theme-toggle-compact, 34px);
+  min-height: var(--theme-toggle-compact, 34px);
 }
 
 .icon {
-  width: 20px;
-  height: 20px;
+  width: var(--theme-toggle-icon, 20px);
+  height: var(--theme-toggle-icon, 20px);
   display: block;
 }

@@ -1,7 +1,5 @@
 .form {
-  border: 2px solid var(--border-primary);
-  padding: 16px;
-  background: var(--bg-primary);
+  background: transparent;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -11,7 +9,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  border-bottom: 2px solid var(--border-primary);
+  border-bottom: var(--border-width) solid var(--panel-border);
   padding-bottom: 8px;
 }
 
@@ -33,15 +31,30 @@
 
 .actions {
   display: flex;
-  justify-content: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.actionsLeft {
+  display: flex;
   gap: 8px;
   flex-wrap: wrap;
 }
 
+.actionsRight {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .error {
-  border: 2px solid var(--border-primary);
+  border: var(--border-width) solid var(--panel-border);
   padding: 8px;
-  background: var(--bg-accent);
-  color: var(--text-accent);
+  background: var(--glass-tint);
+  color: var(--text-primary);
   font-size: 13px;
+  border-radius: var(--card-radius);
 }

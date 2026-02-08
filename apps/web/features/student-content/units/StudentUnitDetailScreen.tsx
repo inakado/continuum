@@ -110,7 +110,7 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
   const canGoNext = activeTaskCompleted && activeTaskIndex < orderedTasks.length - 1;
 
   return (
-    <DashboardShell title="Ученик" subtitle="Панель" navItems={navItems}>
+    <DashboardShell title="Ученик" navItems={navItems}>
       <div className={styles.content}>
         <div className={styles.header}>
           <Button variant="ghost" onClick={() => router.back()}>

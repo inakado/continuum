@@ -214,7 +214,7 @@ export default function StudentDashboardScreen() {
   };
 
   return (
-    <DashboardShell title="Ученик" subtitle="Панель" navItems={navItems}>
+    <DashboardShell title="Ученик" navItems={navItems}>
       <div className={styles.content}>
         <div className={styles.header}>
           <div>

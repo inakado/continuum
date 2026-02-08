@@ -24,19 +24,24 @@
 }
 
 .error {
-  border: 2px solid var(--border-primary);
-  background: var(--bg-accent);
-  color: var(--text-accent);
+  border: var(--border-width) solid var(--panel-border);
+  background: var(--glass-tint);
+  color: var(--text-primary);
   padding: 10px 12px;
   font-size: 13px;
+  border-radius: var(--card-radius);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
 }
 
 .placeholder {
-  border: 2px dashed var(--border-primary);
+  border: var(--border-width) dashed var(--panel-border);
   padding: 24px;
   display: grid;
   gap: 6px;
   color: var(--text-muted);
+  background: var(--card-bg);
+  border-radius: var(--card-radius);
 }
 
 .placeholderTitle {
@@ -51,18 +56,19 @@
 }
 
 .panel {
-  border: 2px solid var(--border-primary);
-  background: var(--bg-primary);
-  display: flex;
-  flex-direction: column;
-  min-height: 360px;
+  border: none;
+  background: transparent;
+  display: grid;
+  gap: clamp(12px, 2vw, 20px);
+  min-height: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .panelHeader {
-  border-bottom: 2px solid var(--border-primary);
-  padding: 14px 16px;
-  background: var(--bg-accent);
-  color: var(--text-accent);
+  border-bottom: none;
+  padding: 0;
+  color: var(--text-primary);
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -90,29 +96,35 @@
 }
 
 .panelActions button {
-  --button-text: var(--text-accent);
-  --button-border: var(--text-accent);
+  --button-bg: var(--glass-tint);
+  --button-text: var(--text-primary);
+  --button-border: var(--panel-border);
+  --button-border-width: var(--border-width-thin);
 }
 
 .panelActions button:hover:not(:disabled) {
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: var(--bg-accent);
+  color: var(--text-accent);
 }
 
 .panelBody {
-  padding: 16px;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
 .inlineForm {
-  border: 2px solid var(--border-primary);
+  border: var(--border-width) solid var(--card-border);
   padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background: var(--bg-primary);
+  background: var(--card-bg);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
 }
 
 .label {
@@ -142,19 +154,29 @@
 }
 
 .card {
-  border: 2px solid var(--border-primary);
+  border: var(--border-width) solid var(--card-border);
   padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 6px;
   text-align: left;
-  background: var(--bg-primary);
+  background: var(--card-bg);
   min-height: 120px;
   justify-content: space-between;
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    background 0.25s ease,
+    border-color 0.25s ease;
 }
 
 .card:focus-within {
-  box-shadow: 0 0 0 2px var(--border-primary);
+  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .cardMain {
@@ -169,20 +191,20 @@
   touch-action: manipulation;
 }
 
-.cardMain:hover .cardTitle,
-.cardMain:focus-visible .cardTitle {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  text-decoration-thickness: 2px;
-}
-
 .cardMain:focus-visible {
   outline: none;
 }
 
 .cardActive {
-  background: var(--bg-accent);
-  color: var(--text-accent);
+  background: var(--nav-active-bg);
+  color: var(--nav-active-text);
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--glass-shadow);
+  border-color: var(--glass-border);
+  background: var(--surface-2);
 }
 
 .cardActions {
@@ -217,23 +239,38 @@
 }
 
 .status {
-  border: 2px solid var(--border-primary);
+  border: var(--border-width) solid var(--glass-border);
   padding: 2px 8px;
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   flex-shrink: 0;
   width: fit-content;
+  border-radius: var(--control-radius);
+  background: var(--glass-tint);
+  color: var(--text-muted);
+  transition:
+    background 0.25s ease,
+    color 0.25s ease,
+    border-color 0.25s ease;
 }
 
-.card:hover .status,
+.card:hover .status {
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
 .cardActive .status {
   border-color: currentColor;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  color: inherit;
 }
 
 .empty {
-  border: 2px dashed var(--border-primary);
+  border: var(--border-width) dashed var(--card-border);
   padding: 14px;
   font-size: 12px;
   color: var(--text-muted);
+  background: var(--card-bg);
+  border-radius: var(--card-radius);
 }

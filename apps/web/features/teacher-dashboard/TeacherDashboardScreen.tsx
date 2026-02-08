@@ -254,7 +254,7 @@ export default function TeacherDashboardScreen({ active, initialSectionId }: Tea
   };
 
   return (
-    <DashboardShell title="Преподаватель" subtitle="Панель" navItems={navItems}>
+    <DashboardShell title="Преподаватель" navItems={navItems} appearance="glass">
       <div className={styles.content}>
         <div className={styles.header}>
           <div>

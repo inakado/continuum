@@ -39,7 +39,7 @@
 }
 
 .error {
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   padding: 10px 12px;
   background: var(--bg-accent);
   color: var(--text-accent);

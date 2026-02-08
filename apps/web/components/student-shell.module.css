@@ -18,7 +18,7 @@
   gap: 16px;
   align-items: center;
   justify-content: space-between;
-  border: 2px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   padding: 16px;
   background: var(--bg-primary);
 }
@@ -49,15 +49,15 @@
 }
 
 .navLink {
-  border-bottom: 2px solid var(--border-primary);
+  border-bottom: var(--border-width) solid var(--border-primary);
   padding-bottom: 2px;
   font-weight: 700;
   touch-action: manipulation;
 }
 
 .navLink:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--border-primary);
+  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .main {

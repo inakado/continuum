@@ -9,6 +9,7 @@ type EntityEditorInlineProps = {
   disabled?: boolean;
   error?: string | null;
   secondaryAction?: { label: string; onClick: () => void };
+  rightAction?: ReactNode;
   onSubmit: () => Promise<void> | void;
   children: ReactNode;
 };
@@ -20,6 +21,7 @@ export default function EntityEditorInline({
   disabled,
   error,
   secondaryAction,
+  rightAction,
   onSubmit,
   children,
 }: EntityEditorInlineProps) {
@@ -41,14 +43,17 @@ export default function EntityEditorInline({
         </div>
       ) : null}
       <div className={styles.actions}>
-        {secondaryAction ? (
-          <Button type="button" variant="ghost" onClick={secondaryAction.onClick}>
-            {secondaryAction.label}
+        <div className={styles.actionsLeft}>
+          {secondaryAction ? (
+            <Button type="button" variant="ghost" onClick={secondaryAction.onClick}>
+              {secondaryAction.label}
+            </Button>
+          ) : null}
+          <Button type="submit" disabled={disabled}>
+            {submitLabel}
           </Button>
-        ) : null}
-        <Button type="submit" disabled={disabled}>
-          {submitLabel}
-        </Button>
+        </div>
+        {rightAction ? <div className={styles.actionsRight}>{rightAction}</div> : null}
       </div>
     </form>
   );

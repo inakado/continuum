@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ComponentProps } from "react";
 import dynamic from "next/dynamic";
 import DashboardShell from "@/components/DashboardShell";
 import Button from "@/components/ui/Button";
+import Checkbox from "@/components/ui/Checkbox";
 import Input from "@/components/ui/Input";
 import Tabs from "@/components/ui/Tabs";
 import type { Task, UnitVideo, UnitWithTasks } from "@/lib/api/teacher";
@@ -26,8 +27,9 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import LiteTex from "@/components/LiteTex";
+type CodeMirrorProps = ComponentProps<typeof import("@uiw/react-codemirror").default>;
 
-const CodeMirror = dynamic(() => import("@uiw/react-codemirror"), {
+const CodeMirror = dynamic<CodeMirrorProps>(() => import("@uiw/react-codemirror"), {
   ssr: false,
   loading: () => <div className={styles.editorLoading}>Загрузка редактора…</div>,
 });
@@ -70,10 +72,9 @@ type SortableTaskCardProps = {
   index: number;
   onEdit: (task: Task) => void;
   onDelete: (task: Task) => void;
-  onPublishToggle: (task: Task) => void;
 };
 
-function SortableTaskCard({ task, index, onEdit, onDelete, onPublishToggle }: SortableTaskCardProps) {
+function SortableTaskCard({ task, index, onEdit, onDelete }: SortableTaskCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
   });
@@ -101,9 +102,6 @@ function SortableTaskCard({ task, index, onEdit, onDelete, onPublishToggle }: So
         <LiteTex value={task.statementLite} block />
       </div>
       <div className={styles.taskActions}>
-        <Button variant="ghost" onClick={() => onPublishToggle(task)}>
-          {task.status === "published" ? "В черновик" : "Опубликовать"}
-        </Button>
         <Button variant="ghost" onClick={() => onEdit(task)}>
           Редактировать
         </Button>
@@ -153,7 +151,11 @@ const buildTaskPayload = (data: TaskFormData) => {
 const mapTaskToFormData = (task: Task): TaskFormData => ({
   statementLite: task.statementLite ?? "",
   answerType: task.answerType,
-  numericParts: task.numericPartsJson ?? [],
+  numericParts: (task.numericPartsJson ?? []).map((part) => ({
+    key: part.key ?? "",
+    labelLite: part.labelLite ?? "",
+    correctValue: part.correctValue ?? "",
+  })),
   choices: task.choicesJson ?? [],
   correctAnswer: task.correctAnswerJson ?? null,
   solutionLite: task.solutionLite ?? "",
@@ -322,11 +324,18 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
   const handleTaskPublishToggle = async (task: Task) => {
     setError(null);
     try {
+      const nextStatus = task.status === "published" ? "draft" : "published";
       if (task.status === "published") {
         await teacherApi.unpublishTask(task.id);
       } else {
         await teacherApi.publishTask(task.id);
       }
+      setTaskOrder((prev) =>
+        prev.map((item) => (item.id === task.id ? { ...item, status: nextStatus } : item)),
+      );
+      setEditingTask((prev) =>
+        prev && prev.id === task.id ? { ...prev, status: nextStatus } : prev,
+      );
       await fetchUnit();
     } catch (err) {
       setError(getApiErrorMessage(err));
@@ -387,16 +396,18 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
   const activeTabId = `${tabsId}-${activeTab}`;
 
   return (
-    <DashboardShell title="Преподаватель" subtitle="Панель" navItems={navItems}>
+    <DashboardShell title="Преподаватель" navItems={navItems} appearance="glass">
       <div className={styles.content}>
         <div className={styles.header}>
           <div>
             <h1 className={styles.title}>{unit?.title ?? "Юнит"}</h1>
             <p className={styles.subtitle}>Редактор юнита</p>
           </div>
-          <div className={styles.saveStatus} role="status" aria-live="polite">
-            {saveStatusText}
-          </div>
+          {saveStatusText ? (
+            <div className={styles.saveStatus} role="status" aria-live="polite">
+              {saveStatusText}
+            </div>
+          ) : null}
         </div>
 
         {error ? (
@@ -508,21 +519,23 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
             <div className={styles.previewStub}>Вложения будут добавлены позже.</div>
           ) : (
             <div className={styles.tasksPanel}>
-              <div className={styles.tasksHeader}>
-                <div>
-                  <div className={styles.kicker}>Задачи</div>
-                  <div className={styles.hint}>Создавайте задачи для этого юнита.</div>
+              {!creatingTask && !editingTask ? (
+                <div className={styles.tasksHeader}>
+                  <div>
+                    <div className={styles.kicker}>Задачи</div>
+                    <div className={styles.hint}>Создавайте задачи для этого юнита.</div>
+                  </div>
+                  <Button
+                    onClick={() => {
+                      setCreatingTask(true);
+                      setEditingTask(null);
+                      setFormError(null);
+                    }}
+                  >
+                    Создать задачу
+                  </Button>
                 </div>
-                <Button
-                  onClick={() => {
-                    setCreatingTask(true);
-                    setEditingTask(null);
-                    setFormError(null);
-                  }}
-                >
-                  Создать задачу
-                </Button>
-              </div>
+              ) : null}
 
               {!creatingTask && !editingTask ? (
                 <>
@@ -562,7 +575,6 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
                                 setCreatingTask(false);
                               }}
                               onDelete={handleTaskDelete}
-                              onPublishToggle={handleTaskPublishToggle}
                             />
                           ))}
                         </SortableContext>
@@ -589,6 +601,20 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
                     setCreatingTask(false);
                     setFormError(null);
                   }}
+                  rightAction={
+                    editingTask ? (
+                      <Checkbox
+                        label="Опубликовано"
+                        checked={editingTask.status === "published"}
+                        onChange={(event) => {
+                          const nextChecked = event.target.checked;
+                          const isPublished = editingTask.status === "published";
+                          if (nextChecked === isPublished) return;
+                          handleTaskPublishToggle(editingTask);
+                        }}
+                      />
+                    ) : null
+                  }
                   initial={
                     editingTask
                       ? mapTaskToFormData(editingTask)

@@ -37,18 +37,37 @@ B) Интерфейс и чтение
 
 **Принцип:** высокий контраст. Никаких полутонов в границах — только жёсткая линия `1px/2px`.
 
+### 2.1 Материалы (Glass & Air)
+Apple‑style материалы используются **в teacher dashboards**. Основная идея: «воздух», мягкие поверхности, стеклянные панели.
+
+**Токены (glass):**
+- `--glass-bg`, `--glass-border`, `--glass-shadow`, `--glass-blur`, `--glass-tint`
+- `--surface-0`, `--surface-1`, `--surface-2` — глубина слоёв
+- `--panel-bg`, `--panel-border`, `--panel-shadow`, `--panel-radius`
+- `--card-bg`, `--card-border`, `--card-shadow`, `--card-radius`
+- `--control-bg`, `--control-border`, `--control-radius`
+
+**Правило:** стекло всегда с fallback (без blur) и читаемым контентом.
+
 ---
 
 ## 3) Геометрия UI (Brutalist / Geometry)
 
 ### 3.1 Радиусы
+**Glass UI:**
+- Панели: `--radius-panel` (12–16px)
+- Карточки: `--radius-card` (12–14px)
+- Контролы: `--radius-control` (10–12px)
+
+**Остальной UI (legacy):**
 - По умолчанию: `rounded-none` (0px)
-- Исключения: аватары или круглые иконки-кнопки (тогглы), если оправдано UX
 
 ### 3.2 Границы
 - **Border thickness:** `border` или `border-2` (последовательно для одного типа компонентов)
 - **Цвет границы:** `border-primary`
 - **Разделители в списках/таблицах:** допускаются только если не размывают “жёсткость” стиля
+
+Для Glass‑панелей допускаются полупрозрачные границы (`--glass-border`).
 
 ---
 
@@ -63,6 +82,10 @@ B) Интерфейс и чтение
 - Hover: инверсия (фон ↔ текст)
 - Transition: duration ~`300ms`
 
+**Glass UI уточнение:**
+- Primary: контрастная заливка + мягкая тень (`--button-shadow`)
+- Ghost: полупрозрачный фон (`--control-bg`) и читабельный контур
+
 
 **UX:**
 - **Disabled:** opacity 50–60%, курсор disabled, без изменения геометрии
@@ -74,6 +97,11 @@ B) Интерфейс и чтение
 - Placeholder: `text-muted`
 - Focus: видимый outline
 - Ошибка: показывать текстом/подписью (цветовую схему ошибок фиксируем отдельно, если будет)
+
+**Glass UI уточнение:**
+- `background: --control-bg`
+- `border: --control-border`
+- `radius: --control-radius`
 
 ---
 

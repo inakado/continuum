@@ -1,9 +1,10 @@
 .badge {
-  border: 2px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   padding: 4px 8px;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.06em;
+  border-radius: var(--control-radius);
 }
 
 .published {

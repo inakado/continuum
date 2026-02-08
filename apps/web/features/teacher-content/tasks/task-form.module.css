@@ -1,16 +1,24 @@
 .section {
-  border: 2px solid var(--border-primary);
-  background: linear-gradient(90deg, rgba(60, 90, 220, 0.08), rgba(60, 90, 220, 0) 40%);
-  padding: 12px;
+  border: var(--border-width) solid var(--card-border);
+  background: var(--card-bg);
+  padding: 16px;
   display: grid;
-  gap: 10px;
+  gap: 12px;
+  --control-border-width: var(--border-width-thin);
+  --button-border-width: var(--border-width-thin);
+  --bg-field: var(--control-bg);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
 }
 
 .sectionTitle {
-  font-size: 12px;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--text-primary);
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  font-weight: 700;
 }
 
 .sectionHeader {
@@ -21,9 +29,13 @@
   flex-wrap: wrap;
 }
 
+.section > .sectionTitle {
+  margin-bottom: 2px;
+}
+
 .fieldGrid {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   align-items: end;
 }
@@ -37,16 +49,18 @@
   align-items: center;
   gap: 8px;
   width: 100%;
-  border: 2px solid var(--border-primary);
-  background: var(--bg-primary);
+  border: var(--control-border-width, var(--border-width)) solid
+    var(--control-border, var(--border-primary));
+  background: var(--bg-field);
   padding: 10px 12px;
   min-height: 44px;
   height: 44px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 11px;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-size: 12px;
   line-height: 1;
   box-sizing: border-box;
+  border-radius: var(--control-radius);
 }
 
 .checkboxField span {
@@ -64,9 +78,10 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
 }
 
 .label input[type="text"],
@@ -85,12 +100,13 @@
 }
 
 .select {
-  border: 2px solid var(--border-primary);
-  background: var(--bg-primary);
+  border: var(--control-border-width, var(--border-width)) solid
+    var(--control-border, var(--border-primary));
+  background: var(--bg-field);
   color: var(--text-primary);
   padding: 10px 12px;
   font: inherit;
-  font-size: 15px;
+  font-size: 16px;
   min-height: 44px;
   padding-right: 44px;
   box-sizing: border-box;
@@ -107,11 +123,13 @@
 }
 
 .preview {
-  border: 2px dashed var(--border-primary);
+  border: var(--control-border-width, var(--border-width)) solid
+    var(--control-border, var(--border-primary));
   padding: 12px;
-  background: rgba(60, 90, 220, 0.06);
+  background: var(--bg-field);
   min-height: 160px;
   height: 100%;
+  border-radius: var(--control-radius);
 }
 
 .previewBlock {
@@ -123,9 +141,9 @@
 
 .previewLabel {
   font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-primary);
+  text-transform: none;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
 }
 
 .dualGrid {
@@ -138,28 +156,30 @@
 .partList,
 .choiceList {
   display: grid;
-  gap: 10px;
+  gap: 14px;
 }
 
 .partRow {
-  border: 2px solid var(--border-primary);
-  padding: 10px;
+  border: 0;
+  padding: 0;
   display: grid;
   gap: 10px;
-  background: rgba(60, 90, 220, 0.04);
+  background: transparent;
 }
 
 .partIndex {
-  border: 2px solid var(--border-primary);
+  border: var(--control-border-width, var(--border-width)) solid
+    var(--control-border, var(--border-primary));
   padding: 8px 10px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  background: var(--bg-primary);
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  background: var(--bg-field);
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 44px;
+  border-radius: var(--control-radius);
 }
 
 .inlinePreview {
@@ -170,26 +190,28 @@
 
 .inlinePreviewLabel {
   font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  text-transform: none;
+  letter-spacing: 0.02em;
   color: var(--text-muted);
 }
 
 .inlinePreviewBox {
-  border: 2px dashed var(--border-primary);
+  border: var(--control-border-width, var(--border-width)) solid
+    var(--control-border, var(--border-primary));
   padding: 8px 10px;
-  background: rgba(60, 90, 220, 0.06);
+  background: var(--bg-field);
   min-height: 44px;
   display: flex;
   align-items: center;
+  border-radius: var(--control-radius);
 }
 
 .choiceRow {
-  border: 2px solid var(--border-primary);
-  padding: 12px;
+  border: 0;
+  padding: 0;
   display: grid;
   gap: 12px;
-  background: rgba(60, 90, 220, 0.04);
+  background: transparent;
   grid-template-columns: 120px 1fr 1fr 150px 120px;
   align-items: end;
 }
@@ -204,16 +226,18 @@
 }
 
 .choiceIndex {
-  border: 2px solid var(--border-primary);
+  border: var(--control-border-width, var(--border-width)) solid
+    var(--control-border, var(--border-primary));
   padding: 8px 10px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  background: var(--bg-primary);
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  background: var(--bg-field);
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 44px;
+  border-radius: var(--control-radius);
 }
 
 .rowActions {
@@ -232,15 +256,17 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: 0.02em;
   color: var(--text-primary);
   min-height: 44px;
   height: 44px;
-  border: 2px solid var(--border-primary);
-  background: var(--bg-primary);
+  border: var(--control-border-width, var(--border-width)) solid
+    var(--control-border, var(--border-primary));
+  background: var(--bg-field);
   padding: 0 10px;
+  border-radius: var(--control-radius);
 }
 
 .correctMark input {
@@ -250,18 +276,22 @@
 }
 
 .stub {
-  border: 2px dashed var(--border-primary);
+  border: var(--control-border-width, var(--border-width)) solid
+    var(--control-border, var(--border-primary));
   padding: 12px;
   color: var(--text-muted);
   font-size: 13px;
+  border-radius: var(--control-radius);
 }
 
 .fieldError {
-  border: 2px solid var(--border-primary);
-  background: var(--bg-accent);
-  color: var(--text-accent);
+  border: var(--control-border-width, var(--border-width)) solid
+    var(--control-border, var(--border-primary));
+  background: var(--glass-tint);
+  color: var(--text-primary);
   padding: 8px 10px;
   font-size: 12px;
+  border-radius: var(--control-radius);
 }
 
 @media (min-width: 900px) {

@@ -1,19 +1,80 @@
+:root {
+  --border-width-strong: 1.5px;
+  --border-width-thin: 1px;
+  --border-width: var(--border-width-strong);
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  --radius-panel: 16px;
+  --radius-card: 14px;
+  --radius-control: 12px;
+  --glass-blur: 18px;
+  --glass-filter: none;
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(15, 23, 42, 0.12);
+  --glass-shadow: 0 10px 25px rgba(15, 23, 42, 0.075);
+  --glass-tint: rgba(255, 255, 255, 0.35);
+  --surface-0: var(--bg-primary);
+  --surface-1: var(--bg-primary);
+  --surface-2: var(--bg-primary);
+  --panel-bg: var(--bg-primary);
+  --panel-border: var(--border-primary);
+  --panel-shadow: none;
+  --panel-radius: 0px;
+  --main-bg: var(--bg-primary);
+  --main-border: var(--border-primary);
+  --card-bg: var(--bg-primary);
+  --card-border: var(--border-primary);
+  --card-shadow: none;
+  --card-radius: 0px;
+  --control-bg: var(--bg-primary);
+  --control-border: var(--border-primary);
+  --control-radius: 0px;
+  --button-shadow: none;
+  --nav-hover-bg: var(--bg-accent);
+  --nav-active-bg: var(--bg-accent);
+  --nav-active-text: var(--text-accent);
+}
+
 [data-theme="light"] {
   --bg-primary: #ffffff;
+  --bg-surface: #f1f5f9;
+  --bg-field: #ffffff;
+  --page-gradient-1: rgba(148, 163, 184, 0.18);
+  --page-gradient-2: rgba(148, 163, 184, 0.12);
+  --page-gradient-3: rgba(148, 163, 184, 0.08);
   --text-primary: #0f172a;
   --border-primary: #0f172a;
   --bg-accent: #0f172a;
   --text-accent: #ffffff;
   --text-muted: #64748b;
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(15, 23, 42, 0.12);
+  --glass-shadow: 0 12px 30px rgba(15, 23, 42, 0.075);
+  --glass-tint: rgba(255, 255, 255, 0.4);
+  --surface-0: #f6f7fb;
+  --surface-1: rgba(255, 255, 255, 0.82);
+  --surface-2: rgba(255, 255, 255, 0.94);
 }
 
 [data-theme="dark"] {
   --bg-primary: #0f172a;
+  --bg-surface: #111b34;
+  --bg-field: #0f172a;
+  --page-gradient-1: rgba(255, 255, 255, 0.14);
+  --page-gradient-2: rgba(255, 255, 255, 0.12);
+  --page-gradient-3: rgba(255, 255, 255, 0.08);
   --text-primary: #ffffff;
   --border-primary: #ffffff;
   --bg-accent: #ffffff;
   --text-accent: #0f172a;
   --text-muted: #94a3b8;
+  --glass-bg: rgba(15, 23, 42, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.18);
+  --glass-shadow: 0 14px 35px rgba(2, 6, 23, 0.275);
+  --glass-tint: rgba(255, 255, 255, 0.08);
+  --surface-0: #0b1020;
+  --surface-1: rgba(15, 23, 42, 0.72);
+  --surface-2: rgba(15, 23, 42, 0.88);
 }
 
 html,
@@ -49,6 +110,44 @@ select {
   -webkit-tap-highlight-color: transparent;
 }
 
+button,
+input,
+textarea,
+select {
+  border-radius: var(--control-radius);
+  font-family: inherit;
+}
+
 [data-theme="dark"] {
   color-scheme: dark;
+}
+
+.glass-scope {
+  --glass-filter: blur(var(--glass-blur)) saturate(140%);
+  --panel-bg: var(--glass-bg);
+  --panel-border: var(--glass-border);
+  --panel-shadow: var(--glass-shadow);
+  --panel-radius: var(--radius-panel);
+  --main-bg: var(--surface-1);
+  --main-border: var(--glass-border);
+  --card-bg: var(--surface-2);
+  --card-border: var(--glass-border);
+  --card-shadow: 0 9px 20px rgba(15, 23, 42, 0.04);
+  --card-radius: var(--radius-card);
+  --control-bg: var(--surface-2);
+  --control-border: var(--glass-border);
+  --control-radius: var(--radius-control);
+  --button-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
+  --nav-hover-bg: var(--glass-tint);
+  --nav-active-bg: var(--surface-2);
+  --nav-active-text: var(--text-primary);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-scope {
+    --glass-filter: none;
+    --panel-bg: rgba(255, 255, 255, 0.95);
+    --card-bg: rgba(255, 255, 255, 0.98);
+    --control-bg: rgba(255, 255, 255, 0.98);
+  }
 }

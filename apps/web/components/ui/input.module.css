@@ -1,11 +1,13 @@
 .input {
   width: 100%;
-  border: 2px solid var(--border-primary);
-  background: var(--bg-primary);
+  border: var(--control-border-width, var(--border-width)) solid
+    var(--control-border, var(--border-primary));
+  background: var(--control-bg, var(--bg-primary));
   color: var(--text-primary);
   padding: 10px 12px;
   font-size: 14px;
   outline: none;
+  border-radius: var(--control-radius);
 }
 
 .input::placeholder {
@@ -13,5 +15,6 @@
 }
 
 .input:focus-visible {
-  box-shadow: 0 0 0 2px var(--border-primary);
+  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline-offset: var(--focus-ring-offset);
 }

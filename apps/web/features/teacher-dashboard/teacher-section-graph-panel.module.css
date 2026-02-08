@@ -8,9 +8,13 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  border: 2px solid var(--border-primary);
+  border: var(--border-width) solid var(--panel-border);
   padding: 12px;
-  background: var(--bg-primary);
+  background: var(--panel-bg);
+  border-radius: var(--panel-radius);
+  box-shadow: var(--panel-shadow);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
 }
 
 .header {
@@ -42,26 +46,34 @@
 }
 
 .error {
-  border: 2px solid var(--border-primary);
+  border: var(--border-width) solid var(--panel-border);
   padding: 10px;
-  background: var(--bg-accent);
-  color: var(--text-accent);
+  background: var(--glass-tint);
+  color: var(--text-primary);
   font-size: 13px;
+  border-radius: var(--card-radius);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
 }
 
 .status {
-  border: 2px solid var(--border-primary);
+  border: var(--border-width) solid var(--card-border);
   padding: 10px;
-  background: var(--bg-primary);
+  background: var(--card-bg);
   font-size: 13px;
+  border-radius: var(--control-radius);
 }
 
 .graphPanel {
-  border: 2px solid var(--border-primary);
-  background: var(--bg-primary);
+  border: var(--border-width) solid var(--panel-border);
+  background: var(--panel-bg);
   height: 60vh;
   min-height: 420px;
   position: relative;
+  border-radius: var(--panel-radius);
+  box-shadow: var(--panel-shadow);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
 }
 
 .loading {
@@ -85,13 +97,15 @@
 }
 
 .node {
-  border: 2px solid var(--border-primary);
-  background: var(--bg-primary);
+  border: var(--border-width) solid var(--card-border);
+  background: var(--card-bg);
   color: var(--text-primary);
   padding: 10px 12px;
   min-width: 160px;
   text-align: left;
   position: relative;
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
 }
 
 .nodeTitle {

@@ -1,14 +1,17 @@
 .button {
-  border: 2px solid var(--button-border, var(--border-primary));
+  border: var(--button-border-width, var(--border-width)) solid
+    var(--button-border, var(--border-primary));
   background: var(--button-bg, transparent);
   color: var(--button-text, var(--text-primary));
   text-transform: uppercase;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   padding: 10px 14px;
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
   touch-action: manipulation;
+  border-radius: var(--control-radius);
+  box-shadow: var(--button-shadow);
 }
 
 .button:disabled {
@@ -17,20 +20,25 @@
 }
 
 .button:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--border-primary);
-}
-
-.primary:hover:not(:disabled) {
-  background: var(--bg-accent);
-  color: var(--text-accent);
+  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .primary {
+  --button-bg: var(--bg-accent);
+  --button-text: var(--text-accent);
+  --button-border: var(--border-primary);
 }
 
 .ghost {
-  border-style: dashed;
+  --button-bg: var(--control-bg, var(--bg-primary));
+  --button-text: var(--text-primary);
+  --button-border: var(--control-border, var(--border-primary));
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 .ghost:hover:not(:disabled) {

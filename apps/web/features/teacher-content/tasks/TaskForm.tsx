@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import EntityEditorInline from "@/components/EntityEditorInline";
 import Input from "@/components/ui/Input";
 import Textarea from "@/components/ui/Textarea";
@@ -41,6 +41,7 @@ type TaskFormProps = {
   initial?: Partial<TaskFormData>;
   onSubmit: (data: TaskFormData) => Promise<void> | void;
   onCancel?: () => void;
+  rightAction?: ReactNode;
   error?: string | null;
 };
 
@@ -76,7 +77,15 @@ const buildCorrectAnswer = (answerType: AnswerType, key: string, keys: string[])
   return null;
 };
 
-export default function TaskForm({ title, submitLabel, initial, onSubmit, onCancel, error }: TaskFormProps) {
+export default function TaskForm({
+  title,
+  submitLabel,
+  initial,
+  onSubmit,
+  onCancel,
+  rightAction,
+  error,
+}: TaskFormProps) {
   const [form, setForm] = useState<TaskFormData>(defaultState);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [correctSingleIndex, setCorrectSingleIndex] = useState<number | null>(null);
@@ -93,22 +102,25 @@ export default function TaskForm({ title, submitLabel, initial, onSubmit, onCanc
   }, [correctMultiIndices]);
 
   useEffect(() => {
+    const numericParts =
+      initial?.numericParts?.length ? initial.numericParts : defaultState.numericParts;
+    const choices = initial?.choices?.length ? initial.choices : defaultState.choices;
+
     setForm({
       ...defaultState,
       ...initial,
-      numericParts: initial?.numericParts?.length ? initial.numericParts : defaultState.numericParts,
-      choices: initial?.choices?.length ? initial.choices : defaultState.choices,
+      numericParts,
+      choices,
       correctAnswer: initial?.correctAnswer ?? null,
     });
-    if (initial?.correctAnswer && initial.choices?.length) {
+
+    if (initial?.correctAnswer && choices.length) {
       if ("key" in initial.correctAnswer && initial.correctAnswer.key) {
-        const index = initial.choices.findIndex(
-          (choice) => choice.key === initial.correctAnswer?.key,
-        );
+        const index = choices.findIndex((choice) => choice.key === initial.correctAnswer?.key);
         setCorrectSingleIndex(index >= 0 ? index : null);
       } else if ("keys" in initial.correctAnswer && initial.correctAnswer.keys?.length) {
         const indices = initial.correctAnswer.keys
-          .map((key) => initial.choices.findIndex((choice) => choice.key === key))
+          .map((key) => choices.findIndex((choice) => choice.key === key))
           .filter((index) => index >= 0);
         setCorrectMultiIndices(indices);
       } else {
@@ -219,6 +231,7 @@ export default function TaskForm({ title, submitLabel, initial, onSubmit, onCanc
       submitLabel={submitLabel}
       onSubmit={handleSubmit}
       secondaryAction={onCancel ? { label: "Отменить", onClick: onCancel } : undefined}
+      rightAction={rightAction}
       error={error}
       disabled={!canSubmit}
     >
@@ -251,10 +264,10 @@ export default function TaskForm({ title, submitLabel, initial, onSubmit, onCanc
       </div>
 
       <div className={styles.section}>
-        <div className={styles.sectionTitle}>Условие (KATEX)</div>
+        <div className={styles.sectionTitle}>Условие</div>
         <div className={styles.dualGrid}>
           <label className={styles.label}>
-            Текст условия
+            Текст условия (KaTeX)
             <Textarea
               value={form.statementLite}
               className={styles.textarea}
@@ -284,7 +297,7 @@ export default function TaskForm({ title, submitLabel, initial, onSubmit, onCanc
                   ...prev,
                   numericParts: [
                     ...prev.numericParts,
-                    { ...defaultNumericPart(), key: nextKey(prev.numericParts.map((part) => part.key)) },
+                    { ...defaultNumericPart(), key: "" },
                   ],
                 }))
               }
@@ -363,7 +376,7 @@ export default function TaskForm({ title, submitLabel, initial, onSubmit, onCanc
                   ...prev,
                   choices: [
                     ...prev.choices,
-                    { ...defaultChoice(), key: nextKey(prev.choices.map((choice) => choice.key)) },
+                    { ...defaultChoice(), key: "" },
                   ],
                 }))
               }
@@ -445,10 +458,10 @@ export default function TaskForm({ title, submitLabel, initial, onSubmit, onCanc
       ) : null}
 
       <div className={styles.section}>
-        <div className={styles.sectionTitle}>Решение (KATEX, временно)</div>
+        <div className={styles.sectionTitle}>Решение</div>
         <div className={styles.dualGrid}>
           <label className={styles.label}>
-            Текст решения
+            Текст решения (KaTeX)
             <Textarea
               value={form.solutionLite}
               className={styles.textarea}

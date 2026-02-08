@@ -69,7 +69,7 @@
   width: 40px;
   height: 40px;
   border-radius: 999px;
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   background: var(--panel-bg);
   color: var(--text-primary);
   display: grid;
@@ -84,8 +84,8 @@
 }
 
 .themeToggle:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--border-primary);
+  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .themeIcon {
@@ -174,7 +174,7 @@
 
 .card {
   width: min(420px, 90vw);
-  border: 1px solid var(--panel-border);
+  border: var(--border-width) solid var(--panel-border);
   padding: 20px;
   background: var(--panel-bg);
   display: grid;
@@ -193,7 +193,7 @@
 }
 
 .error {
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   padding: 8px;
   background: var(--bg-accent);
   color: var(--text-accent);

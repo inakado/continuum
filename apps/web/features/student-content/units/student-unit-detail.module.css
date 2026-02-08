@@ -29,7 +29,7 @@
 }
 
 .error {
-  border: 2px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   padding: 10px 12px;
   background: var(--bg-accent);
   color: var(--text-accent);
@@ -37,7 +37,7 @@
 }
 
 .stub {
-  border: 2px dashed var(--border-primary);
+  border: var(--border-width) dashed var(--border-primary);
   padding: 16px;
   color: var(--text-muted);
   font-size: 13px;
@@ -55,7 +55,7 @@
 }
 
 .taskTab {
-  border: 2px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   background: var(--bg-primary);
   color: var(--text-primary);
   padding: 6px 10px;
@@ -82,7 +82,7 @@
 }
 
 .taskCard {
-  border: 2px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   padding: 12px;
   background: var(--bg-primary);
   display: grid;
@@ -102,7 +102,7 @@
 }
 
 .taskBadge {
-  border: 2px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   padding: 4px 8px;
   font-size: 11px;
   text-transform: uppercase;
@@ -123,7 +123,7 @@
 }
 
 .taskDone {
-  border: 2px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   padding: 8px 10px;
   background: #e6f6ec;
   color: #1f3b2e;
@@ -155,7 +155,7 @@
 }
 
 .answerInputInline {
-  border: 2px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   background: var(--bg-secondary);
   color: var(--text-muted);
   padding: 8px 10px;
@@ -164,7 +164,7 @@
 }
 
 .answerInput {
-  border: 2px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   background: var(--bg-secondary);
   color: var(--text-muted);
   padding: 8px 10px;
@@ -184,7 +184,7 @@
 }
 
 .optionKey {
-  border: 2px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   padding: 4px 8px;
   font-size: 11px;
   text-transform: uppercase;
@@ -198,7 +198,7 @@
 }
 
 .videoCard {
-  border: 2px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   padding: 12px;
   background: var(--bg-primary);
   display: grid;
@@ -212,6 +212,6 @@
 .videoFrame {
   width: 100%;
   aspect-ratio: 16 / 9;
-  border: 2px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   background: var(--bg-primary);
 }
