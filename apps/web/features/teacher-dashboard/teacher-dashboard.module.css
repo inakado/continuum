@@ -100,11 +100,17 @@
   --button-text: var(--text-primary);
   --button-border: var(--panel-border);
   --button-border-width: var(--border-width-thin);
+  --button-hover-bg: var(--surface-2);
+  --button-hover-border: var(--border-primary);
+  --button-hover-text: var(--text-primary);
+  --button-hover-shadow: var(--nav-hover-shadow);
 }
 
 .panelActions button:hover:not(:disabled) {
-  background: var(--bg-accent);
-  color: var(--text-accent);
+  background: var(--button-hover-bg);
+  color: var(--button-hover-text);
+  border-color: var(--button-hover-border);
+  box-shadow: var(--button-hover-shadow);
 }
 
 .panelBody {
@@ -211,6 +217,16 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.cardActions button {
+  --button-bg: var(--surface-1);
+  --button-border: var(--glass-border);
+  --button-text: var(--text-primary);
+  --button-hover-bg: var(--surface-2);
+  --button-hover-border: var(--border-primary);
+  --button-hover-text: var(--text-primary);
+  --button-hover-shadow: var(--nav-hover-shadow);
 }
 
 .cardTitle {

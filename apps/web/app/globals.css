@@ -33,6 +33,12 @@
   --nav-hover-bg: var(--bg-accent);
   --nav-active-bg: var(--bg-accent);
   --nav-active-text: var(--text-accent);
+  --sidebar-divider: rgba(15, 23, 42, 0.06);
+  --nav-hover-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  --button-hover-bg: var(--glass-tint);
+  --button-hover-text: var(--text-primary);
+  --button-hover-border: var(--glass-border);
+  --button-hover-shadow: var(--glass-shadow);
 }
 
 [data-theme="light"] {
@@ -75,6 +81,8 @@
   --surface-0: #0b1020;
   --surface-1: rgba(15, 23, 42, 0.72);
   --surface-2: rgba(15, 23, 42, 0.88);
+  --sidebar-divider: rgba(255, 255, 255, 0.08);
+  --nav-hover-shadow: 0 10px 22px rgba(2, 6, 23, 0.45);
 }
 
 html,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import DashboardShell from "@/components/DashboardShell";
@@ -8,6 +8,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { teacherApi, Course, CourseWithSections, Section } from "@/lib/api/teacher";
 import { getApiErrorMessage } from "@/features/teacher-content/shared/api-errors";
+import { useTeacherLogout } from "@/features/teacher-content/auth/use-teacher-logout";
 import styles from "./teacher-dashboard.module.css";
 
 type ActiveSection = "edit" | "students" | "analytics";
@@ -34,6 +35,7 @@ const TeacherSectionGraphPanel = dynamic(() => import("./TeacherSectionGraphPane
 
 export default function TeacherDashboardScreen({ active, initialSectionId }: TeacherDashboardScreenProps) {
   const router = useRouter();
+  const handleLogout = useTeacherLogout();
   const isEditMode = active === "edit";
   const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
@@ -51,6 +53,8 @@ export default function TeacherDashboardScreen({ active, initialSectionId }: Tea
   const [creatingSection, setCreatingSection] = useState(false);
   const [showCourseForm, setShowCourseForm] = useState(false);
   const [showSectionForm, setShowSectionForm] = useState(false);
+  const coursesRequestIdRef = useRef(0);
+  const sectionsRequestIdRef = useRef(0);
 
   const content = useMemo<ContentConfig>(() => {
     switch (active) {
@@ -101,20 +105,26 @@ export default function TeacherDashboardScreen({ active, initialSectionId }: Tea
 
   const fetchCourses = useCallback(async () => {
     if (!isEditMode) return;
+    const requestId = ++coursesRequestIdRef.current;
     setLoadingCourses(true);
     setError(null);
     try {
       const data = await teacherApi.listCourses();
+      if (requestId !== coursesRequestIdRef.current) return;
       setCourses(data);
     } catch (err) {
+      if (requestId !== coursesRequestIdRef.current) return;
       setError(getApiErrorMessage(err));
     } finally {
-      setLoadingCourses(false);
+      if (requestId === coursesRequestIdRef.current) {
+        setLoadingCourses(false);
+      }
     }
   }, [isEditMode]);
 
   const selectCourse = useCallback(async (courseId: string) => {
     if (!isEditMode) return;
+    const requestId = ++sectionsRequestIdRef.current;
     setSelectedCourseId(courseId);
     setSelectedCourse(null);
     setLoadingSections(true);
@@ -123,11 +133,15 @@ export default function TeacherDashboardScreen({ active, initialSectionId }: Tea
     setSectionFormError(null);
     try {
       const data = await teacherApi.getCourse(courseId);
+      if (requestId !== sectionsRequestIdRef.current) return;
       setSelectedCourse(data);
     } catch (err) {
+      if (requestId !== sectionsRequestIdRef.current) return;
       setError(getApiErrorMessage(err));
     } finally {
-      setLoadingSections(false);
+      if (requestId === sectionsRequestIdRef.current) {
+        setLoadingSections(false);
+      }
     }
   }, [isEditMode]);
 
@@ -254,7 +268,12 @@ export default function TeacherDashboardScreen({ active, initialSectionId }: Tea
   };
 
   return (
-    <DashboardShell title="Преподаватель" navItems={navItems} appearance="glass">
+    <DashboardShell
+      title="Преподаватель"
+      navItems={navItems}
+      appearance="glass"
+      onLogout={handleLogout}
+    >
       <div className={styles.content}>
         <div className={styles.header}>
           <div>

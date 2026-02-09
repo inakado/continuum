@@ -2,16 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import DashboardShell from "@/components/DashboardShell";
 import Button from "@/components/ui/Button";
 import { studentApi, type Course, type CourseWithSections, type Section } from "@/lib/api/student";
+import { useStudentLogout } from "@/features/student-content/auth/use-student-logout";
 import styles from "./student-dashboard.module.css";
-
-const LAST_SECTION_KEY = "continuum:lastStudentSectionId";
-const COURSES_QUERY_KEY = "view";
-const COURSES_QUERY_VALUE = "courses";
-const COURSES_HASH = "#courses"; // backward-compat (older links)
+import {
+  COURSES_HASH,
+  COURSES_QUERY_KEY,
+  COURSES_QUERY_VALUE,
+  LAST_SECTION_KEY,
+} from "./constants";
 
 type View = "courses" | "sections" | "graph";
 type Boot = "checking_last" | "ready";
@@ -25,9 +27,13 @@ const StudentSectionGraphPanel = dynamic(() => import("./StudentSectionGraphPane
   ),
 });
 
-export default function StudentDashboardScreen() {
+type StudentDashboardScreenProps = {
+  queryOverride?: boolean;
+};
+
+export default function StudentDashboardScreen({ queryOverride = false }: StudentDashboardScreenProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const handleLogout = useStudentLogout();
   const skipAutoRestoreOnceRef = useRef(false);
   const [boot, setBoot] = useState<Boot>("checking_last");
   const [view, setView] = useState<View>("courses");
@@ -40,6 +46,8 @@ export default function StudentDashboardScreen() {
 
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
   const [selectedSectionTitle, setSelectedSectionTitle] = useState<string | null>(null);
+  const coursesRequestIdRef = useRef(0);
+  const courseRequestIdRef = useRef(0);
 
   const navItems = useMemo(
     () => [
@@ -58,15 +66,20 @@ export default function StudentDashboardScreen() {
   }, [selectedCourse]);
 
   const fetchCourses = useCallback(async () => {
+    const requestId = ++coursesRequestIdRef.current;
     setLoadingCourses(true);
     setError(null);
     try {
       const data = await studentApi.listCourses();
+      if (requestId !== coursesRequestIdRef.current) return;
       setCourses(data);
     } catch (err) {
+      if (requestId !== coursesRequestIdRef.current) return;
       setError(err instanceof Error ? err.message : "Ошибка загрузки курсов");
     } finally {
-      setLoadingCourses(false);
+      if (requestId === coursesRequestIdRef.current) {
+        setLoadingCourses(false);
+      }
     }
   }, []);
 
@@ -80,7 +93,6 @@ export default function StudentDashboardScreen() {
   }, []);
 
   useEffect(() => {
-    const queryOverride = searchParams.get(COURSES_QUERY_KEY) === COURSES_QUERY_VALUE;
     const hashOverride = typeof window !== "undefined" && window.location.hash === COURSES_HASH;
     if (queryOverride || hashOverride) {
       // User explicitly asked to see courses (e.g. from unit page sidebar).
@@ -117,7 +129,7 @@ export default function StudentDashboardScreen() {
     } finally {
       setBoot("ready");
     }
-  }, [forceShowCourses, router, searchParams]);
+  }, [forceShowCourses, queryOverride, router]);
 
   useEffect(() => {
     if (boot !== "ready") return;
@@ -153,14 +165,17 @@ export default function StudentDashboardScreen() {
   }, [boot, view, selectedSectionId, selectedSectionTitle]);
 
   const handleCourseClick = async (courseId: string) => {
+    const requestId = ++courseRequestIdRef.current;
     setError(null);
     setSelectedCourseId(courseId);
     setSelectedCourse(null);
     try {
       const data = await studentApi.getCourse(courseId);
+      if (requestId !== courseRequestIdRef.current) return;
       setSelectedCourse(data);
       setView("sections");
     } catch (err) {
+      if (requestId !== courseRequestIdRef.current) return;
       setError(err instanceof Error ? err.message : "Ошибка загрузки курса");
     }
   };
@@ -214,7 +229,7 @@ export default function StudentDashboardScreen() {
   };
 
   return (
-    <DashboardShell title="Ученик" navItems={navItems} appearance="glass">
+    <DashboardShell title="Ученик" navItems={navItems} appearance="glass" onLogout={handleLogout}>
       <div className={styles.content}>
         <div className={styles.header}>
           <div>

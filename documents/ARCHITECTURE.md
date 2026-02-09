@@ -195,7 +195,7 @@
 3) **components/** (UI kit + shared UI)
 - Путь: `apps/web/components/**`
 - Роль: переиспользуемые “кирпичи” UI без знания домена.
-- Примеры: Button, Input, Card, StatusBadge, EntityList.
+- Примеры: Button, Input, Card.
 
 4) **lib/** (infra)
 - Путь: `apps/web/lib/**`

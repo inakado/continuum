@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import katex from "katex";
 import styles from "./lite-tex.module.css";
 
@@ -13,6 +13,8 @@ type LiteTexProps = {
 type Segment =
   | { type: "text"; value: string }
   | { type: "math"; value: string; display: boolean };
+
+const mathCache = new Map<string, string>();
 
 const splitByMath = (input: string): Segment[] => {
   const segments: Segment[] = [];
@@ -59,19 +61,47 @@ const splitByMath = (input: string): Segment[] => {
 };
 
 const renderMath = (value: string, display: boolean) => {
+  const key = `${display ? "1" : "0"}|${value}`;
+  const cached = mathCache.get(key);
+  if (cached) return cached;
+
+  let html: string;
   try {
-    return katex.renderToString(value, {
+    html = katex.renderToString(value, {
       displayMode: display,
       throwOnError: false,
       strict: "warn",
     });
   } catch {
-    return value;
+    html = value;
   }
+
+  mathCache.set(key, html);
+  return html;
 };
 
-export default function LiteTex({ value, block = false, className = "" }: LiteTexProps) {
+const LiteTex = memo(function LiteTex({ value, block = false, className = "" }: LiteTexProps) {
   const segments = useMemo(() => splitByMath(value), [value]);
+  const renderedSegments = useMemo(() => {
+    if (!value.trim()) return null;
+    return segments.map((segment, index) => {
+      if (segment.type === "text") {
+        return (
+          <span key={`text-${index}`} className={styles.text}>
+            {segment.value}
+          </span>
+        );
+      }
+      const html = renderMath(segment.value, segment.display);
+      return (
+        <span
+          key={`math-${index}`}
+          className={segment.display ? styles.mathBlock : styles.mathInline}
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      );
+    });
+  }, [segments, value]);
 
   if (!value.trim()) {
     return <span className={`${styles.placeholder} ${className}`}>—</span>;
@@ -81,23 +111,9 @@ export default function LiteTex({ value, block = false, className = "" }: LiteTe
 
   return (
     <Container className={`${block ? styles.block : styles.inline} ${className}`}>
-      {segments.map((segment, index) => {
-        if (segment.type === "text") {
-          return (
-            <span key={`text-${index}`} className={styles.text}>
-              {segment.value}
-            </span>
-          );
-        }
-        const html = renderMath(segment.value, segment.display);
-        return (
-          <span
-            key={`math-${index}`}
-            className={segment.display ? styles.mathBlock : styles.mathInline}
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
-        );
-      })}
+      {renderedSegments}
     </Container>
   );
-}
+});
+
+export default LiteTex;

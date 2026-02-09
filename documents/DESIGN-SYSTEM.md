@@ -86,6 +86,8 @@ Glass‑стиль — основа для **teacher dashboards**, **student das
 **Glass UI уточнение:**
 - Primary: лёгкая стеклянная заливка + `--button-shadow`
 - Ghost: полупрозрачный фон (`--control-bg`) + читаемый контур
+- Hover (glass): использовать `--button-hover-bg`, `--button-hover-text`, `--button-hover-border`, `--button-hover-shadow`
+- Для локальных панелей (toolbar/карточки) допускается переопределение `--button-hover-*` через контейнер
 
 ### 4.2 Инпуты
 **Glass UI:**

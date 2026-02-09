@@ -11,6 +11,7 @@ import Tabs from "@/components/ui/Tabs";
 import { toYouTubeEmbed } from "@/lib/video-embed";
 import Button from "@/components/ui/Button";
 import LiteTex from "@/components/LiteTex";
+import { useStudentLogout } from "../auth/use-student-logout";
 
 type Props = {
   unitId: string;
@@ -21,6 +22,7 @@ type TabKey = "theory" | "method" | "tasks" | "video" | "attachments";
 export default function StudentUnitDetailScreen({ unitId }: Props) {
   const tabsId = useId();
   const router = useRouter();
+  const handleLogout = useStudentLogout();
   const [unit, setUnit] = useState<UnitWithTasks | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -56,7 +58,10 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
     [],
   );
 
-  const videos = (unit?.videosJson ?? []).filter((v) => v.embedUrl.trim().length > 0);
+  const videos = useMemo(
+    () => (unit?.videosJson ?? []).filter((v) => v.embedUrl.trim().length > 0),
+    [unit?.videosJson],
+  );
   const hasMethod = Boolean(unit?.methodPdfAssetKey || unit?.methodRichLatex);
   const hasAttachments = Boolean(unit?.attachmentsJson && unit.attachmentsJson.length > 0);
 
@@ -80,12 +85,13 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
   const activePanelId = `${tabsId}-${activeTab}-panel`;
   const activeTabId = `${tabsId}-${activeTab}`;
 
-  const orderedTasks = unit?.tasks
-    ? [...unit.tasks].sort((a, b) => {
-        if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-      })
-    : [];
+  const orderedTasks = useMemo(() => {
+    if (!unit?.tasks) return [];
+    return [...unit.tasks].sort((a, b) => {
+      if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
+  }, [unit?.tasks]);
 
   useEffect(() => {
     if (!orderedTasks.length) {
@@ -104,19 +110,25 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
     return max;
   }, [completedTaskIds, orderedTasks]);
 
-  const maxUnlockedIndex = Math.min(maxCompletedIndex + 1, Math.max(0, orderedTasks.length - 1));
-  const activeTask = orderedTasks[activeTaskIndex];
-  const activeTaskCompleted = activeTask ? completedTaskIds.has(activeTask.id) : false;
-  const canGoNext = activeTaskCompleted && activeTaskIndex < orderedTasks.length - 1;
+  const maxUnlockedIndex = useMemo(
+    () => Math.min(maxCompletedIndex + 1, Math.max(0, orderedTasks.length - 1)),
+    [maxCompletedIndex, orderedTasks.length],
+  );
+  const activeTask = useMemo(() => orderedTasks[activeTaskIndex], [activeTaskIndex, orderedTasks]);
+  const activeTaskCompleted = useMemo(
+    () => (activeTask ? completedTaskIds.has(activeTask.id) : false),
+    [activeTask, completedTaskIds],
+  );
+  const canGoNext = useMemo(
+    () => activeTaskCompleted && activeTaskIndex < orderedTasks.length - 1,
+    [activeTaskCompleted, activeTaskIndex, orderedTasks.length],
+  );
 
   return (
-    <DashboardShell title="Ученик" navItems={navItems} appearance="glass">
+    <DashboardShell title="Ученик" navItems={navItems} appearance="glass" onLogout={handleLogout}>
       <div className={styles.content}>
         <div className={styles.header}>
-          <Button variant="ghost" onClick={() => router.back()}>
-            ← Назад
-          </Button>
-          <div>
+          <div className={styles.headerLeft}>
             <h1 className={styles.title}>{unit?.title ?? "Юнит"}</h1>
             <p className={styles.subtitle}>Материалы юнита</p>
           </div>
@@ -129,13 +141,18 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
           </div>
         ) : null}
 
-        <Tabs
-          idBase={tabsId}
-          tabs={tabs}
-          active={activeTab}
-          onChange={setActiveTab}
-          ariaLabel="Вкладки юнита"
-        />
+        <div className={styles.tabsRow}>
+          <Tabs
+            idBase={tabsId}
+            tabs={tabs}
+            active={activeTab}
+            onChange={setActiveTab}
+            ariaLabel="Вкладки юнита"
+          />
+          <Button variant="ghost" onClick={() => router.back()} className={styles.backInline}>
+            ← Назад
+          </Button>
+        </div>
 
         <div id={activePanelId} role="tabpanel" aria-labelledby={activeTabId}>
           {activeTab === "theory" ? (

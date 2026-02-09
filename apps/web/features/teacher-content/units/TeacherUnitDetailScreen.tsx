@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ComponentProps } from "react";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import DashboardShell from "@/components/DashboardShell";
 import Button from "@/components/ui/Button";
@@ -10,6 +11,7 @@ import Tabs from "@/components/ui/Tabs";
 import type { Task, UnitVideo, UnitWithTasks } from "@/lib/api/teacher";
 import { teacherApi } from "@/lib/api/teacher";
 import { getApiErrorMessage } from "../shared/api-errors";
+import { useTeacherLogout } from "../auth/use-teacher-logout";
 import TaskForm, { type TaskFormData } from "../tasks/TaskForm";
 import styles from "./teacher-unit-detail.module.css";
 import {
@@ -66,6 +68,8 @@ const sortTasks = (tasks: Task[]) =>
     if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
     return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
   });
+
+const buildSortMap = (tasks: Task[]) => new Map(tasks.map((task) => [task.id, task.sortOrder ?? 0]));
 
 type SortableTaskCardProps = {
   task: Task;
@@ -165,6 +169,8 @@ const mapTaskToFormData = (task: Task): TaskFormData => ({
 
 export default function TeacherUnitDetailScreen({ unitId }: Props) {
   const tabsId = useId();
+  const router = useRouter();
+  const handleLogout = useTeacherLogout();
   const [unit, setUnit] = useState<UnitWithTasks | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -357,22 +363,21 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   const persistTaskOrder = useCallback(
-    async (nextOrder: Task[]) => {
+    async (nextOrder: Task[], prevOrder: Task[]) => {
       if (!nextOrder.length) return;
-      const updates = nextOrder.map((task, index) => ({
-        id: task.id,
-        sortOrder: index + 1,
-      }));
-      const changed = updates.filter((update) => {
-        const current = nextOrder.find((task) => task.id === update.id);
-        return current ? current.sortOrder !== update.sortOrder : false;
-      });
-      if (!changed.length) return;
+      const prevMap = buildSortMap(prevOrder);
+      const updates = nextOrder
+        .map((task, index) => ({
+          id: task.id,
+          sortOrder: index + 1,
+        }))
+        .filter((update) => prevMap.get(update.id) !== update.sortOrder);
+      if (!updates.length) return;
 
       setTaskOrderStatus("Сохранение порядка…");
       try {
         await Promise.all(
-          changed.map((update) => teacherApi.updateTask(update.id, { sortOrder: update.sortOrder })),
+          updates.map((update) => teacherApi.updateTask(update.id, { sortOrder: update.sortOrder })),
         );
         setTaskOrderStatus("Порядок сохранён");
         await fetchUnit();
@@ -396,7 +401,12 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
   const activeTabId = `${tabsId}-${activeTab}`;
 
   return (
-    <DashboardShell title="Преподаватель" navItems={navItems} appearance="glass">
+    <DashboardShell
+      title="Преподаватель"
+      navItems={navItems}
+      appearance="glass"
+      onLogout={handleLogout}
+    >
       <div className={styles.content}>
         <div className={styles.header}>
           <div>
@@ -416,13 +426,29 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
           </div>
         ) : null}
 
-        <Tabs
-          idBase={tabsId}
-          tabs={tabs}
-          active={activeTab}
-          onChange={setActiveTab}
-          ariaLabel="Вкладки юнита"
-        />
+        <div className={styles.tabsRow}>
+          <Tabs
+            idBase={tabsId}
+            tabs={tabs}
+            active={activeTab}
+            onChange={setActiveTab}
+            ariaLabel="Вкладки юнита"
+          />
+          <Button
+            variant="ghost"
+            onClick={() => {
+              if (unit?.sectionId) {
+                router.push(`/teacher/sections/${unit.sectionId}`);
+              } else {
+                router.back();
+              }
+            }}
+            className={styles.backInline}
+            disabled={!unit?.sectionId}
+          >
+            ← Назад
+          </Button>
+        </div>
 
         <div id={activePanelId} role="tabpanel" aria-labelledby={activeTabId}>
           {activeTab === "theory" ? (
@@ -548,6 +574,7 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
                         onDragEnd={(event) => {
                           const { active, over } = event;
                           if (!over || active.id === over.id) return;
+                          const previousOrder = taskOrder;
                           const oldIndex = taskOrder.findIndex((task) => task.id === active.id);
                           const newIndex = taskOrder.findIndex((task) => task.id === over.id);
                           if (oldIndex < 0 || newIndex < 0) return;
@@ -558,7 +585,7 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
                             }),
                           );
                           setTaskOrder(nextOrder);
-                          persistTaskOrder(nextOrder);
+                          persistTaskOrder(nextOrder, previousOrder);
                         }}
                       >
                         <SortableContext

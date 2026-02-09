@@ -10,12 +10,49 @@
   padding: 0;
 }
 
+.topActions button {
+  --button-bg: var(--surface-1);
+  --button-border: var(--glass-border);
+  --button-text: var(--text-primary);
+  --button-hover-bg: var(--surface-2);
+  --button-hover-border: var(--border-primary);
+  --button-hover-text: var(--text-primary);
+  --button-hover-shadow: var(--nav-hover-shadow);
+}
+
+.header button {
+  --button-bg: var(--surface-1);
+  --button-border: var(--glass-border);
+  --button-text: var(--text-primary);
+  --button-hover-bg: var(--surface-2);
+  --button-hover-border: var(--border-primary);
+  --button-hover-text: var(--text-primary);
+  --button-hover-shadow: var(--nav-hover-shadow);
+}
+
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.backButton {
+  --button-bg: var(--surface-1);
+  --button-border: var(--glass-border);
+  --button-text: var(--text-primary);
+  --button-hover-bg: var(--surface-2);
+  --button-hover-border: var(--border-primary);
+  --button-hover-text: var(--text-primary);
+  --button-hover-shadow: var(--nav-hover-shadow);
+}
+
+.backButton:hover:not(:disabled) {
+  background: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-primary) !important;
+  box-shadow: var(--nav-hover-shadow);
 }
 
 .kicker {
@@ -84,6 +121,12 @@
   box-shadow: var(--card-shadow);
   backdrop-filter: var(--glass-filter);
   -webkit-backdrop-filter: var(--glass-filter);
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.node:hover {
+  border-color: var(--border-primary);
 }
 
 .nodeTitle {

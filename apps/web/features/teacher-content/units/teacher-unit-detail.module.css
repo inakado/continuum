@@ -12,6 +12,40 @@
   flex-wrap: wrap;
 }
 
+.header button {
+  --button-bg: var(--surface-1);
+  --button-border: var(--glass-border);
+  --button-text: var(--text-primary);
+  --button-hover-bg: var(--surface-2);
+  --button-hover-border: var(--border-primary);
+  --button-hover-text: var(--text-primary);
+  --button-hover-shadow: var(--nav-hover-shadow);
+}
+
+.tabsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-bottom: var(--border-width) solid var(--glass-border);
+  padding-bottom: 12px;
+}
+
+.backInline {
+  margin-left: auto;
+}
+
+.tabsRow button {
+  --button-bg: var(--surface-1);
+  --button-border: var(--glass-border);
+  --button-text: var(--text-primary);
+  --button-hover-bg: var(--surface-2);
+  --button-hover-border: var(--border-primary);
+  --button-hover-text: var(--text-primary);
+  --button-hover-shadow: var(--nav-hover-shadow);
+}
+
 .title {
   font-family: var(--font-unbounded), sans-serif;
   font-weight: 300;
@@ -111,6 +145,18 @@
   -webkit-backdrop-filter: var(--glass-filter);
 }
 
+.videoHeader button,
+.videoActions button,
+.tasksHeader button,
+.taskActions button {
+  --button-bg: var(--surface-1);
+  --button-border: var(--glass-border);
+  --button-text: var(--text-primary);
+  --button-hover-bg: var(--surface-2);
+  --button-hover-border: var(--border-primary);
+  --button-hover-text: var(--text-primary);
+  --button-hover-shadow: var(--nav-hover-shadow);
+}
 .hint {
   color: var(--text-muted);
   font-size: 13px;

@@ -17,12 +17,39 @@
   -webkit-backdrop-filter: var(--glass-filter);
 }
 
+.topActions button {
+  --button-bg: var(--surface-1);
+  --button-border: var(--glass-border);
+  --button-text: var(--text-primary);
+  --button-hover-bg: var(--surface-2);
+  --button-hover-border: var(--border-primary);
+  --button-hover-text: var(--text-primary);
+  --button-hover-shadow: var(--nav-hover-shadow);
+}
+
 .header {
   display: flex;
   align-items: center;
   gap: 12px;
   justify-content: space-between;
   flex-wrap: wrap;
+}
+
+.backButton {
+  --button-bg: var(--surface-1);
+  --button-border: var(--glass-border);
+  --button-text: var(--text-primary);
+  --button-hover-bg: var(--surface-2);
+  --button-hover-border: var(--border-primary);
+  --button-hover-text: var(--text-primary);
+  --button-hover-shadow: var(--nav-hover-shadow);
+}
+
+.backButton:hover:not(:disabled) {
+  background: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-primary) !important;
+  box-shadow: var(--nav-hover-shadow);
 }
 
 .kicker {
@@ -43,6 +70,16 @@
   grid-template-columns: minmax(200px, 1fr) auto auto auto;
   gap: 8px;
   align-items: center;
+}
+
+.toolbar button {
+  --button-bg: var(--surface-1);
+  --button-border: var(--glass-border);
+  --button-text: var(--text-primary);
+  --button-hover-bg: var(--surface-2);
+  --button-hover-border: var(--border-primary);
+  --button-hover-text: var(--text-primary);
+  --button-hover-shadow: var(--nav-hover-shadow);
 }
 
 .error {
@@ -106,6 +143,12 @@
   position: relative;
   border-radius: var(--card-radius);
   box-shadow: var(--card-shadow);
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.node:hover {
+  border-color: var(--border-primary);
 }
 
 .nodeTitle {

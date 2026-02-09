@@ -78,7 +78,7 @@
   max-width: none;
   width: 100%;
   margin: 0 auto;
-  padding: 32px clamp(24px, 4vw, 96px) 32px;
+  padding: 0;
 }
 
 .shell {
@@ -86,7 +86,7 @@
   display: grid;
   --sidebar-collapsed: 72px;
   --sidebar-expanded: 288px;
-  --sidebar-gap: 24px;
+  --sidebar-gap: 0px;
   --sidebar-pad-x-collapsed: 12px;
   --sidebar-pad-x-expanded: 28px;
   --sidebar-pad-y-collapsed: 14px;
@@ -105,9 +105,9 @@
   --theme-toggle-radius: var(--control-radius);
   --sidebar-icon-slot: 44px;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
-  gap: var(--sidebar-gap);
+  /* gap: var(--sidebar-gap); */
   align-items: stretch;
-  min-height: calc(100vh - 88px);
+  min-height: 100vh;
   will-change: grid-template-columns;
   transition:
     --sidebar-width var(--sidebar-motion-duration) var(--sidebar-motion-ease),
@@ -122,11 +122,13 @@
 .sidebar {
   width: 100%;
   border: var(--border-width) solid var(--panel-border);
-  background: var(--panel-bg);
+  border-top: 0;
+  border-right: 0;
+  background: var(--surface-1);
   padding: 0;
   min-height: 100%;
-  border-radius: var(--panel-radius);
-  box-shadow: var(--panel-shadow);
+  border-radius: 0px;
+  box-shadow: inset -1px 0 0 var(--sidebar-divider), var(--panel-shadow);
   backdrop-filter: var(--glass-filter);
   -webkit-backdrop-filter: var(--glass-filter);
   overflow: hidden;
@@ -208,6 +210,14 @@
     padding-right var(--sidebar-motion-duration) var(--sidebar-motion-ease);
 }
 
+.sidebarFooter {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 8px;
+}
+
 .navLink {
   border: var(--border-width) solid var(--panel-border);
   padding: 12px 16px;
@@ -215,7 +225,8 @@
   font-weight: 700;
   font-size: 12px;
   letter-spacing: 0.08em;
-  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease,
+    box-shadow 0.2s ease;
   touch-action: manipulation;
   display: flex;
   align-items: center;
@@ -234,7 +245,8 @@
 
 .navLink:hover {
   background: var(--nav-hover-bg);
-  color: var(--nav-active-text);
+  color: var(--text-primary);
+  box-shadow: var(--nav-hover-shadow);
 }
 
 .navLink:focus-visible {
@@ -265,10 +277,14 @@
 
 .main {
   border: var(--border-width) solid var(--main-border);
+  border-top: 0;
+  border-left: 0;
   background: var(--main-bg);
   padding: clamp(20px, 3vw, 36px);
-  min-height: 100%;
-  border-radius: var(--panel-radius);
+  /* margin-top: 24px;
+  margin-bottom: 24px;
+  margin-right: 24px; */
+  /* border-radius: var(--panel-radius); */
   box-shadow: var(--panel-shadow);
   backdrop-filter: var(--glass-filter);
   -webkit-backdrop-filter: var(--glass-filter);

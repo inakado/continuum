@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ReactFlow, { Background, Controls, MarkerType, type Edge, type Node, type NodeProps } from "reactflow";
 import "reactflow/dist/style.css";
@@ -30,6 +30,14 @@ const UnitNode = ({ data }: NodeProps<UnitNodeData>) => {
   );
 };
 
+const NODE_TYPES = { unit: UnitNode };
+
+const DEFAULT_EDGE_OPTIONS: Partial<Edge> = {
+  type: "smoothstep",
+  markerEnd: { type: MarkerType.ArrowClosed, color: "var(--border-primary)" },
+  style: { stroke: "var(--border-primary)" },
+};
+
 const buildFlowNodes = (nodes: GraphNode[]): Node<UnitNodeData>[] =>
   nodes.map((node) => ({
     id: node.unitId,
@@ -48,6 +56,38 @@ const buildFlowEdges = (edges: GraphEdge[]): Edge[] =>
     markerEnd: { type: MarkerType.ArrowClosed, color: "var(--border-primary)" },
     style: { stroke: "var(--border-primary)" },
   }));
+
+type GraphCanvasProps = {
+  nodes: Node<UnitNodeData>[];
+  edges: Edge[];
+  onNodeClick: (...args: any[]) => void;
+};
+
+const GraphCanvas = memo(function GraphCanvas({
+  nodes,
+  edges,
+  onNodeClick,
+}: GraphCanvasProps) {
+  const nodeTypesRef = useRef(NODE_TYPES);
+  const defaultEdgeOptionsRef = useRef(DEFAULT_EDGE_OPTIONS);
+
+  return (
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      nodeTypes={nodeTypesRef.current}
+      nodesDraggable={false}
+      nodesConnectable={false}
+      elementsSelectable={false}
+      onNodeClick={onNodeClick}
+      fitView
+      defaultEdgeOptions={defaultEdgeOptionsRef.current}
+    >
+      <Background gap={20} color="var(--border-primary)" />
+      <Controls />
+    </ReactFlow>
+  );
+});
 
 export default function StudentSectionGraphPanel({ sectionId, sectionTitle, onBack, onNotFound }: Props) {
   const router = useRouter();
@@ -82,13 +122,18 @@ export default function StudentSectionGraphPanel({ sectionId, sectionTitle, onBa
     fetchGraph();
   }, [fetchGraph]);
 
-  const nodeTypes = useMemo(() => ({ unit: UnitNode }), []);
+  const handleNodeClick = useCallback(
+    (_: unknown, node: Node) => {
+      router.push(`/student/units/${node.id}`);
+    },
+    [router],
+  );
 
   return (
     <div className={styles.wrapper}>
       <div className={styles.topActions}>
         <div className={styles.header}>
-          <Button variant="ghost" onClick={onBack}>
+          <Button variant="ghost" onClick={onBack} className={styles.backButton}>
             ← К разделам
           </Button>
           <div>
@@ -110,24 +155,11 @@ export default function StudentSectionGraphPanel({ sectionId, sectionTitle, onBa
         ) : nodes.length === 0 ? (
           <div className={styles.empty}>В разделе пока нет опубликованных юнитов</div>
         ) : (
-          <ReactFlow
+          <GraphCanvas
             nodes={nodes}
             edges={edges}
-            nodeTypes={nodeTypes}
-            nodesDraggable={false}
-            nodesConnectable={false}
-            elementsSelectable={false}
-            onNodeClick={(_, node) => router.push(`/student/units/${node.id}`)}
-            fitView
-            defaultEdgeOptions={{
-              type: "smoothstep",
-              markerEnd: { type: MarkerType.ArrowClosed, color: "var(--border-primary)" },
-              style: { stroke: "var(--border-primary)" },
-            }}
-          >
-            <Background gap={20} color="var(--border-primary)" />
-            <Controls />
-          </ReactFlow>
+            onNodeClick={handleNodeClick}
+          />
         )}
       </div>
     </div>

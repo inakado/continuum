@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ReactFlow, {
   addEdge,
@@ -54,6 +54,14 @@ const UnitNode = ({ data }: NodeProps<UnitNodeData>) => {
   );
 };
 
+const NODE_TYPES = { unit: UnitNode };
+
+const DEFAULT_EDGE_OPTIONS: Partial<Edge> = {
+  type: "smoothstep",
+  markerEnd: { type: MarkerType.ArrowClosed, color: "var(--border-primary)" },
+  style: { stroke: "var(--border-primary)" },
+};
+
 const buildFlowNodes = (nodes: GraphNode[]): Node<UnitNodeData>[] =>
   nodes.map((node) => ({
     id: node.unitId,
@@ -81,6 +89,47 @@ const getNextPosition = (count: number) => {
   const row = Math.floor(count / columns);
   return { x: col * stepX, y: row * stepY };
 };
+
+type GraphCanvasProps = {
+  nodes: Node<UnitNodeData>[];
+  edges: Edge[];
+  onNodesChange: (...args: any[]) => void;
+  onEdgesChange: (...args: any[]) => void;
+  onConnect: (...args: any[]) => void;
+  onNodeClick: (...args: any[]) => void;
+  onSelectionChange: (...args: any[]) => void;
+};
+
+const GraphCanvas = memo(function GraphCanvas({
+  nodes,
+  edges,
+  onNodesChange,
+  onEdgesChange,
+  onConnect,
+  onNodeClick,
+  onSelectionChange,
+}: GraphCanvasProps) {
+  const nodeTypesRef = useRef(NODE_TYPES);
+  const defaultEdgeOptionsRef = useRef(DEFAULT_EDGE_OPTIONS);
+
+  return (
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
+      onConnect={onConnect}
+      onNodeClick={onNodeClick}
+      onSelectionChange={onSelectionChange}
+      nodeTypes={nodeTypesRef.current}
+      fitView
+      defaultEdgeOptions={defaultEdgeOptionsRef.current}
+    >
+      <Background gap={20} color="var(--border-primary)" />
+      <Controls />
+    </ReactFlow>
+  );
+});
 
 export default function TeacherSectionGraphPanel({ sectionId, sectionTitle, onBack }: Props) {
   const router = useRouter();
@@ -208,7 +257,16 @@ export default function TeacherSectionGraphPanel({ sectionId, sectionTitle, onBa
     setSelectedEdgeId(null);
   };
 
-  const nodeTypes = useMemo(() => ({ unit: UnitNode }), []);
+  const handleNodeClick = useCallback(
+    (_: unknown, node: Node) => {
+      router.push(`/teacher/units/${node.id}`);
+    },
+    [router],
+  );
+
+  const handleSelectionChange = useCallback((selection: { edges: Edge[] }) => {
+    setSelectedEdgeId(selection.edges[0]?.id ?? null);
+  }, []);
 
   if (authRequired) {
     return <AuthRequired />;
@@ -219,7 +277,7 @@ export default function TeacherSectionGraphPanel({ sectionId, sectionTitle, onBa
       <div className={styles.topActions}>
         <div className={styles.header}>
           {onBack ? (
-            <Button variant="ghost" onClick={onBack}>
+            <Button variant="ghost" onClick={onBack} className={styles.backButton}>
               ← К разделам
             </Button>
           ) : null}
@@ -260,25 +318,15 @@ export default function TeacherSectionGraphPanel({ sectionId, sectionTitle, onBa
           <div className={styles.loading}>Загрузка графа…</div>
         ) : (
           <>
-            <ReactFlow
+            <GraphCanvas
               nodes={nodes}
               edges={edges}
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={handleConnect}
-              onNodeClick={(_, node) => router.push(`/teacher/units/${node.id}`)}
-              onSelectionChange={(selection) => setSelectedEdgeId(selection.edges[0]?.id ?? null)}
-              nodeTypes={nodeTypes}
-              fitView
-              defaultEdgeOptions={{
-                type: "smoothstep",
-                markerEnd: { type: MarkerType.ArrowClosed, color: "var(--border-primary)" },
-                style: { stroke: "var(--border-primary)" },
-              }}
-            >
-              <Background gap={20} color="var(--border-primary)" />
-              <Controls />
-            </ReactFlow>
+              onNodeClick={handleNodeClick}
+              onSelectionChange={handleSelectionChange}
+            />
             {nodes.length === 0 ? (
               <div className={styles.empty}>В разделе нет юнитов. Создайте первый в панели выше.</div>
             ) : null}

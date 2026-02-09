@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import Script from "next/script";
 import { Inter, Unbounded } from "next/font/google";
 import "./globals.css";
 import "katex/dist/katex.min.css";
@@ -28,10 +29,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru" data-theme="light" suppressHydrationWarning>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(() => {
+      <body className={`${inter.variable} ${unbounded.variable}`}>
+        <Script id="theme-init" strategy="beforeInteractive">
+          {`(() => {
   try {
     const stored = localStorage.getItem("continuum-theme");
     const theme = stored === "light" || stored === "dark"
@@ -41,11 +41,8 @@ export default function RootLayout({
   } catch (err) {
     document.documentElement.dataset.theme = "light";
   }
-})();`,
-          }}
-        />
-      </head>
-      <body className={`${inter.variable} ${unbounded.variable}`}>
+})();`}
+        </Script>
         <ThemeHydration />
         {children}
       </body>

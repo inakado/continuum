@@ -12,8 +12,34 @@
   flex-wrap: wrap;
 }
 
-.header > :first-child {
-  flex: 0 0 auto;
+.headerLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tabsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-bottom: var(--border-width) solid var(--glass-border);
+  padding-bottom: 12px;
+}
+
+.backInline {
+  margin-left: auto;
+}
+
+.tabsRow button {
+  --button-bg: var(--surface-1);
+  --button-border: var(--glass-border);
+  --button-text: var(--text-primary);
+  --button-hover-bg: var(--surface-2);
+  --button-hover-border: var(--border-primary);
+  --button-hover-text: var(--text-primary);
+  --button-hover-shadow: var(--nav-hover-shadow);
 }
 
 .title {
@@ -76,6 +102,16 @@
 .taskTab:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.taskActions button {
+  --button-bg: var(--surface-1);
+  --button-border: var(--glass-border);
+  --button-text: var(--text-primary);
+  --button-hover-bg: var(--surface-2);
+  --button-hover-border: var(--border-primary);
+  --button-hover-text: var(--text-primary);
+  --button-hover-shadow: var(--nav-hover-shadow);
 }
 
 .taskTabActive {

@@ -216,10 +216,14 @@ export default function TaskForm({
         .map((value) => (value > index ? value - 1 : value)),
     );
   };
-  const canSubmit = Object.keys(validate(nextForm)).length === 0;
+  const validationErrors = useMemo(
+    () => validate(nextForm),
+    [nextForm, correctMultiKeys, correctSingleKey],
+  );
+  const canSubmit = Object.keys(validationErrors).length === 0;
 
   const handleSubmit = async () => {
-    const errors = validate(nextForm);
+    const errors = validationErrors;
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) return;
     await onSubmit(nextForm);

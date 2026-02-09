@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart3, BookOpen, FileText, Users } from "lucide-react";
+import { BarChart3, BookOpen, FileText, LogOut, Users } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import ThemeToggle from "@/components/ThemeToggle";
 import styles from "./dashboard-shell.module.css";
@@ -18,6 +18,7 @@ type DashboardShellProps = {
   navItems: DashboardNavItem[];
   children: ReactNode;
   appearance?: "default" | "glass";
+  onLogout?: () => void;
 };
 
 const SIDEBAR_DIMENSIONS = {
@@ -48,7 +49,7 @@ const SIDEBAR_SHELL_SQUEEZE = {
   expanded: 1,
 };
 const MAIN_SHELL_SQUEEZE = {
-  collapsed: 0.992,
+  collapsed: 1,
   expanded: 1,
 };
 
@@ -72,6 +73,7 @@ export default function DashboardShell({
   navItems,
   children,
   appearance = "default",
+  onLogout,
 }: DashboardShellProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const closeTimer = useRef<number | null>(null);
@@ -274,6 +276,19 @@ export default function DashboardShell({
                   </Link>
                 ))}
               </nav>
+              {onLogout ? (
+                <div className={styles.sidebarFooter}>
+                  <button
+                    type="button"
+                    className={styles.navLink}
+                    onClick={onLogout}
+                    aria-label="Выйти"
+                  >
+                    <LogOut className={styles.navIcon} aria-hidden="true" strokeWidth={1.7} />
+                    <span className={styles.navLabel}>Выйти</span>
+                  </button>
+                </div>
+              ) : null}
             </div>
           </aside>
           <main id="dashboard-main" className={styles.main}>
