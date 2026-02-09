@@ -3,37 +3,31 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Input from "@/components/ui/Input";
-import Button from "@/components/ui/Button";
-import LandingTopology from "@/components/LandingTopology";
+import Grainient from "@/components/Grainient";
 import { useTheme } from "@/components/useTheme";
 import { teacherApi } from "@/lib/api/teacher";
 import { ApiError } from "@/lib/api/client";
+import { Eye, EyeOff } from "lucide-react";
 import styles from "./unified-login.module.css";
 
 export default function UnifiedLoginScreen() {
   const router = useRouter();
-  const { theme, toggle } = useTheme();
-  const [started, setStarted] = useState(false);
+  const { theme } = useTheme();
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const formRef = useRef<HTMLDivElement | null>(null);
   const loginInputRef = useRef<HTMLInputElement | null>(null);
 
-  const handleStart = () => {
-    setStarted(true);
-    formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-  };
-
   useEffect(() => {
-    if (!started) return;
     // Avoid unexpected auto-focus on touch devices.
     if (!window.matchMedia("(pointer: fine)").matches) return;
     loginInputRef.current?.focus();
-  }, [started]);
+  }, []);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (event?: React.FormEvent<HTMLFormElement>) => {
+    event?.preventDefault();
     setError(null);
     setLoading(true);
     try {
@@ -60,92 +54,84 @@ export default function UnifiedLoginScreen() {
   };
 
   return (
-    <div className={`${styles.page} ${theme === "dark" ? styles.pageDark : styles.pageLight}`}>
-      <LandingTopology theme={theme} className={styles.background} />
-      <div className={styles.overlay} />
-      <div className={styles.content}>
-        <div className={styles.topBar}>
-          <button
-            className={styles.themeToggle}
-            type="button"
-            onClick={toggle}
-            aria-label={theme === "dark" ? "Светлая тема" : "Тёмная тема"}
-            aria-pressed={theme === "dark"}
-          >
-            {theme === "dark" ? (
-              <svg viewBox="0 0 24 24" role="img" aria-hidden="true" className={styles.themeIcon}>
-                <path
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 3v2m0 14v2m9-9h-2M5 12H3m14.95 6.95-1.4-1.4M6.45 6.45 5.05 5.05m12.9 0-1.4 1.4M6.45 17.55l-1.4 1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"
-                />
-              </svg>
-            ) : (
-              <svg viewBox="0 0 24 24" role="img" aria-hidden="true" className={styles.themeIcon}>
-                <path
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5Z"
-                />
-              </svg>
-            )}
-          </button>
-        </div>
-
-        <div className={styles.stage}>
-          <section className={`${styles.hero} ${started ? styles.heroHidden : ""}`}>
-            <div className={styles.heroTitle}>КОНТИНУУМ</div>
-            <Button onClick={handleStart} className={styles.heroButton}>
-              Начать обучение →
-            </Button>
-          </section>
-
-          <section
-            ref={formRef}
-            className={`${styles.formSection} ${started ? styles.formVisible : ""}`}
-          >
-            <div className={styles.formTitle}>Вход</div>
-            <div className={styles.card}>
-              <label className={styles.label}>
-                Логин
-                <Input
-                  ref={loginInputRef}
-                  value={login}
-                  onChange={(event) => setLogin(event.target.value)}
-                  name="login"
-                  autoComplete="username"
-                  spellCheck={false}
-                  placeholder="Например: teacher1 / student1…"
-                />
-              </label>
-              <label className={styles.label}>
-                Пароль
-                <Input
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  name="password"
-                  autoComplete="current-password"
-                  placeholder="Pass123!…"
-                />
-              </label>
-              {error ? (
-                <div className={styles.error} role="alert">
-                  {error}
-                </div>
-              ) : null}
-              <Button disabled={loading || !login || !password} onClick={handleSubmit}>
-                {loading ? "Вход…" : "Войти"}
-              </Button>
+    <div
+      className={`${styles.page} ${theme === "dark" ? styles.pageDark : styles.pageLight} glass-scope`}
+    >
+      <div className={styles.background} aria-hidden="true">
+        <Grainient
+          color1="#000000"
+          color2="#ffffff"
+          color3="#000000"
+          timeSpeed={0.25}
+          colorBalance={0}
+          warpStrength={4}
+          warpFrequency={12}
+          warpSpeed={2}
+          warpAmplitude={45}
+          blendAngle={86}
+          blendSoftness={0.2}
+          rotationAmount={500}
+          noiseScale={2.15}
+          grainAmount={0.15}
+          grainScale={1.2}
+          grainAnimated={false}
+          contrast={1.55}
+          gamma={1.3}
+          saturation={1}
+          centerX={0.01}
+          centerY={0}
+          zoom={1}
+        />
+      </div>
+      <div className={styles.scrim} aria-hidden="true" />
+      <div className={styles.center}>
+        <div className={styles.brand}>Континуум</div>
+        <form className={styles.form} onSubmit={handleSubmit}>
+          <Input
+            ref={loginInputRef}
+            className={styles.formInput}
+            placeholder="Логин"
+            name="login"
+            autoComplete="username"
+            spellCheck={false}
+            value={login}
+            onChange={(event) => setLogin(event.target.value)}
+            aria-label="Логин"
+          />
+          <div className={styles.inputWrap}>
+            <Input
+              className={styles.formInput}
+              placeholder="Пароль"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              aria-label="Пароль"
+            />
+            <button
+              type="button"
+              className={styles.revealButton}
+              onClick={() => setShowPassword((prev) => !prev)}
+              aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
+              aria-pressed={showPassword}
+            >
+              {showPassword ? <EyeOff size={16} strokeWidth={1.6} /> : <Eye size={16} strokeWidth={1.6} />}
+            </button>
+          </div>
+          {error ? (
+            <div className={styles.error} role="alert">
+              {error}
             </div>
-          </section>
-        </div>
+          ) : null}
+          <button
+            type="submit"
+            className={styles.submitButton}
+            disabled={loading || !login || !password}
+          >
+            {loading ? "Вход…" : "Войти"}
+          </button>
+        </form>
       </div>
     </div>
   );

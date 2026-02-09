@@ -29,18 +29,23 @@
 }
 
 .error {
-  border: var(--border-width) solid var(--border-primary);
+  border: var(--border-width) solid var(--panel-border);
   padding: 10px 12px;
-  background: var(--bg-accent);
-  color: var(--text-accent);
+  background: var(--glass-tint);
+  color: var(--text-primary);
   font-size: 13px;
+  border-radius: var(--card-radius);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
 }
 
 .stub {
-  border: var(--border-width) dashed var(--border-primary);
+  border: var(--border-width) dashed var(--card-border);
   padding: 16px;
   color: var(--text-muted);
   font-size: 13px;
+  background: var(--card-bg);
+  border-radius: var(--card-radius);
 }
 
 .tasks {
@@ -55,14 +60,17 @@
 }
 
 .taskTab {
-  border: var(--border-width) solid var(--border-primary);
-  background: var(--bg-primary);
+  border: var(--border-width) solid var(--glass-border);
+  background: var(--glass-tint);
   color: var(--text-primary);
   padding: 6px 10px;
   min-width: 40px;
   text-align: center;
   font-size: 12px;
   cursor: pointer;
+  border-radius: var(--control-radius);
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .taskTab:disabled {
@@ -71,22 +79,26 @@
 }
 
 .taskTabActive {
-  background: var(--bg-accent);
-  color: var(--text-accent);
+  background: var(--nav-active-bg);
+  color: var(--nav-active-text);
 }
 
 .taskTabDone {
-  background: #d8f1df;
-  border-color: #9acda8;
-  color: #1f3b2e;
+  background: color-mix(in srgb, #22c55e 16%, var(--surface-2));
+  border-color: color-mix(in srgb, #22c55e 35%, var(--glass-border));
+  color: var(--text-primary);
 }
 
 .taskCard {
-  border: var(--border-width) solid var(--border-primary);
+  border: var(--border-width) solid var(--glass-border);
   padding: 12px;
-  background: var(--bg-primary);
+  background: var(--card-bg);
   display: grid;
   gap: 10px;
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
 }
 
 .taskHeader {
@@ -102,13 +114,14 @@
 }
 
 .taskBadge {
-  border: var(--border-width) solid var(--border-primary);
+  border: var(--border-width) solid var(--glass-border);
   padding: 4px 8px;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
+  background: var(--glass-tint);
+  color: var(--text-muted);
+  border-radius: var(--control-radius);
 }
 
 .taskStatement {
@@ -123,11 +136,12 @@
 }
 
 .taskDone {
-  border: var(--border-width) solid var(--border-primary);
+  border: var(--border-width) solid var(--glass-border);
   padding: 8px 10px;
-  background: #e6f6ec;
-  color: #1f3b2e;
+  background: color-mix(in srgb, #22c55e 12%, var(--surface-2));
+  color: var(--text-primary);
   font-size: 12px;
+  border-radius: var(--control-radius);
 }
 
 .answerList {
@@ -155,20 +169,22 @@
 }
 
 .answerInputInline {
-  border: var(--border-width) solid var(--border-primary);
-  background: var(--bg-secondary);
-  color: var(--text-muted);
+  border: var(--border-width) solid var(--control-border);
+  background: var(--control-bg);
+  color: var(--text-primary);
   padding: 8px 10px;
   font-size: 14px;
   min-width: 140px;
+  border-radius: var(--control-radius);
 }
 
 .answerInput {
-  border: var(--border-width) solid var(--border-primary);
-  background: var(--bg-secondary);
-  color: var(--text-muted);
+  border: var(--border-width) solid var(--control-border);
+  background: var(--control-bg);
+  color: var(--text-primary);
   padding: 8px 10px;
   font-size: 13px;
+  border-radius: var(--control-radius);
 }
 
 .optionList {
@@ -184,12 +200,14 @@
 }
 
 .optionKey {
-  border: var(--border-width) solid var(--border-primary);
+  border: var(--border-width) solid var(--glass-border);
   padding: 4px 8px;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  background: var(--bg-secondary);
+  background: var(--glass-tint);
+  color: var(--text-muted);
+  border-radius: var(--control-radius);
 }
 
 .videoList {
@@ -198,11 +216,15 @@
 }
 
 .videoCard {
-  border: var(--border-width) solid var(--border-primary);
+  border: var(--border-width) solid var(--glass-border);
   padding: 12px;
-  background: var(--bg-primary);
+  background: var(--card-bg);
   display: grid;
   gap: 10px;
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
 }
 
 .videoTitle {
@@ -212,6 +234,7 @@
 .videoFrame {
   width: 100%;
   aspect-ratio: 16 / 9;
-  border: var(--border-width) solid var(--border-primary);
-  background: var(--bg-primary);
+  border: var(--border-width) solid var(--glass-border);
+  background: var(--panel-bg);
+  border-radius: var(--card-radius);
 }
