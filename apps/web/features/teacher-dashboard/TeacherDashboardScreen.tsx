@@ -9,6 +9,7 @@ import Input from "@/components/ui/Input";
 import { teacherApi, Course, CourseWithSections, Section } from "@/lib/api/teacher";
 import { getApiErrorMessage } from "@/features/teacher-content/shared/api-errors";
 import { useTeacherLogout } from "@/features/teacher-content/auth/use-teacher-logout";
+import TeacherStudentsPanel from "@/features/teacher-students/TeacherStudentsPanel";
 import styles from "./teacher-dashboard.module.css";
 
 type ActiveSection = "edit" | "students" | "analytics";
@@ -61,7 +62,7 @@ export default function TeacherDashboardScreen({ active, initialSectionId }: Tea
       case "students":
         return {
           title: "Ученики",
-          subtitle: "Раздел в разработке",
+          subtitle: "Создание, сброс паролей и передача между преподавателями",
         };
       case "analytics":
         return {
@@ -288,7 +289,9 @@ export default function TeacherDashboardScreen({ active, initialSectionId }: Tea
           </div>
         ) : null}
 
-        {active !== "edit" ? (
+        {active === "students" ? (
+          <TeacherStudentsPanel />
+        ) : active === "analytics" ? (
           <div className={styles.placeholder}>
             <div className={styles.placeholderTitle}>{content.title}</div>
             <div className={styles.placeholderSubtitle}>{content.subtitle}</div>
@@ -398,7 +401,6 @@ export default function TeacherDashboardScreen({ active, initialSectionId }: Tea
                                 {section.status === "published" ? "Опубликован" : "Черновик"}
                               </span>
                             </div>
-                            <div className={styles.cardMeta}>Открыть граф</div>
                           </button>
                           <div className={styles.cardActions}>
                             <Button

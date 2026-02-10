@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import ReactFlow, { Background, Controls, MarkerType, type Edge, type Node, type NodeProps } from "reactflow";
+import ReactFlow, { MarkerType, type Edge, type Node, type NodeProps } from "reactflow";
 import "reactflow/dist/style.css";
 import Button from "@/components/ui/Button";
 import { studentApi, type GraphEdge, type GraphNode } from "@/lib/api/student";
@@ -75,6 +75,7 @@ const GraphCanvas = memo(function GraphCanvas({
     <ReactFlow
       nodes={nodes}
       edges={edges}
+      proOptions={{ hideAttribution: true }}
       nodeTypes={nodeTypesRef.current}
       nodesDraggable={false}
       nodesConnectable={false}
@@ -82,10 +83,7 @@ const GraphCanvas = memo(function GraphCanvas({
       onNodeClick={onNodeClick}
       fitView
       defaultEdgeOptions={defaultEdgeOptionsRef.current}
-    >
-      <Background gap={20} color="var(--border-primary)" />
-      <Controls />
-    </ReactFlow>
+    />
   );
 });
 
@@ -136,10 +134,6 @@ export default function StudentSectionGraphPanel({ sectionId, sectionTitle, onBa
           <Button variant="ghost" onClick={onBack} className={styles.backButton}>
             ← К разделам
           </Button>
-          <div>
-            <div className={styles.kicker}>Раздел</div>
-            <div className={styles.title}>{sectionTitle || "Раздел"}</div>
-          </div>
         </div>
       </div>
 

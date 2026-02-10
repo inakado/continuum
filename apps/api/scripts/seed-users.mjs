@@ -71,9 +71,37 @@ const ensureUser = async ({ login, password, role }) => {
   return user;
 };
 
+const ensureStudentProfile = async ({ studentId, leadTeacherId }) => {
+  const existing = await prisma.studentProfile.findUnique({ where: { userId: studentId } });
+  if (existing) {
+    console.log(`StudentProfile for ${studentId} already exists, skipping.`);
+    return existing;
+  }
+  const profile = await prisma.studentProfile.create({
+    data: {
+      userId: studentId,
+      leadTeacherId,
+      displayName: null,
+      firstName: null,
+      lastName: null,
+    },
+  });
+  console.log(`Created StudentProfile for ${studentId}`);
+  return profile;
+};
+
 try {
-  await ensureUser({ login: teacherLogin, password: teacherPassword, role: Role.teacher });
-  await ensureUser({ login: studentLogin, password: studentPassword, role: Role.student });
+  const teacher = await ensureUser({
+    login: teacherLogin,
+    password: teacherPassword,
+    role: Role.teacher,
+  });
+  const student = await ensureUser({
+    login: studentLogin,
+    password: studentPassword,
+    role: Role.student,
+  });
+  await ensureStudentProfile({ studentId: student.id, leadTeacherId: teacher.id });
 } finally {
   await prisma.$disconnect();
 }

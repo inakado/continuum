@@ -82,6 +82,22 @@ export type EventsResponse = {
   offset: number;
 };
 
+export type StudentSummary = {
+  id: string;
+  login: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  leadTeacherId: string;
+  leadTeacherLogin: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TeacherSummary = {
+  id: string;
+  login: string;
+};
+
 export type CourseWithSections = Course & { sections: Section[] };
 export type SectionWithUnits = Section & { units: Unit[] };
 export type UnitWithTasks = Unit & { tasks: Task[] };
@@ -275,6 +291,68 @@ export const teacherApi = {
 
   deleteTask(id: string) {
     return apiRequest<Task>(`/teacher/tasks/${id}`, { method: "DELETE" });
+  },
+
+  listStudents(params?: { query?: string }) {
+    const search = new URLSearchParams();
+    if (params?.query) search.set("query", params.query);
+    const suffix = search.toString();
+    return apiRequest<StudentSummary[]>(`/teacher/students${suffix ? `?${suffix}` : ""}`);
+  },
+
+  createStudent(data: { login: string; firstName?: string | null; lastName?: string | null }) {
+    return apiRequest<{
+      id: string;
+      login: string;
+      leadTeacherId: string;
+      firstName?: string | null;
+      lastName?: string | null;
+      password: string;
+    }>("/teacher/students", { method: "POST", body: data });
+  },
+
+  resetStudentPassword(id: string) {
+    return apiRequest<{ id: string; login: string; password: string }>(
+      `/teacher/students/${id}/reset-password`,
+      { method: "POST" },
+    );
+  },
+
+  transferStudent(id: string, data: { leaderTeacherId: string }) {
+    return apiRequest<{
+      id: string;
+      login: string;
+      leadTeacherId: string;
+      leadTeacherLogin: string;
+    }>(`/teacher/students/${id}/transfer`, {
+      method: "PATCH",
+      body: data,
+    });
+  },
+
+  updateStudentProfile(
+    id: string,
+    data: { firstName?: string | null; lastName?: string | null },
+  ) {
+    return apiRequest<{
+      id: string;
+      login: string;
+      firstName?: string | null;
+      lastName?: string | null;
+    }>(`/teacher/students/${id}`, {
+      method: "PATCH",
+      body: data,
+    });
+  },
+
+  deleteStudent(id: string) {
+    return apiRequest<{ id: string; login: string }>(`/teacher/students/${id}`, {
+      method: "DELETE",
+    });
+  },
+
+  listTeachers() {
+    return apiRequest<TeacherSummary[]>("/teacher/teachers");
   },
 
   listEvents(params?: {

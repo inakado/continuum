@@ -1,0 +1,233 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.toolbar button {
+  --button-bg: var(--glass-tint);
+  --button-text: var(--text-primary);
+  --button-border: var(--panel-border);
+  --button-border-width: var(--border-width-thin);
+  --button-hover-bg: var(--surface-2);
+  --button-hover-border: var(--border-primary);
+  --button-hover-text: var(--text-primary);
+  --button-hover-shadow: var(--nav-hover-shadow);
+}
+
+.search {
+  flex: 1;
+  min-width: 240px;
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.form {
+  border: var(--border-width) solid var(--card-border);
+  background: var(--card-bg);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+}
+
+.inlineRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.formActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.formError {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.passwordReveal {
+  border: var(--border-width) solid var(--card-border);
+  background: var(--card-bg);
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+}
+
+.passwordTitle {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.passwordRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.passwordLabel {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.passwordValue {
+  font-weight: 700;
+  font-size: 14px;
+  word-break: break-all;
+}
+
+.passwordActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.passwordHint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.error {
+  border: var(--border-width) solid var(--panel-border);
+  background: var(--glass-tint);
+  color: var(--text-primary);
+  padding: 10px 12px;
+  border-radius: var(--card-radius);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card {
+  border: var(--border-width) solid var(--card-border);
+  background: var(--card-bg);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    background 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.cardActive {
+  background: var(--nav-active-bg);
+  color: var(--nav-active-text);
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--glass-shadow);
+  border-color: var(--glass-border);
+  background: var(--surface-2);
+}
+
+.cardHeader {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.studentName {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.studentMeta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.cardActive .studentMeta {
+  color: inherit;
+}
+
+.cardActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cardActions button {
+  --button-bg: var(--surface-1);
+  --button-border: var(--glass-border);
+  --button-text: var(--text-primary);
+  --button-hover-bg: var(--surface-2);
+  --button-hover-border: var(--border-primary);
+  --button-hover-text: var(--text-primary);
+  --button-hover-shadow: var(--nav-hover-shadow);
+}
+
+.editPanel {
+  border-top: var(--border-width-thin) solid var(--card-border);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.transferPanel {
+  border-top: var(--border-width-thin) solid var(--card-border);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.select {
+  width: 100%;
+  border: var(--border-width) solid var(--control-border, var(--border-primary));
+  background: var(--control-bg, var(--bg-primary));
+  color: var(--text-primary);
+  padding: 10px 12px;
+  font-size: 14px;
+  border-radius: var(--control-radius);
+}
+
+.loading,
+.empty {
+  font-size: 13px;
+  color: var(--text-muted);
+}

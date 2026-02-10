@@ -121,12 +121,11 @@ const GraphCanvas = memo(function GraphCanvas({
       onConnect={onConnect}
       onNodeClick={onNodeClick}
       onSelectionChange={onSelectionChange}
+      proOptions={{ hideAttribution: true }}
       nodeTypes={nodeTypesRef.current}
       fitView
       defaultEdgeOptions={defaultEdgeOptionsRef.current}
     >
-      <Background gap={20} color="var(--border-primary)" />
-      <Controls />
     </ReactFlow>
   );
 });
@@ -281,10 +280,6 @@ export default function TeacherSectionGraphPanel({ sectionId, sectionTitle, onBa
               ← К разделам
             </Button>
           ) : null}
-          <div>
-            <div className={styles.kicker}>Раздел</div>
-            <div className={styles.title}>{sectionTitle || "Граф юнитов"}</div>
-          </div>
         </div>
         <div className={styles.toolbar}>
           <Input

@@ -38,7 +38,8 @@ B) Интерфейс и чтение
 **Принцип:** высокий контраст текста. Границы в glass‑режиме — полупрозрачные, без тяжёлых 2px линий.
 
 ### 2.1 Материалы (Glass & Air)
-Glass‑стиль — основа для **teacher dashboards**, **student dashboards** и **экрана логина**.
+Glass‑стиль — основа для **teacher dashboards** и **student dashboards**.
+Экран логина — отдельный случай (Grainient + pill‑контролы), но тоже опирается на glass‑токены.
 
 **Токены (glass):**
 - `--glass-bg`, `--glass-border`, `--glass-shadow`, `--glass-blur`, `--glass-tint`
@@ -83,11 +84,34 @@ Glass‑стиль — основа для **teacher dashboards**, **student das
 - Hover: мягкий lift/подсветка, без агрессивной инверсии
 - Focus: аккуратный outline
 
-**Glass UI уточнение:**
-- Primary: лёгкая стеклянная заливка + `--button-shadow`
-- Ghost: полупрозрачный фон (`--control-bg`) + читаемый контур
-- Hover (glass): использовать `--button-hover-bg`, `--button-hover-text`, `--button-hover-border`, `--button-hover-shadow`
-- Для локальных панелей (toolbar/карточки) допускается переопределение `--button-hover-*` через контейнер
+**Гайд по кнопкам (чтобы не было расхождений)**
+- Всегда используем компонент `Button` (UI kit). Не пишем “ручные” кнопки без причины.
+- В glass‑дашбордах кнопки **настраиваются через локальные CSS‑переменные** на контейнере (`.panelActions`, `.toolbar`, `.cardActions` и т.п.).
+- Базовый `Button` = нейтральный каркас. В дашбордах почти всегда нужны overrides.
+
+**Glass UI (дашборды)**
+- Primary для действий в панелях/toolbar:
+  - `--button-bg: var(--glass-tint)` или `var(--surface-1)`
+  - `--button-text: var(--text-primary)`
+  - `--button-border: var(--panel-border)` или `var(--glass-border)`
+  - `--button-border-width: var(--border-width-thin)`
+  - `--button-hover-bg: var(--surface-2)`
+  - `--button-hover-border: var(--border-primary)`
+  - `--button-hover-text: var(--text-primary)`
+  - `--button-hover-shadow: var(--nav-hover-shadow)`
+- Ghost (вторичные действия):
+  - `--button-bg: var(--surface-1)` или `var(--control-bg)`
+  - `--button-border: var(--glass-border)`
+  - `--button-text: var(--text-primary)`
+  - hover как у Primary (см. выше)
+
+**Вне glass‑контекста**
+- Primary допускает `bg-accent` (сохранить uppercase + letter‑spacing).
+- Ghost остаётся нейтральным и не “инвертирует” цветовую схему.
+
+**Правило совместимости**
+- Если кнопка визуально должна совпадать с существующей (например “Добавить курс”), 
+  копируем overrides из соответствующего контейнера (например `.panelActions button`).
 
 ### 4.2 Инпуты
 **Glass UI:**
@@ -151,8 +175,17 @@ Glass‑стиль — основа для **teacher dashboards**, **student das
 
 ---
 
-## 8) Anti‑patterns (что не делать)
+## 8) Dashboard UI (фактические паттерны)
+- Дашборды учителя/ученика работают внутри `glass-scope` и используют `--glass-*`, `--surface-*`, `--card-*`, `--control-*`.
+- Карточки и панели — **скруглённые** (см. `--radius-*`), с мягкой тенью и стеклянным фоном.
+- Активные карточки используют `--nav-active-bg/--nav-active-text` (в glass‑контексте это мягкая подсветка, а не жёсткая инверсия).
+- Кнопки внутри панелей/карточек настраиваются через локальные `--button-*` (поверх базового Button).
+
+---
+
+## 9) Anti‑patterns (что не делать)
 - толстые (2px) рамки в glass‑интерфейсах
+- агрессивная инверсия на hover в контентных кнопках и карточках
 - подчёркивание текста по hover вместо лёгкой подсветки
 - синий autofill у инпутов
 - неконсистентные формы кнопок/контролов
@@ -160,13 +193,13 @@ Glass‑стиль — основа для **teacher dashboards**, **student das
 
 ---
 
-## 9) Tailwind Usage
+## 10) Tailwind Usage
 - Tailwind CSS **не используется** в продуктовых экранах и не должен менять существующие стили.
 - Даже если пакеты Tailwind присутствуют как зависимость, Tailwind не подключается глобально.
 
 ---
 
-## 10) Мини‑чеклист ревью UI
+## 11) Мини‑чеклист ревью UI
 - Unbounded только для брендинга, weight 400
 - Цвета соответствуют токенам `bg/text/border/accent/muted`
 - Glass‑элементы используют `--glass-*` и `--surface-*`

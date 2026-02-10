@@ -182,6 +182,7 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
   const [videos, setVideos] = useState<UnitVideo[]>([]);
 
   const [creatingTask, setCreatingTask] = useState(false);
+  const [creatingTaskPublish, setCreatingTaskPublish] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [saveState, setSaveState] = useState<SaveState>({ state: "idle" });
   const [taskOrder, setTaskOrder] = useState<Task[]>([]);
@@ -307,8 +308,21 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
     if (!unit) return;
     setFormError(null);
     try {
-      await teacherApi.createTask({ unitId: unit.id, ...buildTaskPayload(data) });
+      const created = await teacherApi.createTask({ unitId: unit.id, ...buildTaskPayload(data) });
+      if (creatingTaskPublish) {
+        try {
+          await teacherApi.publishTask(created.id);
+        } catch (err) {
+          setEditingTask(created);
+          setCreatingTask(false);
+          setCreatingTaskPublish(false);
+          setFormError(getApiErrorMessage(err));
+          await fetchUnit();
+          return;
+        }
+      }
       setCreatingTask(false);
+      setCreatingTaskPublish(false);
       await fetchUnit();
     } catch (err) {
       setFormError(getApiErrorMessage(err));
@@ -347,6 +361,22 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
       setError(getApiErrorMessage(err));
     }
   };
+
+  const handleUnitPublishToggle = useCallback(async () => {
+    if (!unit) return;
+    setError(null);
+    const isPublished = unit.status === "published";
+    try {
+      if (isPublished) {
+        await teacherApi.unpublishUnit(unit.id);
+      } else {
+        await teacherApi.publishUnit(unit.id);
+      }
+      setUnit((prev) => (prev ? { ...prev, status: isPublished ? "draft" : "published" } : prev));
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+    }
+  }, [unit]);
 
   const handleTaskDelete = async (task: Task) => {
     const confirmed = window.confirm("Удалить задачу? Действие нельзя отменить.");
@@ -413,11 +443,20 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
             <h1 className={styles.title}>{unit?.title ?? "Юнит"}</h1>
             <p className={styles.subtitle}>Редактор юнита</p>
           </div>
-          {saveStatusText ? (
-            <div className={styles.saveStatus} role="status" aria-live="polite">
-              {saveStatusText}
-            </div>
-          ) : null}
+          <div className={styles.headerActions}>
+            {unit ? (
+              <Checkbox
+                label="Опубликовано"
+                checked={unit.status === "published"}
+                onChange={handleUnitPublishToggle}
+              />
+            ) : null}
+            {saveStatusText ? (
+              <div className={styles.saveStatus} role="status" aria-live="polite">
+                {saveStatusText}
+              </div>
+            ) : null}
+          </div>
         </div>
 
         {error ? (
@@ -555,6 +594,7 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
                     onClick={() => {
                       setCreatingTask(true);
                       setEditingTask(null);
+                      setCreatingTaskPublish(false);
                       setFormError(null);
                     }}
                   >
@@ -626,6 +666,7 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
                   onCancel={() => {
                     setEditingTask(null);
                     setCreatingTask(false);
+                    setCreatingTaskPublish(false);
                     setFormError(null);
                   }}
                   rightAction={
@@ -639,6 +680,12 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
                           if (nextChecked === isPublished) return;
                           handleTaskPublishToggle(editingTask);
                         }}
+                      />
+                    ) : creatingTask ? (
+                      <Checkbox
+                        label="Опубликовать"
+                        checked={creatingTaskPublish}
+                        onChange={(event) => setCreatingTaskPublish(event.target.checked)}
                       />
                     ) : null
                   }

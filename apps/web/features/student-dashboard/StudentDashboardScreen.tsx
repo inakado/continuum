@@ -7,6 +7,7 @@ import DashboardShell from "@/components/DashboardShell";
 import Button from "@/components/ui/Button";
 import { studentApi, type Course, type CourseWithSections, type Section } from "@/lib/api/student";
 import { useStudentLogout } from "@/features/student-content/auth/use-student-logout";
+import { useStudentIdentity } from "@/features/student-content/shared/use-student-identity";
 import styles from "./student-dashboard.module.css";
 import {
   COURSES_HASH,
@@ -34,6 +35,7 @@ type StudentDashboardScreenProps = {
 export default function StudentDashboardScreen({ queryOverride = false }: StudentDashboardScreenProps) {
   const router = useRouter();
   const handleLogout = useStudentLogout();
+  const identity = useStudentIdentity();
   const skipAutoRestoreOnceRef = useRef(false);
   const [boot, setBoot] = useState<Boot>("checking_last");
   const [view, setView] = useState<View>("courses");
@@ -229,7 +231,13 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
   };
 
   return (
-    <DashboardShell title="Ученик" navItems={navItems} appearance="glass" onLogout={handleLogout}>
+    <DashboardShell
+      title="Ученик"
+      subtitle={identity.subtitle}
+      navItems={navItems}
+      appearance="glass"
+      onLogout={handleLogout}
+    >
       <div className={styles.content}>
         <div className={styles.header}>
           <div>
@@ -237,7 +245,7 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
               {view === "courses"
                 ? "Курсы"
                 : view === "sections"
-                  ? `Разделы курса: ${selectedCourse?.title ?? "Курс"}`
+                  ? selectedCourse?.title ?? "Курс"
                   : `Раздел: ${selectedSectionTitle ?? "Раздел"}`}
             </h1>
             <p className={styles.subtitle}>
@@ -245,7 +253,7 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
                 ? "Выберите курс"
                 : view === "sections"
                   ? "Выберите раздел"
-                  : "Граф доступен только для просмотра"}
+                  : ""}
             </p>
           </div>
           <div className={styles.actions}>
@@ -291,7 +299,6 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
                         {section.status === "published" ? "Опубликован" : "Черновик"}
                       </span>
                     </div>
-                    <div className={styles.cardMeta}>Открыть граф</div>
                   </button>
                 ))
               )}

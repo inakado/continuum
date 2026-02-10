@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ContentStatus } from '@prisma/client';
+import { ContentStatus, Prisma, TaskAnswerType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCourseDto, UpdateCourseDto } from './dto/course.dto';
 import { CreateSectionDto, UpdateSectionDto } from './dto/section.dto';
@@ -16,7 +16,28 @@ type UnitAttachment = { id: string; name: string; urlOrKey?: string | null };
 type NumericPart = { key: string; labelLite?: string | null; correctValue: string };
 type Choice = { key: string; textLite: string };
 type CorrectAnswer = { key?: string; keys?: string[] };
-type TaskAnswerType = 'numeric' | 'single_choice' | 'multi_choice' | 'photo';
+
+type TaskRevisionRecord = {
+  id: string;
+  answerType: TaskAnswerType;
+  statementLite: string;
+  solutionLite: string | null;
+  numericParts: { partKey: string; labelLite: string | null; correctValue: string }[];
+  choices: { choiceKey: string; contentLite: string }[];
+  correctChoices: { choiceKey: string }[];
+};
+
+type TaskWithActiveRevision = {
+  id: string;
+  unitId: string;
+  title: string | null;
+  isRequired: boolean;
+  status: ContentStatus;
+  sortOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+  activeRevision: TaskRevisionRecord;
+};
 
 type GraphNode = {
   unitId: string;
@@ -330,10 +351,26 @@ export class ContentService {
   async getUnit(id: string) {
     const unit = await this.prisma.unit.findUnique({
       where: { id },
-      include: { tasks: { orderBy: { sortOrder: 'asc' } } },
+      include: {
+        tasks: {
+          orderBy: { sortOrder: 'asc' },
+          include: {
+            activeRevision: {
+              include: {
+                numericParts: true,
+                choices: true,
+                correctChoices: true,
+              },
+            },
+          },
+        },
+      },
     });
     if (!unit) throw new NotFoundException('Unit not found');
-    return unit;
+    return {
+      ...unit,
+      tasks: unit.tasks.map((task) => this.mapTaskWithRevision(task as TaskWithActiveRevision)),
+    };
   }
 
   async getPublishedUnit(id: string) {
@@ -350,11 +387,23 @@ export class ContentService {
         tasks: {
           where: { status: ContentStatus.published },
           orderBy: { sortOrder: 'asc' },
+          include: {
+            activeRevision: {
+              include: {
+                numericParts: true,
+                choices: true,
+                correctChoices: true,
+              },
+            },
+          },
         },
       },
     });
     if (!unit) throw new NotFoundException('Unit not found');
-    return unit;
+    return {
+      ...unit,
+      tasks: unit.tasks.map((task) => this.mapTaskWithRevision(task as TaskWithActiveRevision)),
+    };
   }
 
   async createUnit(dto: CreateUnitDto) {
@@ -442,9 +491,20 @@ export class ContentService {
   }
 
   async getTask(id: string) {
-    const task = await this.prisma.task.findUnique({ where: { id } });
+    const task = await this.prisma.task.findUnique({
+      where: { id },
+      include: {
+        activeRevision: {
+          include: {
+            numericParts: true,
+            choices: true,
+            correctChoices: true,
+          },
+        },
+      },
+    });
     if (!task) throw new NotFoundException('Task not found');
-    return task;
+    return this.mapTaskWithRevision(task as TaskWithActiveRevision);
   }
 
   async createTask(dto: CreateTaskDto) {
@@ -460,38 +520,96 @@ export class ContentService {
       solutionLite: dto.solutionLite ?? null,
     });
 
-    return this.prisma.task.create({
-      data: {
-        unitId: dto.unitId,
-        title: null,
-        statementLite: normalized.statementLite,
-        answerType: normalized.answerType,
-        numericPartsJson: normalized.numericPartsJson,
-        choicesJson: normalized.choicesJson,
-        correctAnswerJson: normalized.correctAnswerJson,
-        solutionLite: normalized.solutionLite,
-        isRequired: dto.isRequired ?? false,
-        sortOrder: dto.sortOrder ?? 0,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const task = await tx.task.create({
+        data: {
+          unitId: dto.unitId,
+          title: null,
+          isRequired: dto.isRequired ?? false,
+          sortOrder: dto.sortOrder ?? 0,
+        },
+      });
+
+      const revision = await this.createTaskRevision(tx, task.id, 1, normalized);
+      const updatedTask = await tx.task.update({
+        where: { id: task.id },
+        data: { activeRevisionId: revision.id },
+      });
+      if (!updatedTask.activeRevisionId) {
+        throw new ConflictException('TASK_ACTIVE_REVISION_MISSING');
+      }
+
+      const correctKeys =
+        normalized.answerType === TaskAnswerType.single_choice
+          ? normalized.correctAnswerJson?.key
+            ? [normalized.correctAnswerJson.key]
+            : []
+          : normalized.correctAnswerJson?.keys ?? [];
+
+      const revisionSnapshot: TaskRevisionRecord = {
+        id: revision.id,
+        answerType: revision.answerType,
+        statementLite: revision.statementLite,
+        solutionLite: revision.solutionLite,
+        numericParts:
+          normalized.numericPartsJson?.map((part) => ({
+            partKey: part.key,
+            labelLite: part.labelLite ?? null,
+            correctValue: part.correctValue,
+          })) ?? [],
+        choices:
+          normalized.choicesJson?.map((choice) => ({
+            choiceKey: choice.key,
+            contentLite: choice.textLite,
+          })) ?? [],
+        correctChoices: correctKeys.map((key) => ({ choiceKey: key })),
+      };
+
+      return this.mapTaskWithRevision({
+        id: updatedTask.id,
+        unitId: updatedTask.unitId,
+        title: updatedTask.title,
+        isRequired: updatedTask.isRequired,
+        status: updatedTask.status,
+        sortOrder: updatedTask.sortOrder,
+        createdAt: updatedTask.createdAt,
+        updatedAt: updatedTask.updatedAt,
+        activeRevision: revisionSnapshot,
+      });
     });
   }
 
   async updateTask(id: string, dto: UpdateTaskDto) {
-    const current = await this.prisma.task.findUnique({ where: { id } });
+    const current = await this.prisma.task.findUnique({
+      where: { id },
+      include: {
+        activeRevision: {
+          include: {
+            numericParts: true,
+            choices: true,
+            correctChoices: true,
+          },
+        },
+      },
+    });
     if (!current) throw new NotFoundException('Task not found');
+    const currentView = this.mapTaskWithRevision(current as TaskWithActiveRevision);
 
     const merged = {
       title: null,
-      statementLite: dto.statementLite ?? current.statementLite,
-      answerType: dto.answerType ?? current.answerType,
+      statementLite: dto.statementLite ?? currentView.statementLite,
+      answerType: (dto.answerType ?? currentView.answerType) as TaskAnswerType,
       numericPartsJson:
-        dto.numericPartsJson !== undefined ? dto.numericPartsJson : current.numericPartsJson,
-      choicesJson: dto.choicesJson !== undefined ? dto.choicesJson : current.choicesJson,
+        dto.numericPartsJson !== undefined ? dto.numericPartsJson : currentView.numericPartsJson,
+      choicesJson: dto.choicesJson !== undefined ? dto.choicesJson : currentView.choicesJson,
       correctAnswerJson:
-        dto.correctAnswerJson !== undefined ? dto.correctAnswerJson : current.correctAnswerJson,
-      solutionLite: dto.solutionLite !== undefined ? dto.solutionLite : current.solutionLite,
-      isRequired: dto.isRequired ?? current.isRequired,
-      sortOrder: dto.sortOrder ?? current.sortOrder,
+        dto.correctAnswerJson !== undefined
+          ? dto.correctAnswerJson
+          : currentView.correctAnswerJson,
+      solutionLite:
+        dto.solutionLite !== undefined ? dto.solutionLite : currentView.solutionLite,
+      isRequired: dto.isRequired ?? currentView.isRequired,
+      sortOrder: dto.sortOrder ?? currentView.sortOrder,
     };
 
     const normalized = this.normalizeTaskPayload({
@@ -503,19 +621,60 @@ export class ContentService {
       solutionLite: merged.solutionLite ?? null,
     });
 
-    const data = {
-      title: null,
-      statementLite: normalized.statementLite,
-      answerType: normalized.answerType,
-      numericPartsJson: normalized.numericPartsJson,
-      choicesJson: normalized.choicesJson,
-      correctAnswerJson: normalized.correctAnswerJson,
-      solutionLite: normalized.solutionLite,
-      isRequired: merged.isRequired,
-      sortOrder: merged.sortOrder,
-    };
+    return this.prisma.$transaction(async (tx) => {
+      const revisionNo = await this.nextTaskRevisionNo(tx, id);
+      const revision = await this.createTaskRevision(tx, id, revisionNo, normalized);
+      const updatedTask = await tx.task.update({
+        where: { id },
+        data: {
+          title: null,
+          isRequired: merged.isRequired,
+          sortOrder: merged.sortOrder,
+          activeRevisionId: revision.id,
+        },
+      });
+      if (!updatedTask.activeRevisionId) {
+        throw new ConflictException('TASK_ACTIVE_REVISION_MISSING');
+      }
 
-    return this.prisma.task.update({ where: { id }, data });
+      const correctKeys =
+        normalized.answerType === TaskAnswerType.single_choice
+          ? normalized.correctAnswerJson?.key
+            ? [normalized.correctAnswerJson.key]
+            : []
+          : normalized.correctAnswerJson?.keys ?? [];
+
+      const revisionSnapshot: TaskRevisionRecord = {
+        id: revision.id,
+        answerType: revision.answerType,
+        statementLite: revision.statementLite,
+        solutionLite: revision.solutionLite,
+        numericParts:
+          normalized.numericPartsJson?.map((part) => ({
+            partKey: part.key,
+            labelLite: part.labelLite ?? null,
+            correctValue: part.correctValue,
+          })) ?? [],
+        choices:
+          normalized.choicesJson?.map((choice) => ({
+            choiceKey: choice.key,
+            contentLite: choice.textLite,
+          })) ?? [],
+        correctChoices: correctKeys.map((key) => ({ choiceKey: key })),
+      };
+
+      return this.mapTaskWithRevision({
+        id: updatedTask.id,
+        unitId: updatedTask.unitId,
+        title: updatedTask.title,
+        isRequired: updatedTask.isRequired,
+        status: updatedTask.status,
+        sortOrder: updatedTask.sortOrder,
+        createdAt: updatedTask.createdAt,
+        updatedAt: updatedTask.updatedAt,
+        activeRevision: revisionSnapshot,
+      });
+    });
   }
 
   async publishTask(id: string) {
@@ -550,6 +709,142 @@ export class ContentService {
     if (!exists) throw new NotFoundException('Task not found');
 
     return this.prisma.task.delete({ where: { id } });
+  }
+
+  private sortByKey<T extends { key: string }>(items: T[]): T[] {
+    return [...items].sort((a, b) => {
+      const aNum = Number(a.key);
+      const bNum = Number(b.key);
+      const aIsNum = Number.isFinite(aNum) && String(aNum) === a.key;
+      const bIsNum = Number.isFinite(bNum) && String(bNum) === b.key;
+      if (aIsNum && bIsNum) return aNum - bNum;
+      return a.key.localeCompare(b.key);
+    });
+  }
+
+  mapTaskWithRevision(task: TaskWithActiveRevision) {
+    if (!task.activeRevision) {
+      throw new ConflictException('Task revision is missing');
+    }
+    const revision = task.activeRevision;
+    const numericParts = revision.numericParts.map((part) => ({
+      key: part.partKey,
+      labelLite: part.labelLite,
+      correctValue: part.correctValue,
+    }));
+    const choices = revision.choices.map((choice) => ({
+      key: choice.choiceKey,
+      textLite: choice.contentLite,
+    }));
+    const sortedNumericParts = this.sortByKey(numericParts);
+    const sortedChoices = this.sortByKey(choices);
+    const correctKeys = revision.correctChoices.map((item) => item.choiceKey).sort();
+    const correctAnswerJson =
+      revision.answerType === TaskAnswerType.single_choice
+        ? correctKeys[0]
+          ? { key: correctKeys[0] }
+          : null
+        : revision.answerType === TaskAnswerType.multi_choice
+          ? { keys: correctKeys }
+          : null;
+
+    return {
+      id: task.id,
+      unitId: task.unitId,
+      title: task.title,
+      statementLite: revision.statementLite,
+      answerType: revision.answerType,
+      numericPartsJson:
+        revision.answerType === TaskAnswerType.numeric ? sortedNumericParts : null,
+      choicesJson:
+        revision.answerType === TaskAnswerType.single_choice ||
+        revision.answerType === TaskAnswerType.multi_choice
+          ? sortedChoices
+          : null,
+      correctAnswerJson,
+      solutionLite: revision.solutionLite,
+      isRequired: task.isRequired,
+      status: task.status,
+      sortOrder: task.sortOrder,
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt,
+    };
+  }
+
+  private async nextTaskRevisionNo(tx: Prisma.TransactionClient, taskId: string) {
+    const last = await tx.taskRevision.aggregate({
+      where: { taskId },
+      _max: { revisionNo: true },
+    });
+    return (last._max.revisionNo ?? 0) + 1;
+  }
+
+  private async createTaskRevision(
+    tx: Prisma.TransactionClient,
+    taskId: string,
+    revisionNo: number,
+    normalized: {
+      answerType: TaskAnswerType;
+      statementLite: string;
+      numericPartsJson: NumericPart[] | null;
+      choicesJson: Choice[] | null;
+      correctAnswerJson: CorrectAnswer | null;
+      solutionLite: string | null;
+    },
+  ) {
+    const revision = await tx.taskRevision.create({
+      data: {
+        taskId,
+        revisionNo,
+        answerType: normalized.answerType,
+        statementLite: normalized.statementLite,
+        solutionLite: normalized.solutionLite,
+      },
+    });
+
+    if (normalized.answerType === TaskAnswerType.numeric && normalized.numericPartsJson) {
+      await tx.taskRevisionNumericPart.createMany({
+        data: normalized.numericPartsJson.map((part) => ({
+          taskRevisionId: revision.id,
+          partKey: part.key,
+          labelLite: part.labelLite ?? null,
+          correctValue: part.correctValue,
+        })),
+      });
+    }
+
+    if (
+      (normalized.answerType === TaskAnswerType.single_choice ||
+        normalized.answerType === TaskAnswerType.multi_choice) &&
+      normalized.choicesJson &&
+      normalized.correctAnswerJson
+    ) {
+      await tx.taskRevisionChoice.createMany({
+        data: normalized.choicesJson.map((choice) => ({
+          taskRevisionId: revision.id,
+          choiceKey: choice.key,
+          contentLite: choice.textLite,
+        })),
+      });
+
+      const correctKeys =
+        normalized.answerType === TaskAnswerType.single_choice
+          ? normalized.correctAnswerJson.key
+            ? [normalized.correctAnswerJson.key]
+            : []
+          : normalized.correctAnswerJson.keys ?? [];
+
+      if (correctKeys.length > 0) {
+        await tx.taskRevisionCorrectChoice.createMany({
+          data: correctKeys.map((key) => ({
+            taskRevisionId: revision.id,
+            choiceKey: key,
+          })),
+        });
+      }
+    }
+
+    return revision;
   }
 
   private sanitizeRichText(value: string | null | undefined): string | null {
@@ -588,10 +883,15 @@ export class ContentService {
   }
 
   private normalizeAnswerType(value: unknown): TaskAnswerType {
-    if (value !== 'numeric' && value !== 'single_choice' && value !== 'multi_choice' && value !== 'photo') {
+    if (
+      value !== TaskAnswerType.numeric &&
+      value !== TaskAnswerType.single_choice &&
+      value !== TaskAnswerType.multi_choice &&
+      value !== TaskAnswerType.photo
+    ) {
       throw new BadRequestException('InvalidAnswerType');
     }
-    return value;
+    return value as TaskAnswerType;
   }
 
   private normalizeKey(value: unknown, errorCode: string): string {
@@ -710,7 +1010,7 @@ export class ContentService {
       errorCode: 'InvalidSolutionLite',
     });
 
-    if (answerType === 'numeric') {
+    if (answerType === TaskAnswerType.numeric) {
       const numericParts = this.normalizeNumericParts(payload.numericPartsJson);
       return {
         answerType,
@@ -722,11 +1022,14 @@ export class ContentService {
       };
     }
 
-    if (answerType === 'single_choice' || answerType === 'multi_choice') {
+    if (
+      answerType === TaskAnswerType.single_choice ||
+      answerType === TaskAnswerType.multi_choice
+    ) {
       const choices = this.normalizeChoices(payload.choicesJson);
       const choiceKeys = new Set(choices.map((choice) => choice.key));
       const correctAnswer =
-        answerType === 'single_choice'
+        answerType === TaskAnswerType.single_choice
           ? this.normalizeCorrectAnswerSingle(payload.correctAnswerJson, choiceKeys)
           : this.normalizeCorrectAnswerMulti(payload.correctAnswerJson, choiceKeys);
       return {

@@ -22,6 +22,46 @@ enum EventCategory {
   system
 }
 
+enum TaskAnswerType {
+  numeric
+  single_choice
+  multi_choice
+  photo
+}
+
+enum StudentTaskStatus {
+  not_started
+  in_progress
+  correct
+  pending_review
+  rejected
+  blocked
+  credited_without_progress
+  teacher_credited
+}
+
+enum AttemptKind {
+  numeric
+  single_choice
+  multi_choice
+  photo
+}
+
+enum AttemptResult {
+  correct
+  incorrect
+  pending_review
+  accepted
+  rejected
+}
+
+enum NotificationType {
+  photo_reviewed
+  unit_override_opened
+  required_task_skipped
+  task_locked
+}
+
 model User {
   id           String   @id @default(uuid()) @db.Uuid
   role         Role
@@ -32,9 +72,30 @@ model User {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   domainEventLogs DomainEventLog[] @relation("DomainEventActor")
+  studentProfile StudentProfile?   @relation("StudentProfileUser")
+  leadStudents   StudentProfile[]  @relation("StudentProfileLeadTeacher")
+  studentTaskStates StudentTaskState[]
+  attempts         Attempt[]
+  notifications    Notification[]
 
   @@index([role])
   @@map("users")
+}
+
+model StudentProfile {
+  userId        String   @id @map("user_id") @db.Uuid
+  leadTeacherId String   @map("lead_teacher_id") @db.Uuid
+  displayName   String?  @map("display_name")
+  firstName     String?  @map("first_name")
+  lastName      String?  @map("last_name")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user        User @relation("StudentProfileUser", fields: [userId], references: [id], onDelete: Cascade)
+  leadTeacher User @relation("StudentProfileLeadTeacher", fields: [leadTeacherId], references: [id], onDelete: Restrict)
+
+  @@index([leadTeacherId])
+  @@map("student_profile")
 }
 
 model Course {
@@ -42,6 +103,7 @@ model Course {
   title       String
   description String?
   status      ContentStatus @default(draft)
+  lockDurationMinutes Int   @default(30) @map("lock_duration_minutes")
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
 
@@ -136,23 +198,146 @@ model Task {
   id            String        @id @default(uuid()) @db.Uuid
   unitId        String        @map("unit_id") @db.Uuid
   title         String?
-  statementLite String        @map("statement_lite")
-  answerType    String        @map("answer_type")
-  numericPartsJson Json?      @map("numeric_parts_json")
-  choicesJson      Json?      @map("choices_json")
-  correctAnswerJson Json?     @map("correct_answer_json")
-  solutionLite   String?      @map("solution_lite")
   isRequired    Boolean       @default(false) @map("is_required")
   status        ContentStatus @default(draft)
   sortOrder     Int           @default(0) @map("sort_order")
+  activeRevisionId String?    @map("active_revision_id") @db.Uuid
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
 
   unit Unit @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  activeRevision TaskRevision? @relation("ActiveTaskRevision", fields: [activeRevisionId], references: [id], onDelete: Restrict)
+  revisions TaskRevision[] @relation("TaskRevisions")
+  studentTaskStates StudentTaskState[]
+  attempts Attempt[]
 
   @@index([unitId, status])
   @@index([unitId, sortOrder])
   @@map("tasks")
+}
+
+model TaskRevision {
+  id            String        @id @default(uuid()) @db.Uuid
+  taskId        String        @map("task_id") @db.Uuid
+  revisionNo    Int           @map("revision_no")
+  answerType    TaskAnswerType @map("answer_type")
+  statementLite String        @map("statement_lite")
+  solutionLite  String?       @map("solution_lite")
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  task Task @relation("TaskRevisions", fields: [taskId], references: [id], onDelete: Cascade)
+  activeForTasks Task[] @relation("ActiveTaskRevision")
+  numericParts TaskRevisionNumericPart[]
+  choices TaskRevisionChoice[]
+  correctChoices TaskRevisionCorrectChoice[]
+  studentTaskStatesActive StudentTaskState[] @relation("StudentTaskStateActiveRevision")
+  studentTaskStatesCredited StudentTaskState[] @relation("StudentTaskStateCreditedRevision")
+  attempts Attempt[]
+
+  @@unique([taskId, revisionNo])
+  @@index([taskId, createdAt])
+  @@map("task_revisions")
+}
+
+model TaskRevisionNumericPart {
+  id             String @id @default(uuid()) @db.Uuid
+  taskRevisionId String @map("task_revision_id") @db.Uuid
+  partKey        String @map("part_key")
+  labelLite      String? @map("label_lite")
+  correctValue   String @map("correct_value")
+
+  taskRevision TaskRevision @relation(fields: [taskRevisionId], references: [id], onDelete: Cascade)
+
+  @@unique([taskRevisionId, partKey])
+  @@index([taskRevisionId])
+  @@map("task_revision_numeric_parts")
+}
+
+model TaskRevisionChoice {
+  id             String @id @default(uuid()) @db.Uuid
+  taskRevisionId String @map("task_revision_id") @db.Uuid
+  choiceKey      String @map("choice_key")
+  contentLite    String @map("content_lite")
+
+  taskRevision TaskRevision @relation(fields: [taskRevisionId], references: [id], onDelete: Cascade)
+
+  @@unique([taskRevisionId, choiceKey])
+  @@index([taskRevisionId])
+  @@map("task_revision_choices")
+}
+
+model TaskRevisionCorrectChoice {
+  id             String @id @default(uuid()) @db.Uuid
+  taskRevisionId String @map("task_revision_id") @db.Uuid
+  choiceKey      String @map("choice_key")
+
+  taskRevision TaskRevision @relation(fields: [taskRevisionId], references: [id], onDelete: Cascade)
+
+  @@unique([taskRevisionId, choiceKey])
+  @@index([taskRevisionId])
+  @@map("task_revision_correct_choices")
+}
+
+model StudentTaskState {
+  studentId         String           @map("student_id") @db.Uuid
+  taskId            String           @map("task_id") @db.Uuid
+  status            StudentTaskStatus
+  activeRevisionId  String           @map("active_revision_id") @db.Uuid
+  wrongAttempts     Int              @default(0) @map("wrong_attempts")
+  lockedUntil       DateTime?        @map("locked_until")
+  requiredSkipped   Boolean          @default(false) @map("required_skipped")
+  creditedRevisionId String?         @map("credited_revision_id") @db.Uuid
+  creditedAt        DateTime?        @map("credited_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  activeRevision TaskRevision @relation("StudentTaskStateActiveRevision", fields: [activeRevisionId], references: [id], onDelete: Restrict)
+  creditedRevision TaskRevision? @relation("StudentTaskStateCreditedRevision", fields: [creditedRevisionId], references: [id], onDelete: SetNull)
+
+  @@id([studentId, taskId])
+  @@index([studentId, status])
+  @@index([taskId, status])
+  @@index([lockedUntil])
+  @@map("student_task_state")
+}
+
+model Attempt {
+  id               String        @id @default(uuid()) @db.Uuid
+  studentId        String        @map("student_id") @db.Uuid
+  taskId           String        @map("task_id") @db.Uuid
+  taskRevisionId   String        @map("task_revision_id") @db.Uuid
+  attemptNo        Int           @map("attempt_no")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  kind             AttemptKind
+  numericAnswers   Json?         @map("numeric_answers")
+  selectedChoiceKey String?      @map("selected_choice_key")
+  selectedChoiceKeys Json?       @map("selected_choice_keys")
+  result           AttemptResult
+
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskRevision TaskRevision @relation(fields: [taskRevisionId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, taskRevisionId, attemptNo])
+  @@index([studentId, createdAt])
+  @@index([taskId, createdAt])
+  @@index([taskRevisionId, createdAt])
+  @@map("attempts")
+}
+
+model Notification {
+  id              String           @id @default(uuid()) @db.Uuid
+  recipientUserId String           @map("recipient_user_id") @db.Uuid
+  type            NotificationType
+  payload         Json
+  createdAt       DateTime         @default(now()) @map("created_at")
+  readAt          DateTime?        @map("read_at")
+
+  recipientUser User @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
+
+  @@index([recipientUserId, readAt, createdAt])
+  @@map("notifications")
 }
 
 model DomainEventLog {

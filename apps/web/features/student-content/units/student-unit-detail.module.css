@@ -95,6 +95,10 @@
   font-size: 12px;
   cursor: pointer;
   border-radius: var(--control-radius);
+  display: grid;
+  gap: 4px;
+  align-items: center;
+  justify-items: center;
   transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease,
     transform 0.2s ease;
 }
@@ -125,6 +129,13 @@
   color: var(--text-primary);
 }
 
+.taskTabStatus {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
 .taskCard {
   border: var(--border-width) solid var(--glass-border);
   padding: 12px;
@@ -135,6 +146,7 @@
   box-shadow: var(--card-shadow);
   backdrop-filter: var(--glass-filter);
   -webkit-backdrop-filter: var(--glass-filter);
+  position: relative;
 }
 
 .taskHeader {
@@ -142,6 +154,13 @@
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+.taskHeaderBadges {
+  display: flex;
+  gap: 8px;
+  align-items: center;
   flex-wrap: wrap;
 }
 
@@ -160,15 +179,106 @@
   border-radius: var(--control-radius);
 }
 
+
 .taskStatement {
   font-size: 15px;
   color: var(--text-primary);
+}
+
+.taskMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.statusBadge {
+  border: var(--border-width) solid var(--glass-border);
+  padding: 4px 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-radius: var(--control-radius);
+  background: var(--glass-tint);
+  color: var(--text-primary);
+}
+
+.statusBadgeSuccess {
+  background: color-mix(in srgb, #22c55e 16%, var(--surface-2));
+  border-color: color-mix(in srgb, #22c55e 35%, var(--glass-border));
+}
+
+.statusBadgeWarn {
+  background: color-mix(in srgb, #f97316 18%, var(--surface-2));
+  border-color: color-mix(in srgb, #f97316 35%, var(--glass-border));
+}
+
+.statusBadgeInfo {
+  background: color-mix(in srgb, #38bdf8 16%, var(--surface-2));
+  border-color: color-mix(in srgb, #38bdf8 35%, var(--glass-border));
+}
+
+.statusBadgeNeutral {
+  background: var(--surface-1);
+  border-color: var(--glass-border);
+}
+
+.requiredBadge {
+  border: var(--border-width) solid var(--glass-border);
+  padding: 4px 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-radius: var(--control-radius);
+  background: color-mix(in srgb, #ef4444 12%, var(--surface-2));
+  color: var(--text-primary);
+}
+
+.attemptStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+
+.notice {
+  border: var(--border-width) solid var(--glass-border);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  padding: 8px 10px;
+  border-radius: var(--control-radius);
+  font-size: 12px;
 }
 
 .taskActions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.taskResultCorrect {
+  border: var(--border-width) solid color-mix(in srgb, #22c55e 35%, var(--glass-border));
+  background: color-mix(in srgb, #22c55e 16%, var(--surface-2));
+  color: var(--text-primary);
+  padding: 6px 10px;
+  border-radius: var(--control-radius);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.taskResultIncorrect {
+  border: var(--border-width) solid color-mix(in srgb, #ef4444 35%, var(--glass-border));
+  background: color-mix(in srgb, #ef4444 12%, var(--surface-2));
+  color: var(--text-primary);
+  padding: 6px 10px;
+  border-radius: var(--control-radius);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .taskDone {
@@ -230,20 +340,78 @@
 
 .optionItem {
   display: grid;
-  grid-template-columns: minmax(0, 50px) minmax(0, 1fr);
-  gap: 8px;
+  grid-template-columns: 22px minmax(0, 14px) minmax(0, 1fr);
+  gap: 4px;
   align-items: center;
+  padding: 6px 2px;
+  cursor: pointer;
+  border-bottom: var(--border-width) solid color-mix(in srgb, var(--glass-border) 70%, transparent);
 }
 
-.optionKey {
-  border: var(--border-width) solid var(--glass-border);
-  padding: 4px 8px;
+.optionItem:last-child {
+  border-bottom: none;
+}
+
+.optionInput {
+  margin: 0;
+}
+
+.optionIndex {
+  color: var(--text-muted);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+
+.optionText {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.partResult {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  background: var(--glass-tint);
-  color: var(--text-muted);
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: var(--border-width) solid var(--glass-border);
+}
+
+.partResultCorrect {
+  background: color-mix(in srgb, #22c55e 18%, var(--surface-2));
+  border-color: color-mix(in srgb, #22c55e 35%, var(--glass-border));
+}
+
+.partResultIncorrect {
+  background: color-mix(in srgb, #ef4444 16%, var(--surface-2));
+  border-color: color-mix(in srgb, #ef4444 35%, var(--glass-border));
+}
+
+.attemptMessage {
+  border: var(--border-width) solid var(--glass-border);
+  padding: 8px 10px;
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font-size: 12px;
   border-radius: var(--control-radius);
+}
+
+.attemptError {
+  border: var(--border-width) solid color-mix(in srgb, #ef4444 35%, var(--glass-border));
+  padding: 8px 10px;
+  background: color-mix(in srgb, #ef4444 12%, var(--surface-2));
+  color: var(--text-primary);
+  font-size: 12px;
+  border-radius: var(--control-radius);
+}
+
+.attemptsLeftBadge {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .videoList {
@@ -273,4 +441,10 @@
   border: var(--border-width) solid var(--glass-border);
   background: var(--panel-bg);
   border-radius: var(--card-radius);
+}
+.blockedInline {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: color-mix(in srgb, #f97316 70%, var(--text-muted));
 }

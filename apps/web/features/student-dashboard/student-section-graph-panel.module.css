@@ -80,7 +80,7 @@
 }
 
 .graphPanel {
-  border: var(--border-width) solid var(--glass-border);
+  border: var(--border-width) solid var(--panel-border);
   background: var(--panel-bg);
   height: 60vh;
   min-height: 420px;

@@ -12,6 +12,13 @@
   flex-wrap: wrap;
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .header button {
   --button-bg: var(--surface-1);
   --button-border: var(--glass-border);
