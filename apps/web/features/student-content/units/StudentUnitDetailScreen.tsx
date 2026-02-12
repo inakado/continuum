@@ -11,6 +11,7 @@ import Tabs from "@/components/ui/Tabs";
 import { toYouTubeEmbed } from "@/lib/video-embed";
 import Button from "@/components/ui/Button";
 import LiteTex from "@/components/LiteTex";
+import { getStudentUnitStatusLabel } from "@/lib/status-labels";
 import { useStudentLogout } from "../auth/use-student-logout";
 import { useStudentIdentity } from "../shared/use-student-identity";
 import { ApiError } from "@/lib/api/client";
@@ -29,11 +30,13 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
   const [unit, setUnit] = useState<UnitWithTasks | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [lockedAccessMessage, setLockedAccessMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("tasks");
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [numericAnswers, setNumericAnswers] = useState<Record<string, Record<string, string>>>({});
   const [singleAnswers, setSingleAnswers] = useState<Record<string, string>>({});
   const [multiAnswers, setMultiAnswers] = useState<Record<string, string[]>>({});
+  const [showSolutionByTask, setShowSolutionByTask] = useState<Record<string, boolean>>({});
   const [attemptLoading, setAttemptLoading] = useState<Record<string, boolean>>({});
   const [attemptPerPart, setAttemptPerPart] = useState<
     Record<string, { partKey: string; correct: boolean }[] | null>
@@ -44,10 +47,18 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
   const fetchUnit = useCallback(async () => {
     setError(null);
     setNotFound(false);
+    setLockedAccessMessage(null);
     try {
       const data = await studentApi.getUnit(unitId);
       setUnit(data);
     } catch (err) {
+      if (err instanceof ApiError && err.status === 409 && err.code === "UNIT_LOCKED") {
+        setUnit(null);
+        setNotFound(false);
+        setError(null);
+        setLockedAccessMessage("Юнит пока заблокирован");
+        return;
+      }
       const message = getStudentErrorMessage(err);
       if (message === "Не найдено или недоступно") setNotFound(true);
       setError(message);
@@ -112,6 +123,32 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
     });
   }, [unit?.tasks]);
 
+  const completionPercent = unit?.completionPercent ?? 0;
+  const solvedPercent = unit?.solvedPercent ?? 0;
+
+  const totalTasks = unit?.totalTasks ?? orderedTasks.length;
+  const countedTasks =
+    unit?.countedTasks ??
+    orderedTasks.filter((task) =>
+      ["correct", "credited_without_progress", "teacher_credited"].includes(
+        task.state?.status ?? "not_started",
+      ),
+    ).length;
+  const solvedTasks =
+    unit?.solvedTasks ??
+    orderedTasks.filter((task) =>
+      ["correct", "teacher_credited"].includes(task.state?.status ?? "not_started"),
+    ).length;
+  const requiredTotal = orderedTasks.filter((task) => task.isRequired).length;
+  const requiredDone = orderedTasks.filter(
+    (task) =>
+      task.isRequired &&
+      ["correct", "credited_without_progress", "teacher_credited"].includes(
+        task.state?.status ?? "not_started",
+      ),
+  ).length;
+  const unitStatusLabel = getStudentUnitStatusLabel(unit?.unitStatus ?? null);
+
   const isCreditedStatus = useCallback(
     (status?: string | null) =>
       status === "correct" ||
@@ -173,6 +210,7 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
   const showIncorrectBadge =
     Boolean(activeTask) && isChoiceTask && attemptFlash[activeTask.id] === "incorrect";
   const showCorrectBadge = activeState?.status === "correct";
+  const isSolutionVisible = Boolean(activeTask && showSolutionByTask[activeTask.id]);
 
   useEffect(() => {
     if (!activeTask) return;
@@ -360,58 +398,88 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
             {error}
           </div>
         ) : null}
-
-        <div className={styles.tabsRow}>
-          <Tabs
-            idBase={tabsId}
-            tabs={tabs}
-            active={activeTab}
-            onChange={setActiveTab}
-            ariaLabel="Вкладки юнита"
-          />
-          <Button variant="ghost" onClick={() => router.back()} className={styles.backInline}>
-            ← Назад
-          </Button>
-        </div>
-
-        <div id={activePanelId} role="tabpanel" aria-labelledby={activeTabId}>
-          {activeTab === "theory" ? (
-            <div className={styles.stub}>PDF будет показан здесь после сборки и публикации учителем.</div>
-          ) : activeTab === "method" ? (
-            <div className={styles.stub}>PDF будет показан здесь после сборки и публикации учителем.</div>
-          ) : activeTab === "video" ? (
-            <div className={styles.videoList}>
-              {videos.length === 0 ? (
-                <div className={styles.stub}>Видео пока не добавлены.</div>
-              ) : (
-                videos.map((video) => {
-                  const embed = toYouTubeEmbed(video.embedUrl);
-                  return (
-                    <div key={video.id} className={styles.videoCard}>
-                      <div className={styles.videoTitle}>{video.title}</div>
-                      {embed ? (
-                        <iframe
-                          className={styles.videoFrame}
-                          src={embed}
-                          title={video.title}
-                          loading="lazy"
-                          referrerPolicy="strict-origin-when-cross-origin"
-                          sandbox="allow-scripts allow-same-origin allow-presentation"
-                          allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; web-share"
-                          allowFullScreen
-                        />
-                      ) : (
-                        <div className={styles.stub}>Неподдерживаемая ссылка на видео.</div>
-                      )}
-                    </div>
-                  );
-                })
-              )}
+        {lockedAccessMessage ? (
+          <section className={styles.lockedGate} role="status" aria-live="polite">
+            <div className={styles.lockedGateTitle}>Юнит заблокирован</div>
+            <div className={styles.lockedGateText}>
+              {lockedAccessMessage}. Сначала завершите предыдущие юниты в графе раздела.
             </div>
-          ) : activeTab === "attachments" ? (
-            <div className={styles.stub}>Вложения будут добавлены позже.</div>
-          ) : (
-            <div className={styles.tasks}>
+            <div className={styles.lockedGateActions}>
+              <Button onClick={() => router.push("/student")}>К графу раздела</Button>
+              <Button variant="ghost" onClick={() => router.back()}>
+                ← Назад
+              </Button>
+            </div>
+          </section>
+        ) : (
+          <>
+            {unit ? (
+              <section className={styles.progressCard} aria-label="Прогресс юнита">
+                <div className={styles.progressTitle}>Прогресс юнита</div>
+                <div className={styles.progressLine}>
+                  Выполнение: {completionPercent}% · Решено: {solvedPercent}%
+                </div>
+                <div className={styles.progressMeta}>
+                  Учтено: {countedTasks}/{totalTasks} · Решено задач: {solvedTasks}/{totalTasks}
+                </div>
+                <div className={styles.progressMeta}>
+                  Обязательных выполнено: {requiredDone}/{requiredTotal}
+                </div>
+                <div className={styles.progressStatus}>Статус: {unitStatusLabel}</div>
+              </section>
+            ) : null}
+
+            <div className={styles.tabsRow}>
+              <Tabs
+                idBase={tabsId}
+                tabs={tabs}
+                active={activeTab}
+                onChange={setActiveTab}
+                ariaLabel="Вкладки юнита"
+              />
+              <Button variant="ghost" onClick={() => router.back()} className={styles.backInline}>
+                ← Назад
+              </Button>
+            </div>
+
+            <div id={activePanelId} role="tabpanel" aria-labelledby={activeTabId}>
+              {activeTab === "theory" ? (
+                <div className={styles.stub}>PDF будет показан здесь после сборки и публикации учителем.</div>
+              ) : activeTab === "method" ? (
+                <div className={styles.stub}>PDF будет показан здесь после сборки и публикации учителем.</div>
+              ) : activeTab === "video" ? (
+                <div className={styles.videoList}>
+                  {videos.length === 0 ? (
+                    <div className={styles.stub}>Видео пока не добавлены.</div>
+                  ) : (
+                    videos.map((video) => {
+                      const embed = toYouTubeEmbed(video.embedUrl);
+                      return (
+                        <div key={video.id} className={styles.videoCard}>
+                          <div className={styles.videoTitle}>{video.title}</div>
+                          {embed ? (
+                            <iframe
+                              className={styles.videoFrame}
+                              src={embed}
+                              title={video.title}
+                              loading="lazy"
+                              referrerPolicy="strict-origin-when-cross-origin"
+                              sandbox="allow-scripts allow-same-origin allow-presentation"
+                              allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; web-share"
+                              allowFullScreen
+                            />
+                          ) : (
+                            <div className={styles.stub}>Неподдерживаемая ссылка на видео.</div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              ) : activeTab === "attachments" ? (
+                <div className={styles.stub}>Вложения будут добавлены позже.</div>
+              ) : (
+                <div className={styles.tasks}>
               {orderedTasks.length ? (
                 <>
                   <div className={styles.taskTabs}>
@@ -454,14 +522,12 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
 
                       {activeState?.requiredSkipped ? (
                         <div className={styles.taskMeta}>
-                          <span className={styles.requiredBadge}>Required пропущена</span>
+                          <span className={styles.requiredBadge}>Обязательная пропущена</span>
                         </div>
                       ) : null}
 
                       {activeState?.status === "credited_without_progress" ? (
-                        <div className={styles.notice}>
-                          Задача зачтена без прогресса. Ответы показываются позже.
-                        </div>
+                        <div className={styles.notice}>Задача зачтена без прогресса.</div>
                       ) : null}
 
                       {activeState?.status === "teacher_credited" ? (
@@ -582,20 +648,46 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
                             Следующая
                           </Button>
                         ) : null}
+                        {isTaskCredited ? (
+                          <Button
+                            variant="ghost"
+                            onClick={() =>
+                              setShowSolutionByTask((prev) => ({
+                                ...prev,
+                                [activeTask.id]: !prev[activeTask.id],
+                              }))
+                            }
+                          >
+                            {isSolutionVisible ? "Скрыть решение" : "Показать решение"}
+                          </Button>
+                        ) : null}
                         {showCorrectBadge ? (
                           <span className={styles.taskResultCorrect}>Верно</span>
                         ) : null}
+                        <div className={styles.attemptsLeftBadge}>Осталось попыток: {attemptsLeft}</div>
                       </div>
-                      <div className={styles.attemptsLeftBadge}>Осталось попыток: {attemptsLeft}</div>
+                      {isTaskCredited && isSolutionVisible ? (
+                        <div className={styles.solutionPanel}>
+                          {activeTask.solutionLite?.trim() ? (
+                            <LiteTex value={activeTask.solutionLite} block />
+                          ) : (
+                            <div className={styles.solutionStub}>
+                              Решение пока не добавлено. PDF‑решение появится позже.
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
                 </>
               ) : (
                 <div className={styles.stub}>Задач пока нет.</div>
               )}
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
     </DashboardShell>
   );

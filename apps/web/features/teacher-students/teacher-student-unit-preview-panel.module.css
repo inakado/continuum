@@ -1,0 +1,144 @@
+.panel {
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: var(--card-radius);
+  background: var(--card-bg);
+  padding: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.unitTitle {
+  font-weight: 700;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tab {
+  border: var(--border-width-thin) solid var(--glass-border);
+  background: var(--glass-tint);
+  color: var(--text-primary);
+  border-radius: var(--control-radius);
+  min-width: 40px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.tabActive {
+  background: var(--nav-active-bg);
+  color: var(--nav-active-text);
+}
+
+.taskCard {
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: var(--control-radius);
+  background: var(--surface-1);
+  padding: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.taskHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.taskTitle {
+  font-weight: 700;
+}
+
+.taskMeta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.statusBadge {
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: var(--control-radius);
+  background: var(--surface-2);
+  padding: 3px 8px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.requiredBadge {
+  border: var(--border-width-thin) solid color-mix(in srgb, #ef4444 35%, var(--glass-border));
+  background: color-mix(in srgb, #ef4444 14%, var(--surface-2));
+  border-radius: var(--control-radius);
+  padding: 3px 8px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.statement {
+  color: var(--text-primary);
+}
+
+.answerList {
+  display: grid;
+  gap: 8px;
+}
+
+.answerRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.answerIndex {
+  color: var(--text-muted);
+}
+
+.answerLabel {
+  min-width: 140px;
+}
+
+.answerInput {
+  border: var(--border-width) solid var(--control-border, var(--border-primary));
+  background: var(--control-bg, var(--bg-primary));
+  color: var(--text-muted);
+  padding: 8px 10px;
+  border-radius: var(--control-radius);
+}
+
+.options {
+  display: grid;
+  gap: 6px;
+}
+
+.optionRow {
+  display: grid;
+  grid-template-columns: 22px 16px 1fr;
+  gap: 8px;
+  align-items: center;
+  border-bottom: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 70%, transparent);
+  padding-bottom: 6px;
+}
+
+.optionRow:last-child {
+  border-bottom: none;
+}
+
+.optionIndex {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.optionText {
+  color: var(--text-primary);
+}
+
+.stub {
+  color: var(--text-muted);
+  font-size: 13px;
+}

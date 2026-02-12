@@ -1,9 +1,11 @@
 export class ApiError extends Error {
   status: number;
+  code?: string;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -37,11 +39,15 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const data = hasJson ? (JSON.parse(text) as unknown) : null;
 
   if (!res.ok) {
+    const code =
+      typeof data === "object" && data && "code" in data && typeof (data as { code?: unknown }).code === "string"
+        ? String((data as { code: string }).code)
+        : undefined;
     const message =
       typeof data === "object" && data && "message" in data
         ? String((data as { message: string }).message)
         : res.statusText || "Request failed";
-    throw new ApiError(res.status, message);
+    throw new ApiError(res.status, message, code);
   }
 
   return data as T;

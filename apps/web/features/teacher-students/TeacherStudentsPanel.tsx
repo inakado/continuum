@@ -5,6 +5,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { teacherApi, type StudentSummary, type TeacherSummary } from "@/lib/api/teacher";
 import { getApiErrorMessage } from "@/features/teacher-content/shared/api-errors";
+import TeacherStudentProfilePanel from "./TeacherStudentProfilePanel";
 import styles from "./teacher-students-panel.module.css";
 
 type PasswordReveal = {
@@ -38,6 +39,7 @@ export default function TeacherStudentsPanel() {
   const [editBusy, setEditBusy] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null);
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const studentsRequestIdRef = useRef(0);
 
   const fetchStudents = useCallback(async (search: string) => {
@@ -57,6 +59,10 @@ export default function TeacherStudentsPanel() {
       }
     }
   }, []);
+
+  const refreshStudents = useCallback(async () => {
+    await fetchStudents(query);
+  }, [fetchStudents, query]);
 
   const fetchTeachers = useCallback(async () => {
     setLoadingTeachers(true);
@@ -81,6 +87,12 @@ export default function TeacherStudentsPanel() {
     return () => window.clearTimeout(handle);
   }, [query, fetchStudents]);
 
+  useEffect(() => {
+    if (!selectedStudentId) return;
+    if (students.some((student) => student.id === selectedStudentId)) return;
+    setSelectedStudentId(null);
+  }, [selectedStudentId, students]);
+
   const handleCreate = async () => {
     const trimmed = createLogin.trim();
     if (!trimmed || creating) return;
@@ -101,7 +113,8 @@ export default function TeacherStudentsPanel() {
         password: created.password,
         label: "Новый ученик создан",
       });
-      await fetchStudents(query);
+      await refreshStudents();
+      setSelectedStudentId(created.id);
     } catch (err) {
       setCreateError(getApiErrorMessage(err));
     } finally {
@@ -148,7 +161,10 @@ export default function TeacherStudentsPanel() {
       await teacherApi.transferStudent(student.id, { leaderTeacherId: transferTeacherId });
       setTransferStudentId(null);
       setTransferTeacherId("");
-      await fetchStudents(query);
+      if (selectedStudentId === student.id) {
+        setSelectedStudentId(null);
+      }
+      await refreshStudents();
     } catch (err) {
       setTransferError(getApiErrorMessage(err));
     } finally {
@@ -181,7 +197,7 @@ export default function TeacherStudentsPanel() {
       setEditStudentId(null);
       setEditFirstName("");
       setEditLastName("");
-      await fetchStudents(query);
+      await refreshStudents();
     } catch (err) {
       setEditError(getApiErrorMessage(err));
     } finally {
@@ -206,7 +222,10 @@ export default function TeacherStudentsPanel() {
         setTransferStudentId(null);
         setTransferTeacherId("");
       }
-      await fetchStudents(query);
+      if (selectedStudentId === student.id) {
+        setSelectedStudentId(null);
+      }
+      await refreshStudents();
     } catch (err) {
       setError(getApiErrorMessage(err));
     } finally {
@@ -235,243 +254,270 @@ export default function TeacherStudentsPanel() {
     return student.login;
   };
 
+  const selectedStudent = students.find((student) => student.id === selectedStudentId) ?? null;
+
   return (
     <section className={styles.panel}>
-      <div className={styles.toolbar}>
-        <div className={styles.search}>
-          <label className={styles.label}>
-            Поиск по логину
-            <Input
-              value={query}
-              placeholder="Например: student01"
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </label>
+      {selectedStudent ? (
+        <div className={styles.profileView}>
+          <TeacherStudentProfilePanel
+            studentId={selectedStudent.id}
+            fallbackName={getDisplayName(selectedStudent)}
+            onBack={() => setSelectedStudentId(null)}
+            onRefreshStudents={refreshStudents}
+          />
         </div>
-        <Button
-          onClick={() => {
-            setShowCreateForm((prev) => !prev);
-            setCreateError(null);
-          }}
-        >
-          Добавить ученика
-        </Button>
-      </div>
-
-      {showCreateForm ? (
-        <div className={styles.form}>
-          <label className={styles.label}>
-            Логин ученика
-            <Input
-              value={createLogin}
-              placeholder="student_login"
-              onChange={(event) => setCreateLogin(event.target.value)}
-            />
-          </label>
-          <div className={styles.inlineRow}>
-            <label className={styles.label}>
-              Имя
-              <Input
-                value={createFirstName}
-                placeholder="Имя (необязательно)"
-                onChange={(event) => setCreateFirstName(event.target.value)}
-              />
-            </label>
-            <label className={styles.label}>
-              Фамилия
-              <Input
-                value={createLastName}
-                placeholder="Фамилия (необязательно)"
-                onChange={(event) => setCreateLastName(event.target.value)}
-              />
-            </label>
-          </div>
-          {createError ? <div className={styles.formError}>{createError}</div> : null}
-          <div className={styles.formActions}>
-            <Button onClick={handleCreate} disabled={creating || !createLogin.trim()}>
-              Создать
-            </Button>
+      ) : (
+        <>
+          <div className={styles.toolbar}>
+            <div className={styles.search}>
+              <label className={styles.label}>
+                Поиск по логину
+                <Input
+                  value={query}
+                  placeholder="Например: student01"
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+              </label>
+            </div>
             <Button
-              variant="ghost"
               onClick={() => {
-                setShowCreateForm(false);
-                setCreateLogin("");
-                setCreateFirstName("");
-                setCreateLastName("");
+                setShowCreateForm((prev) => !prev);
                 setCreateError(null);
               }}
             >
-              Отмена
+              Добавить ученика
             </Button>
           </div>
-        </div>
-      ) : null}
 
-      {passwordReveal ? (
-        <div className={styles.passwordReveal}>
-          <div className={styles.passwordTitle}>{passwordReveal.label}</div>
-          <div className={styles.passwordRow}>
-            <div>
-              <div className={styles.passwordLabel}>Логин</div>
-              <div className={styles.passwordValue}>{passwordReveal.login}</div>
-            </div>
-            <div>
-              <div className={styles.passwordLabel}>Пароль</div>
-              <div className={styles.passwordValue}>{passwordReveal.password}</div>
-            </div>
-            <div className={styles.passwordActions}>
-              <Button variant="ghost" onClick={handleCopyPassword}>
-                Скопировать
-              </Button>
-              <Button variant="ghost" onClick={() => setPasswordReveal(null)}>
-                Скрыть
-              </Button>
-            </div>
-          </div>
-          <div className={styles.passwordHint}>Пароль показывается один раз. Сохраните его.</div>
-        </div>
-      ) : null}
-
-      {error ? (
-        <div className={styles.error} role="status" aria-live="polite">
-          {error}
-        </div>
-      ) : null}
-
-      <div className={styles.list}>
-        {listState === "loading" ? <div className={styles.loading}>Загрузка…</div> : null}
-        {listState === "empty" ? <div className={styles.empty}>Учеников пока нет</div> : null}
-        {listState === "ready"
-          ? students.map((student) => {
-              const isActive = transferStudentId === student.id;
-              const availableTeachers = teachers.filter(
-                (teacher) => teacher.id !== student.leadTeacherId,
-              );
-              return (
-                <article
-                  key={student.id}
-                  className={`${styles.card} ${isActive ? styles.cardActive : ""}`}
+          {showCreateForm ? (
+            <div className={styles.form}>
+              <label className={styles.label}>
+                Логин ученика
+                <Input
+                  value={createLogin}
+                  placeholder="student_login"
+                  onChange={(event) => setCreateLogin(event.target.value)}
+                />
+              </label>
+              <div className={styles.inlineRow}>
+                <label className={styles.label}>
+                  Имя
+                  <Input
+                    value={createFirstName}
+                    placeholder="Имя (необязательно)"
+                    onChange={(event) => setCreateFirstName(event.target.value)}
+                  />
+                </label>
+                <label className={styles.label}>
+                  Фамилия
+                  <Input
+                    value={createLastName}
+                    placeholder="Фамилия (необязательно)"
+                    onChange={(event) => setCreateLastName(event.target.value)}
+                  />
+                </label>
+              </div>
+              {createError ? <div className={styles.formError}>{createError}</div> : null}
+              <div className={styles.formActions}>
+                <Button onClick={handleCreate} disabled={creating || !createLogin.trim()}>
+                  Создать
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setShowCreateForm(false);
+                    setCreateLogin("");
+                    setCreateFirstName("");
+                    setCreateLastName("");
+                    setCreateError(null);
+                  }}
                 >
-                  <div className={styles.cardHeader}>
-                    <div>
-                      <div className={styles.studentName}>{getDisplayName(student)}</div>
-                      <div className={styles.studentMeta}>
-                        {student.firstName || student.lastName
-                          ? `Логин: ${student.login}`
-                          : `Ведущий: ${student.leadTeacherLogin}`}
+                  Отмена
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          {passwordReveal ? (
+            <div className={styles.passwordReveal}>
+              <div className={styles.passwordTitle}>{passwordReveal.label}</div>
+              <div className={styles.passwordRow}>
+                <div>
+                  <div className={styles.passwordLabel}>Логин</div>
+                  <div className={styles.passwordValue}>{passwordReveal.login}</div>
+                </div>
+                <div>
+                  <div className={styles.passwordLabel}>Пароль</div>
+                  <div className={styles.passwordValue}>{passwordReveal.password}</div>
+                </div>
+                <div className={styles.passwordActions}>
+                  <Button variant="ghost" onClick={handleCopyPassword}>
+                    Скопировать
+                  </Button>
+                  <Button variant="ghost" onClick={() => setPasswordReveal(null)}>
+                    Скрыть
+                  </Button>
+                </div>
+              </div>
+              <div className={styles.passwordHint}>Пароль показывается один раз. Сохраните его.</div>
+            </div>
+          ) : null}
+
+          {error ? (
+            <div className={styles.error} role="status" aria-live="polite">
+              {error}
+            </div>
+          ) : null}
+
+          <div className={styles.listView}>
+          <div className={styles.list}>
+            {listState === "loading" ? <div className={styles.loading}>Загрузка…</div> : null}
+            {listState === "empty" ? <div className={styles.empty}>Учеников пока нет</div> : null}
+            {listState === "ready"
+              ? students.map((student) => {
+                  const isTransferActive = transferStudentId === student.id;
+                  const isSelected = selectedStudentId === student.id;
+                  const availableTeachers = teachers.filter(
+                    (teacher) => teacher.id !== student.leadTeacherId,
+                  );
+                  return (
+                    <article
+                      key={student.id}
+                      className={`${styles.card} ${isTransferActive ? styles.cardActive : ""} ${
+                        isSelected ? styles.cardSelected : ""
+                      }`}
+                      onClick={() => setSelectedStudentId(student.id)}
+                    >
+                      <div className={styles.cardHeader}>
+                        <div>
+                          <div className={styles.studentName}>{getDisplayName(student)}</div>
+                          <div className={styles.studentMeta}>Логин: {student.login}</div>
+                          <div className={styles.studentMeta}>Ведущий: {student.leadTeacherLogin}</div>
+                        </div>
+                        <div className={styles.cardRightMeta}>
+                          {student.activeNotificationsCount > 0 ? (
+                            <span className={styles.notificationsBadge}>
+                              Уведомления: {student.activeNotificationsCount}
+                            </span>
+                          ) : (
+                            <span className={styles.notificationsMuted}>Уведомлений нет</span>
+                          )}
+                          <div
+                            className={styles.cardActions}
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <Button
+                              variant="ghost"
+                              onClick={() => handleResetPassword(student)}
+                              disabled={resetBusyId === student.id}
+                            >
+                              Сбросить пароль
+                            </Button>
+                            <Button variant="ghost" onClick={() => handleStartEdit(student)}>
+                              Редактировать
+                            </Button>
+                            <Button variant="ghost" onClick={() => handleStartTransfer(student)}>
+                              Передать
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              onClick={() => handleDelete(student)}
+                              disabled={deleteBusyId === student.id}
+                            >
+                              Удалить
+                            </Button>
+                          </div>
+                        </div>
                       </div>
-                      {student.firstName || student.lastName ? (
-                        <div className={styles.studentMeta}>Ведущий: {student.leadTeacherLogin}</div>
+
+                      {editStudentId === student.id ? (
+                        <div className={styles.editPanel} onClick={(event) => event.stopPropagation()}>
+                          <div className={styles.inlineRow}>
+                            <label className={styles.label}>
+                              Имя
+                              <Input
+                                value={editFirstName}
+                                placeholder="Имя"
+                                onChange={(event) => setEditFirstName(event.target.value)}
+                              />
+                            </label>
+                            <label className={styles.label}>
+                              Фамилия
+                              <Input
+                                value={editLastName}
+                                placeholder="Фамилия"
+                                onChange={(event) => setEditLastName(event.target.value)}
+                              />
+                            </label>
+                          </div>
+                          {editError ? <div className={styles.formError}>{editError}</div> : null}
+                          <div className={styles.formActions}>
+                            <Button onClick={() => handleSaveEdit(student)} disabled={editBusy}>
+                              Сохранить
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              onClick={() => {
+                                setEditStudentId(null);
+                                setEditFirstName("");
+                                setEditLastName("");
+                                setEditError(null);
+                              }}
+                            >
+                              Отмена
+                            </Button>
+                          </div>
+                        </div>
                       ) : null}
-                    </div>
-                    <div className={styles.cardActions}>
-                      <Button
-                        variant="ghost"
-                        onClick={() => handleResetPassword(student)}
-                        disabled={resetBusyId === student.id}
-                      >
-                        Сбросить пароль
-                      </Button>
-                      <Button variant="ghost" onClick={() => handleStartEdit(student)}>
-                        Редактировать
-                      </Button>
-                      <Button variant="ghost" onClick={() => handleStartTransfer(student)}>
-                        Передать
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        onClick={() => handleDelete(student)}
-                        disabled={deleteBusyId === student.id}
-                      >
-                        Удалить
-                      </Button>
-                    </div>
-                  </div>
 
-                  {editStudentId === student.id ? (
-                    <div className={styles.editPanel}>
-                      <div className={styles.inlineRow}>
-                        <label className={styles.label}>
-                          Имя
-                          <Input
-                            value={editFirstName}
-                            placeholder="Имя"
-                            onChange={(event) => setEditFirstName(event.target.value)}
-                          />
-                        </label>
-                        <label className={styles.label}>
-                          Фамилия
-                          <Input
-                            value={editLastName}
-                            placeholder="Фамилия"
-                            onChange={(event) => setEditLastName(event.target.value)}
-                          />
-                        </label>
-                      </div>
-                      {editError ? <div className={styles.formError}>{editError}</div> : null}
-                      <div className={styles.formActions}>
-                        <Button onClick={() => handleSaveEdit(student)} disabled={editBusy}>
-                          Сохранить
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          onClick={() => {
-                            setEditStudentId(null);
-                            setEditFirstName("");
-                            setEditLastName("");
-                            setEditError(null);
-                          }}
-                        >
-                          Отмена
-                        </Button>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {isActive ? (
-                    <div className={styles.transferPanel}>
-                      <label className={styles.label}>
-                        Новый ведущий
-                        <select
-                          className={styles.select}
-                          value={transferTeacherId}
-                          onChange={(event) => setTransferTeacherId(event.target.value)}
-                          disabled={loadingTeachers}
-                        >
-                          <option value="">Выберите преподавателя</option>
-                          {availableTeachers.map((teacher) => (
-                            <option key={teacher.id} value={teacher.id}>
-                              {teacher.login}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      {transferError ? <div className={styles.formError}>{transferError}</div> : null}
-                      <div className={styles.formActions}>
-                        <Button
-                          onClick={() => handleTransfer(student)}
-                          disabled={!transferTeacherId || transferBusy}
-                        >
-                          Подтвердить
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          onClick={() => {
-                            setTransferStudentId(null);
-                            setTransferTeacherId("");
-                            setTransferError(null);
-                          }}
-                        >
-                          Отмена
-                        </Button>
-                      </div>
-                    </div>
-                  ) : null}
-                </article>
-              );
-            })
-          : null}
-      </div>
+                      {isTransferActive ? (
+                        <div className={styles.transferPanel} onClick={(event) => event.stopPropagation()}>
+                          <label className={styles.label}>
+                            Новый ведущий
+                            <select
+                              className={styles.select}
+                              value={transferTeacherId}
+                              onChange={(event) => setTransferTeacherId(event.target.value)}
+                              disabled={loadingTeachers}
+                            >
+                              <option value="">Выберите преподавателя</option>
+                              {availableTeachers.map((teacher) => (
+                                <option key={teacher.id} value={teacher.id}>
+                                  {teacher.login}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          {transferError ? <div className={styles.formError}>{transferError}</div> : null}
+                          <div className={styles.formActions}>
+                            <Button
+                              onClick={() => handleTransfer(student)}
+                              disabled={!transferTeacherId || transferBusy}
+                            >
+                              Подтвердить
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              onClick={() => {
+                                setTransferStudentId(null);
+                                setTransferTeacherId("");
+                                setTransferError(null);
+                              }}
+                            >
+                              Отмена
+                            </Button>
+                          </div>
+                        </div>
+                      ) : null}
+                    </article>
+                  );
+                })
+              : null}
+          </div>
+          </div>
+        </>
+      )}
     </section>
   );
 }

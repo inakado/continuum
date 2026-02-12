@@ -7,6 +7,7 @@ import DashboardShell from "@/components/DashboardShell";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { teacherApi, Course, CourseWithSections, Section } from "@/lib/api/teacher";
+import { getContentStatusLabel } from "@/lib/status-labels";
 import { getApiErrorMessage } from "@/features/teacher-content/shared/api-errors";
 import { useTeacherLogout } from "@/features/teacher-content/auth/use-teacher-logout";
 import TeacherStudentsPanel from "@/features/teacher-students/TeacherStudentsPanel";
@@ -398,7 +399,7 @@ export default function TeacherDashboardScreen({ active, initialSectionId }: Tea
                             <div className={styles.cardTitleRow}>
                               <div className={styles.cardTitle}>{section.title}</div>
                               <span className={styles.status} data-status={section.status}>
-                                {section.status === "published" ? "Опубликован" : "Черновик"}
+                                {getContentStatusLabel(section.status)}
                               </span>
                             </div>
                           </button>
@@ -475,7 +476,7 @@ export default function TeacherDashboardScreen({ active, initialSectionId }: Tea
                             <div className={styles.cardTitleRow}>
                               <div className={styles.cardTitle}>{course.title}</div>
                               <span className={styles.status} data-status={course.status}>
-                                {course.status === "published" ? "Опубликован" : "Черновик"}
+                                {getContentStatusLabel(course.status)}
                               </span>
                             </div>
                             <div className={styles.cardMeta}>

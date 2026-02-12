@@ -214,6 +214,75 @@
   padding: 0;
 }
 
+.progressCard {
+  border: var(--border-width) solid var(--panel-border);
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--surface-1) 80%, transparent), transparent 65%),
+    var(--panel-bg);
+  padding: 14px;
+  border-radius: var(--panel-radius);
+  box-shadow: var(--panel-shadow);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  display: grid;
+  gap: 12px;
+}
+
+.progressHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.progressTitle {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.requiredCount {
+  border: var(--border-width) solid var(--glass-border);
+  background: var(--surface-1);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.progressControls {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.progressControls button {
+  --button-bg: var(--surface-1);
+  --button-border: var(--glass-border);
+  --button-text: var(--text-primary);
+  --button-hover-bg: var(--surface-2);
+  --button-hover-border: var(--border-primary);
+  --button-hover-text: var(--text-primary);
+  --button-hover-shadow: var(--nav-hover-shadow);
+}
+
+.progressHint {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.progressStatus {
+  border: var(--border-width) solid var(--panel-border);
+  border-radius: var(--control-radius);
+  background: var(--card-bg);
+  padding: 8px 10px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 .tasksHeader {
   display: flex;
   justify-content: space-between;
@@ -258,9 +327,26 @@
   padding: 12px;
 }
 
+.taskTitleRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .taskNumber {
   font-weight: 700;
   font-size: 14px;
+}
+
+.requiredBadge {
+  border: var(--border-width) solid var(--panel-border);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .taskTitle {
@@ -288,5 +374,17 @@
 @media (max-width: 1100px) {
   .editorGrid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .progressControls {
+    display: grid;
+    width: 100%;
+    grid-template-columns: 1fr;
+  }
+
+  .progressControls button {
+    width: 100%;
   }
 }

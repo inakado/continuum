@@ -40,6 +40,13 @@ enum StudentTaskStatus {
   teacher_credited
 }
 
+enum StudentUnitStatus {
+  locked
+  available
+  in_progress
+  completed
+}
+
 enum AttemptKind {
   numeric
   single_choice
@@ -74,6 +81,7 @@ model User {
   domainEventLogs DomainEventLog[] @relation("DomainEventActor")
   studentProfile StudentProfile?   @relation("StudentProfileUser")
   leadStudents   StudentProfile[]  @relation("StudentProfileLeadTeacher")
+  studentUnitStates StudentUnitState[]
   studentTaskStates StudentTaskState[]
   attempts         Attempt[]
   notifications    Notification[]
@@ -140,6 +148,7 @@ model Unit {
   description String?     @map("description")
   status    ContentStatus @default(draft)
   sortOrder Int           @default(0) @map("sort_order")
+  minCountedTasksToComplete Int @default(0) @map("min_counted_tasks_to_complete")
   theoryRichLatex    String? @map("theory_rich_latex")
   theoryPdfAssetKey  String? @map("theory_pdf_asset_key")
   methodRichLatex    String? @map("method_rich_latex")
@@ -151,6 +160,7 @@ model Unit {
 
   section Section @relation(fields: [sectionId], references: [id], onDelete: Restrict)
   tasks   Task[]
+  studentUnitStates StudentUnitState[]
 
   graphPrereqEdges UnitGraphEdge[]   @relation("GraphPrereqUnit")
   graphNextEdges   UnitGraphEdge[]   @relation("GraphUnit")
@@ -276,6 +286,30 @@ model TaskRevisionCorrectChoice {
   @@unique([taskRevisionId, choiceKey])
   @@index([taskRevisionId])
   @@map("task_revision_correct_choices")
+}
+
+model StudentUnitState {
+  studentId         String            @map("student_id") @db.Uuid
+  unitId            String            @map("unit_id") @db.Uuid
+  status            StudentUnitStatus
+  overrideOpened    Boolean           @default(false) @map("override_opened")
+  countedTasks      Int               @default(0) @map("counted_tasks")
+  solvedTasks       Int               @default(0) @map("solved_tasks")
+  totalTasks        Int               @default(0) @map("total_tasks")
+  completionPercent Int               @default(0) @map("completion_percent")
+  solvedPercent     Int               @default(0) @map("solved_percent")
+  becameAvailableAt DateTime?         @map("became_available_at")
+  startedAt         DateTime?         @map("started_at")
+  completedAt       DateTime?         @map("completed_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  unit    Unit @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@id([studentId, unitId])
+  @@index([unitId, status])
+  @@index([studentId, status])
+  @@map("student_unit_state")
 }
 
 model StudentTaskState {

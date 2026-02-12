@@ -36,6 +36,7 @@ export type Unit = {
   description?: string | null;
   status: ContentStatus;
   sortOrder: number;
+  minCountedTasksToComplete: number;
   theoryRichLatex?: string | null;
   theoryPdfAssetKey?: string | null;
   methodRichLatex?: string | null;
@@ -91,12 +92,103 @@ export type StudentSummary = {
   leadTeacherLogin: string;
   createdAt: string;
   updatedAt: string;
+  activeNotificationsCount: number;
 };
 
 export type TeacherSummary = {
   id: string;
   login: string;
 };
+
+export type TeacherNotification = {
+  id: string;
+  type: "photo_reviewed" | "unit_override_opened" | "required_task_skipped" | "task_locked";
+  payload: Record<string, unknown>;
+  createdAt: string;
+  readAt: string | null;
+};
+
+export type TeacherStudentTaskState = {
+  status:
+    | "not_started"
+    | "in_progress"
+    | "correct"
+    | "blocked"
+    | "credited_without_progress"
+    | "teacher_credited";
+  attemptsUsed: number;
+  wrongAttempts: number;
+  blockedUntil: string | null;
+  requiredSkippedFlag: boolean;
+  isCredited: boolean;
+  isTeacherCredited: boolean;
+  canTeacherCredit: boolean;
+};
+
+export type TeacherStudentTreeTask = {
+  id: string;
+  title: string | null;
+  statementLite: string;
+  answerType: TaskAnswerType;
+  isRequired: boolean;
+  sortOrder: number;
+  state: TeacherStudentTaskState;
+};
+
+export type TeacherStudentTreeUnit = {
+  id: string;
+  title: string;
+  sortOrder: number;
+  tasks: TeacherStudentTreeTask[];
+};
+
+export type TeacherStudentTreeSection = {
+  id: string;
+  title: string;
+  sortOrder: number;
+  units: TeacherStudentTreeUnit[];
+};
+
+export type TeacherStudentCourseTree = {
+  id: string;
+  title: string;
+  sections: TeacherStudentTreeSection[];
+};
+
+export type TeacherStudentProfileResponse = {
+  profile: {
+    id: string;
+    login: string;
+    firstName?: string | null;
+    lastName?: string | null;
+    leadTeacherId: string;
+    leadTeacherLogin: string;
+  };
+  notifications: {
+    activeCount: number;
+    items: TeacherNotification[];
+  };
+  courses: Array<{ id: string; title: string }>;
+  selectedCourseId: string | null;
+  courseTree: TeacherStudentCourseTree | null;
+};
+
+export type TeacherStudentUnitTask = Task & {
+  state?: {
+    status:
+      | "not_started"
+      | "in_progress"
+      | "correct"
+      | "blocked"
+      | "credited_without_progress"
+      | "teacher_credited";
+    wrongAttempts: number;
+    blockedUntil: string | null;
+    requiredSkipped: boolean;
+  };
+};
+
+export type TeacherStudentUnitPreview = Unit & { tasks: TeacherStudentUnitTask[] };
 
 export type CourseWithSections = Course & { sections: Section[] };
 export type SectionWithUnits = Section & { units: Unit[] };
@@ -216,6 +308,7 @@ export const teacherApi = {
       title?: string;
       description?: string | null;
       sortOrder?: number;
+      minCountedTasksToComplete?: number;
       theoryRichLatex?: string | null;
       methodRichLatex?: string | null;
       videosJson?: UnitVideo[] | null;
@@ -353,6 +446,26 @@ export const teacherApi = {
 
   listTeachers() {
     return apiRequest<TeacherSummary[]>("/teacher/teachers");
+  },
+
+  getStudentProfile(studentId: string, params?: { courseId?: string }) {
+    const search = new URLSearchParams();
+    if (params?.courseId) search.set("courseId", params.courseId);
+    const suffix = search.toString();
+    return apiRequest<TeacherStudentProfileResponse>(
+      `/teacher/students/${studentId}${suffix ? `?${suffix}` : ""}`,
+    );
+  },
+
+  getStudentUnitPreview(studentId: string, unitId: string) {
+    return apiRequest<TeacherStudentUnitPreview>(`/teacher/students/${studentId}/units/${unitId}`);
+  },
+
+  creditStudentTask(studentId: string, taskId: string) {
+    return apiRequest<{ status: string; taskId: string; studentId: string }>(
+      `/teacher/students/${studentId}/tasks/${taskId}/credit`,
+      { method: "POST" },
+    );
   },
 
   listEvents(params?: {

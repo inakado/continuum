@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { ContentStatus, Role, StudentTaskStatus } from '@prisma/client';
 import argon2 from 'argon2';
 import { randomInt } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -44,9 +44,85 @@ const normalizeName = (value?: string | null) => {
   return trimmed;
 };
 
+const creditedStatuses = new Set<StudentTaskStatus>([
+  StudentTaskStatus.correct,
+  StudentTaskStatus.credited_without_progress,
+  StudentTaskStatus.teacher_credited,
+]);
+
+const normalizeTaskState = (
+  state: {
+    status: StudentTaskStatus;
+    wrongAttempts: number;
+    lockedUntil: Date | null;
+    requiredSkipped: boolean;
+    activeRevisionId: string;
+  } | null,
+  activeRevisionId: string | null,
+  now: Date,
+) => {
+  if (!state || !activeRevisionId) {
+    return {
+      status: StudentTaskStatus.not_started,
+      wrongAttempts: 0,
+      blockedUntil: null as Date | null,
+      requiredSkipped: false,
+    };
+  }
+
+  if (!creditedStatuses.has(state.status) && state.activeRevisionId !== activeRevisionId) {
+    return {
+      status: StudentTaskStatus.not_started,
+      wrongAttempts: 0,
+      blockedUntil: null as Date | null,
+      requiredSkipped: false,
+    };
+  }
+
+  const isBlocked = Boolean(state.lockedUntil && state.lockedUntil > now);
+  const status =
+    state.status === StudentTaskStatus.blocked && !isBlocked
+      ? state.wrongAttempts > 0
+        ? StudentTaskStatus.in_progress
+        : StudentTaskStatus.not_started
+      : state.status;
+
+  return {
+    status,
+    wrongAttempts: state.wrongAttempts,
+    blockedUntil: isBlocked ? state.lockedUntil : null,
+    requiredSkipped: state.requiredSkipped,
+  };
+};
+
 @Injectable()
 export class StudentsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private extractStudentIdFromPayload(payload: unknown) {
+    if (!payload || typeof payload !== 'object') return null;
+    const value = (payload as Record<string, unknown>).studentId;
+    return typeof value === 'string' && value ? value : null;
+  }
+
+  async assertTeacherOwnsStudent(teacherId: string, studentId: string) {
+    const profile = await this.prisma.studentProfile.findUnique({
+      where: { userId: studentId },
+      include: {
+        user: { select: { id: true, login: true, role: true } },
+        leadTeacher: { select: { id: true, login: true } },
+      },
+    });
+
+    if (!profile || profile.user.role !== Role.student) {
+      throw new NotFoundException('Student not found');
+    }
+    if (profile.leadTeacherId !== teacherId) {
+      throw new ForbiddenException('Student is not assigned to this teacher');
+    }
+
+    return profile;
+  }
 
   async listTeachers() {
     return this.prisma.user.findMany({
@@ -78,6 +154,21 @@ export class StudentsService {
       orderBy: { user: { login: 'asc' } },
     });
 
+    const studentIdSet = new Set(students.map((student) => student.userId));
+    const unreadNotifications = await this.prisma.notification.findMany({
+      where: {
+        recipientUserId: leaderTeacherId,
+        readAt: null,
+      },
+      select: { payload: true },
+    });
+    const activeNotificationsMap = new Map<string, number>();
+    unreadNotifications.forEach((notification) => {
+      const studentId = this.extractStudentIdFromPayload(notification.payload);
+      if (!studentId || !studentIdSet.has(studentId)) return;
+      activeNotificationsMap.set(studentId, (activeNotificationsMap.get(studentId) ?? 0) + 1);
+    });
+
     return students.map((student) => ({
       id: student.userId,
       login: student.user.login,
@@ -87,7 +178,212 @@ export class StudentsService {
       leadTeacherLogin: student.leadTeacher.login,
       createdAt: student.createdAt,
       updatedAt: student.updatedAt,
+      activeNotificationsCount: activeNotificationsMap.get(student.userId) ?? 0,
     }));
+  }
+
+  async getStudentProfileDetails(teacherId: string, studentId: string, courseId?: string) {
+    const profile = await this.assertTeacherOwnsStudent(teacherId, studentId);
+
+    const notifications = await this.prisma.notification.findMany({
+      where: {
+        recipientUserId: teacherId,
+        payload: {
+          path: ['studentId'],
+          equals: studentId,
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        type: true,
+        payload: true,
+        createdAt: true,
+        readAt: true,
+      },
+    });
+    const activeNotificationsCount = notifications.filter((item) => !item.readAt).length;
+
+    const courses = await this.prisma.course.findMany({
+      where: { status: ContentStatus.published },
+      select: { id: true, title: true },
+      orderBy: { title: 'asc' },
+    });
+
+    const selectedCourseId =
+      (courseId && courses.some((course) => course.id === courseId) ? courseId : null) ??
+      courses[0]?.id ??
+      null;
+
+    let courseTree: {
+      id: string;
+      title: string;
+      sections: Array<{
+        id: string;
+        title: string;
+        sortOrder: number;
+        units: Array<{
+          id: string;
+          title: string;
+          sortOrder: number;
+          tasks: Array<{
+            id: string;
+            title: string | null;
+            statementLite: string;
+            answerType: string;
+            isRequired: boolean;
+            sortOrder: number;
+            state: {
+              status: StudentTaskStatus;
+              attemptsUsed: number;
+              wrongAttempts: number;
+              blockedUntil: Date | null;
+              requiredSkippedFlag: boolean;
+              isCredited: boolean;
+              isTeacherCredited: boolean;
+              canTeacherCredit: boolean;
+            };
+          }>;
+        }>;
+      }>;
+    } | null = null;
+
+    if (selectedCourseId) {
+      const course = await this.prisma.course.findFirst({
+        where: { id: selectedCourseId, status: ContentStatus.published },
+        include: {
+          sections: {
+            where: { status: ContentStatus.published },
+            orderBy: { sortOrder: 'asc' },
+            include: {
+              units: {
+                where: { status: ContentStatus.published },
+                orderBy: { sortOrder: 'asc' },
+                include: {
+                  tasks: {
+                    where: { status: ContentStatus.published },
+                    orderBy: { sortOrder: 'asc' },
+                    include: {
+                      activeRevision: {
+                        select: {
+                          statementLite: true,
+                          answerType: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (course) {
+        const allTasks = course.sections.flatMap((section) =>
+          section.units.flatMap((unit) => unit.tasks),
+        );
+        const taskIds = allTasks.map((task) => task.id);
+        const activeRevisionIds = allTasks
+          .map((task) => task.activeRevisionId)
+          .filter((value): value is string => Boolean(value));
+
+        const states = taskIds.length
+          ? await this.prisma.studentTaskState.findMany({
+              where: { studentId, taskId: { in: taskIds } },
+              select: {
+                taskId: true,
+                status: true,
+                wrongAttempts: true,
+                lockedUntil: true,
+                requiredSkipped: true,
+                activeRevisionId: true,
+              },
+            })
+          : [];
+        const attemptsUsed = taskIds.length
+          ? await this.prisma.attempt.groupBy({
+              by: ['taskId', 'taskRevisionId'],
+              where: {
+                studentId,
+                taskId: { in: taskIds },
+                ...(activeRevisionIds.length
+                  ? { taskRevisionId: { in: activeRevisionIds } }
+                  : null),
+              },
+              _count: { _all: true },
+            })
+          : [];
+
+        const statesMap = new Map(states.map((state) => [state.taskId, state]));
+        const attemptsMap = new Map(
+          attemptsUsed.map((item) => [`${item.taskId}:${item.taskRevisionId}`, item._count._all]),
+        );
+        const now = new Date();
+
+        courseTree = {
+          id: course.id,
+          title: course.title,
+          sections: course.sections.map((section) => ({
+            id: section.id,
+            title: section.title,
+            sortOrder: section.sortOrder,
+            units: section.units.map((unit) => ({
+              id: unit.id,
+              title: unit.title,
+              sortOrder: unit.sortOrder,
+              tasks: unit.tasks.map((task) => {
+                const normalizedState = normalizeTaskState(
+                  statesMap.get(task.id) ?? null,
+                  task.activeRevisionId,
+                  now,
+                );
+                const attemptsKey = task.activeRevisionId
+                  ? `${task.id}:${task.activeRevisionId}`
+                  : '';
+                const status = normalizedState.status;
+                return {
+                  id: task.id,
+                  title: task.title,
+                  statementLite: task.activeRevision?.statementLite ?? '',
+                  answerType: task.activeRevision?.answerType ?? 'numeric',
+                  isRequired: task.isRequired,
+                  sortOrder: task.sortOrder,
+                  state: {
+                    status,
+                    attemptsUsed: attemptsKey ? (attemptsMap.get(attemptsKey) ?? 0) : 0,
+                    wrongAttempts: normalizedState.wrongAttempts,
+                    blockedUntil: normalizedState.blockedUntil,
+                    requiredSkippedFlag: normalizedState.requiredSkipped,
+                    isCredited: creditedStatuses.has(status),
+                    isTeacherCredited: status === StudentTaskStatus.teacher_credited,
+                    canTeacherCredit: status === StudentTaskStatus.credited_without_progress,
+                  },
+                };
+              }),
+            })),
+          })),
+        };
+      }
+    }
+
+    return {
+      profile: {
+        id: profile.user.id,
+        login: profile.user.login,
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        leadTeacherId: profile.leadTeacherId,
+        leadTeacherLogin: profile.leadTeacher.login,
+      },
+      notifications: {
+        activeCount: activeNotificationsCount,
+        items: notifications,
+      },
+      courses,
+      selectedCourseId,
+      courseTree,
+    };
   }
 
   async createStudent(
@@ -146,17 +442,7 @@ export class StudentsService {
     firstName?: string | null,
     lastName?: string | null,
   ) {
-    const profile = await this.prisma.studentProfile.findUnique({
-      where: { userId: studentId },
-      include: { user: { select: { id: true, login: true, role: true } } },
-    });
-
-    if (!profile || profile.user.role !== Role.student) {
-      throw new NotFoundException('Student not found');
-    }
-    if (profile.leadTeacherId !== leaderTeacherId) {
-      throw new ForbiddenException('Student is not assigned to this teacher');
-    }
+    await this.assertTeacherOwnsStudent(leaderTeacherId, studentId);
 
     const normalizedFirstName = normalizeName(firstName);
     const normalizedLastName = normalizeName(lastName);
@@ -179,17 +465,7 @@ export class StudentsService {
   }
 
   async resetPassword(studentId: string, leaderTeacherId: string) {
-    const profile = await this.prisma.studentProfile.findUnique({
-      where: { userId: studentId },
-      include: { user: { select: { id: true, login: true, role: true } } },
-    });
-
-    if (!profile || profile.user.role !== Role.student) {
-      throw new NotFoundException('Student not found');
-    }
-    if (profile.leadTeacherId !== leaderTeacherId) {
-      throw new ForbiddenException('Student is not assigned to this teacher');
-    }
+    const profile = await this.assertTeacherOwnsStudent(leaderTeacherId, studentId);
 
     const password = generatePassword();
     const passwordHash = await argon2.hash(password);
@@ -203,20 +479,7 @@ export class StudentsService {
   }
 
   async transferStudent(studentId: string, leaderTeacherId: string, nextTeacherId: string) {
-    const profile = await this.prisma.studentProfile.findUnique({
-      where: { userId: studentId },
-      include: {
-        user: { select: { id: true, login: true, role: true } },
-        leadTeacher: { select: { id: true, login: true } },
-      },
-    });
-
-    if (!profile || profile.user.role !== Role.student) {
-      throw new NotFoundException('Student not found');
-    }
-    if (profile.leadTeacherId !== leaderTeacherId) {
-      throw new ForbiddenException('Student is not assigned to this teacher');
-    }
+    const profile = await this.assertTeacherOwnsStudent(leaderTeacherId, studentId);
     if (profile.leadTeacherId === nextTeacherId) {
       throw new ConflictException('Student is already assigned to this teacher');
     }
@@ -245,17 +508,7 @@ export class StudentsService {
   }
 
   async deleteStudent(studentId: string, leaderTeacherId: string) {
-    const profile = await this.prisma.studentProfile.findUnique({
-      where: { userId: studentId },
-      include: { user: { select: { id: true, login: true, role: true } } },
-    });
-
-    if (!profile || profile.user.role !== Role.student) {
-      throw new NotFoundException('Student not found');
-    }
-    if (profile.leadTeacherId !== leaderTeacherId) {
-      throw new ForbiddenException('Student is not assigned to this teacher');
-    }
+    const profile = await this.assertTeacherOwnsStudent(leaderTeacherId, studentId);
 
     await this.prisma.user.delete({
       where: { id: profile.userId },

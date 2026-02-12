@@ -11,7 +11,16 @@ export const resolveJwtSecret = () => {
   return secret || 'dev-insecure-change-me';
 };
 
-export const resolveJwtExpiresIn = () => process.env.JWT_EXPIRES_IN || '1h';
+export const resolveJwtExpiresIn = (): number | string => {
+  const raw = process.env.JWT_EXPIRES_IN || '1h';
+  if (/^\d+$/.test(raw)) {
+    const asNumber = Number(raw);
+    if (Number.isFinite(asNumber) && asNumber > 0) {
+      return asNumber;
+    }
+  }
+  return raw;
+};
 
 export const resolveAuthCookieName = () => process.env.AUTH_COOKIE_NAME || 'access_token';
 

@@ -20,6 +20,7 @@ import "reactflow/dist/style.css";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { teacherApi, type GraphEdge, type GraphNode, type SectionGraphResponse } from "@/lib/api/teacher";
+import { getContentStatusLabel } from "@/lib/status-labels";
 import { getApiErrorMessage } from "@/features/teacher-content/shared/api-errors";
 import AuthRequired from "@/features/teacher-content/auth/AuthRequired";
 import styles from "./teacher-section-graph-panel.module.css";
@@ -44,7 +45,7 @@ const UnitNode = ({ data }: NodeProps<UnitNodeData>) => {
         className={`${styles.handle} ${styles.handleTop}`}
       />
       <div className={styles.nodeTitle}>{data.title}</div>
-      <div className={styles.nodeStatus}>{data.status === "published" ? "Опубликован" : "Черновик"}</div>
+      <div className={styles.nodeStatus}>{getContentStatusLabel(data.status)}</div>
       <Handle
         type="source"
         position={Position.Bottom}

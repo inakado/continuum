@@ -11,13 +11,16 @@ import {
   ContentStatus,
   EventCategory,
   NotificationType,
+  Prisma,
   Role,
   StudentTaskStatus,
+  StudentUnitStatus,
   TaskAnswerType,
 } from '@prisma/client';
 import { ContentService } from '../content/content.service';
 import { EventsLogService } from '../events/events-log.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { LearningAvailabilityService } from './learning-availability.service';
 
 const MAX_ANSWER_LENGTH = 2000;
 
@@ -39,9 +42,62 @@ export class LearningService {
     private readonly prisma: PrismaService,
     private readonly contentService: ContentService,
     private readonly eventsLogService: EventsLogService,
+    private readonly learningAvailabilityService: LearningAvailabilityService,
   ) {}
 
-  async getPublishedUnitForStudent(studentId: string, unitId: string) {
+  async getPublishedSectionGraphForStudent(studentId: string, sectionId: string) {
+    const graph = await this.contentService.getPublishedSectionGraph(sectionId);
+    const snapshots = await this.learningAvailabilityService.recomputeSectionAvailability(
+      studentId,
+      sectionId,
+    );
+
+    return {
+      sectionId: graph.sectionId,
+      nodes: graph.nodes.map((node) => {
+        const snapshot = snapshots.get(node.unitId);
+        return {
+          ...node,
+          status: snapshot?.status ?? StudentUnitStatus.locked,
+          completionPercent: snapshot?.completionPercent ?? 0,
+          solvedPercent: snapshot?.solvedPercent ?? 0,
+        };
+      }),
+      edges: graph.edges,
+    };
+  }
+
+  async getPublishedUnitForStudent(
+    studentId: string,
+    unitId: string,
+    options?: { enforceLockedAccess?: boolean },
+  ) {
+    const enforceLockedAccess = options?.enforceLockedAccess ?? true;
+    const unitMeta = await this.prisma.unit.findFirst({
+      where: {
+        id: unitId,
+        status: ContentStatus.published,
+        section: {
+          status: ContentStatus.published,
+          course: { status: ContentStatus.published },
+        },
+      },
+      select: { id: true, sectionId: true },
+    });
+
+    if (!unitMeta) throw new NotFoundException('Unit not found');
+
+    const sectionSnapshots = await this.learningAvailabilityService.recomputeSectionAvailability(
+      studentId,
+      unitMeta.sectionId,
+    );
+    const unitSnapshot = sectionSnapshots.get(unitId);
+    if (!unitSnapshot) throw new NotFoundException('Unit not found');
+
+    if (enforceLockedAccess && unitSnapshot.status === StudentUnitStatus.locked) {
+      throw new ConflictException({ code: 'UNIT_LOCKED', message: 'Unit is locked' });
+    }
+
     const unit = await this.prisma.unit.findFirst({
       where: {
         id: unitId,
@@ -91,6 +147,13 @@ export class LearningService {
 
     return {
       ...unit,
+      minCountedTasksToComplete: unit.minCountedTasksToComplete,
+      unitStatus: unitSnapshot.status,
+      countedTasks: unitSnapshot.countedTasks,
+      solvedTasks: unitSnapshot.solvedTasks,
+      totalTasks: unitSnapshot.totalTasks,
+      completionPercent: unitSnapshot.completionPercent,
+      solvedPercent: unitSnapshot.solvedPercent,
       tasks: unit.tasks.map((task) => {
         const mapped = this.contentService.mapTaskWithRevision(task as any);
         const state = statesMap.get(task.id);
@@ -111,7 +174,7 @@ export class LearningService {
         return {
           ...rest,
           numericPartsJson: safeNumericParts,
-          ...(isCredited ? { correctAnswerJson } : {}),
+          ...(isCredited ? { correctAnswerJson, solutionLite } : {}),
           state: normalizedState,
         };
       }),
@@ -270,9 +333,13 @@ export class LearningService {
           taskRevisionId: task.activeRevisionId ?? revision.id,
           attemptNo,
           kind: revision.answerType as AttemptKind,
-          numericAnswers: evaluation.numericAnswers ?? null,
+          numericAnswers: evaluation.numericAnswers
+            ? (evaluation.numericAnswers as unknown as Prisma.InputJsonValue)
+            : Prisma.DbNull,
           selectedChoiceKey: evaluation.selectedChoiceKey ?? null,
-          selectedChoiceKeys: evaluation.selectedChoiceKeys ?? null,
+          selectedChoiceKeys: evaluation.selectedChoiceKeys
+            ? (evaluation.selectedChoiceKeys as unknown as Prisma.InputJsonValue)
+            : Prisma.DbNull,
           result: evaluation.result,
         },
       });
@@ -325,6 +392,12 @@ export class LearningService {
           },
         });
       }
+
+      await this.learningAvailabilityService.recomputeSectionAvailability(
+        studentId,
+        task.unit.sectionId,
+        tx,
+      );
 
       return {
         attempt,
@@ -447,17 +520,7 @@ export class LearningService {
       throw new BadRequestException('studentId is required');
     }
 
-    const profile = await this.prisma.studentProfile.findUnique({
-      where: { userId: studentId },
-      include: { user: { select: { role: true } } },
-    });
-
-    if (!profile || profile.user.role !== Role.student) {
-      throw new NotFoundException('Student not found');
-    }
-    if (profile.leadTeacherId !== teacherId) {
-      throw new ForbiddenException('Student is not assigned to this teacher');
-    }
+    await this.assertTeacherOwnsStudent(teacherId, studentId);
 
     return this.prisma.notification.findMany({
       where: {
@@ -471,37 +534,51 @@ export class LearningService {
     });
   }
 
+  async getTeacherUnitPreview(teacherId: string, studentId: string, unitId: string) {
+    await this.assertTeacherOwnsStudent(teacherId, studentId);
+    return this.getPublishedUnitForStudent(studentId, unitId, { enforceLockedAccess: false });
+  }
+
   async creditTask(teacherId: string, studentId: string, taskId: string) {
-    const profile = await this.prisma.studentProfile.findUnique({
-      where: { userId: studentId },
-      include: { user: { select: { role: true } } },
-    });
+    await this.assertTeacherOwnsStudent(teacherId, studentId);
 
-    if (!profile || profile.user.role !== Role.student) {
-      throw new NotFoundException('Student not found');
-    }
-    if (profile.leadTeacherId !== teacherId) {
-      throw new ForbiddenException('Student is not assigned to this teacher');
-    }
+    const { updated, previousStatus } = await this.prisma.$transaction(async (tx) => {
+      const state = await tx.studentTaskState.findUnique({
+        where: { studentId_taskId: { studentId, taskId } },
+      });
 
-    const state = await this.prisma.studentTaskState.findUnique({
-      where: { studentId_taskId: { studentId, taskId } },
-    });
+      if (!state) {
+        throw new NotFoundException('Task state not found');
+      }
+      if (state.status !== StudentTaskStatus.credited_without_progress) {
+        throw new ConflictException('Task is not auto-credited');
+      }
 
-    if (!state) {
-      throw new NotFoundException('Task state not found');
-    }
-    if (state.status !== StudentTaskStatus.credited_without_progress) {
-      throw new ConflictException('Task is not auto-credited');
-    }
+      const task = await tx.task.findUnique({
+        where: { id: taskId },
+        select: { unit: { select: { sectionId: true } } },
+      });
+      if (!task) throw new NotFoundException('Task not found');
 
-    const updated = await this.prisma.studentTaskState.update({
-      where: { studentId_taskId: { studentId, taskId } },
-      data: {
-        status: StudentTaskStatus.teacher_credited,
-        creditedAt: new Date(),
-        updatedAt: new Date(),
-      },
+      const updatedState = await tx.studentTaskState.update({
+        where: { studentId_taskId: { studentId, taskId } },
+        data: {
+          status: StudentTaskStatus.teacher_credited,
+          creditedAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+
+      await this.learningAvailabilityService.recomputeSectionAvailability(
+        studentId,
+        task.unit.sectionId,
+        tx,
+      );
+
+      return {
+        updated: updatedState,
+        previousStatus: state.status,
+      };
     });
 
     await this.eventsLogService.append({
@@ -516,7 +593,7 @@ export class LearningService {
         student_id: studentId,
         task_id: taskId,
         task_revision_id: updated.creditedRevisionId ?? updated.activeRevisionId,
-        from_status: state.status,
+        from_status: previousStatus,
       },
     });
 
@@ -577,6 +654,20 @@ export class LearningService {
       blockedUntil: isBlocked ? state.lockedUntil : null,
       requiredSkipped: state.requiredSkipped,
     };
+  }
+
+  private async assertTeacherOwnsStudent(teacherId: string, studentId: string) {
+    const profile = await this.prisma.studentProfile.findUnique({
+      where: { userId: studentId },
+      include: { user: { select: { role: true } } },
+    });
+
+    if (!profile || profile.user.role !== Role.student) {
+      throw new NotFoundException('Student not found');
+    }
+    if (profile.leadTeacherId !== teacherId) {
+      throw new ForbiddenException('Student is not assigned to this teacher');
+    }
   }
 
   private evaluateAttempt(

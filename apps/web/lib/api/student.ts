@@ -2,6 +2,7 @@ import { apiRequest } from "./client";
 import type { MeResponse } from "./auth";
 
 export type ContentStatus = "draft" | "published";
+export type StudentUnitStatus = "locked" | "available" | "in_progress" | "completed";
 
 export type Course = {
   id: string;
@@ -67,12 +68,19 @@ export type Unit = {
   description?: string | null;
   status: ContentStatus;
   sortOrder: number;
+  minCountedTasksToComplete: number;
   theoryRichLatex?: string | null;
   theoryPdfAssetKey?: string | null;
   methodRichLatex?: string | null;
   methodPdfAssetKey?: string | null;
   videosJson?: UnitVideo[] | null;
   attachmentsJson?: UnitAttachment[] | null;
+  unitStatus?: StudentUnitStatus;
+  countedTasks?: number;
+  solvedTasks?: number;
+  totalTasks?: number;
+  completionPercent?: number;
+  solvedPercent?: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -82,6 +90,7 @@ export type Task = {
   unitId: string;
   title: string | null;
   statementLite: string;
+  solutionLite?: string | null;
   answerType: TaskAnswerType;
   numericPartsJson?: NumericPart[] | null;
   choicesJson?: Choice[] | null;
@@ -101,8 +110,10 @@ export type UnitWithTasks = Unit & { tasks: Task[] };
 export type GraphNode = {
   unitId: string;
   title: string;
-  status: ContentStatus;
+  status: StudentUnitStatus;
   position: { x: number; y: number };
+  completionPercent: number;
+  solvedPercent: number;
 };
 
 export type GraphEdge = {

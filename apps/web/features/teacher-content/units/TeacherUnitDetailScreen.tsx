@@ -10,6 +10,7 @@ import Input from "@/components/ui/Input";
 import Tabs from "@/components/ui/Tabs";
 import type { Task, UnitVideo, UnitWithTasks } from "@/lib/api/teacher";
 import { teacherApi } from "@/lib/api/teacher";
+import { getContentStatusLabel } from "@/lib/status-labels";
 import { getApiErrorMessage } from "../shared/api-errors";
 import { useTeacherLogout } from "../auth/use-teacher-logout";
 import TaskForm, { type TaskFormData } from "../tasks/TaskForm";
@@ -48,6 +49,12 @@ type SaveState =
   | { state: "saved"; at: number }
   | { state: "error"; message: string };
 
+type ProgressSaveState =
+  | { state: "idle" }
+  | { state: "saving" }
+  | { state: "saved"; at: number }
+  | { state: "error"; message: string };
+
 const AUTOSAVE_DEBOUNCE_MS = 1000;
 
 const answerTypeLabels: Record<TaskFormData["answerType"], string> = {
@@ -70,6 +77,17 @@ const sortTasks = (tasks: Task[]) =>
   });
 
 const buildSortMap = (tasks: Task[]) => new Map(tasks.map((task) => [task.id, task.sortOrder ?? 0]));
+
+const toProgressErrorMessage = (error: unknown) => {
+  const rawMessage = getApiErrorMessage(error);
+  if (rawMessage === "InvalidMinCountedTasksToComplete") {
+    return "Введите целое число 0 или больше.";
+  }
+  if (rawMessage === "MinCountedTasksLessThanRequiredCount") {
+    return "Порог не может быть меньше количества обязательных задач.";
+  }
+  return rawMessage;
+};
 
 type SortableTaskCardProps = {
   task: Task;
@@ -96,10 +114,12 @@ function SortableTaskCard({ task, index, onEdit, onDelete }: SortableTaskCardPro
       {...listeners}
     >
       <div className={styles.taskHeader}>
-        <div className={styles.taskNumber}>Задача №{index + 1}</div>
+        <div className={styles.taskTitleRow}>
+          <div className={styles.taskNumber}>Задача №{index + 1}</div>
+          {task.isRequired ? <span className={styles.requiredBadge}>Обязательная</span> : null}
+        </div>
         <div className={styles.taskMeta}>
-          {answerTypeLabels[task.answerType]} • {task.isRequired ? "обязательная" : "необязательная"} •{" "}
-          {task.status === "published" ? "опубликована" : "черновик"}
+          {answerTypeLabels[task.answerType]} • {getContentStatusLabel(task.status)}
         </div>
       </div>
       <div className={styles.taskStatement}>
@@ -185,6 +205,8 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
   const [creatingTaskPublish, setCreatingTaskPublish] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [saveState, setSaveState] = useState<SaveState>({ state: "idle" });
+  const [progressSaveState, setProgressSaveState] = useState<ProgressSaveState>({ state: "idle" });
+  const [minCountedInput, setMinCountedInput] = useState("0");
   const [taskOrder, setTaskOrder] = useState<Task[]>([]);
   const [taskOrderStatus, setTaskOrderStatus] = useState<string | null>(null);
 
@@ -218,11 +240,23 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
     return Math.max(maxOrder + 1, taskOrder.length + 1);
   }, [taskOrder]);
 
+  const requiredTasksCount = useMemo(
+    () => taskOrder.filter((task) => task.isRequired).length,
+    [taskOrder],
+  );
+
   const editingTaskNumber = useMemo(() => {
     if (!editingTask) return null;
     const index = taskOrder.findIndex((task) => task.id === editingTask.id);
     return index >= 0 ? index + 1 : null;
   }, [editingTask, taskOrder]);
+
+  const taskFormInitial = useMemo<Partial<TaskFormData>>(() => {
+    if (editingTask) {
+      return mapTaskToFormData(editingTask);
+    }
+    return { sortOrder: nextTaskOrder };
+  }, [editingTask?.id, nextTaskOrder]);
 
   const fetchUnit = useCallback(async () => {
     setError(null);
@@ -241,6 +275,8 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
       setSaveState({ state: "idle" });
       setTaskOrder(sortTasks(data.tasks));
       setTaskOrderStatus(null);
+      setMinCountedInput(String(data.minCountedTasksToComplete ?? 0));
+      setProgressSaveState({ state: "idle" });
     } catch (err) {
       setError(getApiErrorMessage(err));
     }
@@ -427,6 +463,37 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
           ? `Ошибка: ${saveState.message}`
           : "";
 
+  const progressStatusText =
+    progressSaveState.state === "saving"
+      ? "Сохранение…"
+      : progressSaveState.state === "saved"
+        ? "Сохранено"
+        : progressSaveState.state === "error"
+          ? progressSaveState.message
+          : "";
+
+  const handleProgressSave = async () => {
+    if (!unit) return;
+    const normalized = minCountedInput.trim();
+    const parsed = Number(normalized);
+    if (!normalized || !Number.isInteger(parsed) || parsed < 0) {
+      setProgressSaveState({ state: "error", message: "Введите целое число 0 или больше." });
+      return;
+    }
+
+    setProgressSaveState({ state: "saving" });
+    try {
+      const updated = await teacherApi.updateUnit(unit.id, {
+        minCountedTasksToComplete: parsed,
+      });
+      setUnit((prev) => (prev ? { ...prev, ...updated } : prev));
+      setMinCountedInput(String(updated.minCountedTasksToComplete ?? parsed));
+      setProgressSaveState({ state: "saved", at: Date.now() });
+    } catch (err) {
+      setProgressSaveState({ state: "error", message: toProgressErrorMessage(err) });
+    }
+  };
+
   const activePanelId = `${tabsId}-${activeTab}-panel`;
   const activeTabId = `${tabsId}-${activeTab}`;
 
@@ -584,6 +651,47 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
             <div className={styles.previewStub}>Вложения будут добавлены позже.</div>
           ) : (
             <div className={styles.tasksPanel}>
+              <div className={styles.progressCard}>
+                <div className={styles.progressHeader}>
+                  <div>
+                    <div className={styles.kicker}>Выполнение юнита</div>
+                    <div className={styles.progressTitle}>
+                      Минимум учтённых задач для выполнения
+                    </div>
+                  </div>
+                  <div className={styles.requiredCount}>Обязательных задач: {requiredTasksCount}</div>
+                </div>
+                <div className={styles.progressControls}>
+                  <label className={styles.label}>
+                    Минимум учтённых задач для выполнения
+                    <Input
+                      type="number"
+                      min={0}
+                      step={1}
+                      inputMode="numeric"
+                      value={minCountedInput}
+                      onChange={(event) => {
+                        setMinCountedInput(event.target.value);
+                        if (progressSaveState.state !== "idle") {
+                          setProgressSaveState({ state: "idle" });
+                        }
+                      }}
+                    />
+                  </label>
+                  <Button onClick={handleProgressSave} disabled={progressSaveState.state === "saving"}>
+                    Сохранить
+                  </Button>
+                </div>
+                <div className={styles.progressHint}>
+                  Обязательные задачи — жёсткий гейт и входят в учтённые.
+                </div>
+                {progressStatusText ? (
+                  <div className={styles.progressStatus} role="status" aria-live="polite">
+                    {progressStatusText}
+                  </div>
+                ) : null}
+              </div>
+
               {!creatingTask && !editingTask ? (
                 <div className={styles.tasksHeader}>
                   <div>
@@ -690,11 +798,7 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
                     ) : null
                   }
                   initial={
-                    editingTask
-                      ? mapTaskToFormData(editingTask)
-                      : {
-                          sortOrder: nextTaskOrder,
-                        }
+                    taskFormInitial
                   }
                 />
               ) : null}

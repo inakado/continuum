@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import DashboardShell from "@/components/DashboardShell";
 import Button from "@/components/ui/Button";
 import { studentApi, type Course, type CourseWithSections, type Section } from "@/lib/api/student";
+import { getContentStatusLabel } from "@/lib/status-labels";
 import { useStudentLogout } from "@/features/student-content/auth/use-student-logout";
 import { useStudentIdentity } from "@/features/student-content/shared/use-student-identity";
 import styles from "./student-dashboard.module.css";
@@ -295,9 +296,7 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
                   >
                     <div className={styles.cardTitleRow}>
                       <div className={styles.cardTitle}>{section.title}</div>
-                      <span className={styles.status}>
-                        {section.status === "published" ? "Опубликован" : "Черновик"}
-                      </span>
+                      <span className={styles.status}>{getContentStatusLabel(section.status)}</span>
                     </div>
                   </button>
                 ))

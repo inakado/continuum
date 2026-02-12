@@ -38,6 +38,55 @@
   flex-wrap: wrap;
 }
 
+.legendToggle {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.legendToggle:hover {
+  color: var(--text-primary);
+}
+
+.legend {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.legendItem {
+  border: var(--border-width) solid var(--glass-border);
+  border-radius: var(--control-radius);
+  background: var(--surface-1);
+  padding: 4px 8px;
+  color: var(--text-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.legendLocked {
+  border-color: color-mix(in srgb, #ef4444 35%, var(--glass-border));
+}
+
+.legendAvailable {
+  border-color: color-mix(in srgb, #38bdf8 35%, var(--glass-border));
+}
+
+.legendInProgress {
+  border-color: color-mix(in srgb, #f59e0b 35%, var(--glass-border));
+}
+
+.legendCompleted {
+  border-color: color-mix(in srgb, #22c55e 35%, var(--glass-border));
+}
+
 .backButton {
   --button-bg: var(--surface-1);
   --button-border: var(--glass-border);
@@ -72,6 +121,17 @@
   border: var(--border-width) solid var(--panel-border);
   padding: 10px;
   background: var(--glass-tint);
+  color: var(--text-primary);
+  font-size: 13px;
+  border-radius: var(--card-radius);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+}
+
+.lockedHint {
+  border: var(--border-width) solid color-mix(in srgb, #f59e0b 35%, var(--panel-border));
+  padding: 10px;
+  background: color-mix(in srgb, #f59e0b 12%, var(--glass-tint));
   color: var(--text-primary);
   font-size: 13px;
   border-radius: var(--card-radius);
@@ -129,6 +189,22 @@
   border-color: var(--border-primary);
 }
 
+.nodeLocked {
+  border-color: color-mix(in srgb, #ef4444 28%, var(--glass-border));
+}
+
+.nodeAvailable {
+  border-color: color-mix(in srgb, #38bdf8 24%, var(--glass-border));
+}
+
+.nodeInProgress {
+  border-color: color-mix(in srgb, #f59e0b 32%, var(--glass-border));
+}
+
+.nodeCompleted {
+  border-color: color-mix(in srgb, #22c55e 34%, var(--glass-border));
+}
+
 .nodeTitle {
   font-weight: 700;
   font-size: 13px;
@@ -140,4 +216,32 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-muted);
+}
+
+.nodeMetrics {
+  margin-top: 8px;
+  display: grid;
+  gap: 4px;
+}
+
+.nodeMetric {
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.handle {
+  width: 16px;
+  height: 16px;
+  border-radius: 0;
+  border: 0;
+  background: transparent;
+  opacity: 0;
+}
+
+.handleTop {
+  top: -8px;
+}
+
+.handleBottom {
+  bottom: -8px;
 }

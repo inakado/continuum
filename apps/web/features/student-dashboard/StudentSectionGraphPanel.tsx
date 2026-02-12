@@ -2,11 +2,19 @@
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import ReactFlow, { MarkerType, type Edge, type Node, type NodeProps } from "reactflow";
+import ReactFlow, {
+  Handle,
+  MarkerType,
+  Position,
+  type Edge,
+  type Node,
+  type NodeProps,
+} from "reactflow";
 import "reactflow/dist/style.css";
 import Button from "@/components/ui/Button";
 import { studentApi, type GraphEdge, type GraphNode } from "@/lib/api/student";
 import { ApiError } from "@/lib/api/client";
+import { getStudentUnitStatusLabel } from "@/lib/status-labels";
 import styles from "./student-section-graph-panel.module.css";
 
 type Props = {
@@ -17,15 +25,56 @@ type Props = {
 };
 
 type UnitNodeData = {
+  unitId: string;
   title: string;
-  status: "draft" | "published";
+  status: GraphNode["status"];
+  completionPercent: number;
+  solvedPercent: number;
 };
+
+const getStatusClassName = (status: GraphNode["status"]) => {
+  switch (status) {
+    case "locked":
+      return styles.nodeLocked;
+    case "available":
+      return styles.nodeAvailable;
+    case "in_progress":
+      return styles.nodeInProgress;
+    case "completed":
+      return styles.nodeCompleted;
+    default:
+      return "";
+  }
+};
+
+const HIDDEN_HANDLE_STYLE = {
+  opacity: 0,
+  border: 0,
+  background: "transparent",
+  pointerEvents: "none",
+} as const;
 
 const UnitNode = ({ data }: NodeProps<UnitNodeData>) => {
   return (
-    <div className={styles.node}>
+    <div className={`${styles.node} ${getStatusClassName(data.status)}`}>
+      <Handle
+        type="target"
+        position={Position.Top}
+        className={`${styles.handle} ${styles.handleTop}`}
+        style={HIDDEN_HANDLE_STYLE}
+      />
       <div className={styles.nodeTitle}>{data.title}</div>
-      <div className={styles.nodeStatus}>{data.status === "published" ? "Опубликован" : "Черновик"}</div>
+      <div className={styles.nodeStatus}>{getStudentUnitStatusLabel(data.status)}</div>
+      <div className={styles.nodeMetrics}>
+        <div className={styles.nodeMetric}>Выполнение: {data.completionPercent}%</div>
+        <div className={styles.nodeMetric}>Решено: {data.solvedPercent}%</div>
+      </div>
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className={`${styles.handle} ${styles.handleBottom}`}
+        style={HIDDEN_HANDLE_STYLE}
+      />
     </div>
   );
 };
@@ -44,7 +93,13 @@ const buildFlowNodes = (nodes: GraphNode[]): Node<UnitNodeData>[] =>
     type: "unit",
     position: node.position,
     style: { border: "none", background: "transparent", padding: 0 },
-    data: { title: node.title, status: node.status },
+    data: {
+      unitId: node.unitId,
+      title: node.title,
+      status: node.status,
+      completionPercent: node.completionPercent,
+      solvedPercent: node.solvedPercent,
+    },
   }));
 
 const buildFlowEdges = (edges: GraphEdge[]): Edge[] =>
@@ -93,9 +148,12 @@ export default function StudentSectionGraphPanel({ sectionId, sectionTitle, onBa
   const [edges, setEdges] = useState<Edge[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lockedHint, setLockedHint] = useState<string | null>(null);
+  const [showLegend, setShowLegend] = useState(false);
 
   const fetchGraph = useCallback(async () => {
     setError(null);
+    setLockedHint(null);
     setLoading(true);
     try {
       const graph = await studentApi.getSectionGraph(sectionId);
@@ -122,9 +180,31 @@ export default function StudentSectionGraphPanel({ sectionId, sectionTitle, onBa
 
   const handleNodeClick = useCallback(
     (_: unknown, node: Node) => {
+      const clicked = nodes.find((item) => item.id === node.id);
+      if (clicked?.data.status === "locked") {
+        const lockedPrereqNames = edges
+          .filter((edge) => edge.target === node.id)
+          .map((edge) => nodes.find((item) => item.id === edge.source))
+          .filter((sourceNode): sourceNode is Node<UnitNodeData> => Boolean(sourceNode))
+          .filter((sourceNode) => sourceNode.data.status !== "completed")
+          .map((sourceNode) => sourceNode.data.title);
+
+        if (lockedPrereqNames.length > 0) {
+          setLockedHint(
+            `Чтобы открыть «${clicked.data.title}», завершите: ${lockedPrereqNames.join(", ")}.`,
+          );
+        } else {
+          setLockedHint(
+            `Юнит «${clicked.data.title}» пока заблокирован. Сначала завершите предыдущие юниты.`,
+          );
+        }
+        return;
+      }
+
+      setLockedHint(null);
       router.push(`/student/units/${node.id}`);
     },
-    [router],
+    [edges, nodes, router],
   );
 
   return (
@@ -134,12 +214,32 @@ export default function StudentSectionGraphPanel({ sectionId, sectionTitle, onBa
           <Button variant="ghost" onClick={onBack} className={styles.backButton}>
             ← К разделам
           </Button>
+          <button
+            type="button"
+            className={styles.legendToggle}
+            onClick={() => setShowLegend((prev) => !prev)}
+          >
+            {showLegend ? "Скрыть легенду" : "Показать легенду"}
+          </button>
         </div>
+        {showLegend ? (
+          <div className={styles.legend} role="note" aria-label="Легенда статусов">
+            <span className={`${styles.legendItem} ${styles.legendLocked}`}>Заблокирован</span>
+            <span className={`${styles.legendItem} ${styles.legendAvailable}`}>Доступен</span>
+            <span className={`${styles.legendItem} ${styles.legendInProgress}`}>В процессе</span>
+            <span className={`${styles.legendItem} ${styles.legendCompleted}`}>Завершён</span>
+          </div>
+        ) : null}
       </div>
 
       {error ? (
         <div className={styles.error} role="status" aria-live="polite">
           {error}
+        </div>
+      ) : null}
+      {lockedHint ? (
+        <div className={styles.lockedHint} role="status" aria-live="polite">
+          {lockedHint}
         </div>
       ) : null}
 

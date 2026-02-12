@@ -420,21 +420,21 @@ export class ContentService {
   }
 
   async updateUnit(id: string, dto: UpdateUnitDto) {
-    const exists = await this.prisma.unit.findUnique({ where: { id } });
-    if (!exists) throw new NotFoundException('Unit not found');
-
-    const data: {
-      title?: string;
-      description?: string | null;
-      sortOrder?: number;
-      theoryRichLatex?: string | null;
-      methodRichLatex?: string | null;
-      videosJson?: UnitVideo[] | null;
-      attachmentsJson?: UnitAttachment[] | null;
-    } = {};
+    const data: Prisma.UnitUpdateInput = {};
     if (dto.title !== undefined) data.title = dto.title;
     if (dto.description !== undefined) data.description = dto.description;
     if (dto.sortOrder !== undefined) data.sortOrder = dto.sortOrder;
+    let nextMinCountedTasksToComplete: number | undefined;
+    if (dto.minCountedTasksToComplete !== undefined) {
+      nextMinCountedTasksToComplete = this.normalizeMinCountedTasksToComplete(
+        dto.minCountedTasksToComplete,
+      );
+      data.minCountedTasksToComplete = nextMinCountedTasksToComplete;
+    }
+    const normalizedRequiredTaskIds =
+      dto.requiredTaskIds !== undefined
+        ? this.normalizeRequiredTaskIds(dto.requiredTaskIds)
+        : undefined;
     if (dto.theoryRichLatex !== undefined) {
       data.theoryRichLatex = this.sanitizeRichText(dto.theoryRichLatex);
     }
@@ -442,13 +442,79 @@ export class ContentService {
       data.methodRichLatex = this.sanitizeRichText(dto.methodRichLatex);
     }
     if (dto.videosJson !== undefined) {
-      data.videosJson = this.validateVideosJson(dto.videosJson);
+      const videos = this.validateVideosJson(dto.videosJson);
+      data.videosJson =
+        videos === null ? Prisma.DbNull : (videos as unknown as Prisma.InputJsonValue);
     }
     if (dto.attachmentsJson !== undefined) {
-      data.attachmentsJson = this.validateAttachmentsJson(dto.attachmentsJson);
+      const attachments = this.validateAttachmentsJson(dto.attachmentsJson);
+      data.attachmentsJson =
+        attachments === null ? Prisma.DbNull : (attachments as unknown as Prisma.InputJsonValue);
     }
 
-    return this.prisma.unit.update({ where: { id }, data });
+    return this.prisma.$transaction(async (tx) => {
+      const unit = await tx.unit.findUnique({
+        where: { id },
+        select: { id: true, minCountedTasksToComplete: true },
+      });
+      if (!unit) throw new NotFoundException('Unit not found');
+
+      let effectiveRequiredCount = 0;
+      if (normalizedRequiredTaskIds !== undefined) {
+        if (normalizedRequiredTaskIds.length > 0) {
+          const requiredTasks = await tx.task.findMany({
+            where: { id: { in: normalizedRequiredTaskIds } },
+            select: { id: true, unitId: true },
+          });
+          if (requiredTasks.length !== normalizedRequiredTaskIds.length) {
+            throw new BadRequestException('InvalidRequiredTaskIds');
+          }
+          const requiredTasksById = new Map(requiredTasks.map((task) => [task.id, task]));
+          for (const taskId of normalizedRequiredTaskIds) {
+            const task = requiredTasksById.get(taskId);
+            if (!task || task.unitId !== id) {
+              throw new BadRequestException('InvalidRequiredTaskIds');
+            }
+          }
+        }
+        effectiveRequiredCount = normalizedRequiredTaskIds.length;
+      } else {
+        effectiveRequiredCount = await tx.task.count({
+          where: { unitId: id, isRequired: true },
+        });
+      }
+
+      const effectiveMinCountedTasksToComplete =
+        nextMinCountedTasksToComplete ?? unit.minCountedTasksToComplete;
+      if (effectiveMinCountedTasksToComplete < effectiveRequiredCount) {
+        throw new ConflictException('MinCountedTasksLessThanRequiredCount');
+      }
+
+      if (normalizedRequiredTaskIds !== undefined && Object.keys(data).length === 0) {
+        data.updatedAt = new Date();
+      }
+
+      const updatedUnit =
+        Object.keys(data).length > 0
+          ? await tx.unit.update({ where: { id }, data })
+          : await tx.unit.findUnique({ where: { id } });
+      if (!updatedUnit) throw new NotFoundException('Unit not found');
+
+      if (normalizedRequiredTaskIds !== undefined) {
+        await tx.task.updateMany({
+          where: { unitId: id, isRequired: true },
+          data: { isRequired: false },
+        });
+        if (normalizedRequiredTaskIds.length > 0) {
+          await tx.task.updateMany({
+            where: { unitId: id, id: { in: normalizedRequiredTaskIds } },
+            data: { isRequired: true },
+          });
+        }
+      }
+
+      return updatedUnit;
+    });
   }
 
   async publishUnit(id: string) {
@@ -845,6 +911,31 @@ export class ContentService {
     }
 
     return revision;
+  }
+
+  private normalizeMinCountedTasksToComplete(value: unknown): number {
+    if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+      throw new BadRequestException('InvalidMinCountedTasksToComplete');
+    }
+    return value;
+  }
+
+  private normalizeRequiredTaskIds(value: unknown): string[] {
+    if (!Array.isArray(value)) throw new BadRequestException('InvalidRequiredTaskIds');
+
+    const normalizedIds: string[] = [];
+    const seenIds = new Set<string>();
+    for (const id of value) {
+      if (typeof id !== 'string') throw new BadRequestException('InvalidRequiredTaskIds');
+      const trimmed = id.trim();
+      if (!trimmed || seenIds.has(trimmed)) {
+        throw new BadRequestException('InvalidRequiredTaskIds');
+      }
+      seenIds.add(trimmed);
+      normalizedIds.push(trimmed);
+    }
+
+    return normalizedIds;
   }
 
   private sanitizeRichText(value: string | null | undefined): string | null {

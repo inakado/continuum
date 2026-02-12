@@ -220,6 +220,16 @@
 
 ### Примечание про стили
 UI следует правилам `DESIGN-SYSTEM.md` (геометрия, шрифты, токены цветов).
+
+### Конвенция: подписи статусов в UI
+- Единый источник текстов статусов: `apps/web/lib/status-labels.ts`.
+- Используем только централизованные мапперы:
+  `getContentStatusLabel`, `getStudentUnitStatusLabel`, `getStudentTaskStatusLabel`.
+- В экранах/компонентах запрещено рендерить сырой enum напрямую
+  (`locked`, `available`, `in_progress`, `completed`, `draft`, `published` и т.д.).
+- При добавлении нового статуса сначала обновляется `status-labels.ts`, затем подключается в UI.
+- Минимальный smoke после правки статусов:
+  `pnpm --filter web exec tsc -p tsconfig.json --noEmit`.
 ---
 
 ## 8) Документы, связанные с архитектурой

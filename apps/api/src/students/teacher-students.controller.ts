@@ -38,6 +38,15 @@ export class TeacherStudentsController {
     return this.studentsService.listStudents(req.user.id, query);
   }
 
+  @Get(':id')
+  detail(
+    @Param('id') id: string,
+    @Req() req: AuthRequest,
+    @Query('courseId') courseId?: string,
+  ) {
+    return this.studentsService.getStudentProfileDetails(req.user.id, id, courseId);
+  }
+
   @Post()
   async create(@Body() dto: CreateStudentDto, @Req() req: AuthRequest) {
     const result = await this.studentsService.createStudent(
