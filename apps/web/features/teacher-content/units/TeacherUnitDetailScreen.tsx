@@ -80,11 +80,8 @@ const buildSortMap = (tasks: Task[]) => new Map(tasks.map((task) => [task.id, ta
 
 const toProgressErrorMessage = (error: unknown) => {
   const rawMessage = getApiErrorMessage(error);
-  if (rawMessage === "InvalidMinCountedTasksToComplete") {
+  if (rawMessage === "InvalidMinOptionalCountedTasksToComplete") {
     return "Введите целое число 0 или больше.";
-  }
-  if (rawMessage === "MinCountedTasksLessThanRequiredCount") {
-    return "Порог не может быть меньше количества обязательных задач.";
   }
   return rawMessage;
 };
@@ -207,8 +204,10 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
   const [saveState, setSaveState] = useState<SaveState>({ state: "idle" });
   const [progressSaveState, setProgressSaveState] = useState<ProgressSaveState>({ state: "idle" });
   const [minCountedInput, setMinCountedInput] = useState("0");
+  const [isOptionalMinEditing, setIsOptionalMinEditing] = useState(false);
   const [taskOrder, setTaskOrder] = useState<Task[]>([]);
   const [taskOrderStatus, setTaskOrderStatus] = useState<string | null>(null);
+  const optionalMinInputRef = useRef<HTMLInputElement | null>(null);
 
   const snapshotRef = useRef<ReturnType<typeof buildSnapshot> | null>(null);
   const timerRef = useRef<number | null>(null);
@@ -275,7 +274,8 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
       setSaveState({ state: "idle" });
       setTaskOrder(sortTasks(data.tasks));
       setTaskOrderStatus(null);
-      setMinCountedInput(String(data.minCountedTasksToComplete ?? 0));
+      setMinCountedInput(String(data.minOptionalCountedTasksToComplete ?? 0));
+      setIsOptionalMinEditing(data.minOptionalCountedTasksToComplete === null);
       setProgressSaveState({ state: "idle" });
     } catch (err) {
       setError(getApiErrorMessage(err));
@@ -466,9 +466,7 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
   const progressStatusText =
     progressSaveState.state === "saving"
       ? "Сохранение…"
-      : progressSaveState.state === "saved"
-        ? "Сохранено"
-        : progressSaveState.state === "error"
+      : progressSaveState.state === "error"
           ? progressSaveState.message
           : "";
 
@@ -478,21 +476,38 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
     const parsed = Number(normalized);
     if (!normalized || !Number.isInteger(parsed) || parsed < 0) {
       setProgressSaveState({ state: "error", message: "Введите целое число 0 или больше." });
-      return;
+      return false;
     }
 
     setProgressSaveState({ state: "saving" });
     try {
       const updated = await teacherApi.updateUnit(unit.id, {
-        minCountedTasksToComplete: parsed,
+        minOptionalCountedTasksToComplete: parsed,
       });
       setUnit((prev) => (prev ? { ...prev, ...updated } : prev));
-      setMinCountedInput(String(updated.minCountedTasksToComplete ?? parsed));
+      setMinCountedInput(String(updated.minOptionalCountedTasksToComplete ?? parsed));
       setProgressSaveState({ state: "saved", at: Date.now() });
+      return true;
     } catch (err) {
       setProgressSaveState({ state: "error", message: toProgressErrorMessage(err) });
+      return false;
     }
   };
+
+  const savedOptionalMin = unit?.minOptionalCountedTasksToComplete;
+  const hasSavedOptionalMin = typeof savedOptionalMin === "number" && Number.isInteger(savedOptionalMin);
+  const optionalPreview = (() => {
+    const parsed = Number(minCountedInput.trim());
+    if (Number.isInteger(parsed) && parsed >= 0) return parsed;
+    return hasSavedOptionalMin ? savedOptionalMin : 0;
+  })();
+  const totalToComplete = requiredTasksCount + optionalPreview;
+
+  useEffect(() => {
+    if (!isOptionalMinEditing) return;
+    optionalMinInputRef.current?.focus();
+    optionalMinInputRef.current?.select();
+  }, [isOptionalMinEditing]);
 
   const activePanelId = `${tabsId}-${activeTab}-panel`;
   const activeTabId = `${tabsId}-${activeTab}`;
@@ -654,39 +669,86 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
               <div className={styles.progressCard}>
                 <div className={styles.progressHeader}>
                   <div>
-                    <div className={styles.kicker}>Выполнение юнита</div>
-                    <div className={styles.progressTitle}>
-                      Минимум учтённых задач для выполнения
+                    <div className={styles.progressTitle}>Порог выполнения</div>
+                  </div>
+                </div>
+
+                <div className={styles.progressSummary}>
+                  <div className={styles.progressMetric}>
+                    <span className={styles.progressMetricLabel}>Обязательные</span>
+                    <div className={styles.metricValueBox}>
+                      <strong className={styles.progressMetricValue}>{requiredTasksCount}</strong>
                     </div>
                   </div>
-                  <div className={styles.requiredCount}>Обязательных задач: {requiredTasksCount}</div>
+
+                  <div className={styles.progressMetric}>
+                    <span className={styles.progressMetricLabel}>Необязательные минимум</span>
+                    {isOptionalMinEditing || !hasSavedOptionalMin ? (
+                      <div className={styles.inlineOptionalEditor}>
+                        <Input
+                          ref={optionalMinInputRef}
+                          className={styles.optionalInput}
+                          type="number"
+                          min={0}
+                          step={1}
+                          inputMode="numeric"
+                          value={minCountedInput}
+                          onChange={(event) => {
+                            setMinCountedInput(event.target.value);
+                            if (progressSaveState.state !== "idle") {
+                              setProgressSaveState({ state: "idle" });
+                            }
+                          }}
+                          onKeyDown={async (event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              const saved = await handleProgressSave();
+                              if (saved) setIsOptionalMinEditing(false);
+                            }
+                            if (event.key === "Escape") {
+                              event.preventDefault();
+                              setMinCountedInput(String(savedOptionalMin ?? 0));
+                              setIsOptionalMinEditing(false);
+                            }
+                          }}
+                        />
+                        <Button
+                          onClick={async () => {
+                            const saved = await handleProgressSave();
+                            if (saved) setIsOptionalMinEditing(false);
+                          }}
+                          disabled={progressSaveState.state === "saving"}
+                        >
+                          Сохранить
+                        </Button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className={styles.optionalValueButton}
+                        title="Нажмите, чтобы изменить"
+                        onClick={() => {
+                          setMinCountedInput(String(savedOptionalMin));
+                          setIsOptionalMinEditing(true);
+                          if (progressSaveState.state !== "idle") {
+                            setProgressSaveState({ state: "idle" });
+                          }
+                        }}
+                      >
+                        <strong className={styles.progressMetricValue}>{savedOptionalMin}</strong>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className={styles.progressMetric}>
+                    <span className={styles.progressMetricLabel}>Итог для завершения</span>
+                    <div className={styles.metricValueBox}>
+                      <strong className={styles.progressMetricValue}>{totalToComplete}</strong>
+                    </div>
+                  </div>
                 </div>
-                <div className={styles.progressControls}>
-                  <label className={styles.label}>
-                    Минимум учтённых задач для выполнения
-                    <Input
-                      type="number"
-                      min={0}
-                      step={1}
-                      inputMode="numeric"
-                      value={minCountedInput}
-                      onChange={(event) => {
-                        setMinCountedInput(event.target.value);
-                        if (progressSaveState.state !== "idle") {
-                          setProgressSaveState({ state: "idle" });
-                        }
-                      }}
-                    />
-                  </label>
-                  <Button onClick={handleProgressSave} disabled={progressSaveState.state === "saving"}>
-                    Сохранить
-                  </Button>
-                </div>
-                <div className={styles.progressHint}>
-                  Обязательные задачи — жёсткий гейт и входят в учтённые.
-                </div>
-                {progressStatusText ? (
-                  <div className={styles.progressStatus} role="status" aria-live="polite">
+                {progressSaveState.state === "error" && progressStatusText ? (
+                  <div className={styles.progressError} role="status" aria-live="polite">
                     {progressStatusText}
                   </div>
                 ) : null}
@@ -694,10 +756,6 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
 
               {!creatingTask && !editingTask ? (
                 <div className={styles.tasksHeader}>
-                  <div>
-                    <div className={styles.kicker}>Задачи</div>
-                    <div className={styles.hint}>Создавайте задачи для этого юнита.</div>
-                  </div>
                   <Button
                     onClick={() => {
                       setCreatingTask(true);

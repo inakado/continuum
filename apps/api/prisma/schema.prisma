@@ -148,7 +148,7 @@ model Unit {
   description String?     @map("description")
   status    ContentStatus @default(draft)
   sortOrder Int           @default(0) @map("sort_order")
-  minCountedTasksToComplete Int @default(0) @map("min_counted_tasks_to_complete")
+  minOptionalCountedTasksToComplete Int @default(0) @map("min_optional_counted_tasks_to_complete")
   theoryRichLatex    String? @map("theory_rich_latex")
   theoryPdfAssetKey  String? @map("theory_pdf_asset_key")
   methodRichLatex    String? @map("method_rich_latex")

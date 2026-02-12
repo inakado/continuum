@@ -214,22 +214,7 @@ export default function StudentSectionGraphPanel({ sectionId, sectionTitle, onBa
           <Button variant="ghost" onClick={onBack} className={styles.backButton}>
             ← К разделам
           </Button>
-          <button
-            type="button"
-            className={styles.legendToggle}
-            onClick={() => setShowLegend((prev) => !prev)}
-          >
-            {showLegend ? "Скрыть легенду" : "Показать легенду"}
-          </button>
         </div>
-        {showLegend ? (
-          <div className={styles.legend} role="note" aria-label="Легенда статусов">
-            <span className={`${styles.legendItem} ${styles.legendLocked}`}>Заблокирован</span>
-            <span className={`${styles.legendItem} ${styles.legendAvailable}`}>Доступен</span>
-            <span className={`${styles.legendItem} ${styles.legendInProgress}`}>В процессе</span>
-            <span className={`${styles.legendItem} ${styles.legendCompleted}`}>Завершён</span>
-          </div>
-        ) : null}
       </div>
 
       {error ? (
@@ -255,6 +240,23 @@ export default function StudentSectionGraphPanel({ sectionId, sectionTitle, onBa
             onNodeClick={handleNodeClick}
           />
         )}
+        <div className={styles.graphOverlay}>
+          <button
+            type="button"
+            className={styles.legendToggle}
+            onClick={() => setShowLegend((prev) => !prev)}
+          >
+            {showLegend ? "Скрыть легенду" : "Показать легенду"}
+          </button>
+          {showLegend ? (
+            <div className={styles.legend} role="note" aria-label="Легенда статусов">
+              <span className={`${styles.legendItem} ${styles.legendLocked}`}>Заблокирован</span>
+              <span className={`${styles.legendItem} ${styles.legendAvailable}`}>Доступен</span>
+              <span className={`${styles.legendItem} ${styles.legendInProgress}`}>В процессе</span>
+              <span className={`${styles.legendItem} ${styles.legendCompleted}`}>Завершён</span>
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
   );

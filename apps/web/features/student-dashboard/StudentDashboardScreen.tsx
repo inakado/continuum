@@ -233,8 +233,7 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
 
   return (
     <DashboardShell
-      title="Ученик"
-      subtitle={identity.subtitle}
+      title={identity.displayName || "Профиль"}
       navItems={navItems}
       appearance="glass"
       onLogout={handleLogout}

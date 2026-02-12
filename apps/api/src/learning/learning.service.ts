@@ -147,9 +147,10 @@ export class LearningService {
 
     return {
       ...unit,
-      minCountedTasksToComplete: unit.minCountedTasksToComplete,
+      minOptionalCountedTasksToComplete: unit.minOptionalCountedTasksToComplete,
       unitStatus: unitSnapshot.status,
       countedTasks: unitSnapshot.countedTasks,
+      optionalCountedTasks: unitSnapshot.optionalCountedTasks,
       solvedTasks: unitSnapshot.solvedTasks,
       totalTasks: unitSnapshot.totalTasks,
       completionPercent: unitSnapshot.completionPercent,

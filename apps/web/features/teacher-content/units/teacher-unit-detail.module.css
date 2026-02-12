@@ -231,7 +231,7 @@
 .progressHeader {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
   gap: 12px;
   flex-wrap: wrap;
 }
@@ -241,31 +241,99 @@
   font-weight: 600;
 }
 
-.requiredCount {
+.progressSummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.progressMetric {
   border: var(--border-width) solid var(--glass-border);
   background: var(--surface-1);
-  border-radius: 999px;
-  padding: 6px 10px;
-  font-size: 12px;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
+  border-radius: var(--card-radius);
+  padding: 8px 10px;
+  display: grid;
+  gap: 6px;
+  width: clamp(220px, 28vw, 320px);
 }
 
-.progressControls {
+.progressMetricLabel {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.progressMetricValue {
+  font-family: var(--font-jetbrains-mono), "JetBrains Mono", monospace;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.metricValueBox {
+  border: var(--border-width) solid var(--glass-border);
+  border-radius: var(--control-radius);
+  background: color-mix(in srgb, var(--surface-2) 76%, transparent);
+  min-height: 32px;
+  padding: 4px 10px;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.inlineOptionalEditor {
   display: flex;
-  align-items: flex-end;
-  gap: 12px;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
-.progressControls button {
-  --button-bg: var(--surface-1);
+.optionalInput {
+  width: 92px;
+}
+
+.inlineOptionalEditor button {
+  --button-bg: var(--surface-2);
   --button-border: var(--glass-border);
   --button-text: var(--text-primary);
-  --button-hover-bg: var(--surface-2);
+  --button-hover-bg: var(--surface-1);
   --button-hover-border: var(--border-primary);
   --button-hover-text: var(--text-primary);
   --button-hover-shadow: var(--nav-hover-shadow);
+  min-width: 108px;
+}
+
+.optionalValueButton {
+  border: var(--border-width) solid var(--glass-border);
+  border-radius: var(--control-radius);
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  color: var(--text-primary);
+  cursor: pointer;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 4px 10px;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+  position: relative;
+}
+
+.optionalValueButton:hover {
+  border-color: var(--border-primary);
+  background: color-mix(in srgb, var(--surface-2) 90%, transparent);
+}
+
+.optionalValueButton::after {
+  content: "✎";
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--text-muted);
 }
 
 .progressHint {
@@ -283,9 +351,14 @@
   letter-spacing: 0.08em;
 }
 
+.progressError {
+  color: color-mix(in srgb, #ef4444 86%, var(--text-primary));
+  font-size: 12px;
+}
+
 .tasksHeader {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: flex-end;
   gap: 16px;
   flex-wrap: wrap;
@@ -378,13 +451,25 @@
 }
 
 @media (max-width: 720px) {
-  .progressControls {
+  .progressSummary {
     display: grid;
-    width: 100%;
     grid-template-columns: 1fr;
   }
 
-  .progressControls button {
+  .progressMetric {
+    width: 100%;
+  }
+
+  .inlineOptionalEditor {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .optionalInput {
+    width: 100%;
+  }
+
+  .inlineOptionalEditor button {
     width: 100%;
   }
 }

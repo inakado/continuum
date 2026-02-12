@@ -148,6 +148,37 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
       ),
   ).length;
   const unitStatusLabel = getStudentUnitStatusLabel(unit?.unitStatus ?? null);
+  const normalizePercent = useCallback((value: number) => Math.max(0, Math.min(100, Math.round(value))), []);
+  const completionMeter = normalizePercent(completionPercent);
+  const solvedMeter = normalizePercent(solvedPercent);
+  const requiredMeter = requiredTotal > 0 ? normalizePercent((requiredDone / requiredTotal) * 100) : 100;
+  const getProgressFillStyle = useCallback(
+    (percent: number) => {
+      const level = normalizePercent(percent);
+      const startColor =
+        level >= 80
+          ? "color-mix(in srgb, #22c55e 82%, var(--border-primary))"
+          : level >= 55
+            ? "color-mix(in srgb, #22c55e 68%, var(--border-primary))"
+            : level >= 30
+              ? "color-mix(in srgb, #22c55e 56%, var(--border-primary))"
+              : "color-mix(in srgb, #22c55e 44%, var(--surface-2))";
+      const endColor =
+        level >= 80
+          ? "color-mix(in srgb, #22c55e 92%, var(--border-primary))"
+          : level >= 55
+            ? "color-mix(in srgb, #22c55e 80%, var(--border-primary))"
+            : level >= 30
+              ? "color-mix(in srgb, #22c55e 68%, var(--border-primary))"
+              : "color-mix(in srgb, #22c55e 56%, var(--border-primary))";
+
+      return {
+        width: `${level}%`,
+        background: `linear-gradient(90deg, ${startColor}, ${endColor})`,
+      };
+    },
+    [normalizePercent],
+  );
 
   const isCreditedStatus = useCallback(
     (status?: string | null) =>
@@ -378,8 +409,7 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
 
   return (
     <DashboardShell
-      title="Ученик"
-      subtitle={identity.subtitle}
+      title={identity.displayName || "Профиль"}
       navItems={navItems}
       appearance="glass"
       onLogout={handleLogout}
@@ -388,7 +418,6 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
         <div className={styles.header}>
           <div className={styles.headerLeft}>
             <h1 className={styles.title}>{unit?.title ?? "Юнит"}</h1>
-            <p className={styles.subtitle}>Материалы юнита</p>
           </div>
         </div>
 
@@ -415,17 +444,49 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
           <>
             {unit ? (
               <section className={styles.progressCard} aria-label="Прогресс юнита">
-                <div className={styles.progressTitle}>Прогресс юнита</div>
-                <div className={styles.progressLine}>
-                  Выполнение: {completionPercent}% · Решено: {solvedPercent}%
+                <div className={styles.progressTop}>
+                  <div>
+                    <div className={styles.progressTitle}>Прогресс</div>
+                  </div>
+                  <div className={styles.progressStatusPill}>{unitStatusLabel}</div>
                 </div>
-                <div className={styles.progressMeta}>
-                  Учтено: {countedTasks}/{totalTasks} · Решено задач: {solvedTasks}/{totalTasks}
+
+                <div className={styles.progressMetrics}>
+                  <article className={styles.progressMetric}>
+                    <div className={styles.progressMetricLabel}>Выполнение</div>
+                    <div className={styles.progressMetricValue}>{completionMeter}%</div>
+                    <div className={styles.progressMeter}>
+                      <span className={styles.progressMeterFill} style={getProgressFillStyle(completionMeter)} />
+                    </div>
+                  </article>
+
+                  <article className={styles.progressMetric}>
+                    <div className={styles.progressMetricLabel}>Решено</div>
+                    <div className={styles.progressMetricValue}>{solvedMeter}%</div>
+                    <div className={styles.progressMeter}>
+                      <span className={styles.progressMeterFill} style={getProgressFillStyle(solvedMeter)} />
+                    </div>
+                  </article>
+
+                  <article className={styles.progressMetric}>
+                    <div className={styles.progressMetricLabel}>Обязательные</div>
+                    <div className={styles.progressMetricValue}>
+                      {requiredDone}/{requiredTotal}
+                    </div>
+                    <div className={styles.progressMeter}>
+                      <span className={styles.progressMeterFill} style={getProgressFillStyle(requiredMeter)} />
+                    </div>
+                  </article>
                 </div>
-                <div className={styles.progressMeta}>
-                  Обязательных выполнено: {requiredDone}/{requiredTotal}
+
+                <div className={styles.progressBottom}>
+                  <div className={styles.progressChip}>
+                    Учтено: <strong>{countedTasks}/{totalTasks}</strong>
+                  </div>
+                  <div className={styles.progressChip}>
+                    Решено задач: <strong>{solvedTasks}/{totalTasks}</strong>
+                  </div>
                 </div>
-                <div className={styles.progressStatus}>Статус: {unitStatusLabel}</div>
               </section>
             ) : null}
 

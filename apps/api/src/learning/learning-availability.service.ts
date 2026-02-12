@@ -7,7 +7,7 @@ type DbClient = PrismaService | Prisma.TransactionClient;
 type PublishedUnit = {
   id: string;
   sortOrder: number;
-  minCountedTasksToComplete: number;
+  minOptionalCountedTasksToComplete: number;
 };
 
 type PublishedTask = {
@@ -38,13 +38,14 @@ export type UnitProgressSnapshot = {
   status: StudentUnitStatus;
   totalTasks: number;
   countedTasks: number;
+  optionalCountedTasks: number;
   solvedTasks: number;
   completionPercent: number;
   solvedPercent: number;
   hasAttempt: boolean;
   isCompleted: boolean;
   requiredTasksCount: number;
-  effectiveMinCountedTasksToComplete: number;
+  effectiveMinOptionalCountedTasksToComplete: number;
 };
 
 const COUNTED_STATUSES = new Set<StudentTaskStatus>([
@@ -157,7 +158,7 @@ export class LearningAvailabilityService {
           select: {
             id: true,
             sortOrder: true,
-            minCountedTasksToComplete: true,
+            minOptionalCountedTasksToComplete: true,
           },
         },
       },
@@ -267,6 +268,7 @@ export class LearningAvailabilityService {
       const unitTasks = tasksByUnitId.get(unitId) ?? [];
       const totalTasks = unitTasks.length;
       let countedTasks = 0;
+      let optionalCountedTasks = 0;
       let solvedTasks = 0;
       let requiredCountedTasks = 0;
       let requiredTasksCount = 0;
@@ -282,6 +284,8 @@ export class LearningAvailabilityService {
         if (task.isRequired) {
           requiredTasksCount += 1;
           if (isCounted) requiredCountedTasks += 1;
+        } else if (isCounted) {
+          optionalCountedTasks += 1;
         }
       }
 
@@ -289,13 +293,10 @@ export class LearningAvailabilityService {
         totalTasks === 0 ? 0 : Math.floor((countedTasks * 100) / totalTasks);
       const solvedPercent = totalTasks === 0 ? 0 : Math.floor((solvedTasks * 100) / totalTasks);
 
-      const effectiveMinCountedTasksToComplete = Math.max(
-        unit.minCountedTasksToComplete,
-        requiredTasksCount,
-      );
+      const effectiveMinOptionalCountedTasksToComplete = unit.minOptionalCountedTasksToComplete;
       const requiredGateSatisfied = requiredCountedTasks === requiredTasksCount;
       const isCompleted =
-        requiredGateSatisfied && countedTasks >= effectiveMinCountedTasksToComplete;
+        requiredGateSatisfied && optionalCountedTasks >= effectiveMinOptionalCountedTasksToComplete;
 
       const prereqIds = prereqByUnitId.get(unitId) ?? [];
       const prereqsCompleted = prereqIds.every(
@@ -317,13 +318,14 @@ export class LearningAvailabilityService {
         status,
         totalTasks,
         countedTasks,
+        optionalCountedTasks,
         solvedTasks,
         completionPercent,
         solvedPercent,
         hasAttempt,
         isCompleted,
         requiredTasksCount,
-        effectiveMinCountedTasksToComplete,
+        effectiveMinOptionalCountedTasksToComplete,
       });
     }
 

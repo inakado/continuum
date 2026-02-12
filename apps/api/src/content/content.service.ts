@@ -424,12 +424,10 @@ export class ContentService {
     if (dto.title !== undefined) data.title = dto.title;
     if (dto.description !== undefined) data.description = dto.description;
     if (dto.sortOrder !== undefined) data.sortOrder = dto.sortOrder;
-    let nextMinCountedTasksToComplete: number | undefined;
-    if (dto.minCountedTasksToComplete !== undefined) {
-      nextMinCountedTasksToComplete = this.normalizeMinCountedTasksToComplete(
-        dto.minCountedTasksToComplete,
+    if (dto.minOptionalCountedTasksToComplete !== undefined) {
+      data.minOptionalCountedTasksToComplete = this.normalizeMinOptionalCountedTasksToComplete(
+        dto.minOptionalCountedTasksToComplete,
       );
-      data.minCountedTasksToComplete = nextMinCountedTasksToComplete;
     }
     const normalizedRequiredTaskIds =
       dto.requiredTaskIds !== undefined
@@ -455,11 +453,10 @@ export class ContentService {
     return this.prisma.$transaction(async (tx) => {
       const unit = await tx.unit.findUnique({
         where: { id },
-        select: { id: true, minCountedTasksToComplete: true },
+        select: { id: true },
       });
       if (!unit) throw new NotFoundException('Unit not found');
 
-      let effectiveRequiredCount = 0;
       if (normalizedRequiredTaskIds !== undefined) {
         if (normalizedRequiredTaskIds.length > 0) {
           const requiredTasks = await tx.task.findMany({
@@ -477,17 +474,6 @@ export class ContentService {
             }
           }
         }
-        effectiveRequiredCount = normalizedRequiredTaskIds.length;
-      } else {
-        effectiveRequiredCount = await tx.task.count({
-          where: { unitId: id, isRequired: true },
-        });
-      }
-
-      const effectiveMinCountedTasksToComplete =
-        nextMinCountedTasksToComplete ?? unit.minCountedTasksToComplete;
-      if (effectiveMinCountedTasksToComplete < effectiveRequiredCount) {
-        throw new ConflictException('MinCountedTasksLessThanRequiredCount');
       }
 
       if (normalizedRequiredTaskIds !== undefined && Object.keys(data).length === 0) {
@@ -913,9 +899,9 @@ export class ContentService {
     return revision;
   }
 
-  private normalizeMinCountedTasksToComplete(value: unknown): number {
+  private normalizeMinOptionalCountedTasksToComplete(value: unknown): number {
     if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
-      throw new BadRequestException('InvalidMinCountedTasksToComplete');
+      throw new BadRequestException('InvalidMinOptionalCountedTasksToComplete');
     }
     return value;
   }

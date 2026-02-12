@@ -68,7 +68,7 @@ export type Unit = {
   description?: string | null;
   status: ContentStatus;
   sortOrder: number;
-  minCountedTasksToComplete: number;
+  minOptionalCountedTasksToComplete: number;
   theoryRichLatex?: string | null;
   theoryPdfAssetKey?: string | null;
   methodRichLatex?: string | null;
@@ -77,6 +77,7 @@ export type Unit = {
   attachmentsJson?: UnitAttachment[] | null;
   unitStatus?: StudentUnitStatus;
   countedTasks?: number;
+  optionalCountedTasks?: number;
   solvedTasks?: number;
   totalTasks?: number;
   completionPercent?: number;

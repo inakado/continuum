@@ -36,7 +36,7 @@ export type Unit = {
   description?: string | null;
   status: ContentStatus;
   sortOrder: number;
-  minCountedTasksToComplete: number;
+  minOptionalCountedTasksToComplete: number;
   theoryRichLatex?: string | null;
   theoryPdfAssetKey?: string | null;
   methodRichLatex?: string | null;
@@ -308,7 +308,7 @@ export const teacherApi = {
       title?: string;
       description?: string | null;
       sortOrder?: number;
-      minCountedTasksToComplete?: number;
+      minOptionalCountedTasksToComplete?: number;
       theoryRichLatex?: string | null;
       methodRichLatex?: string | null;
       videosJson?: UnitVideo[] | null;

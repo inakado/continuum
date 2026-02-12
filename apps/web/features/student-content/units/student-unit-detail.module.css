@@ -68,41 +68,125 @@
 .progressCard {
   border: var(--border-width) solid var(--panel-border);
   background:
-    linear-gradient(160deg, color-mix(in srgb, var(--surface-1) 80%, transparent), transparent 65%),
+    linear-gradient(160deg, color-mix(in srgb, var(--surface-1) 86%, transparent), transparent 62%),
+    linear-gradient(340deg, color-mix(in srgb, var(--surface-2) 42%, transparent), transparent 60%),
     var(--panel-bg);
   border-radius: var(--panel-radius);
   box-shadow: var(--panel-shadow);
   backdrop-filter: var(--glass-filter);
   -webkit-backdrop-filter: var(--glass-filter);
-  padding: 12px 14px;
+  padding: 16px;
   display: grid;
-  gap: 6px;
+  gap: 14px;
+}
+
+.progressTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .progressTitle {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--text-muted);
-}
-
-.progressLine {
-  font-size: 15px;
-  font-weight: 600;
+  font-family: var(--font-unbounded), sans-serif;
+  font-size: clamp(17px, 1.9vw, 22px);
+  font-weight: 300;
+  letter-spacing: -0.01em;
   color: var(--text-primary);
 }
 
-.progressMeta {
-  font-size: 13px;
-  color: var(--text-primary);
-}
-
-.progressStatus {
-  margin-top: 2px;
-  font-size: 11px;
+.progressStatusPill {
+  border: var(--border-width) solid color-mix(in srgb, #22c55e 34%, var(--glass-border));
+  background: color-mix(in srgb, #22c55e 12%, var(--surface-1));
+  color: color-mix(in srgb, #22c55e 80%, var(--text-primary));
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.progressMetrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.progressMetric {
+  border: var(--border-width) solid var(--glass-border);
+  background: color-mix(in srgb, var(--surface-1) 88%, transparent);
+  border-radius: var(--card-radius);
+  padding: 10px 11px;
+  display: grid;
+  gap: 8px;
+}
+
+.progressMetricLabel {
+  font-size: 10px;
   color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+}
+
+.progressMetricValue {
+  font-family: var(--font-jetbrains-mono), "JetBrains Mono", monospace;
+  font-size: clamp(22px, 2.2vw, 30px);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+}
+
+.progressMeter {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--text-muted) 25%, transparent);
+}
+
+.progressMeterFill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--border-primary);
+}
+
+.progressBottom {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.progressChip {
+  border: var(--border-width) solid var(--glass-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-1) 86%, transparent);
+  padding: 7px 10px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.progressChip strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+@media (max-width: 960px) {
+  .progressMetrics {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .progressMetric:nth-child(3) {
+    grid-column: 1 / -1;
+  }
+
+  .progressBottom {
+    grid-template-columns: 1fr;
+  }
 }
 
 .lockedGate {

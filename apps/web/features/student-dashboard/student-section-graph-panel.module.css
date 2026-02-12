@@ -56,8 +56,10 @@
 .legend {
   margin-top: 8px;
   display: flex;
+  flex-direction: column;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: flex-end;
 }
 
 .legendItem {
@@ -149,6 +151,22 @@
   box-shadow: var(--panel-shadow);
   backdrop-filter: var(--glass-filter);
   -webkit-backdrop-filter: var(--glass-filter);
+}
+
+.graphOverlay {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+.graphOverlay .legendToggle,
+.graphOverlay .legend {
+  pointer-events: auto;
 }
 
 .loading {

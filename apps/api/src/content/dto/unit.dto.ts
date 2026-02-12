@@ -8,7 +8,7 @@ export class UpdateUnitDto {
   description?: string | null;
   title?: string;
   sortOrder?: number;
-  minCountedTasksToComplete?: number;
+  minOptionalCountedTasksToComplete?: number;
   requiredTaskIds?: string[];
   theoryRichLatex?: string | null;
   methodRichLatex?: string | null;
