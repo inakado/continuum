@@ -223,12 +223,27 @@ export type LoginResponse = {
   user: { id: string; login: string; role: string };
 };
 
-export type LatexCompileAndUploadResponse = {
-  key: string;
-  sizeBytes: number;
-  presignedUrl: string;
-  etag?: string;
-  compileLogSnippet?: string;
+export type LatexCompileEnqueueResponse = {
+  jobId: string;
+};
+
+export type LatexCompileJobStatusResponse = {
+  jobId: string;
+  status: "queued" | "running" | "succeeded" | "failed";
+  assetKey?: string;
+  presignedUrl?: string;
+  error?: {
+    code: string;
+    message: string;
+    logSnippet?: string;
+  };
+};
+
+export type LatexCompileApplyResponse = {
+  ok: true;
+  unitId: string;
+  target: "theory" | "method";
+  assetKey: string;
 };
 
 export type UnitPdfPresignedResponse = {
@@ -339,7 +354,7 @@ export const teacherApi = {
   getUnitPdfPresignedUrl(
     id: string,
     target: "theory" | "method",
-    ttlSec = 900,
+    ttlSec = 600,
   ) {
     const search = new URLSearchParams({
       target,
@@ -515,10 +530,26 @@ export const teacherApi = {
     return apiRequest<EventsResponse>(`/teacher/events${suffix ? `?${suffix}` : ""}`);
   },
 
-  compileAndUploadLatex(data: { tex: string; target?: "theory" | "method"; ttlSec?: number }) {
-    return apiRequest<LatexCompileAndUploadResponse>("/teacher/debug/latex/compile-and-upload", {
+  enqueueUnitLatexCompile(
+    id: string,
+    data: { tex: string; target: "theory" | "method"; ttlSec?: number },
+  ) {
+    return apiRequest<LatexCompileEnqueueResponse>(`/teacher/units/${id}/latex/compile`, {
       method: "POST",
       body: data,
+    });
+  },
+
+  getLatexCompileJob(jobId: string, ttlSec = 600) {
+    const search = new URLSearchParams({ ttlSec: String(ttlSec) });
+    return apiRequest<LatexCompileJobStatusResponse>(
+      `/teacher/latex/jobs/${jobId}?${search.toString()}`,
+    );
+  },
+
+  applyLatexCompileJob(jobId: string) {
+    return apiRequest<LatexCompileApplyResponse>(`/teacher/latex/jobs/${jobId}/apply`, {
+      method: "POST",
     });
   },
 };

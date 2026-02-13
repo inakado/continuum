@@ -150,7 +150,7 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
           const key = keyByTarget[target];
           if (!key) return [target, null, null] as const;
           try {
-            const response = await studentApi.getUnitPdfPresignedUrl(unit.id, target, 900);
+            const response = await studentApi.getUnitPdfPresignedUrl(unit.id, target, 180);
             return [target, response.url, null] as const;
           } catch (err) {
             return [target, null, getStudentErrorMessage(err)] as const;
@@ -177,6 +177,27 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
       disposed = true;
     };
   }, [unit?.id, unit?.methodPdfAssetKey, unit?.theoryPdfAssetKey]);
+
+  const refreshPreviewUrl = useCallback(
+    async (target: "theory" | "method") => {
+      if (!unit?.id) return null;
+      const response = await studentApi.getUnitPdfPresignedUrl(unit.id, target, 180);
+      const nextUrl = response.url ?? null;
+      setPreviewUrls((prev) => ({ ...prev, [target]: nextUrl }));
+      setPreviewErrorByTarget((prev) => ({ ...prev, [target]: null }));
+      return nextUrl;
+    },
+    [unit?.id],
+  );
+
+  const refreshTheoryPreviewUrl = useCallback(
+    () => refreshPreviewUrl("theory"),
+    [refreshPreviewUrl],
+  );
+  const refreshMethodPreviewUrl = useCallback(
+    () => refreshPreviewUrl("method"),
+    [refreshPreviewUrl],
+  );
 
   useEffect(() => {
     return () => {
@@ -660,6 +681,8 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
                       <PdfCanvasPreview
                         className={styles.pdfFrame}
                         url={previewUrls.theory}
+                        refreshKey={unit?.theoryPdfAssetKey ?? undefined}
+                        getFreshUrl={refreshTheoryPreviewUrl}
                         zoom={pdfZoomByTarget.theory}
                         scrollFeel="inertial-heavy"
                       />
@@ -713,6 +736,8 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
                       <PdfCanvasPreview
                         className={styles.pdfFrame}
                         url={previewUrls.method}
+                        refreshKey={unit?.methodPdfAssetKey ?? undefined}
+                        getFreshUrl={refreshMethodPreviewUrl}
                         zoom={pdfZoomByTarget.method}
                         scrollFeel="inertial-heavy"
                       />

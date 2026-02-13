@@ -9,6 +9,8 @@ type Props = {
   withCredentials?: boolean;
   zoom?: number;
   scrollFeel?: "native" | "inertial-heavy";
+  refreshKey?: string;
+  getFreshUrl?: () => Promise<string | null>;
 };
 
 const isRenderCancelledError = (error: unknown): boolean => {
@@ -19,6 +21,21 @@ const isRenderCancelledError = (error: unknown): boolean => {
     maybeError.name === "AbortException" ||
     (typeof maybeError.message === "string" &&
       maybeError.message.toLowerCase().includes("cancel"))
+  );
+};
+
+const isPresignedExpiredError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") return false;
+  const maybeError = error as { message?: string; status?: number; name?: string };
+  if (typeof maybeError.status === "number" && maybeError.status === 403) return true;
+  const message = (maybeError.message ?? "").toLowerCase();
+  if (!message) return false;
+  return (
+    message.includes("403") ||
+    message.includes("forbidden") ||
+    message.includes("expired") ||
+    message.includes("signature") ||
+    message.includes("accessdenied")
   );
 };
 
@@ -34,6 +51,8 @@ export default function PdfCanvasPreview({
   withCredentials = true,
   zoom = 1,
   scrollFeel = "native",
+  refreshKey,
+  getFreshUrl,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRefs = useRef<Array<HTMLCanvasElement | null>>([]);
@@ -44,10 +63,29 @@ export default function PdfCanvasPreview({
   const [containerWidth, setContainerWidth] = useState(0);
   const [pageCount, setPageCount] = useState(0);
   const [pdfDoc, setPdfDoc] = useState<any | null>(null);
+  const [currentUrl, setCurrentUrl] = useState(url);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const refreshAttemptedKeyRef = useRef<string | null>(null);
   const activeRenderTasksRef = useRef<Array<any | null>>([]);
   const renderGenerationRef = useRef(0);
+
+  useEffect(() => {
+    setCurrentUrl(url);
+  }, [url]);
+
+  useEffect(() => {
+    if (refreshKey) {
+      refreshAttemptedKeyRef.current = null;
+    }
+  }, [refreshKey]);
+
+  useEffect(() => {
+    if (!refreshKey) {
+      refreshAttemptedKeyRef.current = null;
+    }
+  }, [refreshKey, url]);
 
   useEffect(() => {
     const node = containerRef.current;
@@ -154,6 +192,7 @@ export default function PdfCanvasPreview({
 
     const loadPdf = async () => {
       setLoading(true);
+      setRefreshing(false);
       setError(null);
       setPdfDoc(null);
       setPageCount(0);
@@ -165,7 +204,7 @@ export default function PdfCanvasPreview({
           pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
         }
         loadingTask = pdfjs.getDocument({
-          url,
+          url: currentUrl,
           withCredentials,
         } as any);
         const doc = await loadingTask.promise;
@@ -174,6 +213,36 @@ export default function PdfCanvasPreview({
         setPageCount(doc.numPages);
       } catch (err) {
         if (disposed) return;
+        const retryToken = refreshKey || currentUrl;
+        const canRetry =
+          Boolean(getFreshUrl) &&
+          isPresignedExpiredError(err) &&
+          Boolean(retryToken) &&
+          refreshAttemptedKeyRef.current !== retryToken;
+
+        if (canRetry && getFreshUrl && retryToken) {
+          refreshAttemptedKeyRef.current = retryToken;
+          setRefreshing(true);
+          try {
+            const freshUrl = await getFreshUrl();
+            if (!disposed && freshUrl && freshUrl !== currentUrl) {
+              setCurrentUrl(freshUrl);
+              return;
+            }
+          } catch (refreshError) {
+            if (!disposed) {
+              const message =
+                refreshError instanceof Error
+                  ? refreshError.message
+                  : "Не удалось обновить ссылку на PDF";
+              setError(message);
+            }
+            return;
+          } finally {
+            if (!disposed) setRefreshing(false);
+          }
+        }
+
         const message = err instanceof Error ? err.message : "Не удалось загрузить PDF";
         setError(message);
       } finally {
@@ -191,7 +260,7 @@ export default function PdfCanvasPreview({
         loadingTask.cancel();
       }
     };
-  }, [url, withCredentials]);
+  }, [currentUrl, withCredentials, getFreshUrl, refreshKey]);
 
   useEffect(() => {
     if (!pdfDoc || pageCount <= 0 || containerWidth <= 0) return;
@@ -278,7 +347,7 @@ export default function PdfCanvasPreview({
 
   return (
     <div ref={containerRef} className={rootClassName}>
-      {loading ? <div className={styles.state}>Загрузка PDF…</div> : null}
+      {loading ? <div className={styles.state}>{refreshing ? "Обновляем ссылку…" : "Загрузка PDF…"}</div> : null}
       {error ? <div className={styles.state}>{error}</div> : null}
       {!loading && !error ? (
         <div className={styles.pages}>

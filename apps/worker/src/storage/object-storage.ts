@@ -2,44 +2,24 @@ import {
   BucketLocationConstraint,
   CreateBucketCommand,
   CreateBucketCommandInput,
-  DeleteObjectCommand,
   GetObjectCommand,
   HeadBucketCommand,
-  HeadObjectCommand,
   PutObjectCommandInput,
   S3Client,
   S3ServiceException,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Upload } from '@aws-sdk/lib-storage';
-import { Inject, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { NodeHttpHandler } from '@smithy/node-http-handler';
-import { Readable } from 'node:stream';
-import { OBJECT_STORAGE_CONFIG, ObjectStorageConfig } from './object-storage.config';
+import { WorkerObjectStorageConfig } from './object-storage-config';
 
 type PutObjectBody = Buffer | Uint8Array | NodeJS.ReadableStream | string;
 
-export type PutObjectParams = {
+type PutObjectParams = {
   key: string;
   contentType: string;
   body: PutObjectBody;
   cacheControl?: string;
-};
-
-export type ObjectStreamResult = {
-  stream: NodeJS.ReadableStream;
-  contentType?: string;
-  contentLength?: number;
-  etag?: string;
-  lastModified?: Date;
-};
-
-export type ObjectMetaResult = {
-  exists: boolean;
-  contentType?: string;
-  contentLength?: number;
-  etag?: string;
-  lastModified?: Date;
 };
 
 type KnownStorageError = {
@@ -51,16 +31,12 @@ type KnownStorageError = {
   };
 };
 
-@Injectable()
-export class ObjectStorageService {
+export class WorkerObjectStorageService {
   private readonly s3: S3Client;
   private readonly presignS3: S3Client | null;
   private ensureBucketPromise: Promise<void> | null = null;
 
-  constructor(
-    @Inject(OBJECT_STORAGE_CONFIG)
-    private readonly config: ObjectStorageConfig,
-  ) {
+  constructor(private readonly config: WorkerObjectStorageConfig) {
     this.s3 = new S3Client({
       region: config.region,
       endpoint: config.endpoint,
@@ -94,10 +70,6 @@ export class ObjectStorageService {
       : null;
   }
 
-  get bucketName(): string {
-    return this.config.bucket;
-  }
-
   async putObject(params: PutObjectParams): Promise<{ key: string; etag?: string }> {
     await this.ensureBucketExists();
 
@@ -122,74 +94,14 @@ export class ObjectStorageService {
     }
   }
 
-  async getObjectStream(key: string): Promise<ObjectStreamResult> {
-    try {
-      const output = await this.s3.send(
-        new GetObjectCommand({
-          Bucket: this.config.bucket,
-          Key: key,
-        }),
-      );
-      const stream = this.asNodeStream(output.Body);
-      return {
-        stream,
-        contentType: output.ContentType,
-        contentLength: output.ContentLength,
-        etag: output.ETag,
-        lastModified: output.LastModified,
-      };
-    } catch (error) {
-      if (this.isNotFoundError(error)) {
-        throw new NotFoundException('Object not found');
-      }
-      throw this.wrapStorageError(error, 'failed to download object');
-    }
-  }
-
-  async getObjectMeta(key: string): Promise<ObjectMetaResult> {
-    try {
-      const output = await this.s3.send(
-        new HeadObjectCommand({
-          Bucket: this.config.bucket,
-          Key: key,
-        }),
-      );
-      return {
-        exists: true,
-        contentType: output.ContentType,
-        contentLength: output.ContentLength,
-        etag: output.ETag,
-        lastModified: output.LastModified,
-      };
-    } catch (error) {
-      if (this.isNotFoundError(error)) {
-        return { exists: false };
-      }
-      throw this.wrapStorageError(error, 'failed to read object metadata');
-    }
-  }
-
-  async deleteObject(key: string): Promise<void> {
-    try {
-      await this.s3.send(
-        new DeleteObjectCommand({
-          Bucket: this.config.bucket,
-          Key: key,
-        }),
-      );
-    } catch (error) {
-      throw this.wrapStorageError(error, 'failed to delete object');
-    }
-  }
-
   async getPresignedGetUrl(
     key: string,
-    ttlSec = 300,
+    ttlSec: number,
     responseContentType?: string,
   ): Promise<string> {
     try {
       const presignClient = this.presignS3 || this.s3;
-      const url = await getSignedUrl(
+      return await getSignedUrl(
         presignClient,
         new GetObjectCommand({
           Bucket: this.config.bucket,
@@ -202,7 +114,6 @@ export class ObjectStorageService {
         }),
         { expiresIn: ttlSec },
       );
-      return url;
     } catch (error) {
       throw this.wrapStorageError(error, 'failed to generate presigned URL');
     }
@@ -229,9 +140,7 @@ export class ObjectStorageService {
     }
 
     if (this.config.isProduction) {
-      throw new InternalServerErrorException(
-        `S3 bucket "${this.config.bucket}" does not exist in production`,
-      );
+      throw new Error(`S3 bucket "${this.config.bucket}" does not exist in production`);
     }
 
     try {
@@ -257,31 +166,9 @@ export class ObjectStorageService {
     return body as NonNullable<PutObjectCommandInput['Body']>;
   }
 
-  private asNodeStream(body: unknown): NodeJS.ReadableStream {
-    if (body instanceof Readable) return body;
-
-    if (body && typeof body === 'object') {
-      const maybeBody = body as {
-        pipe?: unknown;
-        transformToWebStream?: () => ReadableStream<Uint8Array>;
-      };
-
-      if (typeof maybeBody.pipe === 'function') {
-        return body as NodeJS.ReadableStream;
-      }
-
-      if (typeof maybeBody.transformToWebStream === 'function') {
-        const webStream = maybeBody.transformToWebStream() as Parameters<typeof Readable.fromWeb>[0];
-        return Readable.fromWeb(webStream);
-      }
-    }
-
-    throw new InternalServerErrorException('Storage returned an unsupported stream body');
-  }
-
-  private wrapStorageError(error: unknown, action: string): InternalServerErrorException {
+  private wrapStorageError(error: unknown, action: string): Error {
     const details = this.extractStorageErrorDetails(error);
-    return new InternalServerErrorException(`Object storage ${action}: ${details}`);
+    return new Error(`Object storage ${action}: ${details}`);
   }
 
   private extractStorageErrorDetails(error: unknown): string {
@@ -294,13 +181,6 @@ export class ObjectStorageService {
     }
 
     return 'unknown storage error';
-  }
-
-  private isNotFoundError(error: unknown): boolean {
-    const known = error as KnownStorageError | undefined;
-    const code = known?.Code || known?.name;
-    const status = known?.$metadata?.httpStatusCode;
-    return code === 'NoSuchKey' || code === 'NotFound' || status === 404;
   }
 
   private isBucketMissingError(error: unknown): boolean {

@@ -81,6 +81,8 @@ type CompileState = {
 };
 
 const AUTOSAVE_DEBOUNCE_MS = 1000;
+const COMPILE_POLL_INTERVAL_MS = 1500;
+const COMPILE_POLL_TIMEOUT_MS = 120_000;
 
 const answerTypeLabels: Record<TaskFormData["answerType"], string> = {
   numeric: "Числовая",
@@ -311,7 +313,7 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
         const key = target === "theory" ? nextUnit.theoryPdfAssetKey : nextUnit.methodPdfAssetKey;
         if (!key) return [target, null] as const;
         try {
-          const response = await teacherApi.getUnitPdfPresignedUrl(nextUnit.id, target, 900);
+          const response = await teacherApi.getUnitPdfPresignedUrl(nextUnit.id, target, 600);
           return [target, response.url ? buildPdfPreviewSrc(response.url) : null] as const;
         } catch {
           return [target, null] as const;
@@ -326,6 +328,26 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
     for (const [target, url] of entries) nextPreviewUrls[target] = url;
     return nextPreviewUrls;
   }, []);
+
+  const refreshPreviewUrl = useCallback(
+    async (target: "theory" | "method") => {
+      if (!unit?.id) return null;
+      const response = await teacherApi.getUnitPdfPresignedUrl(unit.id, target, 600);
+      const nextUrl = response.url ? buildPdfPreviewSrc(response.url) : null;
+      setPreviewUrls((prev) => ({ ...prev, [target]: nextUrl }));
+      return nextUrl;
+    },
+    [unit?.id],
+  );
+
+  const refreshTheoryPreviewUrl = useCallback(
+    () => refreshPreviewUrl("theory"),
+    [refreshPreviewUrl],
+  );
+  const refreshMethodPreviewUrl = useCallback(
+    () => refreshPreviewUrl("method"),
+    [refreshPreviewUrl],
+  );
 
   const fetchUnit = useCallback(async () => {
     setError(null);
@@ -713,17 +735,47 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
       }));
 
       try {
-        const compiled = await teacherApi.compileAndUploadLatex({ tex, target, ttlSec: 900 });
-        const patch =
-          target === "theory"
-            ? { theoryPdfAssetKey: compiled.key }
-            : { methodPdfAssetKey: compiled.key };
-        const updatedUnit = await teacherApi.updateUnit(unit.id, patch);
+        const queued = await teacherApi.enqueueUnitLatexCompile(unit.id, { tex, target, ttlSec: 600 });
+        const startedAt = Date.now();
+        let finalStatus = await teacherApi.getLatexCompileJob(queued.jobId, 600);
 
-        setUnit((prev) => (prev ? { ...prev, ...updatedUnit } : prev));
+        while (finalStatus.status === "queued" || finalStatus.status === "running") {
+          if (Date.now() - startedAt > COMPILE_POLL_TIMEOUT_MS) {
+            throw new Error("Истекло время ожидания компиляции.");
+          }
+          await new Promise((resolve) => window.setTimeout(resolve, COMPILE_POLL_INTERVAL_MS));
+          finalStatus = await teacherApi.getLatexCompileJob(queued.jobId, 600);
+        }
+
+        if (finalStatus.status === "failed") {
+          const code = finalStatus.error?.code ? ` (${finalStatus.error.code})` : "";
+          const snippet = finalStatus.error?.logSnippet ? `\n${finalStatus.error.logSnippet}` : "";
+          throw new Error(`${finalStatus.error?.message ?? "LaTeX compilation failed"}${code}${snippet}`);
+        }
+
+        if (finalStatus.status !== "succeeded" || !finalStatus.assetKey) {
+          throw new Error("Невозможно применить результат компиляции.");
+        }
+
+        const refreshedUnit = await teacherApi.getUnit(unit.id);
+        setUnit((prev) => (prev ? { ...prev, ...refreshedUnit } : prev));
+        const actualAssetKey =
+          target === "theory" ? refreshedUnit.theoryPdfAssetKey : refreshedUnit.methodPdfAssetKey;
+
+        let previewUrl: string | null = null;
+        if (actualAssetKey && actualAssetKey === finalStatus.assetKey && finalStatus.presignedUrl) {
+          previewUrl = buildPdfPreviewSrc(finalStatus.presignedUrl);
+        } else if (actualAssetKey) {
+          try {
+            const fallbackPresign = await teacherApi.getUnitPdfPresignedUrl(unit.id, target, 600);
+            previewUrl = fallbackPresign.url ? buildPdfPreviewSrc(fallbackPresign.url) : null;
+          } catch {
+            previewUrl = null;
+          }
+        }
         setPreviewUrls((prev) => ({
           ...prev,
-          [target]: buildPdfPreviewSrc(compiled.presignedUrl),
+          [target]: previewUrl,
         }));
         setCompileState((prev) => ({
           ...prev,
@@ -731,16 +783,18 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
             loading: false,
             error: null,
             updatedAt: Date.now(),
-            key: compiled.key,
+            key: actualAssetKey ?? finalStatus.assetKey,
           },
         }));
       } catch (err) {
+        const compileErrorMessage =
+          err instanceof Error && err.message ? err.message : getApiErrorMessage(err);
         setCompileState((prev) => ({
           ...prev,
           [target]: {
             ...prev[target],
             loading: false,
-            error: getApiErrorMessage(err),
+            error: compileErrorMessage,
           },
         }));
       }
@@ -861,6 +915,8 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
                     <PdfCanvasPreview
                       className={styles.previewFrame}
                       url={previewUrls.theory}
+                      refreshKey={compileState.theory.key ?? unit?.theoryPdfAssetKey ?? undefined}
+                      getFreshUrl={refreshTheoryPreviewUrl}
                       scrollFeel="inertial-heavy"
                     />
                   ) : (
@@ -922,6 +978,8 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
                     <PdfCanvasPreview
                       className={styles.previewFrame}
                       url={previewUrls.method}
+                      refreshKey={compileState.method.key ?? unit?.methodPdfAssetKey ?? undefined}
+                      getFreshUrl={refreshMethodPreviewUrl}
                       scrollFeel="inertial-heavy"
                     />
                   ) : (

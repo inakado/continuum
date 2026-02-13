@@ -1,287 +1,218 @@
 # VERTICAL-SLICE-VS-09.md
-Проект: **Континуум**  
-Слайс: **VS-09 Theory Render v1: LaTeX → PDF (tectonic) → Object Storage (MinIO/S3) → Preview in Web**  
-Назначение документа: дать агенту “картину целиком” по VS-09 — что и в каком порядке делаем, **без глубоких деталей реализации**, но с чёткими границами и stop-check.
+Проект: **CONTINUUM**  
+Слайс: **VS-09 Theory/Method PDF Pipeline**  
+Статус: **STEP 4 (override) реализован**
 
 ---
 
-## 0) Контекст и границы
+## 0) Цель VS-09
+Собрать рабочий контур:
 
-### Что уже есть в проекте (ожидаемо к моменту VS-09)
-- NestJS API (`apps/api`)
-- Next.js Web (`apps/web`)
-- MinIO в dev (через docker-compose) и env-конфиг для S3-совместимого хранилища
-- Сущность `Unit` уже содержит поля для теории/методики (как минимум ключи ассетов PDF)
-- Роли teacher/student, cookie-auth, RBAC, event log
+1. Teacher редактирует LaTeX в юните (Theory/Method).
+2. Компиляция PDF выполняется асинхронно через очередь и worker (tectonic).
+3. PDF загружается в объектное хранилище (MinIO dev / S3 prod) через общий storage слой.
+4. Ключ PDF сохраняется в `Unit`.
+5. Teacher/Student получают доступ к PDF через **presigned URL** (основной путь доставки).
 
-### Цель VS-09
-Сделать **рабочий end-to-end контур**:
-1) Учитель редактирует **полный LaTeX документ** (не “кусочки”) для Theory/Method.  
-2) Backend компилирует LaTeX в PDF с помощью **tectonic**.  
-3) PDF складывается в **объектное хранилище** (MinIO локально, S3 Beget в проде).  
-4) Web показывает **предпросмотр PDF** (без browser PDF viewer UI — через PDF.js canvas/text layer).
-
-### Вне scope (не делаем в VS-09)
-- Rich текст/версии “по страницам”, коллаборация, комментарии.
-- Расширенные права доступа (presigned URL, public bucket) — только если нужно минимально.
-- Миграция на фото-задачи/вложения — только подготовка storage-адаптера (см. ниже).
-- Сложный build-farm, очередь компиляций на воркере (можно, но только если реально необходимо для стабильности; baseline допускает sync/async минимально).
+Proxy-стрим остаётся только как debug/fallback путь, не как основной delivery path.
 
 ---
 
-## 1) Роли и UX-потоки
+## 1) Реализованный поток (текущее состояние)
 
-### Teacher (редактор)
-- Вкладки юнита: **Теория** / **Методика** (остальные вкладки не цель VS-09).
-- Для каждой вкладки:
-  - Поле редактора LaTeX (полный документ).
-  - Кнопки:
-    - **Сохранить**
-    - **Скомпилировать PDF**
-    - **Предпросмотр PDF**
-- Состояния UI:
-  - “Сохранено”
-  - “Компиляция…”
-  - “PDF обновлён (дата/время)”
-  - Ошибка компиляции (лог/вырезка)
+### 1.1 Teacher compile flow (основной)
+1. `POST /teacher/units/:id/latex/compile`  
+   - body: `{ target, tex, ttlSec? }`
+   - ответ: `202 { jobId }`
+2. API ставит job в BullMQ queue `latex.compile`, job name `unit_pdf_compile`.
+3. Worker:
+   - валидирует payload
+   - компилирует LaTeX через `tectonic`
+   - применяет fallback-слой совместимости (T2A/xcolor)
+   - загружает PDF в storage (`ContentType: application/pdf`)
+   - возвращает `assetKey` в результат job
+4. Teacher читает статус:
+   - `GET /teacher/latex/jobs/:jobId`
+   - статусы: `queued | running | succeeded | failed`
+5. После `succeeded`:
+   - `POST /teacher/latex/jobs/:jobId/apply`
+   - сервер сохраняет `assetKey` в `Unit.theoryPdfAssetKey` или `Unit.methodPdfAssetKey`.
 
-### Student (просмотр)
-- Student видит **только PDF**:
-  - Theory PDF
-  - Method PDF
-- Пока PDF не собран/не опубликован — показываем понятную заглушку “Материал ещё не опубликован”.
-
----
-
-## 2) Данные и модель Unit
-
-### Поля в Unit (минимум для VS-09)
-Для **Theory**:
-- `theoryRichLatex` (string | null) — исходник LaTeX
-- `theoryPdfAssetKey` (string | null) — ключ PDF в объектном хранилище
-
-Для **Method**:
-- `methodRichLatex` (string | null)
-- `methodPdfAssetKey` (string | null)
-
-Дополнительно (желательно, но не обязательно):
-- `theoryPdfUpdatedAt` / `methodPdfUpdatedAt` (timestamp | null) — чтобы UI показывал актуальность
-- `theoryCompileError` / `methodCompileError` (string | null) — кратко (не гигантские логи)
-
-Примечание: ревизии/история LaTeX в VS-09 не обязательны. Если уже есть EventLog — пишем событие “UnitTheoryPdfCompiled/Failed” и “UnitMethodPdfCompiled/Failed”.
+### 1.2 Teacher/Student preview flow
+- Presigned endpoints:
+  - `GET /teacher/units/:id/pdf-presign?target=...&ttlSec=...`
+  - `GET /units/:id/pdf-presign?target=...&ttlSec=...`
+- Web рендерит PDF через PDF.js canvas preview.
 
 ---
 
-## 3) Object Storage Adapter (shared) — ОБЯЗАТЕЛЬНО
+## 2) Access rules (STEP 4 hardening)
 
-### 3.1 Принцип: один адаптер на всё
-В проекте должен существовать **единый модуль object storage**, который инкапсулирует всю работу с S3-совместимым хранилищем.
+### 2.1 Teacher
+- Только роль `teacher`.
+- Для compile/presign/apply используется текущая проектная модель доступа:
+  - RBAC teacher
+  - unit должен существовать.
 
-- **Запрещено**: вызывать AWS SDK/MinIO SDK напрямую из контроллеров/доменных сервисов/воркеров.
-- **Разрешено**: использовать только `ObjectStorageService` (или `S3StorageService`) через DI.
+### 2.2 Student
+- Только роль `student`.
+- Доступ к presign только для доступных студенту юнитов (learning availability).
+- Если юнит locked:
+  - HTTP `409`
+  - `{ code: "UNIT_LOCKED", message: "Unit is locked" }`.
 
-Этот адаптер будет переиспользован в будущих слайсах:
-- PDF теории/методики (VS-09)
-- фото-задачи (VS-05)
-- вложения/ассеты/“кассеты” и т.д.
-
-### 3.2 Конфиг: MinIO dev и S3 Beget prod через env
-Переключение окружений — **только через env**, без изменения кода.
-
-Переменные окружения (пример):
-- `S3_ENDPOINT` (для MinIO обязателен; для S3 Beget тоже может быть endpoint)
-- `S3_REGION`
-- `S3_BUCKET`
-- `S3_ACCESS_KEY_ID`
-- `S3_SECRET_ACCESS_KEY`
-- `S3_FORCE_PATH_STYLE` (true для MinIO)
-- `S3_PUBLIC_BASE_URL` (опционально, если потребуется URL-строитель)
-
-### 3.3 API адаптера (минимальный, но универсальный)
-Адаптер обязан поддерживать минимум:
-- `putObject({ key, contentType, body, cacheControl? })`
-- `getObject({ key })` (stream/buffer)
-- `headObject({ key })` (exists/metadata)
-- `deleteObject({ key })`
-
-Опционально (не обязательно в VS-09):
-- `getPresignedGetUrl({ key, expiresInSec })`
-
-### 3.4 Key-naming: единый формат ключей
-Должен быть единый helper/функция построения ключей, чтобы дальше переиспользовать для любых ассетов:
-- `theory/unit/{unitId}/theory.pdf`
-- `method/unit/{unitId}/method.pdf`
-
-(Если захотите ревизии позже — добавим `v{n}`.)
+### 2.3 Утечки assetKey
+- Student не получает assetKey/URL для locked unit.
+- Проверка locked выполняется до выдачи presigned URL.
 
 ---
 
-## 4) Tectonic (LaTeX → PDF) — установка и запуск
+## 3) TTL policy (STEP 4)
 
-### 4.1 Требование
-- Компиляция LaTeX должна происходить **через tectonic**.
-- Компиляция запускается в backend (или worker), но результат всегда загружается в storage через `ObjectStorageService`.
+Единая policy для teacher/student presign:
 
-### 4.2 Установка tectonic (обязательный подпункт)
-Нужно добавить в проект **явную инструкцию и/или Docker provisioning**, чтобы tectonic реально присутствовал в окружении выполнения:
+- `student` default TTL: **180 сек**
+- `teacher` default TTL: **600 сек**
+- upper bound: **3600 сек**
 
-Варианты:
-- **A) В контейнере api/worker** (предпочтительно для воспроизводимости):
-  - добавить установку tectonic в Dockerfile (лучше в worker, но допускается api если нет worker pipeline)
-- **B) Локально на хосте** (нежелательно, но допустимо для dev):
-  - документируем установку через brew/apt и проверяем `tectonic --version`
+Ошибки policy:
 
-В любом случае должны быть stop-check команды, подтверждающие наличие tectonic.
-
-### 4.3 Политика компиляции (минимальная)
-- Вход: LaTeX string (полный документ)
-- Выход: PDF bytes + статус (ok/error)
-- При ошибке: вернуть учителю **короткий лог** (кусок stderr + строка/контекст), не гигабайты.
+- invalid ttl: `400 { code: "INVALID_TTL" }`
+- ttl выше лимита: `400 { code: "TTL_TOO_LARGE" }`
+- invalid target: `400 { code: "INVALID_PDF_TARGET" }`
 
 ---
 
-## 5) Backend API: команды и чтение PDF
+## 4) Key naming standard
 
-### 5.1 Teacher: сохранить LaTeX
-- `PATCH /teacher/units/:id`
-  - сохраняет `theoryRichLatex` / `methodRichLatex` (без компиляции)
+Стандарт ключей PDF юнита:
 
-### 5.2 Teacher: скомпилировать PDF
-Два отдельных действия (чётко):
-- `POST /teacher/units/:id/theory/compile`
-- `POST /teacher/units/:id/method/compile`
+- `units/<unitId>/theory/<timestamp>.pdf`
+- `units/<unitId>/method/<timestamp>.pdf`
 
-Поведение:
-- Берём соответствующий `*RichLatex`
-- Компилируем tectonic → PDF bytes
-- Загружаем PDF bytes в storage через `ObjectStorageService.putObject`
-- Обновляем `*PdfAssetKey` и `*PdfUpdatedAt`
-- Пишем событие в event log (успех/ошибка)
-
-Ответ API (минимально):
-- success: `{ assetKey, updatedAt }`
-- error: `{ code: "LATEX_COMPILE_FAILED", message, logSnippet }`
-
-### 5.3 Student/Web: получить PDF (без public bucket)
-Чтобы не делать бакет публичным, web получает PDF через backend-proxy:
-
-- `GET /units/:id/theory.pdf`
-- `GET /units/:id/method.pdf`
-
-RBAC:
-- Student должен иметь доступ к юниту по VS-04 (locked → запрет)
-- Teacher может смотреть всегда
-
-Реализация:
-- backend читает из storage `getObject(assetKey)` и стримит `application/pdf`
-- без browser viewer UI на фронте
-
-(В будущем можно заменить на presigned URL, но это не обязательно в VS-09.)
+Этот формат обязателен для worker compile pipeline и сохранения в `Unit`.
 
 ---
 
-## 6) Web: PDF preview (PDF.js)
+## 5) Storage contract
 
-### 6.1 Требование
-- Не использовать встроенный браузерный PDF viewer (никаких тулбаров/рамок).
-- Рендер PDF как часть страницы: PDF.js canvas + text layer, lazy-load страниц, масштаб под ширину контейнера.
+Используется общий `ObjectStorageService` в API.
 
-### 6.2 Teacher preview
-- Во вкладке “Теория/Методика”:
-  - кнопка “Предпросмотр PDF”
-  - если `assetKey` есть → показать PDF viewer
-  - если нет → заглушка “PDF ещё не собран”
-
-### 6.3 Student preview
-- Student видит только PDF (если assetKey есть).
-- Если нет — заглушка.
+Ключевые требования:
+- upload PDF с `ContentType: application/pdf`
+- presigned выдача с response content-type hint для корректного отображения PDF
+- MinIO/S3 конфигурируется через env (`S3_*`, `S3_PUBLIC_BASE_URL` для dev host rewrite кейса).
 
 ---
 
-## 7) Порядок разработки (backend-first, step-by-step)
+## 6) API contracts (актуальные)
 
-### Step 1 — ObjectStorageService (shared) + smoke-check
-- Реализовать единый адаптер.
-- Поднять MinIO в dev (если ещё не поднят).
-- Smoke:
-  - `putObject` → `headObject` → `getObject` (маленький файл) — успех.
+### 6.1 Compile enqueue
+`POST /teacher/units/:id/latex/compile`
 
-### Step 2 — Tectonic availability
-- Добавить установку tectonic (Dockerfile или documented host install).
-- Stop-check: `tectonic --version` в окружении выполнения.
+Request:
+```json
+{
+  "target": "theory",
+  "tex": "\\documentclass{article} ...",
+  "ttlSec": 600
+}
+```
 
-### Step 3 — Teacher compile endpoints
-- `POST /teacher/units/:id/theory/compile`
-- `POST /teacher/units/:id/method/compile`
-- Компиляция → upload → save assetKey → event log.
+Response `202`:
+```json
+{ "jobId": "12345" }
+```
 
-### Step 4 — Backend PDF proxy
-- `GET /units/:id/theory.pdf`
-- `GET /units/:id/method.pdf`
-- Проверка RBAC и unit доступности.
+### 6.2 Job status
+`GET /teacher/latex/jobs/:jobId?ttlSec=600`
 
-### Step 5 — Web PDF viewer (Teacher + Student)
-- PDF.js viewer компонент (реюз).
-- Teacher: preview + кнопки compile/save.
-- Student: только preview.
+Response:
+```json
+{
+  "jobId": "12345",
+  "status": "succeeded",
+  "assetKey": "units/<unitId>/theory/<timestamp>.pdf",
+  "presignedUrl": "https://..."
+}
+```
+
+failed:
+```json
+{
+  "jobId": "12345",
+  "status": "failed",
+  "error": {
+    "code": "LATEX_COMPILE_FAILED",
+    "message": "...",
+    "logSnippet": "..."
+  }
+}
+```
+
+### 6.3 Apply
+`POST /teacher/latex/jobs/:jobId/apply`
+
+Response:
+```json
+{
+  "ok": true,
+  "unitId": "<unitId>",
+  "target": "theory",
+  "assetKey": "units/<unitId>/theory/<timestamp>.pdf"
+}
+```
 
 ---
 
-## 8) Stop-check VS-09 (минимум, но железно)
+## 7) Frontend scope (минимальный)
 
-1) **Storage smoke**  
-   - кладём объект в MinIO через ObjectStorageService  
-   - читаем обратно байты → совпадают
+### Teacher
+- Вкладки Theory/Method внутри редактирования юнита.
+- Кнопка compile запускает enqueue + polling + apply.
+- После apply обновляется preview URL.
 
-2) **Tectonic доступен**  
-   - `tectonic --version` в том же окружении, где будет компиляция
-
-3) **Teacher compile**  
-   - teacher вводит валидный LaTeX → compile → получает `assetKey`  
-   - `GET /units/:id/theory.pdf` возвращает `200` и `application/pdf`
-
-4) **Student preview**  
-   - student открывает юнит → вкладка Theory → PDF рендерится  
-   - если юнит locked → доступ к `/units/:id/theory.pdf` запрещён (ожидаемая ошибка как в VS-04)
-
-5) **Ошибка компиляции**  
-   - teacher отправляет заведомо битый LaTeX → compile → `LATEX_COMPILE_FAILED` + `logSnippet`  
-   - ничего не загружается в storage, assetKey не обновляется
+### Student
+- Вкладки Theory/Method подтягивают PDF из S3 через student presign endpoint.
+- Прогресс-блоки на вкладках Theory/Method скрыты (чтобы освободить место для PDF).
 
 ---
 
-### 9) Future-proofing (сразу закладываем, но НЕ реализуем в VS-09)
+## 8) Техдолг (зафиксировано)
 
-### 9.1 Компиляция LaTeX через worker + очередь (позже)
-**Зачем:** компиляция PDF может быть тяжёлой/долгой; API не должен блокироваться на CPU/IO.
+1. **Worker pipeline evolution**
+   - добавить retry policy/attempt strategy, metrics, dead-letter handling.
+   - добавить cancellation/idempotency для повторных compile запросов.
 
-**Как закладываем сейчас (в VS-09):**
-- Вводим “use case”/сервис `TheoryRenderService` (или `UnitPdfRenderService`) с методом:
-  - `compileAndStore(unitId, kind: "theory"|"method") -> { assetKey, updatedAt }`
-- Контроллеры `POST /teacher/units/:id/{theory|method}/compile` вызывают этот сервис.
-- Внутри сервиса компиляция сейчас выполняется синхронно (baseline), но сервис проектируется так, чтобы потом заменить реализацию на:
-  - enqueue job в Redis/BullMQ,
-  - worker выполняет `compileAndStore`,
-  - API возвращает `202 Accepted` + jobId / или сразу “queued”.
+2. **Presigned policy (prod)**
+   - формализовать TTL/security policy по окружениям.
+   - ротация ключей/доп. ограничения для production S3.
 
-**Ограничение VS-09:** никаких очередей/джобов сейчас не добавляем, только правильные точки расширения.
+3. **LaTeX compatibility fallback layer**
+   - текущие fallback’и (font/T2A/xcolor/tikz) временные.
+   - нужен отдельный формальный compatibility profile + список поддерживаемых пакетов.
 
-### 9.2 Выдача PDF: proxy сейчас, presigned позже
-**Сейчас (VS-09):** выдаём PDF через backend-proxy эндпоинты:
-- `GET /units/:id/theory.pdf`
-- `GET /units/:id/method.pdf`
+4. **Observability**
+   - единый compile audit trail в event log + job diagnostics.
+   - структурированные метрики compile durations/fail rates.
 
-**Почему:** проще контроль доступа (RBAC + locked/available) и не нужно делать бакет публичным.
-
-**Как закладываем сейчас (в VS-09):**
-- В `ObjectStorageService` добавляем метод (может быть неиспользуемым сейчас):
-  - `getPresignedGetUrl(key, expiresInSec) -> url`
-- В коде выдачи PDF делаем стратегию (не обязательно внедрять сложный DI):
-  - `PDF_DELIVERY_MODE=proxy|presigned` (по умолчанию proxy)
-- Контракт фронта не должен зависеть от режима:
-  - либо фронт всегда ходит в `GET /units/:id/theory.pdf`,
-  - либо фронт получает `pdfUrl` из API (но тогда сейчас это будет proxy-url, а позже presigned-url).
-  
-**Ограничение VS-09:** presigned не включаем, только готовим интерфейс и env-переключатель.
 ---
+
+## 9) Stop-check (базовые проверки STEP 4)
+
+1. TTL upper bound:
+   - запрос `ttlSec=999999`
+   - ожидаем `400` + `TTL_TOO_LARGE`.
+2. Student locked unit:
+   - `GET /units/:id/pdf-presign?...`
+   - ожидаем `409` + `UNIT_LOCKED`.
+3. Worker lifecycle:
+   - enqueue -> queued/running -> succeeded/failed.
+4. Apply + naming:
+   - после apply ключ в `Unit` начинается с `units/<unitId>/<target>/`.
+5. Content-Type:
+   - `curl -I "<presignedUrl>"` содержит `application/pdf`.
+
+---
+
 END

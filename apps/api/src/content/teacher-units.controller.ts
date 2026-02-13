@@ -1,6 +1,5 @@
 import {
   Body,
-  BadRequestException,
   Controller,
   Delete,
   Get,
@@ -21,6 +20,7 @@ import { EventsLogService } from '../events/events-log.service';
 import { ObjectStorageService } from '../infra/storage/object-storage.service';
 import { ContentService } from './content.service';
 import { CreateUnitDto, UpdateUnitDto } from './dto/unit.dto';
+import { UnitPdfPolicyService } from './unit-pdf-policy.service';
 
 @Controller('teacher/units')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -30,6 +30,7 @@ export class TeacherUnitsController {
     private readonly contentService: ContentService,
     private readonly eventsLogService: EventsLogService,
     private readonly objectStorageService: ObjectStorageService,
+    private readonly unitPdfPolicyService: UnitPdfPolicyService,
   ) {}
 
   @Get(':id')
@@ -43,8 +44,8 @@ export class TeacherUnitsController {
     @Query('target') targetRaw: string | undefined,
     @Query('ttlSec') ttlRaw: string | undefined,
   ) {
-    const target = this.parseTarget(targetRaw);
-    const ttlSec = this.parseTtl(ttlRaw);
+    const target = this.unitPdfPolicyService.parseTargetOrThrow(targetRaw);
+    const ttlSec = this.unitPdfPolicyService.resolveTtlForRole(Role.teacher, ttlRaw);
     const key = await this.contentService.getUnitPdfAssetKey(id, target);
     if (!key) {
       return {
@@ -56,7 +57,7 @@ export class TeacherUnitsController {
       };
     }
 
-    const url = await this.objectStorageService.getPresignedGetUrl(key, ttlSec);
+    const url = await this.objectStorageService.getPresignedGetUrl(key, ttlSec, 'application/pdf');
     return {
       ok: true,
       target,
@@ -179,23 +180,5 @@ export class TeacherUnitsController {
       payload: { title: unit.title, status: unit.status, sectionId: unit.sectionId },
     });
     return unit;
-  }
-
-  private parseTarget(value: string | undefined): 'theory' | 'method' {
-    if (value === 'theory' || value === 'method') return value;
-    throw new BadRequestException('target must be one of: theory | method');
-  }
-
-  private parseTtl(raw: string | undefined): number {
-    if (raw === undefined || raw === null || raw === '') return 900;
-    const parsed = Number(raw);
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-      throw new BadRequestException('ttlSec must be a positive integer');
-    }
-    const ttl = Math.floor(parsed);
-    if (ttl > 86_400) {
-      throw new BadRequestException('ttlSec must be <= 86400');
-    }
-    return ttl;
   }
 }

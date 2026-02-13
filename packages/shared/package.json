@@ -2,13 +2,18 @@
   "name": "@continuum/shared",
   "private": true,
   "version": "0.0.0",
-  "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./storage-core": {
+      "types": "./dist/storage-core",
+      "require": "./dist/storage-core.js",
+      "default": "./dist/storage-core.js"
     }
   },
   "scripts": {

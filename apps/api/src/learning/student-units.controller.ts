@@ -1,9 +1,10 @@
-import { BadRequestException, Controller, Get, Param, Query, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, Req, UseGuards } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { UnitPdfPolicyService } from '../content/unit-pdf-policy.service';
 import { ObjectStorageService } from '../infra/storage/object-storage.service';
 import { LearningService } from './learning.service';
 
@@ -14,6 +15,7 @@ export class StudentUnitsController {
   constructor(
     private readonly learningService: LearningService,
     private readonly objectStorageService: ObjectStorageService,
+    private readonly unitPdfPolicyService: UnitPdfPolicyService,
   ) {}
 
   @Get(':id')
@@ -28,8 +30,8 @@ export class StudentUnitsController {
     @Query('target') targetRaw: string | undefined,
     @Query('ttlSec') ttlRaw: string | undefined,
   ) {
-    const target = this.parseTarget(targetRaw);
-    const ttlSec = this.parseTtl(ttlRaw);
+    const target = this.unitPdfPolicyService.parseTargetOrThrow(targetRaw);
+    const ttlSec = this.unitPdfPolicyService.resolveTtlForRole(Role.student, ttlRaw);
     const key = await this.learningService.getPublishedUnitPdfAssetKeyForStudent(req.user.id, id, target);
     if (!key) {
       return {
@@ -41,7 +43,7 @@ export class StudentUnitsController {
       };
     }
 
-    const url = await this.objectStorageService.getPresignedGetUrl(key, ttlSec);
+    const url = await this.objectStorageService.getPresignedGetUrl(key, ttlSec, 'application/pdf');
     return {
       ok: true,
       target,
@@ -49,23 +51,5 @@ export class StudentUnitsController {
       expiresInSec: ttlSec,
       url,
     };
-  }
-
-  private parseTarget(value: string | undefined): 'theory' | 'method' {
-    if (value === 'theory' || value === 'method') return value;
-    throw new BadRequestException('target must be one of: theory | method');
-  }
-
-  private parseTtl(raw: string | undefined): number {
-    if (raw === undefined || raw === null || raw === '') return 900;
-    const parsed = Number(raw);
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-      throw new BadRequestException('ttlSec must be a positive integer');
-    }
-    const ttl = Math.floor(parsed);
-    if (ttl > 86_400) {
-      throw new BadRequestException('ttlSec must be <= 86400');
-    }
-    return ttl;
   }
 }

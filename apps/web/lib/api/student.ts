@@ -178,7 +178,7 @@ export const studentApi = {
     return apiRequest<UnitWithTasks>(`/units/${id}`);
   },
 
-  getUnitPdfPresignedUrl(id: string, target: "theory" | "method", ttlSec = 900) {
+  getUnitPdfPresignedUrl(id: string, target: "theory" | "method", ttlSec = 180) {
     const search = new URLSearchParams({ target, ttlSec: String(ttlSec) });
     return apiRequest<UnitPdfPresignedResponse>(`/units/${id}/pdf-presign?${search.toString()}`);
   },
