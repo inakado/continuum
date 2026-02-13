@@ -134,6 +134,14 @@ export type LoginResponse = {
   user: { id: string; login: string; role: string };
 };
 
+export type UnitPdfPresignedResponse = {
+  ok: boolean;
+  target: "theory" | "method";
+  key: string | null;
+  expiresInSec: number;
+  url: string | null;
+};
+
 export const studentApi = {
   login(login: string, password: string) {
     return apiRequest<LoginResponse>("/auth/login", {
@@ -168,6 +176,11 @@ export const studentApi = {
 
   getUnit(id: string) {
     return apiRequest<UnitWithTasks>(`/units/${id}`);
+  },
+
+  getUnitPdfPresignedUrl(id: string, target: "theory" | "method", ttlSec = 900) {
+    const search = new URLSearchParams({ target, ttlSec: String(ttlSec) });
+    return apiRequest<UnitPdfPresignedResponse>(`/units/${id}/pdf-presign?${search.toString()}`);
   },
 
   submitAttempt(taskId: string, body: AttemptRequest) {

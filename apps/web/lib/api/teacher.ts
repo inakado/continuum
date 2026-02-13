@@ -223,6 +223,22 @@ export type LoginResponse = {
   user: { id: string; login: string; role: string };
 };
 
+export type LatexCompileAndUploadResponse = {
+  key: string;
+  sizeBytes: number;
+  presignedUrl: string;
+  etag?: string;
+  compileLogSnippet?: string;
+};
+
+export type UnitPdfPresignedResponse = {
+  ok: true;
+  target: "theory" | "method";
+  key: string | null;
+  expiresInSec: number;
+  url: string | null;
+};
+
 export const teacherApi = {
   login(login: string, password: string) {
     return apiRequest<LoginResponse>("/auth/login", {
@@ -310,12 +326,26 @@ export const teacherApi = {
       sortOrder?: number;
       minOptionalCountedTasksToComplete?: number;
       theoryRichLatex?: string | null;
+      theoryPdfAssetKey?: string | null;
       methodRichLatex?: string | null;
+      methodPdfAssetKey?: string | null;
       videosJson?: UnitVideo[] | null;
       attachmentsJson?: UnitAttachment[] | null;
     },
   ) {
     return apiRequest<Unit>(`/teacher/units/${id}`, { method: "PATCH", body: data });
+  },
+
+  getUnitPdfPresignedUrl(
+    id: string,
+    target: "theory" | "method",
+    ttlSec = 900,
+  ) {
+    const search = new URLSearchParams({
+      target,
+      ttlSec: String(ttlSec),
+    });
+    return apiRequest<UnitPdfPresignedResponse>(`/teacher/units/${id}/pdf-presign?${search.toString()}`);
   },
 
   publishUnit(id: string) {
@@ -483,5 +513,12 @@ export const teacherApi = {
     if (params?.entityId) search.set("entityId", params.entityId);
     const suffix = search.toString();
     return apiRequest<EventsResponse>(`/teacher/events${suffix ? `?${suffix}` : ""}`);
+  },
+
+  compileAndUploadLatex(data: { tex: string; target?: "theory" | "method"; ttlSec?: number }) {
+    return apiRequest<LatexCompileAndUploadResponse>("/teacher/debug/latex/compile-and-upload", {
+      method: "POST",
+      body: data,
+    });
   },
 };

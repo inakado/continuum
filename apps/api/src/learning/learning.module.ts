@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { ContentModule } from '../content/content.module';
 import { EventsLogModule } from '../events/events.module';
+import { ObjectStorageModule } from '../infra/storage/object-storage.module';
 import { LearningAvailabilityService } from './learning-availability.service';
 import { LearningService } from './learning.service';
 import { StudentAttemptsController } from './student-attempts.controller';
@@ -12,7 +13,7 @@ import { TeacherStudentUnitPreviewController } from './teacher-student-unit-prev
 import { TeacherTaskCreditController } from './teacher-task-credit.controller';
 
 @Module({
-  imports: [AuthModule, ContentModule, EventsLogModule],
+  imports: [AuthModule, ContentModule, EventsLogModule, ObjectStorageModule],
   controllers: [
     StudentAttemptsController,
     StudentSectionGraphController,

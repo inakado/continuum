@@ -94,7 +94,7 @@
   --sidebar-width: 72px;
   --sidebar-pad-x: 12px;
   --sidebar-pad-y: 14px;
-  --sidebar-motion-duration: 0.9s;
+  --sidebar-motion-duration: 0.6s;
   --sidebar-motion-delay: 0s;
   --sidebar-motion-ease: cubic-bezier(0.16, 1, 0.3, 1);
   --sidebar-squeeze: 0.96;

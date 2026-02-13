@@ -436,8 +436,14 @@ export class ContentService {
     if (dto.theoryRichLatex !== undefined) {
       data.theoryRichLatex = this.sanitizeRichText(dto.theoryRichLatex);
     }
+    if (dto.theoryPdfAssetKey !== undefined) {
+      data.theoryPdfAssetKey = this.normalizeAssetKey(dto.theoryPdfAssetKey);
+    }
     if (dto.methodRichLatex !== undefined) {
       data.methodRichLatex = this.sanitizeRichText(dto.methodRichLatex);
+    }
+    if (dto.methodPdfAssetKey !== undefined) {
+      data.methodPdfAssetKey = this.normalizeAssetKey(dto.methodPdfAssetKey);
     }
     if (dto.videosJson !== undefined) {
       const videos = this.validateVideosJson(dto.videosJson);
@@ -518,6 +524,19 @@ export class ContentService {
       where: { id },
       data: { status: ContentStatus.published },
     });
+  }
+
+  async getUnitPdfAssetKey(id: string, target: 'theory' | 'method') {
+    const unit = await this.prisma.unit.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        theoryPdfAssetKey: true,
+        methodPdfAssetKey: true,
+      },
+    });
+    if (!unit) throw new NotFoundException('Unit not found');
+    return target === 'theory' ? unit.theoryPdfAssetKey : unit.methodPdfAssetKey;
   }
 
   async unpublishUnit(id: string) {
@@ -932,6 +951,12 @@ export class ContentService {
     // Keep a generous limit; autosave should never allow unbounded payloads.
     if (trimmed.length > 200_000) throw new BadRequestException('InvalidRichText');
     return trimmed.length === 0 ? null : trimmed;
+  }
+
+  private normalizeAssetKey(value: string | null): string | null {
+    if (value === null) return null;
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
   }
 
   private sanitizeOptionalTitle(value: string | null | undefined): string | null {

@@ -11,7 +11,9 @@ export class UpdateUnitDto {
   minOptionalCountedTasksToComplete?: number;
   requiredTaskIds?: string[];
   theoryRichLatex?: string | null;
+  theoryPdfAssetKey?: string | null;
   methodRichLatex?: string | null;
+  methodPdfAssetKey?: string | null;
   videosJson?: unknown;
   attachmentsJson?: unknown;
 }

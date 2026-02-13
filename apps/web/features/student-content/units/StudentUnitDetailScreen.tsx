@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { studentApi, UnitWithTasks, AttemptRequest } from "@/lib/api/student";
 import { getStudentErrorMessage } from "../shared/student-errors";
@@ -21,6 +22,40 @@ type Props = {
 };
 
 type TabKey = "theory" | "method" | "tasks" | "video" | "attachments";
+const PDF_ZOOM_MIN = 0.5;
+const PDF_ZOOM_MAX = 1.4;
+const PDF_ZOOM_STEP = 0.1;
+const PDF_ZOOM_DEFAULT = 0.8;
+const PdfCanvasPreview = dynamic(() => import("@/components/PdfCanvasPreview"), {
+  ssr: false,
+  loading: () => <div className={styles.stub}>Загрузка PDF...</div>,
+});
+
+const formatRemainingDuration = (remainingMs: number) => {
+  const totalSeconds = Math.ceil(Math.max(0, remainingMs) / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes <= 0) return `${seconds}с`;
+  if (seconds === 0) return `${minutes}м`;
+  return `${minutes}м ${seconds}с`;
+};
+
+function BlockedCountdown({ blockedUntilIso }: { blockedUntilIso: string }) {
+  const blockedUntilMs = useMemo(() => new Date(blockedUntilIso).getTime(), [blockedUntilIso]);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!Number.isFinite(blockedUntilMs)) return;
+    const intervalId = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+    return () => window.clearInterval(intervalId);
+  }, [blockedUntilMs]);
+
+  const remainingMs = blockedUntilMs - nowMs;
+  if (remainingMs <= 0) return null;
+  return <span className={styles.blockedInline}>Блокировка: {formatRemainingDuration(remainingMs)}</span>;
+}
 
 export default function StudentUnitDetailScreen({ unitId }: Props) {
   const tabsId = useId();
@@ -42,6 +77,26 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
     Record<string, { partKey: string; correct: boolean }[] | null>
   >({});
   const [attemptFlash, setAttemptFlash] = useState<Record<string, "incorrect" | null>>({});
+  const [previewUrls, setPreviewUrls] = useState<Record<"theory" | "method", string | null>>({
+    theory: null,
+    method: null,
+  });
+  const [previewLoadingByTarget, setPreviewLoadingByTarget] = useState<
+    Record<"theory" | "method", boolean>
+  >({
+    theory: false,
+    method: false,
+  });
+  const [previewErrorByTarget, setPreviewErrorByTarget] = useState<
+    Record<"theory" | "method", string | null>
+  >({
+    theory: null,
+    method: null,
+  });
+  const [pdfZoomByTarget, setPdfZoomByTarget] = useState<Record<"theory" | "method", number>>({
+    theory: PDF_ZOOM_DEFAULT,
+    method: PDF_ZOOM_DEFAULT,
+  });
   const flashTimeoutsRef = useRef<Record<string, number>>({});
 
   const fetchUnit = useCallback(async () => {
@@ -68,6 +123,60 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
   useEffect(() => {
     fetchUnit();
   }, [fetchUnit]);
+
+  useEffect(() => {
+    let disposed = false;
+    const loadPreviewUrls = async () => {
+      if (!unit?.id) {
+        setPreviewUrls({ theory: null, method: null });
+        setPreviewLoadingByTarget({ theory: false, method: false });
+        setPreviewErrorByTarget({ theory: null, method: null });
+        return;
+      }
+
+      const keyByTarget: Record<"theory" | "method", string | null | undefined> = {
+        theory: unit.theoryPdfAssetKey,
+        method: unit.methodPdfAssetKey,
+      };
+      setPreviewLoadingByTarget({
+        theory: Boolean(keyByTarget.theory),
+        method: Boolean(keyByTarget.method),
+      });
+      setPreviewErrorByTarget({ theory: null, method: null });
+
+      const targets = ["theory", "method"] as const;
+      const entries = await Promise.all(
+        targets.map(async (target) => {
+          const key = keyByTarget[target];
+          if (!key) return [target, null, null] as const;
+          try {
+            const response = await studentApi.getUnitPdfPresignedUrl(unit.id, target, 900);
+            return [target, response.url, null] as const;
+          } catch (err) {
+            return [target, null, getStudentErrorMessage(err)] as const;
+          }
+        }),
+      );
+
+      if (disposed) return;
+
+      const nextUrls: Record<"theory" | "method", string | null> = { theory: null, method: null };
+      const nextErrors: Record<"theory" | "method", string | null> = { theory: null, method: null };
+      for (const [target, url, previewError] of entries) {
+        nextUrls[target] = url;
+        nextErrors[target] = previewError;
+      }
+
+      setPreviewUrls(nextUrls);
+      setPreviewErrorByTarget(nextErrors);
+      setPreviewLoadingByTarget({ theory: false, method: false });
+    };
+
+    loadPreviewUrls();
+    return () => {
+      disposed = true;
+    };
+  }, [unit?.id, unit?.methodPdfAssetKey, unit?.theoryPdfAssetKey]);
 
   useEffect(() => {
     return () => {
@@ -223,18 +332,12 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
     [activeTaskIndex, orderedTasks],
   );
 
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    if (!activeTask?.state?.blockedUntil) return;
-    const id = window.setInterval(() => setNow(new Date()), 1000);
-    return () => window.clearInterval(id);
-  }, [activeTask?.state?.blockedUntil]);
-
   const activeState = activeTask?.state;
   const wrongAttempts = activeState?.wrongAttempts ?? 0;
   const attemptsLeft = Math.max(0, 6 - wrongAttempts);
-  const blockedUntil = activeState?.blockedUntil ? new Date(activeState.blockedUntil) : null;
-  const isBlocked = Boolean(blockedUntil && blockedUntil > now);
+  const blockedUntilIso = activeState?.blockedUntil ?? null;
+  const blockedUntilMs = blockedUntilIso ? new Date(blockedUntilIso).getTime() : null;
+  const [isBlocked, setIsBlocked] = useState(false);
   const isTaskCredited = isCreditedStatus(activeState?.status ?? "not_started");
   const isChoiceTask =
     activeTask?.answerType === "single_choice" || activeTask?.answerType === "multi_choice";
@@ -272,15 +375,22 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
     }
   }, [activeTask, isTaskCredited]);
 
-  const formatRemaining = useCallback((target: Date) => {
-    const diff = Math.max(0, target.getTime() - Date.now());
-    const totalSeconds = Math.ceil(diff / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    if (minutes <= 0) return `${seconds}с`;
-    if (seconds === 0) return `${minutes}м`;
-    return `${minutes}м ${seconds}с`;
-  }, []);
+  useEffect(() => {
+    if (!blockedUntilMs || !Number.isFinite(blockedUntilMs)) {
+      setIsBlocked(false);
+      return;
+    }
+    const remainingMs = blockedUntilMs - Date.now();
+    if (remainingMs <= 0) {
+      setIsBlocked(false);
+      return;
+    }
+    setIsBlocked(true);
+    const timeoutId = window.setTimeout(() => {
+      setIsBlocked(false);
+    }, remainingMs + 100);
+    return () => window.clearTimeout(timeoutId);
+  }, [blockedUntilMs, activeTask?.id]);
 
   const attemptPerPartResults = useMemo(() => {
     if (!activeTask) return null;
@@ -322,6 +432,11 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
     }
     return items;
   }, [activeTask?.id, activeTask?.choicesJson]);
+
+  const setPdfZoom = useCallback((target: "theory" | "method", zoom: number) => {
+    const clamped = Math.max(PDF_ZOOM_MIN, Math.min(PDF_ZOOM_MAX, zoom));
+    setPdfZoomByTarget((prev) => ({ ...prev, [target]: clamped }));
+  }, []);
 
   const isAttemptDisabled = useMemo(() => {
     if (!activeTask) return true;
@@ -442,7 +557,7 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
           </section>
         ) : (
           <>
-            {unit ? (
+            {unit && activeTab !== "theory" && activeTab !== "method" ? (
               <section className={styles.progressCard} aria-label="Прогресс юнита">
                 <div className={styles.progressTop}>
                   <div>
@@ -505,9 +620,111 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
 
             <div id={activePanelId} role="tabpanel" aria-labelledby={activeTabId}>
               {activeTab === "theory" ? (
-                <div className={styles.stub}>PDF будет показан здесь после сборки и публикации учителем.</div>
+                <div className={styles.pdfPanel}>
+                  {previewErrorByTarget.theory ? (
+                    <div className={styles.previewError} role="status" aria-live="polite">
+                      {previewErrorByTarget.theory}
+                    </div>
+                  ) : null}
+                  <div className={styles.pdfToolbar}>
+                    <span className={styles.pdfToolbarLabel}>Масштаб</span>
+                    <span className={styles.pdfZoomGroup}>
+                      <button
+                        type="button"
+                        className={styles.pdfZoomButton}
+                        onClick={() => setPdfZoom("theory", pdfZoomByTarget.theory - PDF_ZOOM_STEP)}
+                        disabled={pdfZoomByTarget.theory <= PDF_ZOOM_MIN}
+                      >
+                        −
+                      </button>
+                      <span className={styles.pdfZoomValue}>{Math.round(pdfZoomByTarget.theory * 100)}%</span>
+                      <button
+                        type="button"
+                        className={styles.pdfZoomButton}
+                        onClick={() => setPdfZoom("theory", pdfZoomByTarget.theory + PDF_ZOOM_STEP)}
+                        disabled={pdfZoomByTarget.theory >= PDF_ZOOM_MAX}
+                      >
+                        +
+                      </button>
+                    </span>
+                    <button
+                      type="button"
+                      className={styles.pdfZoomReset}
+                      onClick={() => setPdfZoom("theory", PDF_ZOOM_DEFAULT)}
+                    >
+                      100%
+                    </button>
+                  </div>
+                  <div className={styles.pdfViewport}>
+                    {previewUrls.theory ? (
+                      <PdfCanvasPreview
+                        className={styles.pdfFrame}
+                        url={previewUrls.theory}
+                        zoom={pdfZoomByTarget.theory}
+                        scrollFeel="inertial-heavy"
+                      />
+                    ) : (
+                      <div className={styles.stub}>
+                        {previewLoadingByTarget.theory
+                          ? "Загрузка PDF..."
+                          : "PDF теории пока не опубликован учителем."}
+                      </div>
+                    )}
+                  </div>
+                </div>
               ) : activeTab === "method" ? (
-                <div className={styles.stub}>PDF будет показан здесь после сборки и публикации учителем.</div>
+                <div className={styles.pdfPanel}>
+                  {previewErrorByTarget.method ? (
+                    <div className={styles.previewError} role="status" aria-live="polite">
+                      {previewErrorByTarget.method}
+                    </div>
+                  ) : null}
+                  <div className={styles.pdfToolbar}>
+                    <span className={styles.pdfToolbarLabel}>Масштаб</span>
+                    <span className={styles.pdfZoomGroup}>
+                      <button
+                        type="button"
+                        className={styles.pdfZoomButton}
+                        onClick={() => setPdfZoom("method", pdfZoomByTarget.method - PDF_ZOOM_STEP)}
+                        disabled={pdfZoomByTarget.method <= PDF_ZOOM_MIN}
+                      >
+                        −
+                      </button>
+                      <span className={styles.pdfZoomValue}>{Math.round(pdfZoomByTarget.method * 100)}%</span>
+                      <button
+                        type="button"
+                        className={styles.pdfZoomButton}
+                        onClick={() => setPdfZoom("method", pdfZoomByTarget.method + PDF_ZOOM_STEP)}
+                        disabled={pdfZoomByTarget.method >= PDF_ZOOM_MAX}
+                      >
+                        +
+                      </button>
+                    </span>
+                    <button
+                      type="button"
+                      className={styles.pdfZoomReset}
+                      onClick={() => setPdfZoom("method", PDF_ZOOM_DEFAULT)}
+                    >
+                      100%
+                    </button>
+                  </div>
+                  <div className={styles.pdfViewport}>
+                    {previewUrls.method ? (
+                      <PdfCanvasPreview
+                        className={styles.pdfFrame}
+                        url={previewUrls.method}
+                        zoom={pdfZoomByTarget.method}
+                        scrollFeel="inertial-heavy"
+                      />
+                    ) : (
+                      <div className={styles.stub}>
+                        {previewLoadingByTarget.method
+                          ? "Загрузка PDF..."
+                          : "PDF методики пока не опубликован учителем."}
+                      </div>
+                    )}
+                  </div>
+                </div>
               ) : activeTab === "video" ? (
                 <div className={styles.videoList}>
                   {videos.length === 0 ? (
@@ -696,10 +913,8 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
                         {!isTaskCredited && showIncorrectBadge ? (
                           <span className={styles.taskResultIncorrect}>Неверно</span>
                         ) : null}
-                        {isBlocked && blockedUntil ? (
-                          <span className={styles.blockedInline}>
-                            Блокировка: {formatRemaining(blockedUntil)}
-                          </span>
+                        {isBlocked && blockedUntilIso ? (
+                          <BlockedCountdown blockedUntilIso={blockedUntilIso} />
                         ) : null}
                         {isTaskCredited && activeTaskIndex < orderedTasks.length - 1 ? (
                           <Button

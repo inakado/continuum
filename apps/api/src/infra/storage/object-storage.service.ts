@@ -54,6 +54,7 @@ type KnownStorageError = {
 @Injectable()
 export class ObjectStorageService {
   private readonly s3: S3Client;
+  private readonly presignS3: S3Client | null;
   private ensureBucketPromise: Promise<void> | null = null;
 
   constructor(
@@ -74,6 +75,23 @@ export class ObjectStorageService {
       }),
       maxAttempts: 2,
     });
+
+    this.presignS3 = config.publicBaseUrl
+      ? new S3Client({
+          region: config.region,
+          endpoint: config.publicBaseUrl,
+          forcePathStyle: config.forcePathStyle,
+          credentials: {
+            accessKeyId: config.accessKeyId,
+            secretAccessKey: config.secretAccessKey,
+          },
+          requestHandler: new NodeHttpHandler({
+            connectionTimeout: config.connectionTimeoutMs,
+            socketTimeout: config.socketTimeoutMs,
+          }),
+          maxAttempts: 2,
+        })
+      : null;
   }
 
   get bucketName(): string {
@@ -166,15 +184,16 @@ export class ObjectStorageService {
 
   async getPresignedGetUrl(key: string, ttlSec = 300): Promise<string> {
     try {
+      const presignClient = this.presignS3 || this.s3;
       const url = await getSignedUrl(
-        this.s3,
+        presignClient,
         new GetObjectCommand({
           Bucket: this.config.bucket,
           Key: key,
         }),
         { expiresIn: ttlSec },
       );
-      return this.rewritePresignedUrl(url);
+      return url;
     } catch (error) {
       throw this.wrapStorageError(error, 'failed to generate presigned URL');
     }
@@ -249,21 +268,6 @@ export class ObjectStorageService {
     }
 
     throw new InternalServerErrorException('Storage returned an unsupported stream body');
-  }
-
-  private rewritePresignedUrl(url: string): string {
-    if (!this.config.publicBaseUrl) return url;
-
-    const source = new URL(url);
-    const target = new URL(this.config.publicBaseUrl);
-    source.protocol = target.protocol;
-    source.host = target.host;
-
-    const basePath = target.pathname === '/' ? '' : target.pathname.replace(/\/+$/, '');
-    if (basePath) {
-      source.pathname = `${basePath}${source.pathname}`;
-    }
-    return source.toString();
   }
 
   private wrapStorageError(error: unknown, action: string): InternalServerErrorException {

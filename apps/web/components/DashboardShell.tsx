@@ -34,8 +34,8 @@ const SIDEBAR_DIMENSIONS = {
   },
 };
 
-const OPEN_DURATION = 0.9;
-const CLOSE_DURATION = 0.9;
+const OPEN_DURATION = 0.6;
+const CLOSE_DURATION = 0.6;
 const OPEN_EASING: [number, number, number, number] = [0.16, 1, 0.3, 1];
 const CLOSE_EASING: [number, number, number, number] = [0.33, 0, 0.67, 1];
 const OPEN_EASING_BEZIER = "cubic-bezier(0.16, 1, 0.3, 1)";

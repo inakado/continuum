@@ -182,6 +182,15 @@ export class LearningService {
     };
   }
 
+  async getPublishedUnitPdfAssetKeyForStudent(
+    studentId: string,
+    unitId: string,
+    target: 'theory' | 'method',
+  ) {
+    const unit = await this.getPublishedUnitForStudent(studentId, unitId);
+    return target === 'theory' ? unit.theoryPdfAssetKey : unit.methodPdfAssetKey;
+  }
+
   async submitAttempt(studentId: string, taskId: string, body: unknown) {
     const task = await this.prisma.task.findFirst({
       where: {

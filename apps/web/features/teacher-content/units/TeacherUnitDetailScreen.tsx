@@ -1,6 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type ComponentProps } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ComponentProps,
+} from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import DashboardShell from "@/components/DashboardShell";
@@ -29,12 +39,20 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { EditorView } from "@codemirror/view";
+import { StreamLanguage } from "@codemirror/language";
+import { stex } from "@codemirror/legacy-modes/mode/stex";
 import LiteTex from "@/components/LiteTex";
 type CodeMirrorProps = ComponentProps<typeof import("@uiw/react-codemirror").default>;
+type PdfCanvasPreviewProps = ComponentProps<typeof import("@/components/PdfCanvasPreview").default>;
 
 const CodeMirror = dynamic<CodeMirrorProps>(() => import("@uiw/react-codemirror"), {
   ssr: false,
   loading: () => <div className={styles.editorLoading}>Загрузка редактора…</div>,
+});
+const PdfCanvasPreview = dynamic<PdfCanvasPreviewProps>(() => import("@/components/PdfCanvasPreview"), {
+  ssr: false,
+  loading: () => <div className={styles.previewStub}>Загрузка PDF...</div>,
 });
 
 type Props = {
@@ -55,6 +73,13 @@ type ProgressSaveState =
   | { state: "saved"; at: number }
   | { state: "error"; message: string };
 
+type CompileState = {
+  loading: boolean;
+  error: string | null;
+  updatedAt: number | null;
+  key: string | null;
+};
+
 const AUTOSAVE_DEBOUNCE_MS = 1000;
 
 const answerTypeLabels: Record<TaskFormData["answerType"], string> = {
@@ -69,6 +94,10 @@ const buildSnapshot = (theory: string, method: string, videos: UnitVideo[]) => (
   method,
   videos: JSON.stringify(videos),
 });
+
+const buildPdfPreviewSrc = (url: string): string => {
+  return url;
+};
 
 const sortTasks = (tasks: Task[]) =>
   [...tasks].sort((a, b) => {
@@ -93,7 +122,12 @@ type SortableTaskCardProps = {
   onDelete: (task: Task) => void;
 };
 
-function SortableTaskCard({ task, index, onEdit, onDelete }: SortableTaskCardProps) {
+const SortableTaskCard = memo(function SortableTaskCard({
+  task,
+  index,
+  onEdit,
+  onDelete,
+}: SortableTaskCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
   });
@@ -132,7 +166,9 @@ function SortableTaskCard({ task, index, onEdit, onDelete }: SortableTaskCardPro
       </div>
     </div>
   );
-}
+});
+
+SortableTaskCard.displayName = "SortableTaskCard";
 
 const buildTaskPayload = (data: TaskFormData) => {
   const base = {
@@ -208,10 +244,21 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
   const [taskOrder, setTaskOrder] = useState<Task[]>([]);
   const [taskOrderStatus, setTaskOrderStatus] = useState<string | null>(null);
   const optionalMinInputRef = useRef<HTMLInputElement | null>(null);
+  const [previewUrls, setPreviewUrls] = useState<Record<"theory" | "method", string | null>>({
+    theory: null,
+    method: null,
+  });
+  const [previewWidthPercent, setPreviewWidthPercent] = useState(38);
+  const [isResizingLayout, setIsResizingLayout] = useState(false);
+  const [compileState, setCompileState] = useState<Record<"theory" | "method", CompileState>>({
+    theory: { loading: false, error: null, updatedAt: null, key: null },
+    method: { loading: false, error: null, updatedAt: null, key: null },
+  });
 
   const snapshotRef = useRef<ReturnType<typeof buildSnapshot> | null>(null);
   const timerRef = useRef<number | null>(null);
   const inflightRef = useRef(0);
+  const editorGridRef = useRef<HTMLDivElement | null>(null);
 
   const navItems = useMemo(
     () => [
@@ -257,10 +304,34 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
     return { sortOrder: nextTaskOrder };
   }, [editingTask?.id, nextTaskOrder]);
 
+  const hydratePdfPreviews = useCallback(async (nextUnit: UnitWithTasks) => {
+    const targets = ["theory", "method"] as const;
+    const entries = await Promise.all(
+      targets.map(async (target) => {
+        const key = target === "theory" ? nextUnit.theoryPdfAssetKey : nextUnit.methodPdfAssetKey;
+        if (!key) return [target, null] as const;
+        try {
+          const response = await teacherApi.getUnitPdfPresignedUrl(nextUnit.id, target, 900);
+          return [target, response.url ? buildPdfPreviewSrc(response.url) : null] as const;
+        } catch {
+          return [target, null] as const;
+        }
+      }),
+    );
+
+    const nextPreviewUrls: Record<"theory" | "method", string | null> = {
+      theory: null,
+      method: null,
+    };
+    for (const [target, url] of entries) nextPreviewUrls[target] = url;
+    return nextPreviewUrls;
+  }, []);
+
   const fetchUnit = useCallback(async () => {
     setError(null);
     try {
       const data = await teacherApi.getUnit(unitId);
+      const previewByTarget = await hydratePdfPreviews(data);
       setUnit(data);
 
       const nextTheory = data.theoryRichLatex ?? "";
@@ -272,6 +343,21 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
       setVideos(nextVideos);
       snapshotRef.current = buildSnapshot(nextTheory, nextMethod, nextVideos);
       setSaveState({ state: "idle" });
+      setPreviewUrls(previewByTarget);
+      setCompileState({
+        theory: {
+          loading: false,
+          error: null,
+          updatedAt: null,
+          key: data.theoryPdfAssetKey ?? null,
+        },
+        method: {
+          loading: false,
+          error: null,
+          updatedAt: null,
+          key: data.methodPdfAssetKey ?? null,
+        },
+      });
       setTaskOrder(sortTasks(data.tasks));
       setTaskOrderStatus(null);
       setMinCountedInput(String(data.minOptionalCountedTasksToComplete ?? 0));
@@ -280,11 +366,16 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
     } catch (err) {
       setError(getApiErrorMessage(err));
     }
-  }, [unitId]);
+  }, [hydratePdfPreviews, unitId]);
 
   useEffect(() => {
     fetchUnit();
   }, [fetchUnit]);
+
+  const latexExtensions = useMemo(
+    () => [StreamLanguage.define(stex), EditorView.lineWrapping],
+    [],
+  );
 
   const scheduleAutosave = useCallback(() => {
     if (!unit) return;
@@ -320,11 +411,18 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
         const updated = await teacherApi.updateUnit(unit.id, payload);
         if (requestId !== inflightRef.current) return;
 
-        setUnit((prev) => (prev ? { ...prev, ...updated } : prev));
-        const mergedTheory = updated.theoryRichLatex ?? theoryText;
-        const mergedMethod = updated.methodRichLatex ?? methodText;
-        const mergedVideos = updated.videosJson ?? videos;
-        snapshotRef.current = buildSnapshot(mergedTheory, mergedMethod, mergedVideos);
+        setUnit((prev) =>
+          prev
+            ? {
+                ...prev,
+                ...updated,
+                ...(changedTheory ? { theoryRichLatex: theoryText } : null),
+                ...(changedMethod ? { methodRichLatex: methodText } : null),
+                ...(changedVideos ? { videosJson: videos } : null),
+              }
+            : prev,
+        );
+        snapshotRef.current = next;
         setSaveState({ state: "saved", at: Date.now() });
       } catch (err) {
         if (requestId !== inflightRef.current) return;
@@ -414,7 +512,7 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
     }
   }, [unit]);
 
-  const handleTaskDelete = async (task: Task) => {
+  const handleTaskDelete = useCallback(async (task: Task) => {
     const confirmed = window.confirm("Удалить задачу? Действие нельзя отменить.");
     if (!confirmed) return;
     setError(null);
@@ -424,7 +522,12 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
     } catch (err) {
       setError(getApiErrorMessage(err));
     }
-  };
+  }, [fetchUnit]);
+
+  const handleTaskEdit = useCallback((selected: Task) => {
+    setEditingTask(selected);
+    setCreatingTask(false);
+  }, []);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
@@ -511,6 +614,139 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
 
   const activePanelId = `${tabsId}-${activeTab}-panel`;
   const activeTabId = `${tabsId}-${activeTab}`;
+  const minPreviewWidthPercent = 25;
+  const maxPreviewWidthPercent = 60;
+  const clampPreviewWidth = useCallback(
+    (value: number) =>
+      Math.min(maxPreviewWidthPercent, Math.max(minPreviewWidthPercent, Math.round(value))),
+    [],
+  );
+  const editorGridStyle = useMemo(
+    () =>
+      ({
+        "--editor-fr": `${100 - previewWidthPercent}fr`,
+        "--preview-fr": `${previewWidthPercent}fr`,
+        "--splitter-left": `${100 - previewWidthPercent}%`,
+      }) as CSSProperties,
+    [previewWidthPercent],
+  );
+
+  const updateLayoutRatioFromPointer = useCallback(
+    (clientX: number) => {
+      const grid = editorGridRef.current;
+      if (!grid) return;
+
+      const rect = grid.getBoundingClientRect();
+      if (rect.width <= 0) return;
+
+      const pointerOffset = clientX - rect.left;
+      const nextPreviewPercent = ((rect.width - pointerOffset) / rect.width) * 100;
+      setPreviewWidthPercent(clampPreviewWidth(nextPreviewPercent));
+    },
+    [clampPreviewWidth],
+  );
+
+  const handleSplitterPointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      setIsResizingLayout(true);
+      updateLayoutRatioFromPointer(event.clientX);
+    },
+    [updateLayoutRatioFromPointer],
+  );
+
+  const handleSplitterKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        setPreviewWidthPercent((prev) => clampPreviewWidth(prev + 2));
+      }
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        setPreviewWidthPercent((prev) => clampPreviewWidth(prev - 2));
+      }
+    },
+    [clampPreviewWidth],
+  );
+
+  useEffect(() => {
+    if (!isResizingLayout) return;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      updateLayoutRatioFromPointer(event.clientX);
+    };
+    const stopResizing = () => setIsResizingLayout(false);
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", stopResizing);
+    window.addEventListener("pointercancel", stopResizing);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", stopResizing);
+      window.removeEventListener("pointercancel", stopResizing);
+    };
+  }, [isResizingLayout, updateLayoutRatioFromPointer]);
+
+  const runCompile = useCallback(
+    async (target: "theory" | "method") => {
+      if (!unit) return;
+      const tex = target === "theory" ? theoryText : methodText;
+      if (!tex.trim()) {
+        setCompileState((prev) => ({
+          ...prev,
+          [target]: {
+            ...prev[target],
+            error: "Введите LaTeX перед компиляцией.",
+          },
+        }));
+        return;
+      }
+
+      setCompileState((prev) => ({
+        ...prev,
+        [target]: {
+          ...prev[target],
+          loading: true,
+          error: null,
+        },
+      }));
+
+      try {
+        const compiled = await teacherApi.compileAndUploadLatex({ tex, target, ttlSec: 900 });
+        const patch =
+          target === "theory"
+            ? { theoryPdfAssetKey: compiled.key }
+            : { methodPdfAssetKey: compiled.key };
+        const updatedUnit = await teacherApi.updateUnit(unit.id, patch);
+
+        setUnit((prev) => (prev ? { ...prev, ...updatedUnit } : prev));
+        setPreviewUrls((prev) => ({
+          ...prev,
+          [target]: buildPdfPreviewSrc(compiled.presignedUrl),
+        }));
+        setCompileState((prev) => ({
+          ...prev,
+          [target]: {
+            loading: false,
+            error: null,
+            updatedAt: Date.now(),
+            key: compiled.key,
+          },
+        }));
+      } catch (err) {
+        setCompileState((prev) => ({
+          ...prev,
+          [target]: {
+            ...prev[target],
+            loading: false,
+            error: getApiErrorMessage(err),
+          },
+        }));
+      }
+    },
+    [methodText, theoryText, unit],
+  );
 
   return (
     <DashboardShell
@@ -573,25 +809,125 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
 
         <div id={activePanelId} role="tabpanel" aria-labelledby={activeTabId}>
           {activeTab === "theory" ? (
-            <div className={styles.editorGrid}>
+            <div
+              ref={editorGridRef}
+              className={`${styles.editorGrid} ${isResizingLayout ? styles.editorGridResizing : ""}`}
+              style={editorGridStyle}
+            >
               <div className={styles.editorPanel}>
                 <div className={styles.kicker}>Теория</div>
-                <CodeMirror value={theoryText} height="420px" onChange={setTheoryText} />
+                <CodeMirror
+                  className={styles.codeEditor}
+                  value={theoryText}
+                  height="100%"
+                  onChange={setTheoryText}
+                  extensions={latexExtensions}
+                />
               </div>
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Изменить ширину редактора и предпросмотра"
+                aria-valuemin={minPreviewWidthPercent}
+                aria-valuemax={maxPreviewWidthPercent}
+                aria-valuenow={previewWidthPercent}
+                tabIndex={0}
+                className={`${styles.editorSplitter} ${isResizingLayout ? styles.editorSplitterActive : ""}`}
+                onPointerDown={handleSplitterPointerDown}
+                onKeyDown={handleSplitterKeyDown}
+              />
               <div className={styles.previewPanel}>
                 <div className={styles.kicker}>Предпросмотр</div>
-                <div className={styles.previewStub}>Предпросмотр PDF появится здесь после сборки.</div>
+                <div className={styles.previewActions}>
+                  <Button
+                    onClick={() => runCompile("theory")}
+                    disabled={compileState.theory.loading}
+                  >
+                    {compileState.theory.loading ? "Компиляция..." : "Скомпилировать PDF"}
+                  </Button>
+                </div>
+                {compileState.theory.error ? (
+                  <div className={styles.compileError} role="status" aria-live="polite">
+                    {compileState.theory.error}
+                  </div>
+                ) : null}
+                {compileState.theory.updatedAt ? (
+                  <div className={styles.compileMeta}>
+                    PDF обновлён: {new Date(compileState.theory.updatedAt).toLocaleString("ru-RU")}
+                  </div>
+                ) : null}
+                <div className={styles.previewViewport}>
+                  {previewUrls.theory ? (
+                    <PdfCanvasPreview
+                      className={styles.previewFrame}
+                      url={previewUrls.theory}
+                      scrollFeel="inertial-heavy"
+                    />
+                  ) : (
+                    <div className={styles.previewStub}>Предпросмотр PDF появится здесь после сборки.</div>
+                  )}
+                </div>
               </div>
             </div>
           ) : activeTab === "method" ? (
-            <div className={styles.editorGrid}>
+            <div
+              ref={editorGridRef}
+              className={`${styles.editorGrid} ${isResizingLayout ? styles.editorGridResizing : ""}`}
+              style={editorGridStyle}
+            >
               <div className={styles.editorPanel}>
                 <div className={styles.kicker}>Методика</div>
-                <CodeMirror value={methodText} height="420px" onChange={setMethodText} />
+                <CodeMirror
+                  className={styles.codeEditor}
+                  value={methodText}
+                  height="100%"
+                  onChange={setMethodText}
+                  extensions={latexExtensions}
+                />
               </div>
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Изменить ширину редактора и предпросмотра"
+                aria-valuemin={minPreviewWidthPercent}
+                aria-valuemax={maxPreviewWidthPercent}
+                aria-valuenow={previewWidthPercent}
+                tabIndex={0}
+                className={`${styles.editorSplitter} ${isResizingLayout ? styles.editorSplitterActive : ""}`}
+                onPointerDown={handleSplitterPointerDown}
+                onKeyDown={handleSplitterKeyDown}
+              />
               <div className={styles.previewPanel}>
                 <div className={styles.kicker}>Предпросмотр</div>
-                <div className={styles.previewStub}>Предпросмотр PDF появится здесь после сборки.</div>
+                <div className={styles.previewActions}>
+                  <Button
+                    onClick={() => runCompile("method")}
+                    disabled={compileState.method.loading}
+                  >
+                    {compileState.method.loading ? "Компиляция..." : "Скомпилировать PDF"}
+                  </Button>
+                </div>
+                {compileState.method.error ? (
+                  <div className={styles.compileError} role="status" aria-live="polite">
+                    {compileState.method.error}
+                  </div>
+                ) : null}
+                {compileState.method.updatedAt ? (
+                  <div className={styles.compileMeta}>
+                    PDF обновлён: {new Date(compileState.method.updatedAt).toLocaleString("ru-RU")}
+                  </div>
+                ) : null}
+                <div className={styles.previewViewport}>
+                  {previewUrls.method ? (
+                    <PdfCanvasPreview
+                      className={styles.previewFrame}
+                      url={previewUrls.method}
+                      scrollFeel="inertial-heavy"
+                    />
+                  ) : (
+                    <div className={styles.previewStub}>Предпросмотр PDF появится здесь после сборки.</div>
+                  )}
+                </div>
               </div>
             </div>
           ) : activeTab === "video" ? (
@@ -803,10 +1139,7 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
                               key={task.id}
                               task={task}
                               index={index}
-                              onEdit={(selected) => {
-                                setEditingTask(selected);
-                                setCreatingTask(false);
-                              }}
+                              onEdit={handleTaskEdit}
                               onDelete={handleTaskDelete}
                             />
                           ))}
