@@ -1,9 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ChangeEvent } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { studentApi, UnitWithTasks, AttemptRequest } from "@/lib/api/student";
+import {
+  studentApi,
+  UnitWithTasks,
+  AttemptRequest,
+  StudentPhotoTaskSubmission,
+  TaskState,
+} from "@/lib/api/student";
 import { getStudentErrorMessage } from "../shared/student-errors";
 import StudentNotFound from "../shared/StudentNotFound";
 import styles from "./student-unit-detail.module.css";
@@ -12,7 +18,7 @@ import Tabs from "@/components/ui/Tabs";
 import { toYouTubeEmbed } from "@/lib/video-embed";
 import Button from "@/components/ui/Button";
 import LiteTex from "@/components/LiteTex";
-import { getStudentUnitStatusLabel } from "@/lib/status-labels";
+import { getStudentTaskStatusLabel, getStudentUnitStatusLabel } from "@/lib/status-labels";
 import { useStudentLogout } from "../auth/use-student-logout";
 import { useStudentIdentity } from "../shared/use-student-identity";
 import { ApiError } from "@/lib/api/client";
@@ -26,6 +32,10 @@ const PDF_ZOOM_MIN = 0.5;
 const PDF_ZOOM_MAX = 1.4;
 const PDF_ZOOM_STEP = 0.1;
 const PDF_ZOOM_DEFAULT = 0.8;
+const PHOTO_MAX_FILES = 5;
+const PHOTO_MAX_SIZE_BYTES = 20 * 1024 * 1024;
+const PHOTO_ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const PHOTO_REVIEWABLE_STATUS = new Set<TaskState["status"]>(["not_started", "in_progress", "rejected"]);
 const PdfCanvasPreview = dynamic(() => import("@/components/PdfCanvasPreview"), {
   ssr: false,
   loading: () => <div className={styles.stub}>Загрузка PDF...</div>,
@@ -38,6 +48,16 @@ const formatRemainingDuration = (remainingMs: number) => {
   if (minutes <= 0) return `${seconds}с`;
   if (seconds === 0) return `${minutes}м`;
   return `${minutes}м ${seconds}с`;
+};
+
+const formatBytes = (bytes: number) => {
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+  if (bytes >= 1024) {
+    return `${Math.round(bytes / 1024)} KB`;
+  }
+  return `${bytes} B`;
 };
 
 function BlockedCountdown({ blockedUntilIso }: { blockedUntilIso: string }) {
@@ -98,6 +118,16 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
     method: PDF_ZOOM_DEFAULT,
   });
   const flashTimeoutsRef = useRef<Record<string, number>>({});
+  const photoFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [photoSelectedFilesByTask, setPhotoSelectedFilesByTask] = useState<Record<string, File[]>>({});
+  const [photoSubmissionsByTask, setPhotoSubmissionsByTask] = useState<
+    Record<string, StudentPhotoTaskSubmission[]>
+  >({});
+  const [photoLoadingByTask, setPhotoLoadingByTask] = useState<Record<string, boolean>>({});
+  const [photoErrorByTask, setPhotoErrorByTask] = useState<Record<string, string | null>>({});
+  const [photoStatusByTask, setPhotoStatusByTask] = useState<Record<string, string | null>>({});
+  const [photoPreviewUrlByAssetKey, setPhotoPreviewUrlByAssetKey] = useState<Record<string, string>>({});
+  const [photoFileDialogTaskId, setPhotoFileDialogTaskId] = useState<string | null>(null);
 
   const fetchUnit = useCallback(async () => {
     setError(null);
@@ -199,6 +229,153 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
     [refreshPreviewUrl],
   );
 
+  const loadPhotoSubmissions = useCallback(async (taskId: string) => {
+    setPhotoLoadingByTask((prev) => ({ ...prev, [taskId]: true }));
+    setPhotoErrorByTask((prev) => ({ ...prev, [taskId]: null }));
+    try {
+      const response = await studentApi.listPhotoSubmissions(taskId);
+      setPhotoSubmissionsByTask((prev) => ({ ...prev, [taskId]: response.items }));
+    } catch (err) {
+      setPhotoErrorByTask((prev) => ({ ...prev, [taskId]: getStudentErrorMessage(err) }));
+    } finally {
+      setPhotoLoadingByTask((prev) => ({ ...prev, [taskId]: false }));
+    }
+  }, []);
+
+  const getPhotoPreviewUrl = useCallback(
+    async (taskId: string, assetKey: string) => {
+      const cached = photoPreviewUrlByAssetKey[assetKey];
+      if (cached) return cached;
+      const response = await studentApi.presignPhotoView(taskId, assetKey, 180);
+      setPhotoPreviewUrlByAssetKey((prev) => ({ ...prev, [assetKey]: response.url }));
+      return response.url;
+    },
+    [photoPreviewUrlByAssetKey],
+  );
+
+  const validatePhotoFiles = useCallback((files: File[]) => {
+    if (files.length === 0) return "Выберите хотя бы один файл.";
+    if (files.length > PHOTO_MAX_FILES) {
+      return `Можно выбрать не более ${PHOTO_MAX_FILES} файлов.`;
+    }
+    for (const file of files) {
+      if (!PHOTO_ALLOWED_TYPES.has(file.type.toLowerCase())) {
+        return "Разрешены только JPEG, PNG и WEBP.";
+      }
+      if (file.size > PHOTO_MAX_SIZE_BYTES) {
+        return `Файл ${file.name} превышает лимит ${formatBytes(PHOTO_MAX_SIZE_BYTES)}.`;
+      }
+    }
+    return null;
+  }, []);
+
+  const openPhotoFileDialog = useCallback((taskId: string) => {
+    setPhotoFileDialogTaskId(taskId);
+    photoFileInputRef.current?.click();
+  }, []);
+
+  const handlePhotoFileSelection = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const taskId = photoFileDialogTaskId;
+      if (!taskId) return;
+      const files = Array.from(event.target.files ?? []);
+      event.currentTarget.value = "";
+      const validationError = validatePhotoFiles(files);
+      if (validationError) {
+        setPhotoErrorByTask((prev) => ({ ...prev, [taskId]: validationError }));
+        return;
+      }
+      setPhotoSelectedFilesByTask((prev) => ({ ...prev, [taskId]: files }));
+      setPhotoErrorByTask((prev) => ({ ...prev, [taskId]: null }));
+      setPhotoStatusByTask((prev) => ({
+        ...prev,
+        [taskId]: `Выбрано файлов: ${files.length}`,
+      }));
+    },
+    [photoFileDialogTaskId, validatePhotoFiles],
+  );
+
+  const submitPhotoTask = useCallback(
+    async (taskId: string) => {
+      const files = photoSelectedFilesByTask[taskId] ?? [];
+      const validationError = validatePhotoFiles(files);
+      if (validationError) {
+        setPhotoErrorByTask((prev) => ({ ...prev, [taskId]: validationError }));
+        return;
+      }
+
+      setPhotoLoadingByTask((prev) => ({ ...prev, [taskId]: true }));
+      setPhotoErrorByTask((prev) => ({ ...prev, [taskId]: null }));
+      setPhotoStatusByTask((prev) => ({ ...prev, [taskId]: "Загружаем файлы..." }));
+
+      try {
+        const presigned = await studentApi.presignPhotoUpload(
+          taskId,
+          files.map((file) => ({
+            filename: file.name,
+            contentType: file.type,
+            sizeBytes: file.size,
+          })),
+        );
+
+        await Promise.all(
+          presigned.uploads.map(async (upload, index) => {
+            const file = files[index];
+            if (!file) {
+              throw new Error("Ошибка сопоставления файла и presigned URL.");
+            }
+            const headers = new Headers(upload.headers ?? {});
+            if (!headers.has("Content-Type")) {
+              headers.set("Content-Type", file.type);
+            }
+
+            const response = await fetch(upload.url, {
+              method: "PUT",
+              headers,
+              body: file,
+            });
+
+            if (!response.ok) {
+              throw new Error(`Не удалось загрузить файл ${file.name}.`);
+            }
+          }),
+        );
+
+        setPhotoStatusByTask((prev) => ({ ...prev, [taskId]: "Отправляем на проверку..." }));
+
+        await studentApi.submitPhoto(
+          taskId,
+          presigned.uploads.map((item) => item.assetKey),
+        );
+
+        setPhotoSelectedFilesByTask((prev) => ({ ...prev, [taskId]: [] }));
+        setPhotoStatusByTask((prev) => ({
+          ...prev,
+          [taskId]: "Фото-ответ отправлен. Ожидайте проверку преподавателя.",
+        }));
+        await fetchUnit();
+        await loadPhotoSubmissions(taskId);
+      } catch (err) {
+        setPhotoErrorByTask((prev) => ({ ...prev, [taskId]: getStudentErrorMessage(err) }));
+      } finally {
+        setPhotoLoadingByTask((prev) => ({ ...prev, [taskId]: false }));
+      }
+    },
+    [fetchUnit, loadPhotoSubmissions, photoSelectedFilesByTask, validatePhotoFiles],
+  );
+
+  const openPhotoAsset = useCallback(
+    async (taskId: string, assetKey: string) => {
+      try {
+        const url = await getPhotoPreviewUrl(taskId, assetKey);
+        window.open(url, "_blank", "noopener,noreferrer");
+      } catch (err) {
+        setPhotoErrorByTask((prev) => ({ ...prev, [taskId]: getStudentErrorMessage(err) }));
+      }
+    },
+    [getPhotoPreviewUrl],
+  );
+
   useEffect(() => {
     return () => {
       Object.values(flashTimeoutsRef.current).forEach((timeoutId) => {
@@ -260,20 +437,20 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
   const countedTasks =
     unit?.countedTasks ??
     orderedTasks.filter((task) =>
-      ["correct", "credited_without_progress", "teacher_credited"].includes(
+      ["correct", "accepted", "credited_without_progress", "teacher_credited"].includes(
         task.state?.status ?? "not_started",
       ),
     ).length;
   const solvedTasks =
     unit?.solvedTasks ??
     orderedTasks.filter((task) =>
-      ["correct", "teacher_credited"].includes(task.state?.status ?? "not_started"),
+      ["correct", "accepted", "teacher_credited"].includes(task.state?.status ?? "not_started"),
     ).length;
   const requiredTotal = orderedTasks.filter((task) => task.isRequired).length;
   const requiredDone = orderedTasks.filter(
     (task) =>
       task.isRequired &&
-      ["correct", "credited_without_progress", "teacher_credited"].includes(
+      ["correct", "accepted", "credited_without_progress", "teacher_credited"].includes(
         task.state?.status ?? "not_started",
       ),
   ).length;
@@ -313,6 +490,7 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
   const isCreditedStatus = useCallback(
     (status?: string | null) =>
       status === "correct" ||
+      status === "accepted" ||
       status === "credited_without_progress" ||
       status === "teacher_credited",
     [],
@@ -366,6 +544,46 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
     Boolean(activeTask) && isChoiceTask && attemptFlash[activeTask.id] === "incorrect";
   const showCorrectBadge = activeState?.status === "correct";
   const isSolutionVisible = Boolean(activeTask && showSolutionByTask[activeTask.id]);
+  const isPhotoTask = activeTask?.answerType === "photo";
+  const activePhotoSubmissions = activeTask ? (photoSubmissionsByTask[activeTask.id] ?? []) : [];
+  const latestPhotoSubmission = activePhotoSubmissions[0] ?? null;
+  const photoSelectedFiles = activeTask ? (photoSelectedFilesByTask[activeTask.id] ?? []) : [];
+  const photoError = activeTask ? (photoErrorByTask[activeTask.id] ?? null) : null;
+  const photoStatus = activeTask ? (photoStatusByTask[activeTask.id] ?? null) : null;
+  const isPhotoLoading = activeTask ? Boolean(photoLoadingByTask[activeTask.id]) : false;
+  const canUploadPhoto =
+    Boolean(activeTask) &&
+    isPhotoTask &&
+    PHOTO_REVIEWABLE_STATUS.has(activeState?.status ?? "not_started");
+
+  useEffect(() => {
+    if (!activeTask || activeTask.answerType !== "photo") return;
+    void loadPhotoSubmissions(activeTask.id);
+  }, [activeTask, loadPhotoSubmissions]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      if (!activeTask || activeTask.answerType !== "photo" || !latestPhotoSubmission) return;
+      const keys = latestPhotoSubmission.assetKeys;
+      if (!keys.length) return;
+      await Promise.all(
+        keys.map(async (assetKey) => {
+          if (photoPreviewUrlByAssetKey[assetKey]) return;
+          try {
+            const url = await getPhotoPreviewUrl(activeTask.id, assetKey);
+            if (cancelled || !url) return;
+          } catch {
+            /* preview fallback остается ссылкой без thumbnail */
+          }
+        }),
+      );
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTask, getPhotoPreviewUrl, latestPhotoSubmission, photoPreviewUrlByAssetKey]);
 
   useEffect(() => {
     if (!activeTask) return;
@@ -921,13 +1139,138 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
                       ) : null}
 
                       {activeTask.answerType === "photo" ? (
-                        <div className={styles.stub}>
-                          Фото‑ответы будут доступны в следующем слайсе.
+                        <div className={styles.photoCard}>
+                          <div className={styles.photoHeader}>
+                            <div className={styles.photoHeaderMain}>
+                              <span className={styles.photoLabel}>Фото-ответ</span>
+                              <span
+                                className={`${styles.photoStatusChip} ${
+                                  activeState?.status === "accepted"
+                                    ? styles.photoStatusAccepted
+                                    : activeState?.status === "rejected"
+                                      ? styles.photoStatusRejected
+                                      : activeState?.status === "pending_review"
+                                        ? styles.photoStatusSubmitted
+                                        : styles.photoStatusDraft
+                                }`}
+                              >
+                                {getStudentTaskStatusLabel(activeState?.status ?? "not_started")}
+                              </span>
+                            </div>
+                            <div className={styles.photoHint}>
+                              Проверка учителем влияет на прогресс и разблокировку следующих юнитов.
+                            </div>
+                          </div>
+
+                          {activeState?.status === "pending_review" ? (
+                            <div className={styles.photoNotice}>
+                              Ответ отправлен. Дождитесь решения преподавателя.
+                            </div>
+                          ) : null}
+
+                          {activeState?.status === "accepted" ? (
+                            <div className={styles.photoNotice}>Ответ принят. Задача засчитана.</div>
+                          ) : null}
+
+                          {activeState?.status === "rejected" ? (
+                            <div className={styles.photoReject}>
+                              <span className={styles.photoRejectTitle}>Ответ отклонён.</span>
+                              {latestPhotoSubmission?.rejectedReason ? (
+                                <span className={styles.photoRejectReason}>
+                                  Причина: {latestPhotoSubmission.rejectedReason}
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : null}
+
+                          {photoSelectedFiles.length > 0 ? (
+                            <div className={styles.photoLocalList}>
+                              <div className={styles.photoListTitle}>Выбрано для отправки</div>
+                              <ul className={styles.photoFileList}>
+                                {photoSelectedFiles.map((file) => (
+                                  <li key={`${file.name}-${file.size}`} className={styles.photoFileItem}>
+                                    <span className={styles.photoFileName}>{file.name}</span>
+                                    <span className={styles.photoFileMeta}>{formatBytes(file.size)}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+
+                          {latestPhotoSubmission ? (
+                            <div className={styles.photoSubmittedList}>
+                              <div className={styles.photoListTitle}>Последняя отправка</div>
+                              <div className={styles.photoThumbGrid}>
+                                {latestPhotoSubmission.assetKeys.map((assetKey) => {
+                                  const previewUrl = photoPreviewUrlByAssetKey[assetKey];
+                                  return (
+                                    <article key={assetKey} className={styles.photoThumbCard}>
+                                      {previewUrl ? (
+                                        <img
+                                          className={styles.photoThumbImage}
+                                          src={previewUrl}
+                                          alt="Фото-ответ ученика"
+                                          loading="lazy"
+                                        />
+                                      ) : (
+                                        <div className={styles.photoThumbPlaceholder}>Превью</div>
+                                      )}
+                                      <div className={styles.photoThumbActions}>
+                                        {previewUrl ? (
+                                          <a
+                                            className={styles.photoLink}
+                                            href={previewUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                          >
+                                            Открыть
+                                          </a>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            className={styles.photoLinkButton}
+                                            onClick={() => openPhotoAsset(activeTask.id, assetKey)}
+                                          >
+                                            Открыть файл
+                                          </button>
+                                        )}
+                                      </div>
+                                    </article>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ) : null}
+
+                          <div className={styles.photoActions}>
+                            {canUploadPhoto ? (
+                              <Button
+                                variant="ghost"
+                                onClick={() => openPhotoFileDialog(activeTask.id)}
+                                disabled={isPhotoLoading}
+                              >
+                                {activeState?.status === "rejected" ? "Выбрать заново" : "Загрузить фото"}
+                              </Button>
+                            ) : null}
+                            {canUploadPhoto ? (
+                              <Button
+                                onClick={() => submitPhotoTask(activeTask.id)}
+                                disabled={isPhotoLoading || photoSelectedFiles.length === 0}
+                              >
+                                {isPhotoLoading ? "Отправка..." : "Отправить на проверку"}
+                              </Button>
+                            ) : null}
+                          </div>
+
+                          <div className={styles.photoStatusArea} role="status" aria-live="polite">
+                            {photoStatus ? <span className={styles.photoStatusMessage}>{photoStatus}</span> : null}
+                            {photoError ? <span className={styles.photoErrorMessage}>{photoError}</span> : null}
+                          </div>
                         </div>
                       ) : null}
 
                       <div className={styles.taskActions}>
-                        {!isTaskCredited ? (
+                        {!isPhotoTask && !isTaskCredited ? (
                           <Button
                             onClick={handleSubmitAttempt}
                             disabled={isAttemptDisabled || !isAnswerReady}
@@ -935,13 +1278,13 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
                             Проверить
                           </Button>
                         ) : null}
-                        {!isTaskCredited && showIncorrectBadge ? (
+                        {!isPhotoTask && !isTaskCredited && showIncorrectBadge ? (
                           <span className={styles.taskResultIncorrect}>Неверно</span>
                         ) : null}
-                        {isBlocked && blockedUntilIso ? (
+                        {!isPhotoTask && isBlocked && blockedUntilIso ? (
                           <BlockedCountdown blockedUntilIso={blockedUntilIso} />
                         ) : null}
-                        {isTaskCredited && activeTaskIndex < orderedTasks.length - 1 ? (
+                        {!isPhotoTask && isTaskCredited && activeTaskIndex < orderedTasks.length - 1 ? (
                           <Button
                             variant="ghost"
                             onClick={() => setActiveTaskId(orderedTasks[activeTaskIndex + 1]?.id ?? null)}
@@ -949,7 +1292,7 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
                             Следующая
                           </Button>
                         ) : null}
-                        {isTaskCredited ? (
+                        {!isPhotoTask && isTaskCredited ? (
                           <Button
                             variant="ghost"
                             onClick={() =>
@@ -962,12 +1305,14 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
                             {isSolutionVisible ? "Скрыть решение" : "Показать решение"}
                           </Button>
                         ) : null}
-                        {showCorrectBadge ? (
+                        {!isPhotoTask && showCorrectBadge ? (
                           <span className={styles.taskResultCorrect}>Верно</span>
                         ) : null}
-                        <div className={styles.attemptsLeftBadge}>Осталось попыток: {attemptsLeft}</div>
+                        {!isPhotoTask ? (
+                          <div className={styles.attemptsLeftBadge}>Осталось попыток: {attemptsLeft}</div>
+                        ) : null}
                       </div>
-                      {isTaskCredited && isSolutionVisible ? (
+                      {!isPhotoTask && isTaskCredited && isSolutionVisible ? (
                         <div className={styles.solutionPanel}>
                           {activeTask.solutionLite?.trim() ? (
                             <LiteTex value={activeTask.solutionLite} block />
@@ -987,6 +1332,14 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
                 </div>
               )}
             </div>
+            <input
+              ref={photoFileInputRef}
+              className={styles.photoFileInput}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              onChange={handlePhotoFileSelection}
+            />
           </>
         )}
       </div>

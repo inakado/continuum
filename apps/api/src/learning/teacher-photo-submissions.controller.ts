@@ -12,6 +12,17 @@ import { PhotoTaskService } from './photo-task.service';
 export class TeacherPhotoSubmissionsController {
   constructor(private readonly photoTaskService: PhotoTaskService) {}
 
+  @Get(':studentId/photo-submissions')
+  listQueue(
+    @Param('studentId') studentId: string,
+    @Req() req: AuthRequest,
+    @Query('status') status: string | undefined,
+    @Query('limit') limit: string | undefined,
+    @Query('offset') offset: string | undefined,
+  ) {
+    return this.photoTaskService.listQueueForTeacher(req.user.id, studentId, status, limit, offset);
+  }
+
   @Get(':studentId/tasks/:taskId/photo-submissions')
   list(
     @Param('studentId') studentId: string,

@@ -8,9 +8,10 @@ import styles from "./teacher-student-unit-preview-panel.module.css";
 
 type Props = {
   unit: TeacherStudentUnitPreview;
+  onOpenPhotoReview?: (taskId: string, unitId: string) => void;
 };
 
-export default function TeacherStudentUnitPreviewPanel({ unit }: Props) {
+export default function TeacherStudentUnitPreviewPanel({ unit, onOpenPhotoReview }: Props) {
   const orderedTasks = useMemo(() => {
     return [...unit.tasks].sort((a, b) => {
       if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
@@ -113,7 +114,24 @@ export default function TeacherStudentUnitPreviewPanel({ unit }: Props) {
           ) : null}
 
           {activeTask.answerType === "photo" ? (
-            <div className={styles.stub}>Фото‑задача (review вне scope текущего шага).</div>
+            <section className={styles.photoStatusBlock}>
+              <div className={styles.photoStatusTitle}>Фото-задача</div>
+              <div className={styles.photoStatusText}>
+                Статус: {getStudentTaskStatusLabel(activeTask.state?.status ?? "not_started")}
+              </div>
+              <div className={styles.photoStatusHint}>
+                До статуса «Принято» обязательная задача не закрывает юнит.
+              </div>
+              {onOpenPhotoReview ? (
+                <button
+                  type="button"
+                  className={styles.photoStatusAction}
+                  onClick={() => onOpenPhotoReview(activeTask.id, unit.id)}
+                >
+                  Открыть проверку
+                </button>
+              ) : null}
+            </section>
           ) : null}
         </article>
       ) : (

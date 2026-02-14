@@ -239,6 +239,7 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
   const [creatingTask, setCreatingTask] = useState(false);
   const [creatingTaskPublish, setCreatingTaskPublish] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [isDeletingUnit, setIsDeletingUnit] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>({ state: "idle" });
   const [progressSaveState, setProgressSaveState] = useState<ProgressSaveState>({ state: "idle" });
   const [minCountedInput, setMinCountedInput] = useState("0");
@@ -546,6 +547,28 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
     }
   }, [fetchUnit]);
 
+  const handleUnitDelete = useCallback(async () => {
+    if (!unit || isDeletingUnit) return;
+    const confirmed = window.confirm(
+      `Удалить юнит «${unit.title}»? Будут удалены все задачи внутри. Действие нельзя отменить.`,
+    );
+    if (!confirmed) return;
+    setError(null);
+    setIsDeletingUnit(true);
+    try {
+      await teacherApi.deleteUnit(unit.id);
+      if (unit.sectionId) {
+        router.push(`/teacher/sections/${unit.sectionId}`);
+      } else {
+        router.push("/teacher");
+      }
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+    } finally {
+      setIsDeletingUnit(false);
+    }
+  }, [isDeletingUnit, router, unit]);
+
   const handleTaskEdit = useCallback((selected: Task) => {
     setEditingTask(selected);
     setCreatingTask(false);
@@ -822,6 +845,16 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
                 checked={unit.status === "published"}
                 onChange={handleUnitPublishToggle}
               />
+            ) : null}
+            {unit ? (
+              <Button
+                variant="ghost"
+                onClick={handleUnitDelete}
+                disabled={isDeletingUnit}
+                className={styles.deleteUnitButton}
+              >
+                {isDeletingUnit ? "Удаление..." : "Удалить юнит"}
+              </Button>
             ) : null}
             {saveStatusText ? (
               <div className={styles.saveStatus} role="status" aria-live="polite">

@@ -29,6 +29,15 @@
   --button-hover-shadow: var(--nav-hover-shadow);
 }
 
+.deleteUnitButton {
+  --button-bg: rgba(186, 46, 57, 0.14);
+  --button-border: rgba(186, 46, 57, 0.42);
+  --button-text: #ffb7bd;
+  --button-hover-bg: rgba(186, 46, 57, 0.22);
+  --button-hover-border: rgba(232, 102, 112, 0.7);
+  --button-hover-text: #ffe6e8;
+}
+
 .tabsRow {
   display: flex;
   align-items: center;

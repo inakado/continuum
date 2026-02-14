@@ -8,6 +8,7 @@ import {
   AttemptResult,
   ContentStatus,
   EventCategory,
+  PhotoTaskSubmissionStatus,
   Prisma,
   Role,
   StudentTaskStatus,
@@ -23,6 +24,11 @@ import { LearningAvailabilityService, UnitProgressSnapshot } from './learning-av
 import { PhotoTaskPolicyService } from './photo-task-policy.service';
 
 type DbClient = PrismaService | Prisma.TransactionClient;
+const PHOTO_SUBMISSION_STATUSES = new Set<PhotoTaskSubmissionStatus>([
+  PhotoTaskSubmissionStatus.submitted,
+  PhotoTaskSubmissionStatus.accepted,
+  PhotoTaskSubmissionStatus.rejected,
+]);
 
 type PublishedPhotoTask = {
   id: string;
@@ -216,6 +222,7 @@ export class PhotoTaskService {
       payload: {
         student_id: studentId,
         task_id: txResult.task.id,
+        unit_id: txResult.task.unitId,
         task_revision_id: txResult.task.activeRevisionId,
         attempt_id: txResult.attempt.id,
         asset_keys: this.parseAssetKeysJson(txResult.submission.assetKeysJson),
@@ -258,6 +265,102 @@ export class PhotoTaskService {
 
     return {
       items: submissions.map((item) => this.mapSubmission(item)),
+    };
+  }
+
+  async listForStudent(studentId: string, taskId: string) {
+    const task = await this.requirePublishedPhotoTask(this.prisma, taskId);
+    await this.assertUnitAvailableForStudent(studentId, task.unit.sectionId, task.unit.id);
+
+    const submissions = await this.prisma.photoTaskSubmission.findMany({
+      where: {
+        studentUserId: studentId,
+        taskId,
+      },
+      orderBy: { submittedAt: 'desc' },
+      select: {
+        id: true,
+        studentUserId: true,
+        taskId: true,
+        taskRevisionId: true,
+        unitId: true,
+        status: true,
+        assetKeysJson: true,
+        rejectedReason: true,
+        submittedAt: true,
+        reviewedAt: true,
+        reviewedByTeacherUserId: true,
+        attemptId: true,
+      },
+    });
+
+    return {
+      items: submissions.map((item) => this.mapSubmission(item)),
+    };
+  }
+
+  async listQueueForTeacher(
+    teacherId: string,
+    studentId: string,
+    statusRaw: unknown,
+    limitRaw: unknown,
+    offsetRaw: unknown,
+  ) {
+    await this.studentsService.assertTeacherOwnsStudent(teacherId, studentId);
+
+    const status = this.parseQueueStatus(statusRaw);
+    const limit = this.parseLimit(limitRaw);
+    const offset = this.parseOffset(offsetRaw);
+
+    const where: Prisma.PhotoTaskSubmissionWhereInput = {
+      studentUserId: studentId,
+      ...(status ? { status } : null),
+    };
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.photoTaskSubmission.findMany({
+        where,
+        orderBy: { submittedAt: 'desc' },
+        take: limit,
+        skip: offset,
+        select: {
+          id: true,
+          taskId: true,
+          unitId: true,
+          status: true,
+          submittedAt: true,
+          rejectedReason: true,
+          assetKeysJson: true,
+          task: {
+            select: {
+              title: true,
+              unit: {
+                select: {
+                  title: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      this.prisma.photoTaskSubmission.count({ where }),
+    ]);
+
+    return {
+      items: items.map((item) => ({
+        submissionId: item.id,
+        taskId: item.taskId,
+        taskTitle: item.task.title,
+        unitId: item.unitId,
+        unitTitle: item.task.unit.title,
+        status: item.status,
+        submittedAt: item.submittedAt,
+        rejectedReason: item.rejectedReason,
+        assetKeysCount: this.parseAssetKeysJson(item.assetKeysJson).length,
+      })),
+      total,
+      limit,
+      offset,
     };
   }
 
@@ -443,6 +546,7 @@ export class PhotoTaskService {
         teacher_id: teacherId,
         student_id: studentId,
         task_id: taskId,
+        unit_id: txResult.submission.unitId,
         task_revision_id: txResult.submission.taskRevisionId,
         attempt_id: txResult.submission.attemptId,
       },
@@ -564,6 +668,7 @@ export class PhotoTaskService {
         teacher_id: teacherId,
         student_id: studentId,
         task_id: taskId,
+        unit_id: txResult.submission.unitId,
         task_revision_id: txResult.submission.taskRevisionId,
         attempt_id: txResult.submission.attemptId,
         ...(txResult.submission.rejectedReason ? { reason: txResult.submission.rejectedReason } : null),
@@ -682,7 +787,7 @@ export class PhotoTaskService {
     taskRevisionId: string;
     unitId: string;
     attemptId: string;
-    status: string;
+    status: PhotoTaskSubmissionStatus;
     assetKeysJson: Prisma.JsonValue;
     rejectedReason: string | null;
     submittedAt: Date;
@@ -715,6 +820,42 @@ export class PhotoTaskService {
       completionPercent: snapshot.completionPercent,
       solvedPercent: snapshot.solvedPercent,
     };
+  }
+
+  private parseQueueStatus(raw: unknown): PhotoTaskSubmissionStatus {
+    const parsed = typeof raw === 'string' ? raw.trim() : '';
+    if (!parsed) return PhotoTaskSubmissionStatus.submitted;
+    if (PHOTO_SUBMISSION_STATUSES.has(parsed as PhotoTaskSubmissionStatus)) {
+      return parsed as PhotoTaskSubmissionStatus;
+    }
+    throw new ConflictException({
+      code: 'INVALID_QUEUE_STATUS',
+      message: `status must be one of: ${Array.from(PHOTO_SUBMISSION_STATUSES).join(', ')}`,
+    });
+  }
+
+  private parseLimit(raw: unknown): number {
+    if (raw === undefined || raw === null || raw === '') return 20;
+    const parsed = Number(raw);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      throw new ConflictException({
+        code: 'INVALID_LIMIT',
+        message: 'limit must be a positive integer',
+      });
+    }
+    return Math.min(parsed, 100);
+  }
+
+  private parseOffset(raw: unknown): number {
+    if (raw === undefined || raw === null || raw === '') return 0;
+    const parsed = Number(raw);
+    if (!Number.isInteger(parsed) || parsed < 0) {
+      throw new ConflictException({
+        code: 'INVALID_OFFSET',
+        message: 'offset must be a non-negative integer',
+      });
+    }
+    return parsed;
   }
 
   private parseAssetKeysJson(value: Prisma.JsonValue): string[] {

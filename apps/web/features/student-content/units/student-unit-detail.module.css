@@ -388,6 +388,246 @@
   -webkit-backdrop-filter: var(--glass-filter);
 }
 
+.photoCard {
+  border: var(--border-width) solid color-mix(in srgb, #38bdf8 30%, var(--glass-border));
+  background:
+    linear-gradient(160deg, color-mix(in srgb, #38bdf8 10%, transparent), transparent 64%),
+    color-mix(in srgb, var(--surface-1) 88%, transparent);
+  border-radius: var(--card-radius);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.photoHeader {
+  display: grid;
+  gap: 6px;
+}
+
+.photoHeaderMain {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.photoLabel {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.photoStatusChip {
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  background: var(--surface-2);
+}
+
+.photoStatusDraft {
+  border-color: var(--glass-border);
+}
+
+.photoStatusSubmitted {
+  border-color: color-mix(in srgb, #d97706 35%, var(--glass-border));
+  background: color-mix(in srgb, #d97706 14%, var(--surface-2));
+}
+
+.photoStatusAccepted {
+  border-color: color-mix(in srgb, #16a34a 35%, var(--glass-border));
+  background: color-mix(in srgb, #16a34a 16%, var(--surface-2));
+}
+
+.photoStatusRejected {
+  border-color: color-mix(in srgb, #dc2626 35%, var(--glass-border));
+  background: color-mix(in srgb, #dc2626 14%, var(--surface-2));
+}
+
+.photoHint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.photoNotice {
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: var(--control-radius);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.photoReject {
+  border: var(--border-width-thin) solid color-mix(in srgb, #dc2626 35%, var(--glass-border));
+  border-radius: var(--control-radius);
+  background: color-mix(in srgb, #dc2626 10%, var(--surface-2));
+  color: var(--text-primary);
+  padding: 8px 10px;
+  display: grid;
+  gap: 4px;
+}
+
+.photoRejectTitle {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.photoRejectReason {
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.photoLocalList,
+.photoSubmittedList {
+  display: grid;
+  gap: 8px;
+}
+
+.photoListTitle {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.photoFileList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.photoFileItem {
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: var(--control-radius);
+  background: var(--surface-1);
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.photoFileName {
+  font-size: 12px;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.photoFileMeta {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.photoThumbGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.photoThumbCard {
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: var(--control-radius);
+  background: var(--surface-1);
+  overflow: hidden;
+  display: grid;
+}
+
+.photoThumbImage,
+.photoThumbPlaceholder {
+  width: 100%;
+  height: 132px;
+  object-fit: cover;
+}
+
+.photoThumbPlaceholder {
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  background: color-mix(in srgb, var(--surface-2) 88%, transparent);
+}
+
+.photoThumbActions {
+  border-top: var(--border-width-thin) solid var(--glass-border);
+  padding: 8px;
+}
+
+.photoLink,
+.photoLinkButton {
+  width: 100%;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: var(--control-radius);
+  background: var(--surface-2);
+  color: var(--text-primary);
+  text-decoration: none;
+  font-size: 12px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+
+.photoLinkButton {
+  font-family: inherit;
+}
+
+.photoLink:focus-visible,
+.photoLinkButton:focus-visible {
+  outline: 2px solid var(--border-primary);
+  outline-offset: 2px;
+}
+
+.photoActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.photoActions button {
+  --button-bg: var(--surface-1);
+  --button-border: var(--glass-border);
+  --button-text: var(--text-primary);
+  --button-hover-bg: var(--surface-2);
+  --button-hover-border: var(--border-primary);
+  --button-hover-text: var(--text-primary);
+  --button-hover-shadow: var(--nav-hover-shadow);
+}
+
+.photoStatusArea {
+  min-height: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.photoStatusMessage {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.photoErrorMessage {
+  font-size: 12px;
+  color: color-mix(in srgb, #ef4444 82%, var(--text-primary));
+}
+
+.photoFileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .taskHeader {
   display: flex;
   justify-content: space-between;

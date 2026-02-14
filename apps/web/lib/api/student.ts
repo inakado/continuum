@@ -145,6 +145,67 @@ export type UnitPdfPresignedResponse = {
   url: string | null;
 };
 
+export type StudentPhotoFileInput = {
+  filename: string;
+  contentType: string;
+  sizeBytes: number;
+};
+
+export type StudentPhotoPresignUploadResponse = {
+  uploads: Array<{
+    assetKey: string;
+    url: string;
+    headers?: Record<string, string>;
+  }>;
+  expiresInSec: number;
+};
+
+export type StudentPhotoTaskSubmission = {
+  id: string;
+  studentUserId: string;
+  taskId: string;
+  taskRevisionId: string;
+  unitId: string;
+  attemptId: string;
+  status: "submitted" | "accepted" | "rejected";
+  assetKeys: string[];
+  rejectedReason: string | null;
+  submittedAt: string;
+  reviewedAt: string | null;
+  reviewedByTeacherUserId: string | null;
+};
+
+export type StudentPhotoSubmissionsResponse = {
+  items: StudentPhotoTaskSubmission[];
+};
+
+export type StudentPhotoSubmitResponse = {
+  ok: true;
+  submissionId: string;
+  taskState: {
+    status: TaskState["status"];
+    wrongAttempts: number;
+    blockedUntil: string | null;
+    requiredSkipped: boolean;
+  };
+  unitSnapshot?: {
+    unitId: string;
+    status: StudentUnitStatus;
+    totalTasks: number;
+    countedTasks: number;
+    solvedTasks: number;
+    completionPercent: number;
+    solvedPercent: number;
+  };
+};
+
+export type StudentPhotoPresignViewResponse = {
+  ok: true;
+  assetKey: string;
+  expiresInSec: number;
+  url: string;
+};
+
 export const studentApi = {
   login(login: string, password: string) {
     return apiRequest<LoginResponse>("/auth/login", {
@@ -191,5 +252,39 @@ export const studentApi = {
       method: "POST",
       body,
     });
+  },
+
+  presignPhotoUpload(taskId: string, files: StudentPhotoFileInput[], ttlSec?: number) {
+    return apiRequest<StudentPhotoPresignUploadResponse>(
+      `/student/tasks/${taskId}/photo/presign-upload`,
+      {
+        method: "POST",
+        body: {
+          files,
+          ...(ttlSec !== undefined ? { ttlSec } : null),
+        },
+      },
+    );
+  },
+
+  submitPhoto(taskId: string, assetKeys: string[]) {
+    return apiRequest<StudentPhotoSubmitResponse>(`/student/tasks/${taskId}/photo/submit`, {
+      method: "POST",
+      body: { assetKeys },
+    });
+  },
+
+  listPhotoSubmissions(taskId: string) {
+    return apiRequest<StudentPhotoSubmissionsResponse>(`/student/tasks/${taskId}/photo/submissions`);
+  },
+
+  presignPhotoView(taskId: string, assetKey: string, ttlSec?: number) {
+    const search = new URLSearchParams({ assetKey });
+    if (ttlSec !== undefined) {
+      search.set("ttlSec", String(ttlSec));
+    }
+    return apiRequest<StudentPhotoPresignViewResponse>(
+      `/student/tasks/${taskId}/photo/presign-view?${search.toString()}`,
+    );
   },
 };

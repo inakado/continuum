@@ -44,7 +44,9 @@
 .header button,
 .unitHeader button,
 .previewActions button,
-.taskActions button {
+.taskActions button,
+.photoQueueItem button,
+.photoReviewButtons button {
   --button-bg: var(--surface-1);
   --button-border: var(--glass-border);
   --button-text: var(--text-primary);
@@ -93,6 +95,85 @@
   font-size: 14px;
   border-radius: var(--control-radius);
   margin-top: 6px;
+}
+
+.photoQueueBlock {
+  border: var(--border-width-thin) solid color-mix(in srgb, #0ea5e9 28%, var(--glass-border));
+  border-radius: var(--card-radius);
+  background:
+    linear-gradient(155deg, color-mix(in srgb, #0ea5e9 8%, transparent), transparent 70%),
+    color-mix(in srgb, var(--glass-tint) 80%, transparent);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.photoQueueHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.photoQueueTitle {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.photoQueueHint {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.photoQueueCounter {
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-primary);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+}
+
+.photoQueueList {
+  display: grid;
+  gap: 8px;
+}
+
+.photoQueueItem {
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: var(--control-radius);
+  background: color-mix(in srgb, var(--surface-1) 88%, transparent);
+  padding: 10px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.photoQueueItemMain {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.photoQueueItemTitle {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.photoQueueItemMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 .layout {
@@ -254,6 +335,189 @@
   color: var(--text-muted);
 }
 
+.photoReviewBlock {
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: var(--control-radius);
+  background: color-mix(in srgb, var(--glass-tint) 82%, transparent);
+  padding: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.photoReviewHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.photoReviewTitle {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.photoReviewSubTitle {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.photoReviewHint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.photoReviewNotice {
+  border: var(--border-width-thin) solid color-mix(in srgb, #16a34a 32%, var(--glass-border));
+  border-radius: var(--control-radius);
+  background: color-mix(in srgb, #16a34a 12%, var(--surface-2));
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 8px 10px;
+}
+
+.photoReviewList {
+  display: grid;
+  gap: 10px;
+}
+
+.photoReviewItem {
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: var(--control-radius);
+  background: color-mix(in srgb, var(--surface-1) 90%, transparent);
+  padding: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.photoReviewMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  align-items: center;
+}
+
+.photoReviewStatusChip {
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-primary);
+  background: var(--surface-2);
+}
+
+.photoReviewStatusSubmitted {
+  border-color: color-mix(in srgb, #d97706 35%, var(--glass-border));
+  background: color-mix(in srgb, #d97706 14%, var(--surface-2));
+}
+
+.photoReviewStatusAccepted {
+  border-color: color-mix(in srgb, #16a34a 35%, var(--glass-border));
+  background: color-mix(in srgb, #16a34a 15%, var(--surface-2));
+}
+
+.photoReviewStatusRejected {
+  border-color: color-mix(in srgb, #dc2626 35%, var(--glass-border));
+  background: color-mix(in srgb, #dc2626 14%, var(--surface-2));
+}
+
+.photoReviewRejectReason {
+  border: var(--border-width-thin) solid color-mix(in srgb, #dc2626 28%, var(--glass-border));
+  border-radius: var(--control-radius);
+  background: color-mix(in srgb, #dc2626 10%, var(--surface-2));
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 8px 10px;
+}
+
+.photoReviewAssets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.photoReviewAssetCard {
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: var(--control-radius);
+  background: var(--surface-1);
+  overflow: hidden;
+  display: grid;
+}
+
+.photoReviewAssetImage,
+.photoReviewAssetPlaceholder {
+  width: 100%;
+  height: 132px;
+  object-fit: cover;
+}
+
+.photoReviewAssetPlaceholder {
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  background: color-mix(in srgb, var(--surface-2) 88%, transparent);
+}
+
+.photoReviewAssetActions {
+  border-top: var(--border-width-thin) solid var(--glass-border);
+  padding: 8px;
+}
+
+.photoReviewAssetLink,
+.photoReviewAssetButton {
+  width: 100%;
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: var(--control-radius);
+  background: var(--surface-2);
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  font-size: 12px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+
+.photoReviewAssetButton {
+  font-family: inherit;
+}
+
+.photoReviewAssetLink:focus-visible,
+.photoReviewAssetButton:focus-visible {
+  outline: 2px solid var(--border-primary);
+  outline-offset: 2px;
+}
+
+.photoReviewActions {
+  display: grid;
+  gap: 8px;
+}
+
+.photoRejectInput {
+  width: 100%;
+  border: var(--border-width-thin) solid var(--control-border, var(--border-primary));
+  border-radius: var(--control-radius);
+  background: var(--control-bg, var(--bg-primary));
+  color: var(--text-primary);
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.photoReviewButtons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .tasksList {
   display: grid;
   gap: 10px;
@@ -306,7 +570,8 @@
 }
 
 .answerTypeBadge,
-.requiredFlag {
+.requiredFlag,
+.photoPendingFlag {
   border: var(--border-width-thin) solid var(--glass-border);
   border-radius: 999px;
   padding: 2px 8px;
@@ -324,6 +589,12 @@
   color: color-mix(in srgb, #1d4ed8 70%, var(--text-primary));
   background: color-mix(in srgb, #1d4ed8 12%, var(--surface-2));
   border-color: color-mix(in srgb, #1d4ed8 34%, var(--glass-border));
+}
+
+.photoPendingFlag {
+  border-color: color-mix(in srgb, #d97706 35%, var(--glass-border));
+  background: color-mix(in srgb, #d97706 14%, var(--surface-2));
+  color: var(--text-primary);
 }
 
 .taskMetaLine {
@@ -431,5 +702,9 @@
   .unitsColumn,
   .tasksColumn {
     padding: 10px;
+  }
+
+  .photoQueueItem {
+    align-items: flex-start;
   }
 }

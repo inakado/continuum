@@ -5,6 +5,8 @@ import Button from "@/components/ui/Button";
 import LiteTex from "@/components/LiteTex";
 import {
   teacherApi,
+  type TeacherPhotoSubmission,
+  type TeacherStudentPhotoQueueItem,
   type TeacherStudentProfileResponse,
   type TeacherStudentTreeTask,
   type TeacherStudentTreeUnit,
@@ -38,6 +40,18 @@ const statusClassName: Record<TeacherStudentTreeTask["state"]["status"], string>
   credited_without_progress: "statusWarning",
   correct: "statusSuccess",
   teacher_credited: "statusSuccess",
+};
+
+const reviewStatusLabel: Record<TeacherPhotoSubmission["status"], string> = {
+  submitted: "На проверке",
+  accepted: "Принято",
+  rejected: "Отклонено",
+};
+
+const reviewStatusClassName: Record<TeacherPhotoSubmission["status"], string> = {
+  submitted: "photoReviewStatusSubmitted",
+  accepted: "photoReviewStatusAccepted",
+  rejected: "photoReviewStatusRejected",
 };
 
 function formatDateTime(value: string) {
@@ -79,6 +93,20 @@ export default function TeacherStudentProfilePanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [photoQueueItems, setPhotoQueueItems] = useState<TeacherStudentPhotoQueueItem[]>([]);
+  const [photoQueueTotal, setPhotoQueueTotal] = useState(0);
+  const [photoQueueLoading, setPhotoQueueLoading] = useState(false);
+  const [photoQueueError, setPhotoQueueError] = useState<string | null>(null);
+
+  const [photoReviewTaskId, setPhotoReviewTaskId] = useState<string | null>(null);
+  const [photoReviewItems, setPhotoReviewItems] = useState<TeacherPhotoSubmission[]>([]);
+  const [photoReviewLoading, setPhotoReviewLoading] = useState(false);
+  const [photoReviewError, setPhotoReviewError] = useState<string | null>(null);
+  const [photoReviewNotice, setPhotoReviewNotice] = useState<string | null>(null);
+  const [photoReviewBusySubmissionId, setPhotoReviewBusySubmissionId] = useState<string | null>(null);
+  const [photoRejectReasonBySubmission, setPhotoRejectReasonBySubmission] = useState<Record<string, string>>({});
+  const [photoPreviewUrlByAssetKey, setPhotoPreviewUrlByAssetKey] = useState<Record<string, string>>({});
+
   const loadDetails = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -96,6 +124,54 @@ export default function TeacherStudentProfilePanel({
     }
   }, [onRefreshStudents, selectedCourseId, studentId]);
 
+  const loadPhotoQueue = useCallback(async () => {
+    setPhotoQueueLoading(true);
+    setPhotoQueueError(null);
+    try {
+      const response = await teacherApi.listStudentPhotoQueue(studentId, {
+        status: "submitted",
+        limit: 50,
+        offset: 0,
+      });
+      setPhotoQueueItems(response.items);
+      setPhotoQueueTotal(response.total);
+    } catch (err) {
+      setPhotoQueueItems([]);
+      setPhotoQueueTotal(0);
+      setPhotoQueueError(getApiErrorMessage(err));
+    } finally {
+      setPhotoQueueLoading(false);
+    }
+  }, [studentId]);
+
+  const loadPhotoTaskHistory = useCallback(
+    async (taskId: string) => {
+      setPhotoReviewLoading(true);
+      setPhotoReviewError(null);
+      try {
+        const response = await teacherApi.listStudentTaskPhotoSubmissions(studentId, taskId);
+        setPhotoReviewItems(response.items);
+      } catch (err) {
+        setPhotoReviewItems([]);
+        setPhotoReviewError(getApiErrorMessage(err));
+      } finally {
+        setPhotoReviewLoading(false);
+      }
+    },
+    [studentId],
+  );
+
+  const getPhotoPreviewUrl = useCallback(
+    async (taskId: string, assetKey: string) => {
+      const cached = photoPreviewUrlByAssetKey[assetKey];
+      if (cached) return cached;
+      const response = await teacherApi.presignStudentTaskPhotoView(studentId, taskId, assetKey, 300);
+      setPhotoPreviewUrlByAssetKey((previous) => ({ ...previous, [assetKey]: response.url }));
+      return response.url;
+    },
+    [photoPreviewUrlByAssetKey, studentId],
+  );
+
   useEffect(() => {
     setSelectedCourseId(undefined);
     setSelectedSectionId(null);
@@ -105,11 +181,25 @@ export default function TeacherStudentProfilePanel({
     setPreviewError(null);
     setPreviewExpanded(false);
     setExpandedTaskIds(new Set());
+    setPhotoQueueItems([]);
+    setPhotoQueueTotal(0);
+    setPhotoQueueError(null);
+    setPhotoReviewTaskId(null);
+    setPhotoReviewItems([]);
+    setPhotoReviewError(null);
+    setPhotoReviewNotice(null);
+    setPhotoReviewBusySubmissionId(null);
+    setPhotoRejectReasonBySubmission({});
+    setPhotoPreviewUrlByAssetKey({});
   }, [studentId]);
 
   useEffect(() => {
-    loadDetails();
+    void loadDetails();
   }, [loadDetails]);
+
+  useEffect(() => {
+    void loadPhotoQueue();
+  }, [loadPhotoQueue]);
 
   const courseTree = details?.courseTree ?? null;
 
@@ -159,6 +249,27 @@ export default function TeacherStudentProfilePanel({
     }
     return details?.profile.login ?? fallbackName;
   }, [details?.profile.firstName, details?.profile.lastName, details?.profile.login, fallbackName]);
+
+  const queuedPhotoTaskIds = useMemo(() => {
+    return new Set(photoQueueItems.map((item) => item.taskId));
+  }, [photoQueueItems]);
+
+  const selectedReviewQueueItem = useMemo(() => {
+    if (!photoReviewTaskId) return null;
+    return photoQueueItems.find((item) => item.taskId === photoReviewTaskId) ?? null;
+  }, [photoQueueItems, photoReviewTaskId]);
+
+  const selectedReviewTaskTitle = useMemo(() => {
+    if (selectedReviewQueueItem?.taskTitle) return selectedReviewQueueItem.taskTitle;
+    if (!photoReviewTaskId) return null;
+    for (const section of sections) {
+      for (const unit of section.units) {
+        const task = unit.tasks.find((item) => item.id === photoReviewTaskId);
+        if (task?.title) return task.title;
+      }
+    }
+    return null;
+  }, [photoReviewTaskId, sections, selectedReviewQueueItem?.taskTitle]);
 
   const resetPreviewState = useCallback(() => {
     setPreviewUnitId(null);
@@ -220,6 +331,21 @@ export default function TeacherStudentProfilePanel({
     [studentId],
   );
 
+  const handleOpenPhotoReview = useCallback(
+    async (taskId: string, unitId: string) => {
+      const sectionWithUnit = sections.find((section) => section.units.some((unit) => unit.id === unitId));
+      if (sectionWithUnit) {
+        setSelectedSectionId(sectionWithUnit.id);
+      }
+      setSelectedUnitId(unitId);
+      setPhotoReviewTaskId(taskId);
+      setPhotoReviewError(null);
+      setPhotoReviewNotice(null);
+      await loadPhotoTaskHistory(taskId);
+    },
+    [loadPhotoTaskHistory, sections],
+  );
+
   const handleCreditTask = useCallback(
     async (task: TeacherStudentTreeTask) => {
       if (creditBusyTaskId) return;
@@ -227,7 +353,10 @@ export default function TeacherStudentProfilePanel({
       setError(null);
       try {
         await teacherApi.creditStudentTask(studentId, task.id);
-        await loadDetails();
+        await Promise.all([loadDetails(), loadPhotoQueue()]);
+        if (photoReviewTaskId === task.id) {
+          await loadPhotoTaskHistory(task.id);
+        }
         if (previewUnitId) {
           await handleOpenUnitPreview(previewUnitId);
         }
@@ -237,8 +366,130 @@ export default function TeacherStudentProfilePanel({
         setCreditBusyTaskId(null);
       }
     },
-    [creditBusyTaskId, handleOpenUnitPreview, loadDetails, previewUnitId, studentId],
+    [
+      creditBusyTaskId,
+      handleOpenUnitPreview,
+      loadDetails,
+      loadPhotoQueue,
+      loadPhotoTaskHistory,
+      photoReviewTaskId,
+      previewUnitId,
+      studentId,
+    ],
   );
+
+  const handleAcceptSubmission = useCallback(
+    async (submissionId: string) => {
+      if (!photoReviewTaskId || photoReviewBusySubmissionId) return;
+      setPhotoReviewBusySubmissionId(submissionId);
+      setPhotoReviewError(null);
+      try {
+        await teacherApi.acceptStudentTaskPhotoSubmission(studentId, photoReviewTaskId, submissionId);
+        setPhotoReviewNotice("Фото принято. Статус задачи и прогресс ученика обновлены.");
+        await Promise.all([loadDetails(), loadPhotoQueue(), loadPhotoTaskHistory(photoReviewTaskId)]);
+        if (previewUnitId) {
+          await handleOpenUnitPreview(previewUnitId);
+        }
+      } catch (err) {
+        setPhotoReviewError(getApiErrorMessage(err));
+      } finally {
+        setPhotoReviewBusySubmissionId(null);
+      }
+    },
+    [
+      handleOpenUnitPreview,
+      loadDetails,
+      loadPhotoQueue,
+      loadPhotoTaskHistory,
+      photoReviewBusySubmissionId,
+      photoReviewTaskId,
+      previewUnitId,
+      studentId,
+    ],
+  );
+
+  const handleRejectSubmission = useCallback(
+    async (submissionId: string) => {
+      if (!photoReviewTaskId || photoReviewBusySubmissionId) return;
+      setPhotoReviewBusySubmissionId(submissionId);
+      setPhotoReviewError(null);
+      try {
+        await teacherApi.rejectStudentTaskPhotoSubmission(
+          studentId,
+          photoReviewTaskId,
+          submissionId,
+          photoRejectReasonBySubmission[submissionId],
+        );
+        setPhotoReviewNotice("Фото отклонено. Ученик может отправить ответ заново.");
+        await Promise.all([loadDetails(), loadPhotoQueue(), loadPhotoTaskHistory(photoReviewTaskId)]);
+        if (previewUnitId) {
+          await handleOpenUnitPreview(previewUnitId);
+        }
+      } catch (err) {
+        setPhotoReviewError(getApiErrorMessage(err));
+      } finally {
+        setPhotoReviewBusySubmissionId(null);
+      }
+    },
+    [
+      handleOpenUnitPreview,
+      loadDetails,
+      loadPhotoQueue,
+      loadPhotoTaskHistory,
+      photoRejectReasonBySubmission,
+      photoReviewBusySubmissionId,
+      photoReviewTaskId,
+      previewUnitId,
+      studentId,
+    ],
+  );
+
+  const handleOpenPhotoAsset = useCallback(
+    async (taskId: string, assetKey: string) => {
+      try {
+        const url = await getPhotoPreviewUrl(taskId, assetKey);
+        window.open(url, "_blank", "noopener,noreferrer");
+      } catch (err) {
+        setPhotoReviewError(getApiErrorMessage(err));
+      }
+    },
+    [getPhotoPreviewUrl],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPreviewUrls = async () => {
+      if (!photoReviewTaskId || photoReviewItems.length === 0) return;
+
+      const keys = Array.from(new Set(photoReviewItems.flatMap((submission) => submission.assetKeys)));
+      const missingKeys = keys.filter((assetKey) => !photoPreviewUrlByAssetKey[assetKey]);
+      if (!missingKeys.length) return;
+
+      await Promise.all(
+        missingKeys.map(async (assetKey) => {
+          try {
+            const response = await teacherApi.presignStudentTaskPhotoView(
+              studentId,
+              photoReviewTaskId,
+              assetKey,
+              300,
+            );
+            if (cancelled) return;
+            setPhotoPreviewUrlByAssetKey((previous) => ({ ...previous, [assetKey]: response.url }));
+          } catch {
+            /* fallback остаётся кнопкой "Открыть файл" */
+          }
+        }),
+      );
+    };
+
+    void loadPreviewUrls();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [photoPreviewUrlByAssetKey, photoReviewItems, photoReviewTaskId, studentId]);
 
   return (
     <section className={styles.panel}>
@@ -280,6 +531,10 @@ export default function TeacherStudentProfilePanel({
                   setSelectedSectionId(null);
                   setSelectedUnitId(null);
                   setExpandedTaskIds(new Set());
+                  setPhotoReviewTaskId(null);
+                  setPhotoReviewItems([]);
+                  setPhotoReviewError(null);
+                  setPhotoReviewNotice(null);
                   resetPreviewState();
                 }}
               >
@@ -291,6 +546,53 @@ export default function TeacherStudentProfilePanel({
               </select>
             </label>
           </div>
+
+          <section className={styles.photoQueueBlock} aria-label="Фото-задачи на проверке">
+            <header className={styles.photoQueueHeader}>
+              <div>
+                <h3 className={styles.photoQueueTitle}>Фото-задачи на проверке</h3>
+                <p className={styles.photoQueueHint}>
+                  Решение учителя влияет на прогресс юнита и разблокировку downstream по графу.
+                </p>
+              </div>
+              <div className={styles.photoQueueCounter}>В очереди: {photoQueueTotal}</div>
+            </header>
+
+            {photoQueueError ? (
+              <div className={styles.error} role="status" aria-live="polite">
+                {photoQueueError}
+              </div>
+            ) : null}
+
+            {photoQueueLoading ? <div className={styles.loading}>Загрузка очереди…</div> : null}
+
+            {!photoQueueLoading && !photoQueueItems.length ? (
+              <div className={styles.empty}>Новых фото-задач на проверке нет.</div>
+            ) : null}
+
+            {photoQueueItems.length > 0 ? (
+              <div className={styles.photoQueueList}>
+                {photoQueueItems.map((item) => (
+                  <article key={item.submissionId} className={styles.photoQueueItem}>
+                    <div className={styles.photoQueueItemMain}>
+                      <div className={styles.photoQueueItemTitle}>{item.taskTitle ?? "Задача без названия"}</div>
+                      <div className={styles.photoQueueItemMeta}>
+                        <span>{item.unitTitle}</span>
+                        <span>Отправлено: {formatDateTime(item.submittedAt)}</span>
+                        <span>Файлов: {item.assetKeysCount}</span>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      onClick={() => void handleOpenPhotoReview(item.taskId, item.unitId)}
+                    >
+                      Проверить
+                    </Button>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+          </section>
 
           <section className={styles.layout}>
             <aside className={styles.sectionColumn}>
@@ -330,13 +632,13 @@ export default function TeacherStudentProfilePanel({
                       <button
                         key={unit.id}
                         type="button"
-                        className={`${styles.unitButton} ${
-                          selectedUnitId === unit.id ? styles.unitButtonActive : ""
-                        }`}
+                        className={`${styles.unitButton} ${selectedUnitId === unit.id ? styles.unitButtonActive : ""}`}
                         onClick={() => handleSelectUnit(unit.id)}
                       >
                         <span className={styles.unitTitle}>{unit.title}</span>
-                        <span className={styles.unitMeta}>Зачтено {summary.creditedCount}/{unit.tasks.length}</span>
+                        <span className={styles.unitMeta}>
+                          Зачтено {summary.creditedCount}/{unit.tasks.length}
+                        </span>
                         <span className={styles.unitStatsRow}>
                           <span className={styles.unitStatChip}>К зачету: {summary.canCreditCount}</span>
                           <span className={styles.unitStatChip}>Блок: {summary.blockedCount}</span>
@@ -388,8 +690,140 @@ export default function TeacherStudentProfilePanel({
                     {previewError ? <div className={styles.error}>{previewError}</div> : null}
 
                     {previewUnitId === selectedUnit.id && previewData && previewExpanded ? (
-                      <TeacherStudentUnitPreviewPanel unit={previewData} />
+                      <TeacherStudentUnitPreviewPanel
+                        unit={previewData}
+                        onOpenPhotoReview={(taskId, unitId) => void handleOpenPhotoReview(taskId, unitId)}
+                      />
                     ) : null}
+                  </section>
+
+                  <section className={styles.photoReviewBlock}>
+                    <header className={styles.photoReviewHeader}>
+                      <div>
+                        <div className={styles.photoReviewTitle}>Ревью фото-задачи</div>
+                        <div className={styles.photoReviewSubTitle}>
+                          {selectedReviewTaskTitle ?? "Выберите задачу из очереди или списка юнита."}
+                        </div>
+                      </div>
+                      {photoReviewTaskId ? (
+                        <Button
+                          variant="ghost"
+                          onClick={() => {
+                            setPhotoReviewTaskId(null);
+                            setPhotoReviewItems([]);
+                            setPhotoReviewError(null);
+                            setPhotoReviewNotice(null);
+                          }}
+                        >
+                          Скрыть
+                        </Button>
+                      ) : null}
+                    </header>
+
+                    {photoReviewNotice ? <div className={styles.photoReviewNotice}>{photoReviewNotice}</div> : null}
+                    {photoReviewError ? <div className={styles.error}>{photoReviewError}</div> : null}
+
+                    {!photoReviewTaskId ? (
+                      <div className={styles.photoReviewHint}>Откройте фото-задачу для просмотра сабмитов.</div>
+                    ) : photoReviewLoading ? (
+                      <div className={styles.loading}>Загрузка сабмитов…</div>
+                    ) : photoReviewItems.length === 0 ? (
+                      <div className={styles.empty}>Сабмиты не найдены.</div>
+                    ) : (
+                      <div className={styles.photoReviewList}>
+                        {photoReviewItems.map((submission) => (
+                          <article key={submission.id} className={styles.photoReviewItem}>
+                            <div className={styles.photoReviewMetaRow}>
+                              <span
+                                className={`${styles.photoReviewStatusChip} ${styles[reviewStatusClassName[submission.status]]}`}
+                              >
+                                {reviewStatusLabel[submission.status]}
+                              </span>
+                              <span>Отправлено: {formatDateTime(submission.submittedAt)}</span>
+                              {submission.reviewedAt ? <span>Проверено: {formatDateTime(submission.reviewedAt)}</span> : null}
+                            </div>
+
+                            {submission.rejectedReason ? (
+                              <div className={styles.photoReviewRejectReason}>Причина: {submission.rejectedReason}</div>
+                            ) : null}
+
+                            <div className={styles.photoReviewAssets}>
+                              {submission.assetKeys.map((assetKey) => {
+                                const previewUrl = photoPreviewUrlByAssetKey[assetKey];
+                                return (
+                                  <article key={assetKey} className={styles.photoReviewAssetCard}>
+                                    {previewUrl ? (
+                                      <img
+                                        className={styles.photoReviewAssetImage}
+                                        src={previewUrl}
+                                        alt="Фото-ответ ученика"
+                                        loading="lazy"
+                                      />
+                                    ) : (
+                                      <div className={styles.photoReviewAssetPlaceholder}>Превью</div>
+                                    )}
+                                    <div className={styles.photoReviewAssetActions}>
+                                      {previewUrl ? (
+                                        <a
+                                          className={styles.photoReviewAssetLink}
+                                          href={previewUrl}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                        >
+                                          Открыть
+                                        </a>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          className={styles.photoReviewAssetButton}
+                                          onClick={() =>
+                                            void handleOpenPhotoAsset(photoReviewTaskId, assetKey)
+                                          }
+                                        >
+                                          Открыть файл
+                                        </button>
+                                      )}
+                                    </div>
+                                  </article>
+                                );
+                              })}
+                            </div>
+
+                            {submission.status === "submitted" ? (
+                              <div className={styles.photoReviewActions}>
+                                <textarea
+                                  className={styles.photoRejectInput}
+                                  value={photoRejectReasonBySubmission[submission.id] ?? ""}
+                                  onChange={(event) =>
+                                    setPhotoRejectReasonBySubmission((previous) => ({
+                                      ...previous,
+                                      [submission.id]: event.target.value,
+                                    }))
+                                  }
+                                  placeholder="Причина отклонения (необязательно)"
+                                  rows={2}
+                                />
+                                <div className={styles.photoReviewButtons}>
+                                  <Button
+                                    onClick={() => void handleAcceptSubmission(submission.id)}
+                                    disabled={photoReviewBusySubmissionId === submission.id}
+                                  >
+                                    Принять
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    onClick={() => void handleRejectSubmission(submission.id)}
+                                    disabled={photoReviewBusySubmissionId === submission.id}
+                                  >
+                                    Отклонить
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : null}
+                          </article>
+                        ))}
+                      </div>
+                    )}
                   </section>
 
                   <div className={styles.tasksList}>
@@ -398,6 +832,7 @@ export default function TeacherStudentProfilePanel({
                     ) : (
                       selectedUnit.tasks.map((task, index) => {
                         const isExpanded = expandedTaskIds.has(task.id);
+                        const hasPendingPhoto = task.answerType === "photo" && queuedPhotoTaskIds.has(task.id);
 
                         return (
                           <article key={task.id} className={styles.taskItem}>
@@ -408,12 +843,11 @@ export default function TeacherStudentProfilePanel({
                                   {task.title ? <div className={styles.taskTitle}>{task.title}</div> : null}
                                   <span className={styles.answerTypeBadge}>{answerTypeLabel[task.answerType]}</span>
                                   {task.isRequired ? <span className={styles.requiredFlag}>Обязательная</span> : null}
+                                  {hasPendingPhoto ? <span className={styles.photoPendingFlag}>На проверке</span> : null}
                                 </div>
 
                                 <div className={styles.taskMetaLine}>
-                                  <span
-                                    className={`${styles.statusBadge} ${styles[statusClassName[task.state.status]]}`}
-                                  >
+                                  <span className={`${styles.statusBadge} ${styles[statusClassName[task.state.status]]}`}>
                                     {getStudentTaskStatusLabel(task.state.status)}
                                   </span>
                                   <span>Попытки: {task.state.attemptsUsed}</span>
@@ -430,10 +864,18 @@ export default function TeacherStudentProfilePanel({
                                 <Button variant="ghost" onClick={() => handleToggleTaskStatement(task.id)}>
                                   {isExpanded ? "Скрыть" : "Показать"}
                                 </Button>
+                                {task.answerType === "photo" ? (
+                                  <Button
+                                    variant="ghost"
+                                    onClick={() => void handleOpenPhotoReview(task.id, selectedUnit.id)}
+                                  >
+                                    Проверить
+                                  </Button>
+                                ) : null}
                                 {task.state.canTeacherCredit ? (
                                   <Button
                                     variant="ghost"
-                                    onClick={() => handleCreditTask(task)}
+                                    onClick={() => void handleCreditTask(task)}
                                     disabled={creditBusyTaskId === task.id}
                                   >
                                     Зачесть

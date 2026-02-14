@@ -24,6 +24,11 @@ export class StudentPhotoTasksController {
     return this.photoTaskService.submit(req.user.id, taskId, body);
   }
 
+  @Get(':taskId/photo/submissions')
+  listSubmissions(@Param('taskId') taskId: string, @Req() req: AuthRequest) {
+    return this.photoTaskService.listForStudent(req.user.id, taskId);
+  }
+
   @Get(':taskId/photo/presign-view')
   presignView(
     @Param('taskId') taskId: string,

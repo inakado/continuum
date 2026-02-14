@@ -260,6 +260,80 @@ export type UnitPdfPresignedResponse = {
   url: string | null;
 };
 
+export type TeacherPhotoSubmission = {
+  id: string;
+  studentUserId: string;
+  taskId: string;
+  taskRevisionId: string;
+  unitId: string;
+  attemptId: string;
+  status: "submitted" | "accepted" | "rejected";
+  assetKeys: string[];
+  rejectedReason: string | null;
+  submittedAt: string;
+  reviewedAt: string | null;
+  reviewedByTeacherUserId: string | null;
+};
+
+export type TeacherTaskPhotoSubmissionsResponse = {
+  items: TeacherPhotoSubmission[];
+};
+
+export type TeacherStudentPhotoQueueItem = {
+  submissionId: string;
+  taskId: string;
+  taskTitle: string | null;
+  unitId: string;
+  unitTitle: string;
+  status: "submitted" | "accepted" | "rejected";
+  submittedAt: string;
+  rejectedReason: string | null;
+  assetKeysCount: number;
+};
+
+export type TeacherStudentPhotoQueueResponse = {
+  items: TeacherStudentPhotoQueueItem[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+export type TeacherPhotoPresignViewResponse = {
+  ok: true;
+  assetKey: string;
+  expiresInSec: number;
+  url: string;
+};
+
+export type TeacherPhotoReviewResponse = {
+  ok: true;
+  submission: TeacherPhotoSubmission;
+  taskState: {
+    status:
+      | "not_started"
+      | "in_progress"
+      | "correct"
+      | "pending_review"
+      | "accepted"
+      | "rejected"
+      | "blocked"
+      | "credited_without_progress"
+      | "teacher_credited";
+    wrongAttempts: number;
+    blockedUntil: string | null;
+    requiredSkipped: boolean;
+  };
+  unitSnapshot?: {
+    unitId: string;
+    status: "locked" | "available" | "in_progress" | "completed";
+    totalTasks: number;
+    countedTasks: number;
+    solvedTasks: number;
+    completionPercent: number;
+    solvedPercent: number;
+  };
+};
+
 export const teacherApi = {
   login(login: string, password: string) {
     return apiRequest<LoginResponse>("/auth/login", {
@@ -510,6 +584,61 @@ export const teacherApi = {
 
   getStudentUnitPreview(studentId: string, unitId: string) {
     return apiRequest<TeacherStudentUnitPreview>(`/teacher/students/${studentId}/units/${unitId}`);
+  },
+
+  listStudentPhotoQueue(
+    studentId: string,
+    params?: { status?: "submitted" | "accepted" | "rejected"; limit?: number; offset?: number },
+  ) {
+    const search = new URLSearchParams();
+    if (params?.status) search.set("status", params.status);
+    if (params?.limit !== undefined) search.set("limit", String(params.limit));
+    if (params?.offset !== undefined) search.set("offset", String(params.offset));
+    const suffix = search.toString();
+    return apiRequest<TeacherStudentPhotoQueueResponse>(
+      `/teacher/students/${studentId}/photo-submissions${suffix ? `?${suffix}` : ""}`,
+    );
+  },
+
+  listStudentTaskPhotoSubmissions(studentId: string, taskId: string) {
+    return apiRequest<TeacherTaskPhotoSubmissionsResponse>(
+      `/teacher/students/${studentId}/tasks/${taskId}/photo-submissions`,
+    );
+  },
+
+  presignStudentTaskPhotoView(
+    studentId: string,
+    taskId: string,
+    assetKey: string,
+    ttlSec?: number,
+  ) {
+    const search = new URLSearchParams({ assetKey });
+    if (ttlSec !== undefined) search.set("ttlSec", String(ttlSec));
+    return apiRequest<TeacherPhotoPresignViewResponse>(
+      `/teacher/students/${studentId}/tasks/${taskId}/photo-submissions/presign-view?${search.toString()}`,
+    );
+  },
+
+  acceptStudentTaskPhotoSubmission(studentId: string, taskId: string, submissionId: string) {
+    return apiRequest<TeacherPhotoReviewResponse>(
+      `/teacher/students/${studentId}/tasks/${taskId}/photo-submissions/${submissionId}/accept`,
+      { method: "POST" },
+    );
+  },
+
+  rejectStudentTaskPhotoSubmission(
+    studentId: string,
+    taskId: string,
+    submissionId: string,
+    reason?: string,
+  ) {
+    return apiRequest<TeacherPhotoReviewResponse>(
+      `/teacher/students/${studentId}/tasks/${taskId}/photo-submissions/${submissionId}/reject`,
+      {
+        method: "POST",
+        body: reason?.trim() ? { reason: reason.trim() } : {},
+      },
+    );
   },
 
   creditStudentTask(studentId: string, taskId: string) {
