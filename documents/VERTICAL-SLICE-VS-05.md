@@ -1,258 +1,274 @@
 # VERTICAL-SLICE-VS-05.md
 Проект: **Континуум**  
-Слайс: **VS-05 Photo Tasks v1: Submission → Teacher Review → Accept/Reject → влияет на solved% (и completion%)**  
-Назначение документа: дать агенту “картину целиком” по VS-05 (что и в каком порядке делаем), без глубоких деталей реализации.
+Слайс: **VS-05 — Photo Tasks v1 + Photo Review + Solution PDF (LaTeX→PDF) для задач**  
+Назначение документа: дать агенту “картину целиком” по VS-05 (что и в каком порядке делаем), **без глубоких деталей реализации**.
 
 ---
 
-## 0) Контекст и принципы
+## 0) Контекст и предпосылки (что уже есть)
+1) **Learning Core (VS-03/VS-04)** уже реализован:
+- попытки, статусы задач, 3+3, блокировки, auto-credit, teacher-credit, уведомления
+- student_task_state и student unit metrics (completion/solved, locked/available/completed)
 
-### 0.1 Где мы сейчас (после VS-04)
-- Есть **Content**: Course/Section/Unit/Task (draft/published), граф внутри section.
-- Есть **Learning Core** (VS-03): попытки, статусы задач, 3+3, блокировки, auto-credit, уведомления учителю.
-- Есть **VS-04**: unit progress, required gates, unit statuses, unlock AND внутри section-графа.
-- Текущий UI student/teacher уже “боевой”, с дашбордами и панелями.
+2) **Object storage + worker LaTeX compile pipeline (VS-09)** уже реализован:
+- единый `ObjectStorageService` (S3/MinIO)
+- presigned URL как основной путь доставки PDF
+- компиляция LaTeX через `tectonic` в worker (очередь), `apply` в API (idempotent + stale-safe)
+- policy TTL + пресайн для student/teacher
+- PDF viewer на web (pdfjs canvas) + refresh presign при expiry
 
-### 0.2 Требование VS-05
-Добавить полноценный контур **photo tasks**:
-- ученик **прикладывает фото-решение** (upload),
-- преподаватель **смотрит**, **принимает/отклоняет**, оставляет комментарий,
-- принятое фото **засчитывается как solved** (как “accepted photo”) и также входит в counted,
-- все это отражается в прогрессе, графе и профиле ученика.
-
-### 0.3 Storage: dev vs prod
-- **Dev**: используем локально **MinIO** (уже поднят в docker-compose).
-- **Prod**: будет **S3 Beget**, переключение **только через ENV** (без изменения бизнес-логики).
-- В коде везде опираться на абстракцию `StorageAdapter`/`S3Adapter`, а не на MinIO напрямую.
+3) **Task Builder (VS-02)** уже есть:
+- типы задач: numeric / single / multi / photo
+- решение задачи сейчас временно рендерится через **KaTeX (LiteTex)** → этого недостаточно.
 
 ---
 
-## 1) Термины и статусы
+## 1) Цель VS-05
+### A) Photo задачи: загрузка ответа учеником + статус + teacher review
+- Ученик может приложить **фото-ответ** к задаче типа `photo`.
+- Преподаватель может **принять/отклонить** фото-ответ.
+- Принятое фото считается **solved** (как “accepted photo”), влияет на **Task Solved %** и на completed-логику юнита через required-гейт.
 
-### 1.1 Статусы для photo-task на уровне student_task_state (или аналога)
-Минимально для VS-05:
-- `not_started`
-- `submitted_for_review` (есть отправка, ждём решения)
-- `rejected` (учитель отклонил; попытка не засчитана)
-- `accepted` (учитель принял; задача считается решённой)
-- (дополнительно, если уже есть в VS-03): `teacher_credited`, `credited_without_progress`, `correct` — но для photo в VS-05 ключевые `submitted/rejected/accepted`.
+### B) Solution PDF для задач (LaTeX→PDF pipeline)
+- В Teacher UI в билдере задачи появляется **Tex editor решения + кнопка “Скомпилировать PDF” + предпросмотр** (в компактном UI).
+- Компиляция решения задачи использует **тот же LaTeX pipeline**, что и теория/методика (через worker очередь).
+- В Student UI, при просмотре решения задачи (после зачёта/пропуска/кредита), показывается **PDF решения**, а не KaTeX.
 
-### 1.2 Влияние на метрики
-- **counted_tasks** растёт при:
-  - `accepted` (photo)
+---
+
+## 2) Не входит в VS-05 (явно)
+- Полная “фото-ревью система” уровня LMS (комментарии цепочкой, версии, разметка на изображении, модерация несколькими преподавателями).
+- Мульти-файлы/сканы в PDF (пока допускаем 1–N фото, но без сложного UI).
+- Генерация “красивого” PDF решения из шаблонов с авто-инклюдом условия/рисунков.
+- Публичные ссылки на фото/решения без авторизации.
+- Сложные попытки/баллы/время/анализ ошибок.
+
+---
+
+## 3) Главные бизнес-инварианты
+### 3.1 Статусы и зачёт
+- **Photo задача**:
+  - ученик отправляет фото → `photo_submission.status = submitted`, а `student_task_state.status = pending_review`
+  - преподаватель принимает → `accepted` (это **solved**)
+  - преподаватель отклоняет → `rejected` (ученик может отправить заново)
+- **Solved %** растёт при:
+  - `correct`
+  - `teacher_credited`
+  - `accepted` (photo)  ← **это цель VS-05**
+- **Completion %** растёт при:
+  - `correct`
   - `credited_without_progress`
   - `teacher_credited`
-  - `correct`
-- **solved_tasks** растёт при:
-  - `correct`
-  - `teacher_credited`
-  - `accepted` (photo) ✅ (это главная интеграция VS-05)
+  - `accepted` (photo) — можно включить, если принято как “учтённая” (рекомендуется, чтобы completion не расходился странно)
+- Required-гейт:
+  - required photo-задача считается выполненной только при `accepted` (или `teacher_credited`, если допускается логикой VS-03/04).
+
+### 3.2 Доступность решения
+- Решение задачи (PDF) показывается ученику **только после** статуса задачи:
+  - `correct` / `credited_without_progress` / `teacher_credited` / `accepted`
+  - (и/или после required-skipped по вашей текущей политике)
+- До этого решение скрыто.
+
+### 3.3 Единый storage/ACL слой
+- Все бинарные assets (PDF, фото) проходят через **единый ObjectStorageService**.
+- Доступ к PDF/фото — **через presigned URL** (основной путь), с проверкой прав на backend (student/teacher).
 
 ---
 
-## 2) Scope VS-05
+## 4) Данные и модель (высокоуровнево)
+### 4.1 Photo submission (минимальная модель)
+Нужно хранить:
+- кто отправил (studentId)
+- к какой задаче/ревизии относится (taskId + activeRevisionId или taskRevisionId)
+- список ключей файлов в object storage (assetKeys)
+- текущий review статус (submitted/accepted/rejected)
+- timestamps (submittedAt/reviewedAt)
+- reviewer (teacherId)
+- опционально: reason/comment для reject
 
-### A) Backend: модели + сервисы + API
-1) Хранение подач фото (submissions) и их статусов
-2) Upload в storage (MinIO/S3), получение `assetKey`/`objectKey`
-3) Student endpoints:
-   - создать submission (upload + привязка к task)
-   - посмотреть статус/историю submission для task
-4) Teacher endpoints:
-   - список submissions “на проверку” (по teacher → его ученики)
-   - принять/отклонить submission (комментарий)
-5) Интеграция с:
-   - `student_task_state`
-   - `student_unit_state` / прогресс / unlock
-   - `notifications` учителю
+> Важно: привязка должна быть **к актуальной ревизии** (или фиксировать revisionId на момент отправки), чтобы попытки/состояния не “поплыли” после правок задачи.
 
-### B) Web UI/UX
-1) Student: UI для photo-task:
-   - загрузка фото (drag/drop + mobile file picker)
-   - отображение статуса: “отправлено”, “отклонено (комментарий)”, “принято”
-   - возможность повторной отправки после rejection
-2) Teacher:
-   - в профиле ученика/юнита показывать photo submissions
-   - отдельная панель “На проверку” (можно встроить в Students → active notifications)
-   - accept/reject + комментарий
-3) Визуальный стиль по DESIGN-SYSTEM: rounded-none, border-primary, инверсия активного, RU UI.
+### 4.2 Solution PDF для задач
+С учётом того, что у нас уже есть **ревизии задач**, решение должно храниться **в ревизии**:
+- `task_revision.solutionRichLatex` (исходник)
+- `task_revision.solutionPdfAssetKey` (результат компиляции)
+- компиляция/применение решения — как “compile job” (аналогично unit theory/method)
+
+> Старое поле `solution_lite` (KaTeX) убрать, даже не смотря на то что там хранятся данные.
 
 ---
 
-## 3) Out of scope VS-05
-- Распознавание текста/ИИ, автопроверка фото
-- Редактирование фото, аннотации
-- Несколько файлов на одну submission (в v1 — 1 файл)
-- Полноценная медиа-галерея и версии вложений
-- “Скрывать фото после принятия”, DRM и т.п.
-- Глобальные очереди/worker для превью (если будет нужно — позже)
+## 5) API контракты (уровень “что нужно”, без реализации)
+### 5.1 Student: upload photo answer
+Два варианта допустимы, выбрать один как стандарт:
+- **A) presigned PUT** (предпочтительно)
+- **B) proxy upload** через API (fallback/debug)
+
+Рекомендуемая схема (A):
+1) `POST /student/tasks/:taskId/photo/presign-upload`
+- body: `{ files: [{ filename, contentType, sizeBytes }] }`
+- response: `{ uploads: [{ assetKey, url, headers }] }`
+2) браузер грузит файлы напрямую в S3/MinIO по `url`
+3) `POST /student/tasks/:taskId/photo/submit`
+- body: `{ assetKeys: string[] }`
+- response: `{ ok: true, taskState: ... }`
+
+### 5.2 Teacher: review photo answer
+- `GET /teacher/students/:studentId/tasks/:taskId/photo-submissions`
+  - отдаёт активные/последние сабмиты, статусы, preview presigns
+- `POST /teacher/students/:studentId/tasks/:taskId/photo-submissions/:submissionId/accept`
+- `POST /teacher/students/:studentId/tasks/:taskId/photo-submissions/:submissionId/reject`
+  - body: `{ reason?: string }`
+
+### 5.3 Presign preview (photo + solution pdf)
+- `GET /student/tasks/:taskId/photo/presign-view?assetKey=...`
+- `GET /teacher/tasks/:taskId/photo/presign-view?assetKey=...`
+- `GET /student/tasks/:taskId/solution/pdf-presign?ttlSec=...`
+- `GET /teacher/tasks/:taskId/solution/pdf-presign?ttlSec=...`
+
+> TTL, target allowlist и лимиты — через единый policy слой (как в VS-09).
+
+### 5.4 Teacher: compile solution LaTeX (worker queue)
+Аналогично VS-09:
+- `POST /teacher/tasks/:taskId/solution/latex/compile` → `202 { jobId }`
+- `GET /teacher/latex/jobs/:jobId` → status + presignedUrl + assetKey
+- `POST /teacher/latex/jobs/:jobId/apply` → записывает `solutionPdfAssetKey` в активную ревизию задачи  
+(или auto-apply, если вы так сделали в VS-09)
 
 ---
 
-## 4) Модель данных (в общих чертах)
+## 6) Backend логика (ядро)
+### 6.1 Photo submission → state transitions
+- submit:
+  - проверить доступность юнита/задачи (unit availability уже есть)
+  - проверить тип задачи = `photo`
+  - создать submission запись, привязать к taskRevisionId
+  - обновить `student_task_state` в `pending_review`
+  - event log: `PhotoAttemptSubmitted`
 
-### 4.1 PhotoSubmission (новая сущность)
-Минимальные поля:
-- `id`
-- `taskId`
-- `studentId`
-- `status`: submitted_for_review | rejected | accepted
-- `assetKey` (ключ в storage)
-- `mimeType`, `sizeBytes`
-- `createdAt`, `updatedAt`
-- `reviewedAt` (nullable)
-- `reviewedByTeacherId` (nullable)
-- `teacherComment` (nullable)
+- accept:
+  - только lead teacher/роль teacher
+  - пометить submission accepted
+  - выставить `student_task_state = accepted`
+  - пересчитать unit metrics + unlock downstream (VS-04 availability service)
+  - уведомление (опционально): “photo accepted” (можно пропустить)
+  - event log: `PhotoAttemptAccepted`
 
-Индексы:
-- (studentId, taskId, createdAt desc)
-- (status, createdAt) для очереди проверки
-- (reviewedByTeacherId, reviewedAt)
+- reject:
+  - пометить rejected + reason
+  - `student_task_state = rejected`
+  - event log: `PhotoAttemptRejected`
 
-### 4.2 Взаимодействие с состоянием задачи
-- `student_task_state` хранит “сводный” статус по task+student+activeRevision:
-  - для photo: `submitted_for_review` / `rejected` / `accepted`
-- PhotoSubmission хранит “факт отправки/проверки” (audit trail).
+### 6.2 Влияние на метрики
+- `accepted` считается как:
+  - solved_tasks++ (обязательно)
+  - counted_tasks++ (рекомендуется)
+- required gate:
+  - required photo задача считается выполненной только если `accepted` (или teacher_credited, если допускаете).
 
----
+### 6.3 Семантика attempts для photo
+- `attempt.kind=photo` допускается как audit-факт отправки/решения review-потока.
+- Эти записи не участвуют в механике 3+3/lock и не считаются “wrong attempts”.
+- UI/метрики попыток для VS-03/VS-04 должны считать только auto-check attempts (numeric/single/multi).
 
-## 5) API (в общих чертах)
-
-> Примечание: точные пути/DTO агент выберет по существующим паттернам в проекте. Ниже — канонический набор.
-
-### 5.1 Student API
-- `POST /student/tasks/:taskId/photo-submissions`
-  - body: `file` (multipart/form-data) + optional `note` (если нужно)
-  - результат: submission (id, status, createdAt)
-  - правила:
-    - task должен быть типа `photo`
-    - unit должен быть доступен (не locked)
-    - если есть `submitted_for_review` — 409 (или разрешить replace, но лучше 409 в v1)
-    - если `accepted` — запретить новую отправку (409), т.к. уже решено
-    - если `rejected` — разрешить новую отправку (создаём новый submission)
-- `GET /student/tasks/:taskId/photo-submissions`
-  - вернуть историю (последние N) или только последний (по решению)
-  - student видит только свои
-
-### 5.2 Teacher API
-- `GET /teacher/photo-submissions?status=submitted_for_review&studentId=...&limit=...`
-  - возвращает список “на проверку” только по ученикам, где teacher = lead
-- `POST /teacher/photo-submissions/:submissionId/accept`
-  - body: `{ comment?: string }`
-  - эффекты:
-    - submission.status = accepted
-    - student_task_state.status = accepted
-    - пересчёт unit progress/availability (VS-04 логика)
-    - закрытие/обновление notification (если есть)
-- `POST /teacher/photo-submissions/:submissionId/reject`
-  - body: `{ comment: string }` (в reject комментарий обязателен)
-  - эффекты:
-    - submission.status = rejected
-    - student_task_state.status = rejected (или not_started — но лучше rejected, чтобы student видел причину)
-    - notification “PhotoRejected” (опционально) или обновление существующей
+### 6.4 Security / ACL
+- Student:
+  - может presign-view только для своих submissions и только если имеет доступ к unit
+- Teacher:
+  - presign-view для submissions только своих учеников (lead teacher)
+- Никаких “общих” proxy endpoint’ов для student, чтобы нельзя было обойти ACL.
 
 ---
 
-## 6) События и уведомления
+## 7) Web UX (что должно получиться)
+### 7.1 Student — Photo task
+В runner’е задачи:
+- Если тип `photo`:
+  - кнопка “Загрузить фото”
+  - после upload → “Отправить на проверку”
+  - статус:
+    - “Отправлено” / “На проверке”
+    - “Отклонено” + reason (если есть) + CTA “Отправить снова”
+    - “Принято” → задача зелёная, Next доступен
+- Просмотр отправленного фото:
+  - мини-превью (через presigned view), без сложного редактора
 
-### 6.1 Domain events (минимально)
-- `PhotoTaskSubmittedForReview`
-- `PhotoTaskAccepted`
-- `PhotoTaskRejected`
+### 7.2 Teacher — Review
+В профиле ученика (там где дерево курса/юнитов/задач):
+- На карточке ученика: бейдж “Есть уведомления” уже есть — расширить/использовать для photo review.
+- Внутри ученика:
+  - вкладка/секция “На проверке” (или фильтр по задачам)
+  - список сабмитов: ученик → задача → превью → Accept/Reject
+  - reject reason textarea (короткая)
 
-Payload (минимум):
-- studentUserId
-- teacherUserId (для accept/reject)
-- taskId
-- unitId (если удобно)
-- submissionId
-- assetKey (без публичного URL)
+### 7.3 Teacher — Solution PDF editor (в Task Builder)
+В редакторе задачи (внутри юнита):
+- Раздел “Решение (PDF)”:
+  - компактный Tex editor (CodeMirror)
+  - кнопка “Скомпилировать PDF”
+  - маленький preview (pdfjs canvas), с scroll/zoom минимально
+  - статус компиляции (queued/running/succeeded/failed + logSnippet)
+- После compile/apply:
+  - `solutionPdfAssetKey` сохранён в active revision
+  - student при показе решения грузит PDF через presign
 
-### 6.2 Notifications
-- при `submitted_for_review` → создаём notification ведущему учителю
-- при `accepted/rejected` → закрываем/обновляем notification
-- в Teacher “Ученики” карточка ученика должна показывать “есть активные уведомления”
-
----
-
-## 7) UI/UX (картинка целиком)
-
-### 7.1 Student (photo task)
-Внутри `/student/units/:id` → вкладка “Задачи”:
-- для task.type=photo:
-  - блок загрузки (input file)
-  - после upload:
-    - статус “Отправлено на проверку”
-    - предпросмотр изображения (из временного URL или через storage presigned GET)
-  - после reject:
-    - статус “Отклонено”
-    - комментарий учителя
-    - кнопка “Отправить заново”
-  - после accept:
-    - статус “Принято” (задача решена)
-    - попытки/3+3 к photo не применяются (это другой процесс)
-
-### 7.2 Teacher review
-Вариант A (минимум): внутри профиля ученика → вкладка/секция “Уведомления”:
-- список “Фото на проверку”
-- клик → модал/панель с:
-  - изображением
-  - метаданными (ученик, задача, юнит)
-  - Accept / Reject (comment)
-  - после действия: обновление статуса задачи/юнита
-
-Вариант B (чуть шире): отдельный пункт sidebar “Проверка фото” (в teacher dashboard)
-- список всех submissions “на проверку” по ученикам.
+### 7.4 Student — View solution as PDF
+В задаче, когда разрешено показывать решение:
+- вместо KaTeX блока → PDF viewer (тот же PdfCanvasPreview)
+- refresh presign при expiry — уже реализовано для unit theory/method, переиспользовать.
 
 ---
 
-## 8) Порядок разработки (high level)
+## 8) Порядок разработки (Step-by-step)
+### Step 1 — Backend: Photo submissions (DB + API contracts)
+- добавить модели (submission + статус + ссылки на assets)
+- endpoints presign-upload / submit / list-for-teacher / accept / reject
+- связать со student_task_state и availability recompute
+- event log + notifications (минимально)
 
-### Step 1 — DB + Storage adapter + Student submit
-- Prisma: PhotoSubmission + миграция
-- StorageAdapter (MinIO/S3 через ENV)
-- Student endpoint submit + read
-- Notifications на submit
+### Step 2 — Web: Student photo task UX
+- upload flow (presign PUT) + submit
+- отображение статусов + retry после reject
+- preview
 
-### Step 2 — Teacher review endpoints + интеграция с state/progress/unlock
-- Teacher list/accept/reject
-- Update student_task_state
-- Recompute unit progress/availability (VS-04)
-- Close notifications
-- Event log записи
+### Step 3 — Web: Teacher review UX
+- список “ожидают проверки”
+- accept/reject + reason
+- отражение статуса в дереве курса/юнитов/задач
 
-### Step 3 — Web UI: student photo task + teacher review UI
-- Student загрузка и отображение статусов
-- Teacher review экран/панель
-- Связка с существующим “Ученики → профиль → курс/юниты/задачи”
+### Step 4 — Backend: Solution PDF pipeline для task revision
+- добавить поля solutionRichLatex/solutionPdfAssetKey в task revision
+- compile queue endpoint для решения задачи (worker)
+- apply в active revision (auto-apply допускается)
+
+### Step 5 — Web: Solution PDF editor + Student PDF render
+- teacher: компактный editor + compile + preview
+- student: PDF render решения (по доступности)
 
 ---
 
 ## 9) Stop-check VS-05 (ручные проверки)
+1) **Photo accepted влияет на solved%**:
+- сделать photo required, отправить фото → teacher accept
+- unit solved% растёт, required gate закрывается, unit может стать completed
 
-1) Student отправил фото по photo-task → статус `submitted_for_review`, учитель видит notification  
-2) Teacher reject с комментарием → student видит `rejected + comment`, может отправить заново  
-3) Teacher accept → student-task становится `accepted`, метрики solved% и completion% обновляются, unit может стать completed и открыть downstream в графе  
-4) Direct open: student не может “обойти” логику unlock (locked unit по-прежнему 409 UNIT_LOCKED)  
-5) Storage switch: при одинаковом коде `STORAGE_ENDPOINT/MINIO_*` → MinIO работает; при `S3_ENDPOINT/ACCESS_KEY/...` → можно переключить на Beget без переписывания бизнес-логики
+2) **Reject не засчитывает**:
+- reject → задача не solved, unit не completed
 
----
+3) **ACL**:
+- student не может получить presigned на чужой assetKey
+- teacher не может review не своих учеников
 
-## 10) ENV (на будущее, без конкретики секретов)
-
-Нужно предусмотреть переменные (названия примерные, агент уточнит под текущий код):
-- `STORAGE_PROVIDER=minio|s3`
-- `STORAGE_ENDPOINT=...`
-- `STORAGE_BUCKET=...`
-- `STORAGE_ACCESS_KEY=...`
-- `STORAGE_SECRET_KEY=...`
-- `STORAGE_REGION=...` (если нужно)
-- `STORAGE_PUBLIC_BASE_URL=...` (опционально)
-- `STORAGE_PRESIGN_TTL_SECONDS=...` (опционально)
+4) **Solution PDF**:
+- teacher компилирует решение → сохраняется assetKey в task revision
+- student после зачёта видит PDF решения
+- при истечении TTL viewer обновляет presign (1 retry)
 
 ---
 
-## 11) Notes / Tech debt
-- В VS-05 допустимо хранить только `assetKey` и отдавать UI через presigned URL (лучше), либо через backend proxy (если CSP/корс).
-- Photo submissions лучше хранить как immutable записи, а “актуальный статус” держать в `student_task_state`.
-- Список “на проверку” должен быть ограничен lead-teacher (как уже сделано для students).
+## 10) Tech Debt / Notes
+- Legacy `solution_lite` (KaTeX) либо оставляем как fallback на время, либо мигрируем/удаляем позже.
+- В будущем можно вынести часть upload/preview в общий “Assets” модуль (если VS-10 это покрывает).
+- Лимиты на фото (size/type/count) должны быть чётко прописаны policy’ем и одинаковы в API+UI.
+
+---

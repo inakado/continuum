@@ -163,6 +163,7 @@ export class LearningService {
           mapped as Record<string, unknown>;
         const isCredited =
           normalizedState.status === StudentTaskStatus.correct ||
+          normalizedState.status === StudentTaskStatus.accepted ||
           normalizedState.status === StudentTaskStatus.credited_without_progress ||
           normalizedState.status === StudentTaskStatus.teacher_credited;
         const safeNumericParts = Array.isArray(numericPartsJson)
@@ -263,6 +264,7 @@ export class LearningService {
 
       const creditedStatuses = new Set<StudentTaskStatus>([
         StudentTaskStatus.correct,
+        StudentTaskStatus.accepted,
         StudentTaskStatus.credited_without_progress,
         StudentTaskStatus.teacher_credited,
       ]);
@@ -637,6 +639,7 @@ export class LearningService {
 
     const creditedStatuses = new Set<StudentTaskStatus>([
       StudentTaskStatus.correct,
+      StudentTaskStatus.accepted,
       StudentTaskStatus.credited_without_progress,
       StudentTaskStatus.teacher_credited,
     ]);

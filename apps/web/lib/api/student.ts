@@ -27,6 +27,9 @@ export type TaskState = {
     | "not_started"
     | "in_progress"
     | "correct"
+    | "pending_review"
+    | "accepted"
+    | "rejected"
     | "blocked"
     | "credited_without_progress"
     | "teacher_credited";

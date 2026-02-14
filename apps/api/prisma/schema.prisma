@@ -34,6 +34,7 @@ enum StudentTaskStatus {
   in_progress
   correct
   pending_review
+  accepted
   rejected
   blocked
   credited_without_progress
@@ -62,6 +63,12 @@ enum AttemptResult {
   rejected
 }
 
+enum PhotoTaskSubmissionStatus {
+  submitted
+  accepted
+  rejected
+}
+
 enum NotificationType {
   photo_reviewed
   unit_override_opened
@@ -78,13 +85,15 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  domainEventLogs DomainEventLog[] @relation("DomainEventActor")
-  studentProfile StudentProfile?   @relation("StudentProfileUser")
-  leadStudents   StudentProfile[]  @relation("StudentProfileLeadTeacher")
-  studentUnitStates StudentUnitState[]
-  studentTaskStates StudentTaskState[]
-  attempts         Attempt[]
-  notifications    Notification[]
+  domainEventLogs               DomainEventLog[]      @relation("DomainEventActor")
+  studentProfile                StudentProfile?       @relation("StudentProfileUser")
+  leadStudents                  StudentProfile[]      @relation("StudentProfileLeadTeacher")
+  studentUnitStates             StudentUnitState[]
+  studentTaskStates             StudentTaskState[]
+  attempts                      Attempt[]
+  notifications                 Notification[]
+  photoTaskSubmissionsAsStudent PhotoTaskSubmission[] @relation("PhotoTaskSubmissionStudent")
+  photoTaskSubmissionsReviewed  PhotoTaskSubmission[] @relation("PhotoTaskSubmissionReviewer")
 
   @@index([role])
   @@map("users")
@@ -107,13 +116,13 @@ model StudentProfile {
 }
 
 model Course {
-  id          String        @id @default(uuid()) @db.Uuid
-  title       String
-  description String?
-  status      ContentStatus @default(draft)
-  lockDurationMinutes Int   @default(30) @map("lock_duration_minutes")
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
+  id                  String        @id @default(uuid()) @db.Uuid
+  title               String
+  description         String?
+  status              ContentStatus @default(draft)
+  lockDurationMinutes Int           @default(30) @map("lock_duration_minutes")
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
 
   sections Section[]
 
@@ -142,25 +151,26 @@ model Section {
 }
 
 model Unit {
-  id        String        @id @default(uuid()) @db.Uuid
-  sectionId String        @map("section_id") @db.Uuid
-  title     String
-  description String?     @map("description")
-  status    ContentStatus @default(draft)
-  sortOrder Int           @default(0) @map("sort_order")
-  minOptionalCountedTasksToComplete Int @default(0) @map("min_optional_counted_tasks_to_complete")
-  theoryRichLatex    String? @map("theory_rich_latex")
-  theoryPdfAssetKey  String? @map("theory_pdf_asset_key")
-  methodRichLatex    String? @map("method_rich_latex")
-  methodPdfAssetKey  String? @map("method_pdf_asset_key")
-  videosJson         Json?   @map("videos_json")
-  attachmentsJson    Json?   @map("attachments_json")
-  createdAt DateTime      @default(now()) @map("created_at")
-  updatedAt DateTime      @updatedAt @map("updated_at")
+  id                                String        @id @default(uuid()) @db.Uuid
+  sectionId                         String        @map("section_id") @db.Uuid
+  title                             String
+  description                       String?       @map("description")
+  status                            ContentStatus @default(draft)
+  sortOrder                         Int           @default(0) @map("sort_order")
+  minOptionalCountedTasksToComplete Int           @default(0) @map("min_optional_counted_tasks_to_complete")
+  theoryRichLatex                   String?       @map("theory_rich_latex")
+  theoryPdfAssetKey                 String?       @map("theory_pdf_asset_key")
+  methodRichLatex                   String?       @map("method_rich_latex")
+  methodPdfAssetKey                 String?       @map("method_pdf_asset_key")
+  videosJson                        Json?         @map("videos_json")
+  attachmentsJson                   Json?         @map("attachments_json")
+  createdAt                         DateTime      @default(now()) @map("created_at")
+  updatedAt                         DateTime      @updatedAt @map("updated_at")
 
-  section Section @relation(fields: [sectionId], references: [id], onDelete: Restrict)
-  tasks   Task[]
-  studentUnitStates StudentUnitState[]
+  section              Section               @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  tasks                Task[]
+  studentUnitStates    StudentUnitState[]
+  photoTaskSubmissions PhotoTaskSubmission[]
 
   graphPrereqEdges UnitGraphEdge[]   @relation("GraphPrereqUnit")
   graphNextEdges   UnitGraphEdge[]   @relation("GraphUnit")
@@ -205,21 +215,22 @@ model UnitGraphLayout {
 }
 
 model Task {
-  id            String        @id @default(uuid()) @db.Uuid
-  unitId        String        @map("unit_id") @db.Uuid
-  title         String?
-  isRequired    Boolean       @default(false) @map("is_required")
-  status        ContentStatus @default(draft)
-  sortOrder     Int           @default(0) @map("sort_order")
-  activeRevisionId String?    @map("active_revision_id") @db.Uuid
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
+  id               String        @id @default(uuid()) @db.Uuid
+  unitId           String        @map("unit_id") @db.Uuid
+  title            String?
+  isRequired       Boolean       @default(false) @map("is_required")
+  status           ContentStatus @default(draft)
+  sortOrder        Int           @default(0) @map("sort_order")
+  activeRevisionId String?       @map("active_revision_id") @db.Uuid
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
 
-  unit Unit @relation(fields: [unitId], references: [id], onDelete: Restrict)
-  activeRevision TaskRevision? @relation("ActiveTaskRevision", fields: [activeRevisionId], references: [id], onDelete: Restrict)
-  revisions TaskRevision[] @relation("TaskRevisions")
-  studentTaskStates StudentTaskState[]
-  attempts Attempt[]
+  unit                 Unit                  @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  activeRevision       TaskRevision?         @relation("ActiveTaskRevision", fields: [activeRevisionId], references: [id], onDelete: Restrict)
+  revisions            TaskRevision[]        @relation("TaskRevisions")
+  studentTaskStates    StudentTaskState[]
+  attempts             Attempt[]
+  photoTaskSubmissions PhotoTaskSubmission[]
 
   @@index([unitId, status])
   @@index([unitId, sortOrder])
@@ -227,22 +238,23 @@ model Task {
 }
 
 model TaskRevision {
-  id            String        @id @default(uuid()) @db.Uuid
-  taskId        String        @map("task_id") @db.Uuid
-  revisionNo    Int           @map("revision_no")
+  id            String         @id @default(uuid()) @db.Uuid
+  taskId        String         @map("task_id") @db.Uuid
+  revisionNo    Int            @map("revision_no")
   answerType    TaskAnswerType @map("answer_type")
-  statementLite String        @map("statement_lite")
-  solutionLite  String?       @map("solution_lite")
-  createdAt     DateTime      @default(now()) @map("created_at")
+  statementLite String         @map("statement_lite")
+  solutionLite  String?        @map("solution_lite")
+  createdAt     DateTime       @default(now()) @map("created_at")
 
-  task Task @relation("TaskRevisions", fields: [taskId], references: [id], onDelete: Cascade)
-  activeForTasks Task[] @relation("ActiveTaskRevision")
-  numericParts TaskRevisionNumericPart[]
-  choices TaskRevisionChoice[]
-  correctChoices TaskRevisionCorrectChoice[]
-  studentTaskStatesActive StudentTaskState[] @relation("StudentTaskStateActiveRevision")
-  studentTaskStatesCredited StudentTaskState[] @relation("StudentTaskStateCreditedRevision")
-  attempts Attempt[]
+  task                      Task                        @relation("TaskRevisions", fields: [taskId], references: [id], onDelete: Cascade)
+  activeForTasks            Task[]                      @relation("ActiveTaskRevision")
+  numericParts              TaskRevisionNumericPart[]
+  choices                   TaskRevisionChoice[]
+  correctChoices            TaskRevisionCorrectChoice[]
+  studentTaskStatesActive   StudentTaskState[]          @relation("StudentTaskStateActiveRevision")
+  studentTaskStatesCredited StudentTaskState[]          @relation("StudentTaskStateCreditedRevision")
+  attempts                  Attempt[]
+  photoTaskSubmissions      PhotoTaskSubmission[]
 
   @@unique([taskId, revisionNo])
   @@index([taskId, createdAt])
@@ -250,11 +262,11 @@ model TaskRevision {
 }
 
 model TaskRevisionNumericPart {
-  id             String @id @default(uuid()) @db.Uuid
-  taskRevisionId String @map("task_revision_id") @db.Uuid
-  partKey        String @map("part_key")
+  id             String  @id @default(uuid()) @db.Uuid
+  taskRevisionId String  @map("task_revision_id") @db.Uuid
+  partKey        String  @map("part_key")
   labelLite      String? @map("label_lite")
-  correctValue   String @map("correct_value")
+  correctValue   String  @map("correct_value")
 
   taskRevision TaskRevision @relation(fields: [taskRevisionId], references: [id], onDelete: Cascade)
 
@@ -313,20 +325,20 @@ model StudentUnitState {
 }
 
 model StudentTaskState {
-  studentId         String           @map("student_id") @db.Uuid
-  taskId            String           @map("task_id") @db.Uuid
-  status            StudentTaskStatus
-  activeRevisionId  String           @map("active_revision_id") @db.Uuid
-  wrongAttempts     Int              @default(0) @map("wrong_attempts")
-  lockedUntil       DateTime?        @map("locked_until")
-  requiredSkipped   Boolean          @default(false) @map("required_skipped")
-  creditedRevisionId String?         @map("credited_revision_id") @db.Uuid
-  creditedAt        DateTime?        @map("credited_at")
-  updatedAt         DateTime         @updatedAt @map("updated_at")
+  studentId          String            @map("student_id") @db.Uuid
+  taskId             String            @map("task_id") @db.Uuid
+  status             StudentTaskStatus
+  activeRevisionId   String            @map("active_revision_id") @db.Uuid
+  wrongAttempts      Int               @default(0) @map("wrong_attempts")
+  lockedUntil        DateTime?         @map("locked_until")
+  requiredSkipped    Boolean           @default(false) @map("required_skipped")
+  creditedRevisionId String?           @map("credited_revision_id") @db.Uuid
+  creditedAt         DateTime?         @map("credited_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
 
-  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  activeRevision TaskRevision @relation("StudentTaskStateActiveRevision", fields: [activeRevisionId], references: [id], onDelete: Restrict)
+  student          User          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  task             Task          @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  activeRevision   TaskRevision  @relation("StudentTaskStateActiveRevision", fields: [activeRevisionId], references: [id], onDelete: Restrict)
   creditedRevision TaskRevision? @relation("StudentTaskStateCreditedRevision", fields: [creditedRevisionId], references: [id], onDelete: SetNull)
 
   @@id([studentId, taskId])
@@ -337,27 +349,55 @@ model StudentTaskState {
 }
 
 model Attempt {
-  id               String        @id @default(uuid()) @db.Uuid
-  studentId        String        @map("student_id") @db.Uuid
-  taskId           String        @map("task_id") @db.Uuid
-  taskRevisionId   String        @map("task_revision_id") @db.Uuid
-  attemptNo        Int           @map("attempt_no")
-  createdAt        DateTime      @default(now()) @map("created_at")
-  kind             AttemptKind
-  numericAnswers   Json?         @map("numeric_answers")
-  selectedChoiceKey String?      @map("selected_choice_key")
-  selectedChoiceKeys Json?       @map("selected_choice_keys")
-  result           AttemptResult
+  id                 String        @id @default(uuid()) @db.Uuid
+  studentId          String        @map("student_id") @db.Uuid
+  taskId             String        @map("task_id") @db.Uuid
+  taskRevisionId     String        @map("task_revision_id") @db.Uuid
+  attemptNo          Int           @map("attempt_no")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  kind               AttemptKind
+  numericAnswers     Json?         @map("numeric_answers")
+  selectedChoiceKey  String?       @map("selected_choice_key")
+  selectedChoiceKeys Json?         @map("selected_choice_keys")
+  result             AttemptResult
 
-  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  taskRevision TaskRevision @relation(fields: [taskRevisionId], references: [id], onDelete: Cascade)
+  student             User                 @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  task                Task                 @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskRevision        TaskRevision         @relation(fields: [taskRevisionId], references: [id], onDelete: Cascade)
+  photoTaskSubmission PhotoTaskSubmission?
 
   @@unique([studentId, taskRevisionId, attemptNo])
   @@index([studentId, createdAt])
   @@index([taskId, createdAt])
   @@index([taskRevisionId, createdAt])
   @@map("attempts")
+}
+
+model PhotoTaskSubmission {
+  id                      String                    @id @default(uuid()) @db.Uuid
+  studentUserId           String                    @map("student_user_id") @db.Uuid
+  taskId                  String                    @map("task_id") @db.Uuid
+  taskRevisionId          String                    @map("task_revision_id") @db.Uuid
+  unitId                  String                    @map("unit_id") @db.Uuid
+  attemptId               String                    @unique @map("attempt_id") @db.Uuid
+  assetKeysJson           Json                      @map("asset_keys_json")
+  status                  PhotoTaskSubmissionStatus @default(submitted)
+  rejectedReason          String?                   @map("rejected_reason")
+  reviewedByTeacherUserId String?                   @map("reviewed_by_teacher_user_id") @db.Uuid
+  submittedAt             DateTime                  @default(now()) @map("submitted_at")
+  reviewedAt              DateTime?                 @map("reviewed_at")
+
+  student           User         @relation("PhotoTaskSubmissionStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+  task              Task         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskRevision      TaskRevision @relation(fields: [taskRevisionId], references: [id], onDelete: Cascade)
+  unit              Unit         @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  attempt           Attempt      @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  reviewedByTeacher User?        @relation("PhotoTaskSubmissionReviewer", fields: [reviewedByTeacherUserId], references: [id], onDelete: SetNull)
+
+  @@index([studentUserId, status])
+  @@index([taskId, studentUserId])
+  @@index([unitId, studentUserId])
+  @@map("photo_task_submissions")
 }
 
 model Notification {

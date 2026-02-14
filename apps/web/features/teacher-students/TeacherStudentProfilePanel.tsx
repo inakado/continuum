@@ -31,6 +31,9 @@ const answerTypeLabel: Record<TeacherStudentTreeTask["answerType"], string> = {
 const statusClassName: Record<TeacherStudentTreeTask["state"]["status"], string> = {
   not_started: "statusNeutral",
   in_progress: "statusNeutral",
+  pending_review: "statusWarning",
+  accepted: "statusSuccess",
+  rejected: "statusDanger",
   blocked: "statusDanger",
   credited_without_progress: "statusWarning",
   correct: "statusSuccess",

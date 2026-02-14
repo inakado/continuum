@@ -50,12 +50,14 @@ export type UnitProgressSnapshot = {
 
 const COUNTED_STATUSES = new Set<StudentTaskStatus>([
   StudentTaskStatus.correct,
+  StudentTaskStatus.accepted,
   StudentTaskStatus.credited_without_progress,
   StudentTaskStatus.teacher_credited,
 ]);
 
 const SOLVED_STATUSES = new Set<StudentTaskStatus>([
   StudentTaskStatus.correct,
+  StudentTaskStatus.accepted,
   StudentTaskStatus.teacher_credited,
 ]);
 

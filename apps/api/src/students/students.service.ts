@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ContentStatus, Role, StudentTaskStatus } from '@prisma/client';
+import { AttemptKind, ContentStatus, Role, StudentTaskStatus } from '@prisma/client';
 import argon2 from 'argon2';
 import { randomInt } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -46,6 +46,7 @@ const normalizeName = (value?: string | null) => {
 
 const creditedStatuses = new Set<StudentTaskStatus>([
   StudentTaskStatus.correct,
+  StudentTaskStatus.accepted,
   StudentTaskStatus.credited_without_progress,
   StudentTaskStatus.teacher_credited,
 ]);
@@ -307,6 +308,7 @@ export class StudentsService {
               where: {
                 studentId,
                 taskId: { in: taskIds },
+                kind: { not: AttemptKind.photo },
                 ...(activeRevisionIds.length
                   ? { taskRevisionId: { in: activeRevisionIds } }
                   : null),

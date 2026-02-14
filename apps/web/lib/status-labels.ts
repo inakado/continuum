@@ -6,6 +6,9 @@ export type StudentTaskStatus =
   | "not_started"
   | "in_progress"
   | "correct"
+  | "pending_review"
+  | "accepted"
+  | "rejected"
   | "blocked"
   | "credited_without_progress"
   | "teacher_credited";
@@ -26,6 +29,9 @@ const studentTaskStatusLabels: Record<StudentTaskStatus, string> = {
   not_started: "Не начата",
   in_progress: "В процессе",
   correct: "Верно",
+  pending_review: "На проверке",
+  accepted: "Принято",
+  rejected: "Отклонено",
   blocked: "Блок",
   credited_without_progress: "Зачтено без прогресса",
   teacher_credited: "Зачтено учителем",
