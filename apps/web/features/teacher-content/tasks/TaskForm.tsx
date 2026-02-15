@@ -30,7 +30,6 @@ export type TaskFormData = {
   numericParts: NumericPart[];
   choices: Choice[];
   correctAnswer: CorrectAnswer;
-  solutionLite: string;
   isRequired: boolean;
   sortOrder: number;
 };
@@ -43,6 +42,7 @@ type TaskFormProps = {
   onCancel?: () => void;
   rightAction?: ReactNode;
   error?: string | null;
+  extraSection?: ReactNode;
 };
 
 const defaultNumericPart = (): NumericPart => ({
@@ -62,7 +62,6 @@ const defaultState: TaskFormData = {
   numericParts: [{ ...defaultNumericPart(), key: "" }],
   choices: [{ ...defaultChoice(), key: "" }, { ...defaultChoice(), key: "" }],
   correctAnswer: null,
-  solutionLite: "",
   isRequired: false,
   sortOrder: 1,
 };
@@ -85,6 +84,7 @@ export default function TaskForm({
   onCancel,
   rightAction,
   error,
+  extraSection,
 }: TaskFormProps) {
   const [form, setForm] = useState<TaskFormData>(defaultState);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -461,25 +461,7 @@ export default function TaskForm({
         </div>
       ) : null}
 
-      <div className={styles.section}>
-        <div className={styles.sectionTitle}>Решение</div>
-        <div className={styles.dualGrid}>
-          <label className={styles.label}>
-            Текст решения (KaTeX)
-            <Textarea
-              value={form.solutionLite}
-              className={styles.textarea}
-              onChange={(event) => setForm((prev) => ({ ...prev, solutionLite: event.target.value }))}
-            />
-          </label>
-          <div className={styles.previewBlock}>
-            <div className={styles.previewLabel}>Предпросмотр</div>
-            <div className={styles.preview}>
-              <LiteTex value={form.solutionLite} block />
-            </div>
-          </div>
-        </div>
-      </div>
+      {extraSection}
     </EntityEditorInline>
   );
 }

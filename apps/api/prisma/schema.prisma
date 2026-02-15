@@ -244,6 +244,8 @@ model TaskRevision {
   answerType    TaskAnswerType @map("answer_type")
   statementLite String         @map("statement_lite")
   solutionLite  String?        @map("solution_lite")
+  solutionRichLatex String?    @map("solution_rich_latex")
+  solutionPdfAssetKey String?  @map("solution_pdf_asset_key")
   createdAt     DateTime       @default(now()) @map("created_at")
 
   task                      Task                        @relation("TaskRevisions", fields: [taskId], references: [id], onDelete: Cascade)

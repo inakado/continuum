@@ -11,6 +11,7 @@ import { PhotoTaskService } from './photo-task.service';
 import { StudentAttemptsController } from './student-attempts.controller';
 import { StudentPhotoTasksController } from './student-photo-tasks.controller';
 import { StudentSectionGraphController } from './student-section-graph.controller';
+import { StudentTaskSolutionsController } from './student-task-solutions.controller';
 import { StudentUnitsController } from './student-units.controller';
 import { TeacherPhotoSubmissionsController } from './teacher-photo-submissions.controller';
 import { TeacherNotificationsController } from './teacher-notifications.controller';
@@ -23,6 +24,7 @@ import { TeacherTaskCreditController } from './teacher-task-credit.controller';
     StudentAttemptsController,
     StudentPhotoTasksController,
     StudentSectionGraphController,
+    StudentTaskSolutionsController,
     StudentUnitsController,
     TeacherPhotoSubmissionsController,
     TeacherNotificationsController,

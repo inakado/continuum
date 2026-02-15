@@ -9,6 +9,7 @@ type Props = {
   withCredentials?: boolean;
   zoom?: number;
   scrollFeel?: "native" | "inertial-heavy";
+  freezeWidth?: boolean;
   refreshKey?: string;
   getFreshUrl?: () => Promise<string | null>;
 };
@@ -51,6 +52,7 @@ export default function PdfCanvasPreview({
   withCredentials = true,
   zoom = 1,
   scrollFeel = "native",
+  freezeWidth = false,
   refreshKey,
   getFreshUrl,
 }: Props) {
@@ -93,14 +95,17 @@ export default function PdfCanvasPreview({
 
     const updateSize = () => {
       const width = node.clientWidth;
-      setObservedWidth((prev) => (Math.abs(prev - width) >= 1 ? width : prev));
+      setObservedWidth((prev) => {
+        if (freezeWidth && prev > 0) return prev;
+        return Math.abs(prev - width) >= 1 ? width : prev;
+      });
     };
 
     updateSize();
     const observer = new ResizeObserver(updateSize);
     observer.observe(node);
     return () => observer.disconnect();
-  }, []);
+  }, [freezeWidth]);
 
   useEffect(() => {
     if (observedWidth <= 0) return;
@@ -171,8 +176,22 @@ export default function PdfCanvasPreview({
 
     const onWheel = (event: WheelEvent) => {
       if (event.ctrlKey) return;
-      event.preventDefault();
       const deltaY = normalizeWheel(event);
+      const maxScroll = Math.max(0, node.scrollHeight - node.clientHeight);
+      if (maxScroll <= 0) {
+        stopInertia();
+        return;
+      }
+
+      const nextTop = deltaY < 0 && node.scrollTop <= 0.5;
+      const nextBottom = deltaY > 0 && node.scrollTop >= maxScroll - 0.5;
+      if (nextTop || nextBottom) {
+        // Отдаем scroll родительской странице, чтобы не блокировать общий скролл.
+        stopInertia();
+        return;
+      }
+
+      event.preventDefault();
       inertiaTargetRef.current += deltaY * INERTIA_INPUT_SCALE;
       if (inertiaRafRef.current === null) {
         inertiaRafRef.current = window.requestAnimationFrame(runInertia);

@@ -9,14 +9,20 @@ import {
   Post,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { EventCategory, Role } from '@prisma/client';
 import { Job } from 'bullmq';
+import { EventsLogService } from '../events/events-log.service';
 import { ContentService } from './content.service';
 import { LatexCompileQueueService } from './latex-compile-queue.service';
 import {
   LatexCompileJobResult,
   LatexCompileQueuePayload,
-  shouldApplyIncomingUnitPdfKey,
+  TaskSolutionLatexCompileJobResult,
+  TaskSolutionLatexCompileQueuePayload,
+  TASK_SOLUTION_PDF_TARGET,
+  UnitLatexCompileJobResult,
+  UnitLatexCompileQueuePayload,
+  shouldApplyIncomingPdfKey,
   UnitPdfTarget,
 } from './unit-pdf.constants';
 
@@ -25,6 +31,7 @@ export class InternalLatexController {
   constructor(
     private readonly contentService: ContentService,
     private readonly queueService: LatexCompileQueueService,
+    private readonly eventsLogService: EventsLogService,
   ) {}
 
   @Post(':jobId/apply')
@@ -39,14 +46,43 @@ export class InternalLatexController {
     const payload = this.parseJobPayload(job.data);
 
     const result = this.parseResultForAutoApply(job, body);
-    const unit = await this.contentService.getUnit(payload.unitId);
-    const currentKey = payload.target === 'theory' ? unit.theoryPdfAssetKey : unit.methodPdfAssetKey;
+    if (this.isUnitPayload(payload) && this.isUnitResult(result)) {
+      const unit = await this.contentService.getUnit(payload.unitId);
+      const currentKey = payload.target === 'theory' ? unit.theoryPdfAssetKey : unit.methodPdfAssetKey;
 
-    if (currentKey === result.assetKey) {
+      if (currentKey === result.assetKey) {
+        return {
+          ok: true,
+          applied: false,
+          reason: 'already_applied',
+          jobId: String(job.id ?? jobId),
+          unitId: payload.unitId,
+          target: payload.target,
+          assetKey: result.assetKey,
+        };
+      }
+
+      if (!shouldApplyIncomingPdfKey(currentKey, result.assetKey)) {
+        return {
+          ok: true,
+          applied: false,
+          reason: 'stale',
+          jobId: String(job.id ?? jobId),
+          unitId: payload.unitId,
+          target: payload.target,
+          assetKey: result.assetKey,
+        };
+      }
+
+      const patch =
+        payload.target === 'theory'
+          ? { theoryPdfAssetKey: result.assetKey }
+          : { methodPdfAssetKey: result.assetKey };
+      await this.contentService.updateUnit(payload.unitId, patch);
+
       return {
         ok: true,
-        applied: false,
-        reason: 'already_applied',
+        applied: true,
         jobId: String(job.id ?? jobId),
         unitId: payload.unitId,
         target: payload.target,
@@ -54,32 +90,80 @@ export class InternalLatexController {
       };
     }
 
-    if (!shouldApplyIncomingUnitPdfKey(currentKey, result.assetKey)) {
+    if (this.isTaskSolutionPayload(payload) && this.isTaskSolutionResult(result)) {
+      const state = await this.contentService.getTaskSolutionPdfState(payload.taskId);
+      if (state.activeRevisionId !== payload.taskRevisionId) {
+        return {
+          ok: true,
+          applied: false,
+          reason: 'stale',
+          jobId: String(job.id ?? jobId),
+          taskId: payload.taskId,
+          taskRevisionId: payload.taskRevisionId,
+          activeRevisionId: state.activeRevisionId,
+          target: payload.target,
+          assetKey: result.assetKey,
+        };
+      }
+
+      if (state.solutionPdfAssetKey === result.assetKey) {
+        return {
+          ok: true,
+          applied: false,
+          reason: 'already_applied',
+          jobId: String(job.id ?? jobId),
+          taskId: payload.taskId,
+          taskRevisionId: payload.taskRevisionId,
+          target: payload.target,
+          assetKey: result.assetKey,
+        };
+      }
+
+      if (!shouldApplyIncomingPdfKey(state.solutionPdfAssetKey, result.assetKey)) {
+        return {
+          ok: true,
+          applied: false,
+          reason: 'stale',
+          jobId: String(job.id ?? jobId),
+          taskId: payload.taskId,
+          taskRevisionId: payload.taskRevisionId,
+          target: payload.target,
+          assetKey: result.assetKey,
+        };
+      }
+
+      await this.contentService.setTaskRevisionSolutionPdfAssetKey(state.activeRevisionId, result.assetKey);
+      await this.eventsLogService.append({
+        category: EventCategory.admin,
+        eventType: 'TaskSolutionPdfCompiled',
+        actorUserId: payload.requestedByUserId,
+        actorRole: payload.requestedByRole,
+        entityType: 'task_revision',
+        entityId: state.activeRevisionId,
+        payload: {
+          task_id: payload.taskId,
+          task_revision_id: state.activeRevisionId,
+          target: payload.target,
+          asset_key: result.assetKey,
+          job_id: String(job.id ?? jobId),
+        },
+      });
+
       return {
         ok: true,
-        applied: false,
-        reason: 'stale',
+        applied: true,
         jobId: String(job.id ?? jobId),
-        unitId: payload.unitId,
+        taskId: payload.taskId,
+        taskRevisionId: state.activeRevisionId,
         target: payload.target,
         assetKey: result.assetKey,
       };
     }
 
-    const patch =
-      payload.target === 'theory'
-        ? { theoryPdfAssetKey: result.assetKey }
-        : { methodPdfAssetKey: result.assetKey };
-    await this.contentService.updateUnit(payload.unitId, patch);
-
-    return {
-      ok: true,
-      applied: true,
-      jobId: String(job.id ?? jobId),
-      unitId: payload.unitId,
-      target: payload.target,
-      assetKey: result.assetKey,
-    };
+    throw new ConflictException({
+      code: 'LATEX_JOB_RESULT_INVALID',
+      message: 'Job payload and result target mismatch',
+    });
   }
 
   private assertInternalToken(token: string | undefined) {
@@ -111,35 +195,78 @@ export class InternalLatexController {
       });
     }
 
-    const payload = raw as Partial<LatexCompileQueuePayload>;
-    if (
-      typeof payload.unitId !== 'string' ||
-      !payload.unitId ||
-      !this.isTarget(payload.target) ||
-      typeof payload.requestedByUserId !== 'string' ||
-      payload.requestedByRole !== Role.teacher
-    ) {
+    const payload = raw as Record<string, unknown>;
+    const requestedByUserId = typeof payload.requestedByUserId === 'string' ? payload.requestedByUserId : null;
+    const requestedByRole = payload.requestedByRole;
+    const tex = typeof payload.tex === 'string' ? payload.tex : null;
+    const ttlSec = payload.ttlSec;
+
+    if (!requestedByUserId || requestedByRole !== Role.teacher) {
       throw new ConflictException({
         code: 'LATEX_JOB_PAYLOAD_INVALID',
         message: 'Job payload is missing required fields',
       });
     }
 
-    if (typeof payload.ttlSec !== 'number' || !Number.isInteger(payload.ttlSec) || payload.ttlSec <= 0) {
+    if (typeof ttlSec !== 'number' || !Number.isInteger(ttlSec) || ttlSec <= 0) {
       throw new ConflictException({
         code: 'LATEX_JOB_PAYLOAD_INVALID',
         message: 'Job payload ttlSec is invalid',
       });
     }
 
-    if (typeof payload.tex !== 'string' || !payload.tex.trim()) {
+    if (!tex || !tex.trim()) {
       throw new ConflictException({
         code: 'LATEX_JOB_PAYLOAD_INVALID',
         message: 'Job payload tex is invalid',
       });
     }
 
-    return payload as LatexCompileQueuePayload;
+    if (this.isUnitTarget(payload.target)) {
+      const unitId = typeof payload.unitId === 'string' ? payload.unitId : '';
+      if (!unitId) {
+        throw new ConflictException({
+          code: 'LATEX_JOB_PAYLOAD_INVALID',
+          message: 'Job payload unitId is invalid',
+        });
+      }
+      return {
+        target: payload.target,
+        unitId,
+        tex,
+        requestedByUserId,
+        requestedByRole: Role.teacher,
+        ttlSec,
+      };
+    }
+
+    if (payload.target === TASK_SOLUTION_PDF_TARGET) {
+      const taskId = typeof payload.taskId === 'string' ? payload.taskId : '';
+      const taskRevisionId = typeof payload.taskRevisionId === 'string' ? payload.taskRevisionId : '';
+      if (
+        !taskId ||
+        !taskRevisionId
+      ) {
+        throw new ConflictException({
+          code: 'LATEX_JOB_PAYLOAD_INVALID',
+          message: 'Job payload task fields are invalid',
+        });
+      }
+      return {
+        target: TASK_SOLUTION_PDF_TARGET,
+        taskId,
+        taskRevisionId,
+        tex,
+        requestedByUserId,
+        requestedByRole: Role.teacher,
+        ttlSec,
+      };
+    }
+
+    throw new ConflictException({
+      code: 'LATEX_JOB_PAYLOAD_INVALID',
+      message: 'Job payload target is invalid',
+    });
   }
 
   private parseJobResult(raw: unknown): LatexCompileJobResult {
@@ -150,28 +277,68 @@ export class InternalLatexController {
       });
     }
 
-    const result = raw as Partial<LatexCompileJobResult>;
-    if (
-      typeof result.unitId !== 'string' ||
-      !result.unitId ||
-      !this.isTarget(result.target) ||
-      typeof result.assetKey !== 'string' ||
-      !result.assetKey
-    ) {
+    const result = raw as Record<string, unknown>;
+    const assetKey = typeof result.assetKey === 'string' ? result.assetKey : '';
+    const sizeBytes = result.sizeBytes;
+    const compileLogSnippet = typeof result.compileLogSnippet === 'string' ? result.compileLogSnippet : undefined;
+
+    if (!assetKey) {
       throw new ConflictException({
         code: 'LATEX_JOB_RESULT_INVALID',
         message: 'Job result is missing required fields',
       });
     }
 
-    if (typeof result.sizeBytes !== 'number' || result.sizeBytes <= 0) {
+    if (typeof sizeBytes !== 'number' || sizeBytes <= 0) {
       throw new ConflictException({
         code: 'LATEX_JOB_RESULT_INVALID',
         message: 'Job result sizeBytes is invalid',
       });
     }
 
-    return result as LatexCompileJobResult;
+    if (this.isUnitTarget(result.target)) {
+      const unitId = typeof result.unitId === 'string' ? result.unitId : '';
+      if (!unitId) {
+        throw new ConflictException({
+          code: 'LATEX_JOB_RESULT_INVALID',
+          message: 'Job result unitId is invalid',
+        });
+      }
+      return {
+        target: result.target,
+        unitId,
+        assetKey,
+        sizeBytes,
+        ...(compileLogSnippet ? { compileLogSnippet } : null),
+      };
+    }
+
+    if (result.target === TASK_SOLUTION_PDF_TARGET) {
+      const taskId = typeof result.taskId === 'string' ? result.taskId : '';
+      const taskRevisionId = typeof result.taskRevisionId === 'string' ? result.taskRevisionId : '';
+      if (
+        !taskId ||
+        !taskRevisionId
+      ) {
+        throw new ConflictException({
+          code: 'LATEX_JOB_RESULT_INVALID',
+          message: 'Job result task fields are invalid',
+        });
+      }
+      return {
+        target: TASK_SOLUTION_PDF_TARGET,
+        taskId,
+        taskRevisionId,
+        assetKey,
+        sizeBytes,
+        ...(compileLogSnippet ? { compileLogSnippet } : null),
+      };
+    }
+
+    throw new ConflictException({
+      code: 'LATEX_JOB_RESULT_INVALID',
+      message: 'Job result target is invalid',
+    });
   }
 
   private parseResultForAutoApply(job: Job, rawBody: unknown): LatexCompileJobResult {
@@ -196,7 +363,27 @@ export class InternalLatexController {
     });
   }
 
-  private isTarget(value: unknown): value is UnitPdfTarget {
+  private isUnitTarget(value: unknown): value is UnitPdfTarget {
     return value === 'theory' || value === 'method';
+  }
+
+  private isUnitPayload(payload: LatexCompileQueuePayload): payload is UnitLatexCompileQueuePayload {
+    return this.isUnitTarget(payload.target);
+  }
+
+  private isTaskSolutionPayload(
+    payload: LatexCompileQueuePayload,
+  ): payload is TaskSolutionLatexCompileQueuePayload {
+    return payload.target === TASK_SOLUTION_PDF_TARGET;
+  }
+
+  private isUnitResult(result: LatexCompileJobResult): result is UnitLatexCompileJobResult {
+    return this.isUnitTarget(result.target);
+  }
+
+  private isTaskSolutionResult(
+    result: LatexCompileJobResult,
+  ): result is TaskSolutionLatexCompileJobResult {
+    return result.target === TASK_SOLUTION_PDF_TARGET;
   }
 }

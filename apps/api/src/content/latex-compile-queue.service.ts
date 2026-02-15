@@ -5,6 +5,8 @@ import {
   LATEX_COMPILE_JOB_NAME,
   LATEX_COMPILE_QUEUE_NAME,
   LatexCompileQueuePayload,
+  TaskSolutionLatexCompileQueuePayload,
+  UnitLatexCompileQueuePayload,
 } from './unit-pdf.constants';
 
 @Injectable()
@@ -24,7 +26,12 @@ export class LatexCompileQueueService implements OnModuleDestroy {
     },
   });
 
-  async enqueueUnitPdfCompile(payload: LatexCompileQueuePayload): Promise<string> {
+  async enqueueUnitPdfCompile(payload: UnitLatexCompileQueuePayload): Promise<string> {
+    const job = await this.queue.add(LATEX_COMPILE_JOB_NAME, payload);
+    return String(job.id);
+  }
+
+  async enqueueTaskSolutionPdfCompile(payload: TaskSolutionLatexCompileQueuePayload): Promise<string> {
     const job = await this.queue.add(LATEX_COMPILE_JOB_NAME, payload);
     return String(job.id);
   }

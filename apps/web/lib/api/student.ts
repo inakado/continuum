@@ -94,7 +94,8 @@ export type Task = {
   unitId: string;
   title: string | null;
   statementLite: string;
-  solutionLite?: string | null;
+  solutionRichLatex?: string | null;
+  solutionPdfAssetKey?: string | null;
   answerType: TaskAnswerType;
   numericPartsJson?: NumericPart[] | null;
   choicesJson?: Choice[] | null;
@@ -206,6 +207,15 @@ export type StudentPhotoPresignViewResponse = {
   url: string;
 };
 
+export type StudentTaskSolutionPdfPresignResponse = {
+  ok: true;
+  taskId: string;
+  taskRevisionId: string;
+  key: string;
+  expiresInSec: number;
+  url: string;
+};
+
 export const studentApi = {
   login(login: string, password: string) {
     return apiRequest<LoginResponse>("/auth/login", {
@@ -285,6 +295,13 @@ export const studentApi = {
     }
     return apiRequest<StudentPhotoPresignViewResponse>(
       `/student/tasks/${taskId}/photo/presign-view?${search.toString()}`,
+    );
+  },
+
+  getTaskSolutionPdfPresignForStudent(taskId: string, ttlSec = 180) {
+    const search = new URLSearchParams({ ttlSec: String(ttlSec) });
+    return apiRequest<StudentTaskSolutionPdfPresignResponse>(
+      `/student/tasks/${taskId}/solution/pdf-presign?${search.toString()}`,
     );
   },
 };

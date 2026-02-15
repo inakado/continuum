@@ -732,10 +732,69 @@
 }
 
 .solutionPanel {
-  border: var(--border-width) solid var(--glass-border);
-  background: var(--surface-1);
+  border: var(--border-width-thin) solid color-mix(in srgb, #38bdf8 30%, var(--glass-border));
+  background:
+    linear-gradient(160deg, color-mix(in srgb, #38bdf8 8%, transparent), transparent 68%),
+    color-mix(in srgb, var(--surface-1) 88%, transparent);
+  border-radius: var(--card-radius);
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.solutionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.solutionTitle {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.solutionHint {
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.solutionError {
+  border: var(--border-width-thin) solid color-mix(in srgb, #ef4444 35%, var(--glass-border));
   border-radius: var(--control-radius);
-  padding: 10px 12px;
+  background: color-mix(in srgb, #ef4444 10%, var(--surface-2));
+  color: var(--text-primary);
+  padding: 8px 10px;
+  font-size: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.solutionErrorActions button {
+  --button-bg: var(--surface-1);
+  --button-border: var(--glass-border);
+  --button-text: var(--text-primary);
+  --button-hover-bg: var(--surface-2);
+  --button-hover-border: var(--border-primary);
+  --button-hover-text: var(--text-primary);
+  --button-hover-shadow: var(--nav-hover-shadow);
+}
+
+.solutionPdfViewport {
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: var(--control-radius);
+  background: #fff;
+  overflow: hidden;
+  min-height: 320px;
+}
+
+.solutionPdfFrame {
+  width: 100%;
+  min-height: 320px;
+  height: 100%;
+  background: #fff;
 }
 
 .solutionStub {
@@ -937,4 +996,11 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: color-mix(in srgb, #f97316 70%, var(--text-muted));
+}
+
+@media (max-width: 720px) {
+  .solutionPdfViewport,
+  .solutionPdfFrame {
+    min-height: 240px;
+  }
 }

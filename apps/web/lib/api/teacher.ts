@@ -56,7 +56,8 @@ export type Task = {
   numericPartsJson?: NumericPart[] | null;
   choicesJson?: Choice[] | null;
   correctAnswerJson?: CorrectAnswer | null;
-  solutionLite?: string | null;
+  solutionRichLatex?: string | null;
+  solutionPdfAssetKey?: string | null;
   isRequired: boolean;
   status: ContentStatus;
   sortOrder: number;
@@ -247,8 +248,13 @@ export type LatexCompileJobStatusResponse = {
 
 export type LatexCompileApplyResponse = {
   ok: true;
-  unitId: string;
-  target: "theory" | "method";
+  applied?: boolean;
+  reason?: "already_applied" | "stale";
+  unitId?: string;
+  taskId?: string;
+  taskRevisionId?: string;
+  activeRevisionId?: string;
+  target: "theory" | "method" | "task_solution";
   assetKey: string;
 };
 
@@ -258,6 +264,15 @@ export type UnitPdfPresignedResponse = {
   key: string | null;
   expiresInSec: number;
   url: string | null;
+};
+
+export type TaskSolutionPdfPresignedResponse = {
+  ok: true;
+  taskId: string;
+  taskRevisionId: string;
+  key: string;
+  expiresInSec: number;
+  url: string;
 };
 
 export type TeacherPhotoSubmission = {
@@ -443,6 +458,20 @@ export const teacherApi = {
     return apiRequest<UnitPdfPresignedResponse>(`/teacher/units/${id}/pdf-presign?${search.toString()}`);
   },
 
+  getTaskSolutionPdfPresignedUrl(taskId: string, ttlSec = 600) {
+    const search = new URLSearchParams({ ttlSec: String(ttlSec) });
+    return apiRequest<TaskSolutionPdfPresignedResponse>(
+      `/teacher/tasks/${taskId}/solution/pdf-presign?${search.toString()}`,
+    );
+  },
+
+  getTaskSolutionPdfPresignForTeacher(taskId: string, ttlSec = 600) {
+    const search = new URLSearchParams({ ttlSec: String(ttlSec) });
+    return apiRequest<TaskSolutionPdfPresignedResponse>(
+      `/teacher/tasks/${taskId}/solution/pdf-presign?${search.toString()}`,
+    );
+  },
+
   publishUnit(id: string) {
     return apiRequest<Unit>(`/teacher/units/${id}/publish`, { method: "POST" });
   },
@@ -463,7 +492,6 @@ export const teacherApi = {
     numericPartsJson?: NumericPart[] | null;
     choicesJson?: Choice[] | null;
     correctAnswerJson?: CorrectAnswer | null;
-    solutionLite?: string | null;
     isRequired?: boolean;
     sortOrder?: number;
   }) {
@@ -479,7 +507,6 @@ export const teacherApi = {
       numericPartsJson?: NumericPart[] | null;
       choicesJson?: Choice[] | null;
       correctAnswerJson?: CorrectAnswer | null;
-      solutionLite?: string | null;
       isRequired?: boolean;
       sortOrder?: number;
     },
@@ -675,7 +702,21 @@ export const teacherApi = {
     });
   },
 
+  compileTaskSolutionLatex(taskId: string, data: { latex: string; ttlSec?: number }) {
+    return apiRequest<LatexCompileEnqueueResponse>(`/teacher/tasks/${taskId}/solution/latex/compile`, {
+      method: "POST",
+      body: data,
+    });
+  },
+
   getLatexCompileJob(jobId: string, ttlSec = 600) {
+    const search = new URLSearchParams({ ttlSec: String(ttlSec) });
+    return apiRequest<LatexCompileJobStatusResponse>(
+      `/teacher/latex/jobs/${jobId}?${search.toString()}`,
+    );
+  },
+
+  getLatexJob(jobId: string, ttlSec = 600) {
     const search = new URLSearchParams({ ttlSec: String(ttlSec) });
     return apiRequest<LatexCompileJobStatusResponse>(
       `/teacher/latex/jobs/${jobId}?${search.toString()}`,

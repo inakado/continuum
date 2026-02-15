@@ -421,13 +421,15 @@
 }
 
 .progressMetric {
-  border: var(--border-width) solid var(--glass-border);
-  background: var(--surface-1);
-  border-radius: var(--card-radius);
-  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
   display: grid;
   gap: 6px;
-  width: clamp(220px, 28vw, 320px);
+  width: fit-content;
+  min-width: 143px;
+  max-width: 176px;
 }
 
 .progressMetricLabel {
@@ -435,6 +437,7 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .progressMetricValue {
@@ -448,12 +451,12 @@
   border: var(--border-width) solid var(--glass-border);
   border-radius: var(--control-radius);
   background: color-mix(in srgb, var(--surface-2) 76%, transparent);
-  min-height: 32px;
   padding: 4px 10px;
   width: 100%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-height: 32px;
 }
 
 .inlineOptionalEditor {
@@ -617,6 +620,136 @@
   padding: 12px;
 }
 
+.taskSolutionSection {
+  border: var(--border-width) solid var(--glass-border);
+  border-radius: var(--card-radius);
+  background: var(--card-bg);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.taskSolutionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.taskSolutionHeader button {
+  --button-bg: var(--surface-1);
+  --button-border: var(--glass-border);
+  --button-text: var(--text-primary);
+  --button-hover-bg: var(--surface-2);
+  --button-hover-border: var(--border-primary);
+  --button-hover-text: var(--text-primary);
+  --button-hover-shadow: var(--nav-hover-shadow);
+}
+
+.taskSolutionTitle {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.taskSolutionGrid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.taskSolutionEditor {
+  display: grid;
+  min-height: 360px;
+}
+
+.taskSolutionTextarea {
+  min-height: 0;
+  height: 100%;
+  resize: vertical;
+  border: var(--control-border-width, var(--border-width)) solid
+    var(--control-border, var(--border-primary));
+  background: var(--bg-field, var(--control-bg));
+  color: var(--text-primary);
+  border-radius: var(--control-radius);
+  padding: 10px 12px;
+  font-size: 13px;
+  font-family: var(--font-jetbrains-mono), "JetBrains Mono", monospace;
+  line-height: 1.45;
+}
+
+.taskSolutionTextarea:focus-visible {
+  outline: 2px solid var(--border-primary);
+  outline-offset: 2px;
+}
+
+.taskSolutionRight {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 10px;
+  min-height: 360px;
+}
+
+.taskSolutionViewportWrap {
+  position: relative;
+  min-height: 0;
+  height: 100%;
+}
+
+.taskSolutionMeta {
+  position: absolute;
+  top: -22px;
+  left: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.taskSolutionLogSnippet {
+  margin: 8px 0 0;
+  max-height: 120px;
+  overflow: auto;
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: var(--control-radius);
+  padding: 8px;
+  background: color-mix(in srgb, var(--surface-2) 72%, transparent);
+  font-family: var(--font-jetbrains-mono), "JetBrains Mono", monospace;
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.taskSolutionViewport {
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: var(--control-radius);
+  background: #fff;
+  overflow: hidden;
+  min-height: 0;
+  height: 100%;
+}
+
+.taskSolutionFrame {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  background: #fff;
+}
+
+.taskSolutionStub {
+  border: var(--border-width-thin) dashed var(--glass-border);
+  border-radius: var(--control-radius);
+  background: color-mix(in srgb, var(--surface-1) 84%, transparent);
+  color: var(--text-muted);
+  padding: 10px;
+  font-size: 12px;
+}
+
 @media (max-width: 1100px) {
   .editorGrid {
     --unit-editor-height: max(360px, calc(100dvh - 340px));
@@ -635,6 +768,16 @@
 
   .previewPanel {
     min-height: var(--unit-editor-height);
+  }
+
+  .taskSolutionViewport,
+  .taskSolutionFrame {
+    min-height: 220px;
+  }
+
+  .taskSolutionEditor,
+  .taskSolutionRight {
+    min-height: 0;
   }
 }
 
@@ -659,5 +802,12 @@
 
   .inlineOptionalEditor button {
     width: 100%;
+  }
+}
+
+@media (min-width: 960px) {
+  .taskSolutionGrid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: stretch;
   }
 }

@@ -80,9 +80,23 @@ type CompileState = {
   key: string | null;
 };
 
+type TaskSolutionCompileStatus = "idle" | "queued" | "running" | "succeeded" | "failed";
+
+type TaskSolutionCompileState = {
+  status: TaskSolutionCompileStatus;
+  loading: boolean;
+  error: string | null;
+  logSnippet: string | null;
+  updatedAt: number | null;
+  key: string | null;
+  previewUrl: string | null;
+};
+
 const AUTOSAVE_DEBOUNCE_MS = 1000;
 const COMPILE_POLL_INTERVAL_MS = 1500;
 const COMPILE_POLL_TIMEOUT_MS = 120_000;
+const APPLY_RACE_RETRY_COUNT = 2;
+const APPLY_RACE_DELAY_MS = 900;
 
 const answerTypeLabels: Record<TaskFormData["answerType"], string> = {
   numeric: "Числовая",
@@ -178,7 +192,6 @@ const buildTaskPayload = (data: TaskFormData) => {
     answerType: data.answerType,
     isRequired: data.isRequired,
     sortOrder: data.sortOrder,
-    solutionLite: data.solutionLite.trim() ? data.solutionLite : null,
   };
 
   if (data.answerType === "numeric") {
@@ -217,10 +230,21 @@ const mapTaskToFormData = (task: Task): TaskFormData => ({
   })),
   choices: task.choicesJson ?? [],
   correctAnswer: task.correctAnswerJson ?? null,
-  solutionLite: task.solutionLite ?? "",
   isRequired: task.isRequired,
   sortOrder: task.sortOrder,
 });
+
+const createInitialTaskSolutionState = (task?: Task | null): TaskSolutionCompileState => ({
+  status: "idle",
+  loading: false,
+  error: null,
+  logSnippet: null,
+  updatedAt: null,
+  key: task?.solutionPdfAssetKey ?? null,
+  previewUrl: null,
+});
+
+const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
 export default function TeacherUnitDetailScreen({ unitId }: Props) {
   const tabsId = useId();
@@ -257,6 +281,10 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
     theory: { loading: false, error: null, updatedAt: null, key: null },
     method: { loading: false, error: null, updatedAt: null, key: null },
   });
+  const [taskSolutionLatex, setTaskSolutionLatex] = useState("");
+  const [taskSolutionCompileState, setTaskSolutionCompileState] = useState<TaskSolutionCompileState>(
+    createInitialTaskSolutionState(),
+  );
 
   const snapshotRef = useRef<ReturnType<typeof buildSnapshot> | null>(null);
   const timerRef = useRef<number | null>(null);
@@ -350,7 +378,54 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
     [refreshPreviewUrl],
   );
 
-  const fetchUnit = useCallback(async () => {
+  const refreshTaskSolutionPreviewUrl = useCallback(async () => {
+    if (!editingTask?.id) return null;
+    const response = await teacherApi.getTaskSolutionPdfPresignedUrl(editingTask.id, 600);
+    setTaskSolutionCompileState((prev) => ({
+      ...prev,
+      key: response.key,
+      previewUrl: buildPdfPreviewSrc(response.url),
+    }));
+    return buildPdfPreviewSrc(response.url);
+  }, [editingTask?.id]);
+
+  useEffect(() => {
+    if (!editingTask) {
+      setTaskSolutionLatex("");
+      setTaskSolutionCompileState(createInitialTaskSolutionState());
+      return;
+    }
+
+    let cancelled = false;
+    setTaskSolutionLatex(editingTask.solutionRichLatex ?? "");
+    setTaskSolutionCompileState(createInitialTaskSolutionState(editingTask));
+
+    if (!editingTask.solutionPdfAssetKey) return;
+
+    void (async () => {
+      try {
+        const response = await teacherApi.getTaskSolutionPdfPresignedUrl(editingTask.id, 600);
+        if (cancelled) return;
+        setTaskSolutionCompileState((prev) => ({
+          ...prev,
+          key: response.key,
+          previewUrl: buildPdfPreviewSrc(response.url),
+        }));
+      } catch {
+        if (cancelled) return;
+        setTaskSolutionCompileState((prev) => ({
+          ...prev,
+          previewUrl: null,
+        }));
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [editingTask?.id, editingTask?.solutionPdfAssetKey, editingTask?.solutionRichLatex]);
+
+  const fetchUnit = useCallback(async (): Promise<UnitWithTasks | null> => {
     setError(null);
     try {
       const data = await teacherApi.getUnit(unitId);
@@ -382,12 +457,18 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
         },
       });
       setTaskOrder(sortTasks(data.tasks));
+      setEditingTask((prev) => {
+        if (!prev) return prev;
+        return data.tasks.find((task) => task.id === prev.id) ?? null;
+      });
       setTaskOrderStatus(null);
       setMinCountedInput(String(data.minOptionalCountedTasksToComplete ?? 0));
       setIsOptionalMinEditing(data.minOptionalCountedTasksToComplete === null);
       setProgressSaveState({ state: "idle" });
+      return data;
     } catch (err) {
       setError(getApiErrorMessage(err));
+      return null;
     }
   }, [hydratePdfPreviews, unitId]);
 
@@ -825,6 +906,126 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
     [methodText, theoryText, unit],
   );
 
+  const runTaskSolutionCompile = useCallback(async () => {
+    if (!editingTask) return;
+    const taskId = editingTask.id;
+    const latex = taskSolutionLatex.trim();
+    if (!latex) {
+      setTaskSolutionCompileState((prev) => ({
+        ...prev,
+        status: "failed",
+        loading: false,
+        error: "Введите LaTeX перед компиляцией.",
+        logSnippet: null,
+      }));
+      return;
+    }
+
+    setTaskSolutionCompileState((prev) => ({
+      ...prev,
+      status: "queued",
+      loading: true,
+      error: null,
+      logSnippet: null,
+    }));
+
+    try {
+      const queued = await teacherApi.compileTaskSolutionLatex(taskId, { latex, ttlSec: 600 });
+      const startedAt = Date.now();
+      let finalStatus = await teacherApi.getLatexCompileJob(queued.jobId, 600);
+
+      while (finalStatus.status === "queued" || finalStatus.status === "running") {
+        if (Date.now() - startedAt > COMPILE_POLL_TIMEOUT_MS) {
+          throw new Error("Истекло время ожидания компиляции.");
+        }
+        setTaskSolutionCompileState((prev) => ({
+          ...prev,
+          status: finalStatus.status,
+          loading: true,
+        }));
+        await wait(COMPILE_POLL_INTERVAL_MS);
+        finalStatus = await teacherApi.getLatexCompileJob(queued.jobId, 600);
+      }
+
+      if (finalStatus.status === "failed") {
+        const reason = finalStatus.error?.message ?? "LaTeX compilation failed";
+        const snippet = finalStatus.error?.logSnippet
+          ? finalStatus.error.logSnippet.slice(0, 1200)
+          : null;
+        setTaskSolutionCompileState((prev) => ({
+          ...prev,
+          status: "failed",
+          loading: false,
+          error: reason,
+          logSnippet: snippet,
+        }));
+        return;
+      }
+
+      if (finalStatus.status !== "succeeded" || !finalStatus.assetKey) {
+        throw new Error("Компиляция завершилась без валидного результата.");
+      }
+
+      let refreshedTask: Task | null = null;
+      for (let attempt = 0; attempt <= APPLY_RACE_RETRY_COUNT; attempt += 1) {
+        const refreshedUnit = await fetchUnit();
+        refreshedTask = refreshedUnit?.tasks.find((task) => task.id === taskId) ?? null;
+        if (refreshedTask?.solutionPdfAssetKey) break;
+        if (attempt < APPLY_RACE_RETRY_COUNT) {
+          await wait(APPLY_RACE_DELAY_MS);
+        }
+      }
+
+      if (!refreshedTask?.solutionPdfAssetKey) {
+        try {
+          await teacherApi.applyLatexCompileJob(queued.jobId);
+        } catch {
+          // auto-apply остаётся основным путём; fallback тихий
+        }
+        for (let attempt = 0; attempt <= APPLY_RACE_RETRY_COUNT; attempt += 1) {
+          const refreshedUnit = await fetchUnit();
+          refreshedTask = refreshedUnit?.tasks.find((task) => task.id === taskId) ?? null;
+          if (refreshedTask?.solutionPdfAssetKey) break;
+          if (attempt < APPLY_RACE_RETRY_COUNT) {
+            await wait(APPLY_RACE_DELAY_MS);
+          }
+        }
+      }
+
+      let previewUrl: string | null = null;
+      if (refreshedTask?.solutionPdfAssetKey) {
+        try {
+          const preview = await teacherApi.getTaskSolutionPdfPresignedUrl(taskId, 600);
+          previewUrl = buildPdfPreviewSrc(preview.url);
+        } catch {
+          previewUrl = null;
+        }
+      }
+      const resolvedAssetKey = refreshedTask?.solutionPdfAssetKey ?? finalStatus.assetKey ?? null;
+
+      setTaskSolutionCompileState((prev) => ({
+        ...prev,
+        status: "succeeded",
+        loading: false,
+        error: refreshedTask?.solutionPdfAssetKey ? null : "PDF ещё применяем… обновите через секунду.",
+        logSnippet: null,
+        updatedAt: Date.now(),
+        key: resolvedAssetKey,
+        previewUrl,
+      }));
+    } catch (err) {
+      const compileErrorMessage =
+        err instanceof Error && err.message ? err.message : getApiErrorMessage(err);
+      setTaskSolutionCompileState((prev) => ({
+        ...prev,
+        status: "failed",
+        loading: false,
+        error: compileErrorMessage,
+        logSnippet: null,
+      }));
+    }
+  }, [editingTask, fetchUnit, taskSolutionLatex]);
+
   return (
     <DashboardShell
       title="Преподаватель"
@@ -951,6 +1152,7 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
                       refreshKey={compileState.theory.key ?? unit?.theoryPdfAssetKey ?? undefined}
                       getFreshUrl={refreshTheoryPreviewUrl}
                       scrollFeel="inertial-heavy"
+                      freezeWidth
                     />
                   ) : (
                     <div className={styles.previewStub}>Предпросмотр PDF появится здесь после сборки.</div>
@@ -1014,6 +1216,7 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
                       refreshKey={compileState.method.key ?? unit?.methodPdfAssetKey ?? undefined}
                       getFreshUrl={refreshMethodPreviewUrl}
                       scrollFeel="inertial-heavy"
+                      freezeWidth
                     />
                   ) : (
                     <div className={styles.previewStub}>Предпросмотр PDF появится здесь после сборки.</div>
@@ -1109,7 +1312,7 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
                   </div>
 
                   <div className={styles.progressMetric}>
-                    <span className={styles.progressMetricLabel}>Необязательные минимум</span>
+                    <span className={styles.progressMetricLabel}>Необязательные</span>
                     {isOptionalMinEditing || !hasSavedOptionalMin ? (
                       <div className={styles.inlineOptionalEditor}>
                         <Input
@@ -1168,7 +1371,7 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
                   </div>
 
                   <div className={styles.progressMetric}>
-                    <span className={styles.progressMetricLabel}>Итог для завершения</span>
+                    <span className={styles.progressMetricLabel}>Итог</span>
                     <div className={styles.metricValueBox}>
                       <strong className={styles.progressMetricValue}>{totalToComplete}</strong>
                     </div>
@@ -1281,6 +1484,77 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
                   }
                   initial={
                     taskFormInitial
+                  }
+                  extraSection={
+                    <div className={styles.taskSolutionSection}>
+                      <div className={styles.taskSolutionHeader}>
+                        <div className={styles.taskSolutionTitle}>Решение (LaTeX → PDF)</div>
+                        {editingTask ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => void runTaskSolutionCompile()}
+                            disabled={taskSolutionCompileState.loading}
+                          >
+                            {taskSolutionCompileState.loading ? "Компиляция..." : "Скомпилировать PDF"}
+                          </Button>
+                        ) : null}
+                      </div>
+
+                      {editingTask ? (
+                        <div className={styles.taskSolutionGrid}>
+                          <div className={styles.taskSolutionEditor}>
+                            <textarea
+                              className={styles.taskSolutionTextarea}
+                              value={taskSolutionLatex}
+                              onChange={(event) => setTaskSolutionLatex(event.target.value)}
+                              aria-label="LaTeX решения"
+                              placeholder="\\documentclass{article}\n\\begin{document}\nРешение...\n\\end{document}"
+                            />
+                          </div>
+                          <div className={styles.taskSolutionRight}>
+                            {taskSolutionCompileState.error ? (
+                              <div className={styles.compileError} role="status" aria-live="polite">
+                                {taskSolutionCompileState.error}
+                                {taskSolutionCompileState.logSnippet ? (
+                                  <pre className={styles.taskSolutionLogSnippet}>
+                                    {taskSolutionCompileState.logSnippet}
+                                  </pre>
+                                ) : null}
+                              </div>
+                            ) : null}
+                            <div className={styles.taskSolutionViewportWrap}>
+                              {taskSolutionCompileState.updatedAt ? (
+                                <div className={styles.taskSolutionMeta}>
+                                  PDF обновлён:{" "}
+                                  {new Date(taskSolutionCompileState.updatedAt).toLocaleString("ru-RU")}
+                                </div>
+                              ) : null}
+                              <div className={styles.taskSolutionViewport}>
+                                {taskSolutionCompileState.previewUrl ? (
+                                  <PdfCanvasPreview
+                                    className={styles.taskSolutionFrame}
+                                    url={taskSolutionCompileState.previewUrl}
+                                    refreshKey={taskSolutionCompileState.key ?? undefined}
+                                    getFreshUrl={refreshTaskSolutionPreviewUrl}
+                                    scrollFeel="inertial-heavy"
+                                    freezeWidth
+                                  />
+                                ) : (
+                                  <div className={styles.previewStub}>
+                                    PDF появится здесь после компиляции.
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className={styles.taskSolutionStub}>
+                          Сначала создайте задачу, затем откройте её редактирование для сборки PDF-решения.
+                        </div>
+                      )}
+                    </div>
                   }
                 />
               ) : null}

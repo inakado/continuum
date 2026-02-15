@@ -4,13 +4,24 @@ type ApplyCompileResultResponse = {
   reason?: string;
 };
 
-type ApplyResultRequestBody = {
+type ApplyResultUnitRequestBody = {
   unitId: string;
   target: 'theory' | 'method';
   assetKey: string;
   sizeBytes: number;
   compileLogSnippet?: string;
 };
+
+type ApplyResultTaskRequestBody = {
+  taskId: string;
+  taskRevisionId: string;
+  target: 'task_solution';
+  assetKey: string;
+  sizeBytes: number;
+  compileLogSnippet?: string;
+};
+
+type ApplyResultRequestBody = ApplyResultUnitRequestBody | ApplyResultTaskRequestBody;
 
 const APPLY_ERROR_SNIPPET_LIMIT = 1200;
 const APPLY_RETRY_COUNT = 8;

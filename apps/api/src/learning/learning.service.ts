@@ -23,6 +23,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import { LearningAvailabilityService } from './learning-availability.service';
 
 const MAX_ANSWER_LENGTH = 2000;
+const TASK_SOLUTION_ALLOWED_STATUSES = new Set<StudentTaskStatus>([
+  StudentTaskStatus.correct,
+  StudentTaskStatus.accepted,
+  StudentTaskStatus.credited_without_progress,
+  StudentTaskStatus.teacher_credited,
+]);
 
 type NumericAnswerInput = { partKey: string; value: string };
 
@@ -190,6 +196,88 @@ export class LearningService {
   ) {
     const unit = await this.getPublishedUnitForStudent(studentId, unitId);
     return target === 'theory' ? unit.theoryPdfAssetKey : unit.methodPdfAssetKey;
+  }
+
+  async getTaskSolutionPdfAssetKeyForStudent(studentId: string, taskId: string) {
+    const task = await this.prisma.task.findFirst({
+      where: {
+        id: taskId,
+        status: ContentStatus.published,
+        unit: {
+          status: ContentStatus.published,
+          section: {
+            status: ContentStatus.published,
+            course: { status: ContentStatus.published },
+          },
+        },
+      },
+      select: {
+        id: true,
+        activeRevisionId: true,
+        activeRevision: {
+          select: {
+            id: true,
+            solutionPdfAssetKey: true,
+          },
+        },
+        unit: {
+          select: {
+            id: true,
+            sectionId: true,
+          },
+        },
+      },
+    });
+
+    if (!task) throw new NotFoundException('Task not found');
+    if (!task.activeRevisionId || !task.activeRevision) {
+      throw new ConflictException({
+        code: 'TASK_ACTIVE_REVISION_MISSING',
+        message: 'Task active revision is missing',
+      });
+    }
+
+    const sectionSnapshots = await this.learningAvailabilityService.recomputeSectionAvailability(
+      studentId,
+      task.unit.sectionId,
+    );
+    const unitSnapshot = sectionSnapshots.get(task.unit.id);
+    if (!unitSnapshot || unitSnapshot.status === StudentUnitStatus.locked) {
+      throw new ConflictException({ code: 'UNIT_LOCKED', message: 'Unit is locked' });
+    }
+
+    const state = await this.prisma.studentTaskState.findUnique({
+      where: { studentId_taskId: { studentId, taskId: task.id } },
+      select: {
+        status: true,
+        wrongAttempts: true,
+        lockedUntil: true,
+        requiredSkipped: true,
+        activeRevisionId: true,
+        creditedRevisionId: true,
+      },
+    });
+    const normalizedState = this.normalizeTaskState(state ?? null, task.activeRevisionId, new Date());
+    if (!TASK_SOLUTION_ALLOWED_STATUSES.has(normalizedState.status)) {
+      throw new ConflictException({
+        code: 'SOLUTION_NOT_AVAILABLE_YET',
+        message: 'Task solution is not available yet',
+      });
+    }
+
+    const key = task.activeRevision.solutionPdfAssetKey;
+    if (!key) {
+      throw new NotFoundException({
+        code: 'SOLUTION_PDF_MISSING',
+        message: 'Task solution PDF is not compiled yet',
+      });
+    }
+
+    return {
+      taskId: task.id,
+      taskRevisionId: task.activeRevisionId,
+      key,
+    };
   }
 
   async submitAttempt(studentId: string, taskId: string, body: unknown) {

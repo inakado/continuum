@@ -23,6 +23,12 @@ export const getStudentErrorMessage = (error: unknown) => {
     if (error.code === "TASK_ACTIVE_REVISION_MISSING") {
       return "В задаче нет активной ревизии. Сообщите преподавателю.";
     }
+    if (error.code === "SOLUTION_NOT_AVAILABLE_YET") {
+      return "Решение станет доступно после зачёта задачи.";
+    }
+    if (error.code === "SOLUTION_PDF_MISSING") {
+      return "PDF-решение ещё не подготовлено преподавателем.";
+    }
     if (error.status === 401 || error.status === 403) {
       return "Перелогиньтесь";
     }

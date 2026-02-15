@@ -22,6 +22,8 @@ type TaskRevisionRecord = {
   answerType: TaskAnswerType;
   statementLite: string;
   solutionLite: string | null;
+  solutionRichLatex: string | null;
+  solutionPdfAssetKey: string | null;
   numericParts: { partKey: string; labelLite: string | null; correctValue: string }[];
   choices: { choiceKey: string; contentLite: string }[];
   correctChoices: { choiceKey: string }[];
@@ -539,6 +541,84 @@ export class ContentService {
     return target === 'theory' ? unit.theoryPdfAssetKey : unit.methodPdfAssetKey;
   }
 
+  async getTaskForSolutionPdfCompile(taskId: string): Promise<{ id: string; activeRevisionId: string }> {
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      select: {
+        id: true,
+        activeRevisionId: true,
+      },
+    });
+    if (!task) throw new NotFoundException('Task not found');
+    if (!task.activeRevisionId) {
+      throw new ConflictException({
+        code: 'TASK_ACTIVE_REVISION_MISSING',
+        message: 'Task active revision is missing',
+      });
+    }
+
+    return {
+      id: task.id,
+      activeRevisionId: task.activeRevisionId,
+    };
+  }
+
+  async updateTaskRevisionSolutionRichLatex(taskRevisionId: string, latex: string) {
+    return this.prisma.taskRevision.update({
+      where: { id: taskRevisionId },
+      data: {
+        solutionRichLatex: latex,
+      },
+      select: {
+        id: true,
+        taskId: true,
+      },
+    });
+  }
+
+  async getTaskSolutionPdfState(taskId: string) {
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      select: {
+        id: true,
+        activeRevisionId: true,
+        activeRevision: {
+          select: {
+            id: true,
+            solutionPdfAssetKey: true,
+          },
+        },
+      },
+    });
+    if (!task) throw new NotFoundException('Task not found');
+    if (!task.activeRevisionId || !task.activeRevision) {
+      throw new ConflictException({
+        code: 'TASK_ACTIVE_REVISION_MISSING',
+        message: 'Task active revision is missing',
+      });
+    }
+
+    return {
+      taskId: task.id,
+      activeRevisionId: task.activeRevisionId,
+      solutionPdfAssetKey: task.activeRevision.solutionPdfAssetKey,
+    };
+  }
+
+  async setTaskRevisionSolutionPdfAssetKey(taskRevisionId: string, key: string) {
+    return this.prisma.taskRevision.update({
+      where: { id: taskRevisionId },
+      data: {
+        solutionPdfAssetKey: key,
+      },
+      select: {
+        id: true,
+        taskId: true,
+        solutionPdfAssetKey: true,
+      },
+    });
+  }
+
   async unpublishUnit(id: string) {
     const exists = await this.prisma.unit.findUnique({ where: { id } });
     if (!exists) throw new NotFoundException('Unit not found');
@@ -589,6 +669,8 @@ export class ContentService {
       choicesJson: dto.choicesJson,
       correctAnswerJson: dto.correctAnswerJson,
       solutionLite: dto.solutionLite ?? null,
+      solutionRichLatex: null,
+      solutionPdfAssetKey: null,
     });
 
     return this.prisma.$transaction(async (tx) => {
@@ -622,6 +704,8 @@ export class ContentService {
         answerType: revision.answerType,
         statementLite: revision.statementLite,
         solutionLite: revision.solutionLite,
+        solutionRichLatex: revision.solutionRichLatex,
+        solutionPdfAssetKey: revision.solutionPdfAssetKey,
         numericParts:
           normalized.numericPartsJson?.map((part) => ({
             partKey: part.key,
@@ -679,6 +763,8 @@ export class ContentService {
           : currentView.correctAnswerJson,
       solutionLite:
         dto.solutionLite !== undefined ? dto.solutionLite : currentView.solutionLite,
+      solutionRichLatex: currentView.solutionRichLatex ?? null,
+      solutionPdfAssetKey: currentView.solutionPdfAssetKey ?? null,
       isRequired: dto.isRequired ?? currentView.isRequired,
       sortOrder: dto.sortOrder ?? currentView.sortOrder,
     };
@@ -690,6 +776,8 @@ export class ContentService {
       choicesJson: merged.choicesJson,
       correctAnswerJson: merged.correctAnswerJson,
       solutionLite: merged.solutionLite ?? null,
+      solutionRichLatex: merged.solutionRichLatex,
+      solutionPdfAssetKey: merged.solutionPdfAssetKey,
     });
 
     return this.prisma.$transaction(async (tx) => {
@@ -720,6 +808,8 @@ export class ContentService {
         answerType: revision.answerType,
         statementLite: revision.statementLite,
         solutionLite: revision.solutionLite,
+        solutionRichLatex: revision.solutionRichLatex,
+        solutionPdfAssetKey: revision.solutionPdfAssetKey,
         numericParts:
           normalized.numericPartsJson?.map((part) => ({
             partKey: part.key,
@@ -834,6 +924,8 @@ export class ContentService {
           : null,
       correctAnswerJson,
       solutionLite: revision.solutionLite,
+      solutionRichLatex: revision.solutionRichLatex,
+      solutionPdfAssetKey: revision.solutionPdfAssetKey,
       isRequired: task.isRequired,
       status: task.status,
       sortOrder: task.sortOrder,
@@ -861,6 +953,8 @@ export class ContentService {
       choicesJson: Choice[] | null;
       correctAnswerJson: CorrectAnswer | null;
       solutionLite: string | null;
+      solutionRichLatex: string | null;
+      solutionPdfAssetKey: string | null;
     },
   ) {
     const revision = await tx.taskRevision.create({
@@ -870,6 +964,8 @@ export class ContentService {
         answerType: normalized.answerType,
         statementLite: normalized.statementLite,
         solutionLite: normalized.solutionLite,
+        solutionRichLatex: normalized.solutionRichLatex,
+        solutionPdfAssetKey: normalized.solutionPdfAssetKey,
       },
     });
 
@@ -1091,6 +1187,8 @@ export class ContentService {
     choicesJson?: unknown;
     correctAnswerJson?: unknown;
     solutionLite?: unknown;
+    solutionRichLatex?: unknown;
+    solutionPdfAssetKey?: unknown;
   }): {
     answerType: TaskAnswerType;
     statementLite: string;
@@ -1098,6 +1196,8 @@ export class ContentService {
     choicesJson: Choice[] | null;
     correctAnswerJson: CorrectAnswer | null;
     solutionLite: string | null;
+    solutionRichLatex: string | null;
+    solutionPdfAssetKey: string | null;
   } {
     const answerType = this.normalizeAnswerType(payload.answerType);
     const statementLite =
@@ -1111,6 +1211,16 @@ export class ContentService {
       maxLength: 20_000,
       errorCode: 'InvalidSolutionLite',
     });
+    const solutionRichLatex = this.sanitizeRichText(
+      payload.solutionRichLatex as string | null | undefined,
+    );
+    let solutionPdfAssetKey: string | null = null;
+    if (payload.solutionPdfAssetKey !== undefined && payload.solutionPdfAssetKey !== null) {
+      if (typeof payload.solutionPdfAssetKey !== 'string') {
+        throw new BadRequestException('InvalidSolutionPdfAssetKey');
+      }
+      solutionPdfAssetKey = this.normalizeAssetKey(payload.solutionPdfAssetKey);
+    }
 
     if (answerType === TaskAnswerType.numeric) {
       const numericParts = this.normalizeNumericParts(payload.numericPartsJson);
@@ -1121,6 +1231,8 @@ export class ContentService {
         choicesJson: null,
         correctAnswerJson: null,
         solutionLite,
+        solutionRichLatex,
+        solutionPdfAssetKey,
       };
     }
 
@@ -1141,6 +1253,8 @@ export class ContentService {
         choicesJson: choices,
         correctAnswerJson: correctAnswer,
         solutionLite,
+        solutionRichLatex,
+        solutionPdfAssetKey,
       };
     }
 
@@ -1161,6 +1275,8 @@ export class ContentService {
       choicesJson: null,
       correctAnswerJson: null,
       solutionLite,
+      solutionRichLatex,
+      solutionPdfAssetKey,
     };
   }
 
