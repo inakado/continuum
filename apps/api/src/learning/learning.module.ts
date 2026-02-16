@@ -4,7 +4,7 @@ import { ContentModule } from '../content/content.module';
 import { EventsLogModule } from '../events/events.module';
 import { ObjectStorageModule } from '../infra/storage/object-storage.module';
 import { StudentsModule } from '../students/students.module';
-import { LearningAvailabilityService } from './learning-availability.service';
+import { LearningRecomputeModule } from './learning-recompute.module';
 import { LearningService } from './learning.service';
 import { PhotoTaskPolicyService } from './photo-task-policy.service';
 import { PhotoTaskService } from './photo-task.service';
@@ -19,7 +19,14 @@ import { TeacherStudentUnitPreviewController } from './teacher-student-unit-prev
 import { TeacherTaskCreditController } from './teacher-task-credit.controller';
 
 @Module({
-  imports: [AuthModule, ContentModule, EventsLogModule, ObjectStorageModule, StudentsModule],
+  imports: [
+    AuthModule,
+    ContentModule,
+    EventsLogModule,
+    ObjectStorageModule,
+    StudentsModule,
+    LearningRecomputeModule,
+  ],
   controllers: [
     StudentAttemptsController,
     StudentPhotoTasksController,
@@ -31,11 +38,6 @@ import { TeacherTaskCreditController } from './teacher-task-credit.controller';
     TeacherStudentUnitPreviewController,
     TeacherTaskCreditController,
   ],
-  providers: [
-    LearningService,
-    LearningAvailabilityService,
-    PhotoTaskService,
-    PhotoTaskPolicyService,
-  ],
+  providers: [LearningService, PhotoTaskService, PhotoTaskPolicyService],
 })
 export class LearningModule {}

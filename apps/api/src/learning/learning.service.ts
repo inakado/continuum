@@ -91,14 +91,24 @@ export class LearningService {
       select: { id: true, sectionId: true },
     });
 
-    if (!unitMeta) throw new NotFoundException('Unit not found');
+    if (!unitMeta) {
+      throw new NotFoundException({
+        code: 'UNIT_NOT_FOUND',
+        message: 'Unit not found',
+      });
+    }
 
     const sectionSnapshots = await this.learningAvailabilityService.recomputeSectionAvailability(
       studentId,
       unitMeta.sectionId,
     );
     const unitSnapshot = sectionSnapshots.get(unitId);
-    if (!unitSnapshot) throw new NotFoundException('Unit not found');
+    if (!unitSnapshot) {
+      throw new NotFoundException({
+        code: 'UNIT_NOT_FOUND',
+        message: 'Unit not found',
+      });
+    }
 
     if (enforceLockedAccess && unitSnapshot.status === StudentUnitStatus.locked) {
       throw new ConflictException({ code: 'UNIT_LOCKED', message: 'Unit is locked' });
@@ -130,14 +140,20 @@ export class LearningService {
       },
     });
 
-    if (!unit) throw new NotFoundException('Unit not found');
+    if (!unit) {
+      throw new NotFoundException({
+        code: 'UNIT_NOT_FOUND',
+        message: 'Unit not found',
+      });
+    }
 
     const missingRevision = unit.tasks.find(
       (task) => !task.activeRevisionId || !task.activeRevision,
     );
     if (missingRevision) {
       throw new ConflictException({
-        message: 'TASK_ACTIVE_REVISION_MISSING',
+        code: 'TASK_ACTIVE_REVISION_MISSING',
+        message: 'Task active revision is missing',
         taskId: missingRevision.id,
       });
     }
@@ -165,7 +181,14 @@ export class LearningService {
         const mapped = this.contentService.mapTaskWithRevision(task as any);
         const state = statesMap.get(task.id);
         const normalizedState = this.normalizeTaskState(state ?? null, task.activeRevisionId, now);
-        const { correctAnswerJson, solutionLite, numericPartsJson, ...rest } =
+        const {
+          correctAnswerJson,
+          solutionLite,
+          solutionPdfAssetKey,
+          solutionRichLatex,
+          numericPartsJson,
+          ...rest
+        } =
           mapped as Record<string, unknown>;
         const isCredited =
           normalizedState.status === StudentTaskStatus.correct ||
@@ -182,7 +205,9 @@ export class LearningService {
         return {
           ...rest,
           numericPartsJson: safeNumericParts,
-          ...(isCredited ? { correctAnswerJson, solutionLite } : {}),
+          ...(isCredited
+            ? { correctAnswerJson, solutionLite, solutionPdfAssetKey, solutionRichLatex }
+            : {}),
           state: normalizedState,
         };
       }),
@@ -229,7 +254,12 @@ export class LearningService {
       },
     });
 
-    if (!task) throw new NotFoundException('Task not found');
+    if (!task) {
+      throw new NotFoundException({
+        code: 'TASK_NOT_FOUND',
+        message: 'Task not found',
+      });
+    }
     if (!task.activeRevisionId || !task.activeRevision) {
       throw new ConflictException({
         code: 'TASK_ACTIVE_REVISION_MISSING',
@@ -305,17 +335,26 @@ export class LearningService {
       },
     });
 
-    if (!task) throw new NotFoundException('Task not found');
+    if (!task) {
+      throw new NotFoundException({
+        code: 'TASK_NOT_FOUND',
+        message: 'Task not found',
+      });
+    }
     if (!task.activeRevisionId || !task.activeRevision) {
       throw new ConflictException({
-        message: 'TASK_ACTIVE_REVISION_MISSING',
+        code: 'TASK_ACTIVE_REVISION_MISSING',
+        message: 'Task active revision is missing',
         taskId,
       });
     }
 
     const revision = task.activeRevision;
     if (revision.answerType === TaskAnswerType.photo) {
-      throw new ConflictException('Photo tasks are not supported yet');
+      throw new ConflictException({
+        code: 'TASK_NOT_AUTO_CHECK',
+        message: 'Photo tasks are not supported by auto-check submit endpoint',
+      });
     }
 
     const evaluation = this.evaluateAttempt(revision, body);
@@ -327,7 +366,13 @@ export class LearningService {
         where: { userId: studentId },
         select: { leadTeacherId: true, userId: true },
       });
-      if (!profile) throw new NotFoundException('Student not found');
+      if (!profile) {
+        throw new NotFoundException({
+          code: 'STUDENT_NOT_FOUND',
+          message: 'Student not found',
+        });
+      }
+      await this.assertUnitAvailableForStudent(studentId, task.unit.sectionId, task.unit.id, tx);
 
       let state = await tx.studentTaskState.findUnique({
         where: { studentId_taskId: { studentId, taskId } },
@@ -374,11 +419,15 @@ export class LearningService {
       }
 
       if (creditedStatuses.has(state.status)) {
-        throw new ConflictException('Task already credited');
+        throw new ConflictException({
+          code: 'TASK_ALREADY_CREDITED',
+          message: 'Task already credited',
+        });
       }
 
       if (state.lockedUntil && state.lockedUntil > now) {
         throw new ConflictException({
+          code: 'TASK_BLOCKED',
           message: 'Task is blocked',
           blockedUntil: state.lockedUntil,
         });
@@ -617,7 +666,10 @@ export class LearningService {
 
   async listNotifications(teacherId: string, studentId?: string) {
     if (!studentId) {
-      throw new BadRequestException('studentId is required');
+      throw new BadRequestException({
+        code: 'STUDENT_ID_REQUIRED',
+        message: 'studentId is required',
+      });
     }
 
     await this.assertTeacherOwnsStudent(teacherId, studentId);
@@ -648,17 +700,28 @@ export class LearningService {
       });
 
       if (!state) {
-        throw new NotFoundException('Task state not found');
+        throw new NotFoundException({
+          code: 'TASK_STATE_NOT_FOUND',
+          message: 'Task state not found',
+        });
       }
       if (state.status !== StudentTaskStatus.credited_without_progress) {
-        throw new ConflictException('Task is not auto-credited');
+        throw new ConflictException({
+          code: 'TASK_NOT_AUTO_CREDITED',
+          message: 'Task is not auto-credited',
+        });
       }
 
       const task = await tx.task.findUnique({
         where: { id: taskId },
         select: { unit: { select: { sectionId: true } } },
       });
-      if (!task) throw new NotFoundException('Task not found');
+      if (!task) {
+        throw new NotFoundException({
+          code: 'TASK_NOT_FOUND',
+          message: 'Task not found',
+        });
+      }
 
       const updatedState = await tx.studentTaskState.update({
         where: { studentId_taskId: { studentId, taskId } },
@@ -764,10 +827,36 @@ export class LearningService {
     });
 
     if (!profile || profile.user.role !== Role.student) {
-      throw new NotFoundException('Student not found');
+      throw new NotFoundException({
+        code: 'STUDENT_NOT_FOUND',
+        message: 'Student not found',
+      });
     }
     if (profile.leadTeacherId !== teacherId) {
-      throw new ForbiddenException('Student is not assigned to this teacher');
+      throw new ForbiddenException({
+        code: 'STUDENT_NOT_ASSIGNED_TO_TEACHER',
+        message: 'Student is not assigned to this teacher',
+      });
+    }
+  }
+
+  private async assertUnitAvailableForStudent(
+    studentId: string,
+    sectionId: string,
+    unitId: string,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const snapshots = await this.learningAvailabilityService.recomputeSectionAvailability(
+      studentId,
+      sectionId,
+      tx,
+    );
+    const snapshot = snapshots.get(unitId);
+    if (!snapshot || snapshot.status === StudentUnitStatus.locked) {
+      throw new ConflictException({
+        code: 'UNIT_LOCKED',
+        message: 'Unit is locked',
+      });
     }
   }
 
@@ -783,15 +872,33 @@ export class LearningService {
     if (revision.answerType === TaskAnswerType.numeric) {
       const payload = body as { answers?: NumericAnswerInput[] };
       if (!payload || !Array.isArray(payload.answers)) {
-        throw new BadRequestException('InvalidNumericAnswers');
+        throw new BadRequestException({
+          code: 'INVALID_NUMERIC_ANSWERS',
+          message: 'Invalid numeric answers',
+        });
       }
 
       const answers: NumericAnswerInput[] = payload.answers.map((item) => {
-        if (!item || typeof item !== 'object') throw new BadRequestException('InvalidNumericAnswers');
+        if (!item || typeof item !== 'object') {
+          throw new BadRequestException({
+            code: 'INVALID_NUMERIC_ANSWERS',
+            message: 'Invalid numeric answers',
+          });
+        }
         const partKey = typeof item.partKey === 'string' ? item.partKey.trim() : '';
         const value = typeof item.value === 'string' ? item.value.trim() : '';
-        if (!partKey) throw new BadRequestException('InvalidNumericAnswers');
-        if (value.length > MAX_ANSWER_LENGTH) throw new BadRequestException('InvalidNumericAnswers');
+        if (!partKey) {
+          throw new BadRequestException({
+            code: 'INVALID_NUMERIC_ANSWERS',
+            message: 'Invalid numeric answers',
+          });
+        }
+        if (value.length > MAX_ANSWER_LENGTH) {
+          throw new BadRequestException({
+            code: 'INVALID_NUMERIC_ANSWERS',
+            message: 'Invalid numeric answers',
+          });
+        }
         return { partKey, value };
       });
 
@@ -813,10 +920,20 @@ export class LearningService {
     if (revision.answerType === TaskAnswerType.single_choice) {
       const payload = body as { choiceKey?: string };
       const choiceKey = typeof payload?.choiceKey === 'string' ? payload.choiceKey.trim() : '';
-      if (!choiceKey) throw new BadRequestException('InvalidChoiceKey');
+      if (!choiceKey) {
+        throw new BadRequestException({
+          code: 'INVALID_CHOICE_KEY',
+          message: 'Invalid choiceKey',
+        });
+      }
 
       const allowedKeys = new Set(revision.choices.map((choice) => choice.choiceKey));
-      if (!allowedKeys.has(choiceKey)) throw new BadRequestException('InvalidChoiceKey');
+      if (!allowedKeys.has(choiceKey)) {
+        throw new BadRequestException({
+          code: 'INVALID_CHOICE_KEY',
+          message: 'Invalid choiceKey',
+        });
+      }
 
       const correctKey = revision.correctChoices[0]?.choiceKey;
       const isCorrect = Boolean(correctKey) && correctKey === choiceKey;
@@ -830,16 +947,29 @@ export class LearningService {
     if (revision.answerType === TaskAnswerType.multi_choice) {
       const payload = body as { choiceKeys?: string[] };
       if (!payload || !Array.isArray(payload.choiceKeys) || payload.choiceKeys.length === 0) {
-        throw new BadRequestException('InvalidChoiceKeys');
+        throw new BadRequestException({
+          code: 'INVALID_CHOICE_KEYS',
+          message: 'Invalid choiceKeys',
+        });
       }
 
       const normalized = payload.choiceKeys.map((value) => (typeof value === 'string' ? value.trim() : '')).filter(Boolean);
-      if (normalized.length === 0) throw new BadRequestException('InvalidChoiceKeys');
+      if (normalized.length === 0) {
+        throw new BadRequestException({
+          code: 'INVALID_CHOICE_KEYS',
+          message: 'Invalid choiceKeys',
+        });
+      }
 
       const allowedKeys = new Set(revision.choices.map((choice) => choice.choiceKey));
       const uniqueKeys = Array.from(new Set(normalized));
       uniqueKeys.forEach((key) => {
-        if (!allowedKeys.has(key)) throw new BadRequestException('InvalidChoiceKeys');
+        if (!allowedKeys.has(key)) {
+          throw new BadRequestException({
+            code: 'INVALID_CHOICE_KEYS',
+            message: 'Invalid choiceKeys',
+          });
+        }
       });
 
       const correctKeys = revision.correctChoices.map((choice) => choice.choiceKey).sort();
@@ -854,6 +984,9 @@ export class LearningService {
       } as AttemptEvaluation;
     }
 
-    throw new ConflictException('Answer type not supported');
+    throw new ConflictException({
+      code: 'ANSWER_TYPE_NOT_SUPPORTED',
+      message: 'Answer type not supported',
+    });
   }
 }

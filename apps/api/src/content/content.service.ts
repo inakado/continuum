@@ -223,7 +223,12 @@ export class ContentService {
       where: { id: sectionId },
       select: { id: true },
     });
-    if (!section) throw new NotFoundException('Section not found');
+    if (!section) {
+      throw new NotFoundException({
+        code: 'SECTION_NOT_FOUND',
+        message: 'Section not found',
+      });
+    }
 
     const units = await this.prisma.unit.findMany({
       where: { sectionId },
@@ -233,27 +238,42 @@ export class ContentService {
 
     for (const node of nodes) {
       if (!unitIdSet.has(node.unitId)) {
-        throw new NotFoundException('Unit not found in section');
+        throw new NotFoundException({
+          code: 'UNIT_NOT_IN_SECTION',
+          message: 'Unit not found in section',
+        });
       }
     }
 
     const edgeKeySet = new Set<string>();
     for (const edge of edges) {
       if (!unitIdSet.has(edge.fromUnitId) || !unitIdSet.has(edge.toUnitId)) {
-        throw new NotFoundException('Unit not found in section');
+        throw new NotFoundException({
+          code: 'UNIT_NOT_IN_SECTION',
+          message: 'Unit not found in section',
+        });
       }
       if (edge.fromUnitId === edge.toUnitId) {
-        throw new ConflictException('GraphSelfLoopNotAllowed');
+        throw new ConflictException({
+          code: 'GRAPH_SELF_LOOP_NOT_ALLOWED',
+          message: 'Graph self-loop is not allowed',
+        });
       }
       const key = `${edge.fromUnitId}:${edge.toUnitId}`;
       if (edgeKeySet.has(key)) {
-        throw new ConflictException('GraphDuplicateEdgeNotAllowed');
+        throw new ConflictException({
+          code: 'GRAPH_DUPLICATE_EDGE_NOT_ALLOWED',
+          message: 'Duplicate graph edge is not allowed',
+        });
       }
       edgeKeySet.add(key);
     }
 
     if (this.hasGraphCycle(unitIdSet, edges)) {
-      throw new ConflictException('GraphCycleNotAllowed');
+      throw new ConflictException({
+        code: 'GRAPH_CYCLE_NOT_ALLOWED',
+        message: 'Graph cycle is not allowed',
+      });
     }
 
     const updatedAt = new Date();
@@ -516,10 +536,18 @@ export class ContentService {
       where: { id },
       include: { section: true },
     });
-    if (!unit) throw new NotFoundException('Unit not found');
+    if (!unit) {
+      throw new NotFoundException({
+        code: 'UNIT_NOT_FOUND',
+        message: 'Unit not found',
+      });
+    }
 
     if (unit.section.status !== ContentStatus.published) {
-      throw new ConflictException('Cannot publish Unit: parent Section is draft');
+      throw new ConflictException({
+        code: 'UNIT_PARENT_SECTION_DRAFT',
+        message: 'Cannot publish Unit: parent Section is draft',
+      });
     }
 
     return this.prisma.unit.update({
@@ -564,6 +592,7 @@ export class ContentService {
   }
 
   async updateTaskRevisionSolutionRichLatex(taskRevisionId: string, latex: string) {
+    // Allowed in-place exception: compile flow edits the source on the same active revision.
     return this.prisma.taskRevision.update({
       where: { id: taskRevisionId },
       data: {
@@ -606,6 +635,7 @@ export class ContentService {
   }
 
   async setTaskRevisionSolutionPdfAssetKey(taskRevisionId: string, key: string) {
+    // Allowed in-place exception: apply phase only attaches compiled PDF to the current revision.
     return this.prisma.taskRevision.update({
       where: { id: taskRevisionId },
       data: {
@@ -621,7 +651,12 @@ export class ContentService {
 
   async unpublishUnit(id: string) {
     const exists = await this.prisma.unit.findUnique({ where: { id } });
-    if (!exists) throw new NotFoundException('Unit not found');
+    if (!exists) {
+      throw new NotFoundException({
+        code: 'UNIT_NOT_FOUND',
+        message: 'Unit not found',
+      });
+    }
 
     return this.prisma.unit.update({
       where: { id },
@@ -689,7 +724,10 @@ export class ContentService {
         data: { activeRevisionId: revision.id },
       });
       if (!updatedTask.activeRevisionId) {
-        throw new ConflictException('TASK_ACTIVE_REVISION_MISSING');
+        throw new ConflictException({
+          code: 'TASK_ACTIVE_REVISION_MISSING',
+          message: 'Task active revision is missing',
+        });
       }
 
       const correctKeys =
@@ -793,7 +831,10 @@ export class ContentService {
         },
       });
       if (!updatedTask.activeRevisionId) {
-        throw new ConflictException('TASK_ACTIVE_REVISION_MISSING');
+        throw new ConflictException({
+          code: 'TASK_ACTIVE_REVISION_MISSING',
+          message: 'Task active revision is missing',
+        });
       }
 
       const correctKeys =
@@ -843,10 +884,18 @@ export class ContentService {
       where: { id },
       include: { unit: true },
     });
-    if (!task) throw new NotFoundException('Task not found');
+    if (!task) {
+      throw new NotFoundException({
+        code: 'TASK_NOT_FOUND',
+        message: 'Task not found',
+      });
+    }
 
     if (task.unit.status !== ContentStatus.published) {
-      throw new ConflictException('Cannot publish Task: parent Unit is draft');
+      throw new ConflictException({
+        code: 'TASK_PARENT_UNIT_DRAFT',
+        message: 'Cannot publish Task: parent Unit is draft',
+      });
     }
 
     return this.prisma.task.update({
@@ -857,7 +906,12 @@ export class ContentService {
 
   async unpublishTask(id: string) {
     const exists = await this.prisma.task.findUnique({ where: { id } });
-    if (!exists) throw new NotFoundException('Task not found');
+    if (!exists) {
+      throw new NotFoundException({
+        code: 'TASK_NOT_FOUND',
+        message: 'Task not found',
+      });
+    }
 
     return this.prisma.task.update({
       where: { id },
@@ -885,7 +939,11 @@ export class ContentService {
 
   mapTaskWithRevision(task: TaskWithActiveRevision) {
     if (!task.activeRevision) {
-      throw new ConflictException('Task revision is missing');
+      throw new ConflictException({
+        code: 'TASK_ACTIVE_REVISION_MISSING',
+        message: 'Task active revision is missing',
+        taskId: task.id,
+      });
     }
     const revision = task.activeRevision;
     const numericParts = revision.numericParts.map((part) => ({

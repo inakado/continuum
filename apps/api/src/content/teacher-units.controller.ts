@@ -18,6 +18,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { EventsLogService } from '../events/events-log.service';
 import { ObjectStorageService } from '../infra/storage/object-storage.service';
+import { LearningRecomputeService } from '../learning/learning-recompute.service';
 import { ContentService } from './content.service';
 import { CreateUnitDto, UpdateUnitDto } from './dto/unit.dto';
 import { UnitPdfPolicyService } from './unit-pdf-policy.service';
@@ -31,6 +32,7 @@ export class TeacherUnitsController {
     private readonly eventsLogService: EventsLogService,
     private readonly objectStorageService: ObjectStorageService,
     private readonly unitPdfPolicyService: UnitPdfPolicyService,
+    private readonly learningRecomputeService: LearningRecomputeService,
   ) {}
 
   @Get(':id')
@@ -139,6 +141,7 @@ export class TeacherUnitsController {
   @HttpCode(200)
   async publish(@Param('id') id: string, @Req() req: AuthRequest) {
     const unit = await this.contentService.publishUnit(id);
+    await this.learningRecomputeService.recomputeForSection(unit.sectionId);
     await this.eventsLogService.append({
       category: EventCategory.admin,
       eventType: 'UnitPublished',
@@ -155,6 +158,7 @@ export class TeacherUnitsController {
   @HttpCode(200)
   async unpublish(@Param('id') id: string, @Req() req: AuthRequest) {
     const unit = await this.contentService.unpublishUnit(id);
+    await this.learningRecomputeService.recomputeForSection(unit.sectionId);
     await this.eventsLogService.append({
       category: EventCategory.admin,
       eventType: 'UnitUnpublished',

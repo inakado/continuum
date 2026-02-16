@@ -5,6 +5,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { EventsLogService } from '../events/events-log.service';
+import { LearningRecomputeService } from '../learning/learning-recompute.service';
 import { ContentService } from './content.service';
 import { UpdateSectionGraphDto } from './dto/graph.dto';
 
@@ -15,6 +16,7 @@ export class TeacherSectionGraphController {
   constructor(
     private readonly contentService: ContentService,
     private readonly eventsLogService: EventsLogService,
+    private readonly learningRecomputeService: LearningRecomputeService,
   ) {}
 
   @Get(':id/graph')
@@ -30,6 +32,7 @@ export class TeacherSectionGraphController {
     @Req() req: AuthRequest,
   ) {
     const graph = await this.contentService.updateSectionGraph(id, dto.nodes ?? [], dto.edges ?? []);
+    await this.learningRecomputeService.recomputeForSection(id);
     await this.eventsLogService.append({
       category: EventCategory.admin,
       eventType: 'UnitGraphUpdated',

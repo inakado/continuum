@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { EventsLogModule } from '../events/events.module';
 import { ObjectStorageModule } from '../infra/storage/object-storage.module';
+import { LearningRecomputeModule } from '../learning/learning-recompute.module';
 import { InternalLatexController } from './internal-latex.controller';
 import { LatexCompileQueueService } from './latex-compile-queue.service';
 import { ContentService } from './content.service';
@@ -16,7 +17,7 @@ import { TeacherTasksController } from './teacher-tasks.controller';
 import { UnitPdfPolicyService } from './unit-pdf-policy.service';
 
 @Module({
-  imports: [AuthModule, EventsLogModule, ObjectStorageModule],
+  imports: [AuthModule, EventsLogModule, ObjectStorageModule, LearningRecomputeModule],
   controllers: [
     InternalLatexController,
     StudentCoursesController,

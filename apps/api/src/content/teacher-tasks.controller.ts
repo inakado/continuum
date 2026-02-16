@@ -16,6 +16,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { EventsLogService } from '../events/events-log.service';
+import { LearningRecomputeService } from '../learning/learning-recompute.service';
 import { ContentService } from './content.service';
 import { CreateTaskDto, UpdateTaskDto } from './dto/task.dto';
 
@@ -26,6 +27,7 @@ export class TeacherTasksController {
   constructor(
     private readonly contentService: ContentService,
     private readonly eventsLogService: EventsLogService,
+    private readonly learningRecomputeService: LearningRecomputeService,
   ) {}
 
   @Get(':id')
@@ -114,6 +116,7 @@ export class TeacherTasksController {
   @HttpCode(200)
   async publish(@Param('id') id: string, @Req() req: AuthRequest) {
     const task = await this.contentService.publishTask(id);
+    await this.learningRecomputeService.recomputeForTask(task.id);
     await this.eventsLogService.append({
       category: EventCategory.admin,
       eventType: 'TaskPublished',
@@ -130,6 +133,7 @@ export class TeacherTasksController {
   @HttpCode(200)
   async unpublish(@Param('id') id: string, @Req() req: AuthRequest) {
     const task = await this.contentService.unpublishTask(id);
+    await this.learningRecomputeService.recomputeForTask(task.id);
     await this.eventsLogService.append({
       category: EventCategory.admin,
       eventType: 'TaskUnpublished',
