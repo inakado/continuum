@@ -104,37 +104,42 @@
   --theme-toggle-icon: 20px;
   --theme-toggle-radius: var(--control-radius);
   --sidebar-icon-slot: 44px;
-  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  grid-template-columns: var(--sidebar-collapsed) minmax(0, 1fr);
   /* gap: var(--sidebar-gap); */
   align-items: stretch;
   min-height: 100vh;
   overflow: visible;
-  will-change: grid-template-columns;
+  will-change: auto;
   transition:
     --sidebar-width var(--sidebar-motion-duration) var(--sidebar-motion-ease),
     --sidebar-pad-x var(--sidebar-motion-duration) var(--sidebar-motion-ease),
     --sidebar-pad-y var(--sidebar-motion-duration) var(--sidebar-motion-ease),
     --sidebar-squeeze var(--sidebar-motion-duration) var(--sidebar-motion-ease),
     --sidebar-shell-squeeze var(--sidebar-motion-duration) var(--sidebar-motion-ease),
-    --main-shell-squeeze var(--sidebar-motion-duration) var(--sidebar-motion-ease),
-    grid-template-columns var(--sidebar-motion-duration) var(--sidebar-motion-ease);
+    --main-shell-squeeze var(--sidebar-motion-duration) var(--sidebar-motion-ease);
 }
 
 .sidebar {
-  width: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 4;
+  width: var(--sidebar-width);
   align-self: start;
   display: flex;
   flex-direction: column;
   border: var(--border-width) solid var(--panel-border);
   border-top: 0;
   border-right: 0;
-  background: var(--surface-1);
+  background: var(--bg-primary);
   padding: 0;
+  height: 100dvh;
   min-height: 100vh;
   border-radius: 0px;
   box-shadow: inset -1px 0 0 var(--sidebar-divider), var(--panel-shadow);
-  backdrop-filter: var(--glass-filter);
-  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   overflow: hidden;
   transform: scaleX(var(--sidebar-shell-squeeze));
   transform-origin: right center;
@@ -282,6 +287,7 @@
 }
 
 .main {
+  grid-column: 2;
   border: var(--border-width) solid var(--main-border);
   border-top: 0;
   border-left: 0;
@@ -378,10 +384,15 @@
   }
 
   .main {
+    grid-column: 1;
     min-height: 320px;
   }
 
   .sidebar {
+    position: sticky;
+    top: 0;
+    left: auto;
+    bottom: auto;
     width: 100%;
     margin-bottom: 16px;
     padding: 18px;
