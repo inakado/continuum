@@ -92,6 +92,8 @@ model User {
   studentTaskStates             StudentTaskState[]
   attempts                      Attempt[]
   notifications                 Notification[]
+  unitUnlockOverridesAsStudent  UnitUnlockOverride[] @relation("UnitUnlockOverrideStudent")
+  unitUnlockOverridesAsTeacher  UnitUnlockOverride[] @relation("UnitUnlockOverrideTeacher")
   photoTaskSubmissionsAsStudent PhotoTaskSubmission[] @relation("PhotoTaskSubmissionStudent")
   photoTaskSubmissionsReviewed  PhotoTaskSubmission[] @relation("PhotoTaskSubmissionReviewer")
 
@@ -170,6 +172,7 @@ model Unit {
   section              Section               @relation(fields: [sectionId], references: [id], onDelete: Restrict)
   tasks                Task[]
   studentUnitStates    StudentUnitState[]
+  unlockOverrides      UnitUnlockOverride[]
   photoTaskSubmissions PhotoTaskSubmission[]
 
   graphPrereqEdges UnitGraphEdge[]   @relation("GraphPrereqUnit")
@@ -348,6 +351,23 @@ model StudentTaskState {
   @@index([taskId, status])
   @@index([lockedUntil])
   @@map("student_task_state")
+}
+
+model UnitUnlockOverride {
+  id                String   @id @default(uuid()) @db.Uuid
+  studentId         String   @map("student_id") @db.Uuid
+  unitId            String   @map("unit_id") @db.Uuid
+  openedByTeacherId String   @map("opened_by_teacher_id") @db.Uuid
+  reason            String?
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  student         User @relation("UnitUnlockOverrideStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  unit            Unit @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  openedByTeacher User @relation("UnitUnlockOverrideTeacher", fields: [openedByTeacherId], references: [id], onDelete: Restrict)
+
+  @@unique([studentId, unitId])
+  @@index([unitId])
+  @@map("unit_unlock_overrides")
 }
 
 model Attempt {

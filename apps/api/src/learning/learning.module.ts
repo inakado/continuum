@@ -17,6 +17,8 @@ import { TeacherPhotoSubmissionsController } from './teacher-photo-submissions.c
 import { TeacherNotificationsController } from './teacher-notifications.controller';
 import { TeacherStudentUnitPreviewController } from './teacher-student-unit-preview.controller';
 import { TeacherTaskCreditController } from './teacher-task-credit.controller';
+import { TeacherTaskUnblockController } from './teacher-task-unblock.controller';
+import { TeacherUnitOverrideOpenController } from './teacher-unit-override-open.controller';
 
 @Module({
   imports: [
@@ -37,6 +39,8 @@ import { TeacherTaskCreditController } from './teacher-task-credit.controller';
     TeacherNotificationsController,
     TeacherStudentUnitPreviewController,
     TeacherTaskCreditController,
+    TeacherTaskUnblockController,
+    TeacherUnitOverrideOpenController,
   ],
   providers: [LearningService, PhotoTaskService, PhotoTaskPolicyService],
 })

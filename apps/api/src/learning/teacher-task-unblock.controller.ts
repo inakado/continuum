@@ -10,22 +10,17 @@ import { LearningService } from './learning.service';
 @Controller('teacher/students')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.teacher)
-export class TeacherTaskCreditController {
+export class TeacherTaskUnblockController {
   constructor(private readonly learningService: LearningService) {}
 
-  @Post(':studentId/tasks/:taskId/credit')
+  @Post(':studentId/tasks/:taskId/unblock')
   @HttpCode(200)
-  credit(
+  unblock(
     @Param('studentId') studentId: string,
     @Param('taskId') taskId: string,
     @Body() body: TeacherTaskActionDto,
     @Req() req: AuthRequest,
   ) {
-    return this.learningService.creditTaskWithReason(
-      req.user.id,
-      studentId,
-      taskId,
-      body?.reason,
-    );
+    return this.learningService.unblockTask(req.user.id, studentId, taskId, body?.reason);
   }
 }

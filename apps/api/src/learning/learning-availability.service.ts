@@ -31,6 +31,7 @@ type SectionComputationContext = {
   taskStates: { taskId: string; status: StudentTaskStatus }[];
   attemptedTaskIds: Set<string>;
   existingStatesByUnitId: Map<string, ExistingUnitState>;
+  overrideOpenedUnitIds: Set<string>;
 };
 
 export type UnitProgressSnapshot = {
@@ -112,7 +113,13 @@ export class LearningAvailabilityService {
     const db = tx ?? this.prisma;
     const context = await this.loadSectionComputationContext(db, studentId, sectionId);
     const snapshots = this.computeSnapshots(context);
-    await this.persistSnapshots(db, studentId, snapshots, context.existingStatesByUnitId);
+    await this.persistSnapshots(
+      db,
+      studentId,
+      snapshots,
+      context.existingStatesByUnitId,
+      context.overrideOpenedUnitIds,
+    );
     return snapshots;
   }
 
@@ -177,10 +184,11 @@ export class LearningAvailabilityService {
         taskStates: [],
         attemptedTaskIds: new Set(),
         existingStatesByUnitId: new Map(),
+        overrideOpenedUnitIds: new Set(),
       };
     }
 
-    const [edges, tasks, existingStates] = await Promise.all([
+    const [edges, tasks, existingStates, overrides] = await Promise.all([
       db.unitGraphEdge.findMany({
         where: {
           sectionId,
@@ -203,6 +211,10 @@ export class LearningAvailabilityService {
           completedAt: true,
         },
       }),
+      db.unitUnlockOverride.findMany({
+        where: { studentId, unitId: { in: unitIds } },
+        select: { unitId: true },
+      }),
     ]);
 
     const taskIds = tasks.map((task) => task.id);
@@ -222,6 +234,13 @@ export class LearningAvailabilityService {
       ]);
     }
 
+    const overrideOpenedUnitIds = new Set<string>(overrides.map((item) => item.unitId));
+    for (const state of existingStates) {
+      if (state.overrideOpened) {
+        overrideOpenedUnitIds.add(state.unitId);
+      }
+    }
+
     return {
       units: section.units,
       edges,
@@ -229,6 +248,7 @@ export class LearningAvailabilityService {
       taskStates,
       attemptedTaskIds: new Set(attempts.map((attempt) => attempt.taskId)),
       existingStatesByUnitId: new Map(existingStates.map((state) => [state.unitId, state])),
+      overrideOpenedUnitIds,
     };
   }
 
@@ -304,12 +324,14 @@ export class LearningAvailabilityService {
       const prereqsCompleted = prereqIds.every(
         (prereqId) => snapshots.get(prereqId)?.status === StudentUnitStatus.completed,
       );
+      const overrideOpened = context.overrideOpenedUnitIds.has(unitId);
+      const canOpen = prereqsCompleted || overrideOpened;
 
       const hasAttempt = hasAttemptByUnitId.get(unitId) ?? false;
 
       const status = isCompleted
         ? StudentUnitStatus.completed
-        : prereqsCompleted
+        : canOpen
           ? hasAttempt
             ? StudentUnitStatus.in_progress
             : StudentUnitStatus.available
@@ -339,11 +361,13 @@ export class LearningAvailabilityService {
     studentId: string,
     snapshots: Map<string, UnitProgressSnapshot>,
     existingStatesByUnitId: Map<string, ExistingUnitState>,
+    overrideOpenedUnitIds: Set<string>,
   ) {
     const now = new Date();
 
     for (const snapshot of snapshots.values()) {
       const existing = existingStatesByUnitId.get(snapshot.unitId);
+      const overrideOpened = overrideOpenedUnitIds.has(snapshot.unitId);
       const isUnlocked = snapshot.status !== StudentUnitStatus.locked;
 
       const becameAvailableAt = existing?.becameAvailableAt ?? (isUnlocked ? now : null);
@@ -362,7 +386,7 @@ export class LearningAvailabilityService {
           studentId,
           unitId: snapshot.unitId,
           status: snapshot.status,
-          overrideOpened: existing?.overrideOpened ?? false,
+          overrideOpened,
           countedTasks: snapshot.countedTasks,
           solvedTasks: snapshot.solvedTasks,
           totalTasks: snapshot.totalTasks,
@@ -375,7 +399,7 @@ export class LearningAvailabilityService {
         },
         update: {
           status: snapshot.status,
-          overrideOpened: existing?.overrideOpened ?? false,
+          overrideOpened,
           countedTasks: snapshot.countedTasks,
           solvedTasks: snapshot.solvedTasks,
           totalTasks: snapshot.totalTasks,
