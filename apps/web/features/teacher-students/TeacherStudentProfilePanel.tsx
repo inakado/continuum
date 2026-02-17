@@ -11,7 +11,8 @@ import {
   type TeacherStudentTreeTask,
   type TeacherStudentTreeUnit,
 } from "@/lib/api/teacher";
-import { getStudentTaskStatusLabel } from "@/lib/status-labels";
+import { ApiError } from "@/lib/api/client";
+import { getStudentTaskStatusLabel, getStudentUnitStatusLabel } from "@/lib/status-labels";
 import { getApiErrorMessage } from "@/features/teacher-content/shared/api-errors";
 import styles from "./teacher-student-profile-panel.module.css";
 import TeacherStudentUnitPreviewPanel from "./TeacherStudentUnitPreviewPanel";
@@ -40,6 +41,13 @@ const statusClassName: Record<TeacherStudentTreeTask["state"]["status"], string>
   credited_without_progress: "statusWarning",
   correct: "statusSuccess",
   teacher_credited: "statusSuccess",
+};
+
+const unitStatusClassName: Record<TeacherStudentTreeUnit["state"]["status"], string> = {
+  locked: "statusDanger",
+  available: "statusNeutral",
+  in_progress: "statusWarning",
+  completed: "statusSuccess",
 };
 
 const reviewStatusLabel: Record<TeacherPhotoSubmission["status"], string> = {
@@ -71,6 +79,25 @@ function getUnitStateSummary(unit: TeacherStudentTreeUnit) {
   return { creditedCount, blockedCount, canCreditCount };
 }
 
+function formatPercent(value: number) {
+  return `${Math.round(value)}%`;
+}
+
+function getTeacherActionErrorMessage(error: unknown) {
+  if (error instanceof ApiError && error.code) {
+    const map: Record<string, string> = {
+      STUDENT_NOT_ASSIGNED_TO_TEACHER: "Ученик не назначен этому преподавателю.",
+      UNIT_NOT_FOUND: "Юнит не найден.",
+      OVERRIDE_ALREADY_EXISTS: "Этот юнит уже открыт для ученика.",
+      TASK_NOT_FOUND: "Задача не найдена.",
+      TASK_STATE_NOT_FOUND: "Состояние задачи ученика не найдено.",
+      TASK_ALREADY_CREDITED: "Задача уже зачтена.",
+    };
+    if (map[error.code]) return map[error.code];
+  }
+  return getApiErrorMessage(error);
+}
+
 export default function TeacherStudentProfilePanel({
   studentId,
   fallbackName,
@@ -89,6 +116,8 @@ export default function TeacherStudentProfilePanel({
     ReturnType<typeof teacherApi.getStudentUnitPreview>
   > | null>(null);
   const [creditBusyTaskId, setCreditBusyTaskId] = useState<string | null>(null);
+  const [overrideBusyUnitId, setOverrideBusyUnitId] = useState<string | null>(null);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -181,6 +210,8 @@ export default function TeacherStudentProfilePanel({
     setPreviewError(null);
     setPreviewExpanded(false);
     setExpandedTaskIds(new Set());
+    setOverrideBusyUnitId(null);
+    setActionNotice(null);
     setPhotoQueueItems([]);
     setPhotoQueueTotal(0);
     setPhotoQueueError(null);
@@ -253,6 +284,12 @@ export default function TeacherStudentProfilePanel({
   const queuedPhotoTaskIds = useMemo(() => {
     return new Set(photoQueueItems.map((item) => item.taskId));
   }, [photoQueueItems]);
+
+  const actionLiveText = useMemo(() => {
+    if (overrideBusyUnitId) return "Открываем юнит для ученика…";
+    if (creditBusyTaskId) return "Зачитываем задачу…";
+    return actionNotice ?? "";
+  }, [actionNotice, creditBusyTaskId, overrideBusyUnitId]);
 
   const selectedReviewQueueItem = useMemo(() => {
     if (!photoReviewTaskId) return null;
@@ -331,6 +368,35 @@ export default function TeacherStudentProfilePanel({
     [studentId],
   );
 
+  const handleOverrideOpenUnit = useCallback(
+    async (unitId: string) => {
+      if (overrideBusyUnitId) return;
+      setOverrideBusyUnitId(unitId);
+      setError(null);
+      setActionNotice(null);
+      try {
+        await teacherApi.overrideOpenUnit(studentId, unitId);
+        setActionNotice("Юнит открыт для ученика. Статусы обновлены.");
+        await Promise.all([loadDetails(), loadPhotoQueue()]);
+        if (previewUnitId) {
+          await handleOpenUnitPreview(previewUnitId);
+        }
+      } catch (err) {
+        setError(getTeacherActionErrorMessage(err));
+      } finally {
+        setOverrideBusyUnitId(null);
+      }
+    },
+    [
+      handleOpenUnitPreview,
+      loadDetails,
+      loadPhotoQueue,
+      overrideBusyUnitId,
+      previewUnitId,
+      studentId,
+    ],
+  );
+
   const handleOpenPhotoReview = useCallback(
     async (taskId: string, unitId: string) => {
       const sectionWithUnit = sections.find((section) => section.units.some((unit) => unit.id === unitId));
@@ -351,8 +417,10 @@ export default function TeacherStudentProfilePanel({
       if (creditBusyTaskId) return;
       setCreditBusyTaskId(task.id);
       setError(null);
+      setActionNotice(null);
       try {
-        await teacherApi.creditStudentTask(studentId, task.id);
+        await teacherApi.creditTask(studentId, task.id);
+        setActionNotice("Задача зачтена. Прогресс и доступность пересчитаны.");
         await Promise.all([loadDetails(), loadPhotoQueue()]);
         if (photoReviewTaskId === task.id) {
           await loadPhotoTaskHistory(task.id);
@@ -361,7 +429,7 @@ export default function TeacherStudentProfilePanel({
           await handleOpenUnitPreview(previewUnitId);
         }
       } catch (err) {
-        setError(getApiErrorMessage(err));
+        setError(getTeacherActionErrorMessage(err));
       } finally {
         setCreditBusyTaskId(null);
       }
@@ -513,6 +581,16 @@ export default function TeacherStudentProfilePanel({
         </div>
       ) : null}
 
+      {actionNotice ? (
+        <div className={styles.notice} role="status" aria-live="polite">
+          {actionNotice}
+        </div>
+      ) : null}
+
+      <div className={styles.srOnly} role="status" aria-live="polite">
+        {actionLiveText}
+      </div>
+
       {loading ? <div className={styles.loading}>Загрузка…</div> : null}
 
       {!loading && !details ? <div className={styles.empty}>Не удалось загрузить профиль ученика.</div> : null}
@@ -545,6 +623,13 @@ export default function TeacherStudentProfilePanel({
                 ))}
               </select>
             </label>
+            <div
+              className={`${styles.notificationsChip} ${
+                details.notifications.activeCount > 0 ? styles.notificationsChipActive : ""
+              }`}
+            >
+              Активные уведомления: {details.notifications.activeCount}
+            </div>
           </div>
 
           <section className={styles.photoQueueBlock} aria-label="Фото-задачи на проверке">
@@ -636,12 +721,28 @@ export default function TeacherStudentProfilePanel({
                         onClick={() => handleSelectUnit(unit.id)}
                       >
                         <span className={styles.unitTitle}>{unit.title}</span>
+                        <span className={styles.taskMetaLine}>
+                          <span className={`${styles.statusBadge} ${styles[unitStatusClassName[unit.state.status]]}`}>
+                            {getStudentUnitStatusLabel(unit.state.status)}
+                          </span>
+                          {unit.state.overrideOpened ? (
+                            <span className={styles.unitOverrideFlag}>Открыт через override</span>
+                          ) : null}
+                        </span>
                         <span className={styles.unitMeta}>
-                          Зачтено {summary.creditedCount}/{unit.tasks.length}
+                          Зачтено: {unit.state.countedTasks}/{unit.state.totalTasks} · Решено:{" "}
+                          {unit.state.solvedTasks}/{unit.state.totalTasks}
                         </span>
                         <span className={styles.unitStatsRow}>
+                          <span className={styles.unitStatChip}>
+                            Прогресс: {formatPercent(unit.state.completionPercent)}
+                          </span>
+                          <span className={styles.unitStatChip}>
+                            Решено: {formatPercent(unit.state.solvedPercent)}
+                          </span>
                           <span className={styles.unitStatChip}>К зачету: {summary.canCreditCount}</span>
                           <span className={styles.unitStatChip}>Блок: {summary.blockedCount}</span>
+                          <span className={styles.unitStatChip}>Зачтено: {summary.creditedCount}</span>
                         </span>
                       </button>
                     );
@@ -655,14 +756,52 @@ export default function TeacherStudentProfilePanel({
               {selectedUnit ? (
                 <>
                   <header className={styles.unitHeader}>
-                    <h3 className={styles.unitHeaderTitle}>{selectedUnit.title}</h3>
-                    <Button
-                      variant="ghost"
-                      onClick={() => handleOpenUnitPreview(selectedUnit.id)}
-                      disabled={previewLoading}
-                    >
-                      Открыть юнит ученику
-                    </Button>
+                    <div className={styles.unitHeaderMain}>
+                      <h3 className={styles.unitHeaderTitle}>{selectedUnit.title}</h3>
+                      <div className={styles.unitHeaderMeta}>
+                        <span
+                          className={`${styles.statusBadge} ${styles[unitStatusClassName[selectedUnit.state.status]]}`}
+                        >
+                          {getStudentUnitStatusLabel(selectedUnit.state.status)}
+                        </span>
+                        <span className={styles.unitMetric}>
+                          Прогресс: {formatPercent(selectedUnit.state.completionPercent)}
+                        </span>
+                        <span className={styles.unitMetric}>
+                          Решено: {formatPercent(selectedUnit.state.solvedPercent)}
+                        </span>
+                        <span className={styles.unitMetric}>
+                          Зачтено: {selectedUnit.state.countedTasks}/{selectedUnit.state.totalTasks}
+                        </span>
+                        <span className={styles.unitMetric}>
+                          Решено задач: {selectedUnit.state.solvedTasks}/{selectedUnit.state.totalTasks}
+                        </span>
+                        {selectedUnit.state.overrideOpened ? (
+                          <span className={styles.unitOverrideFlag}>Override уже включён</span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className={styles.unitActions}>
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleOverrideOpenUnit(selectedUnit.id)}
+                        disabled={overrideBusyUnitId === selectedUnit.id || selectedUnit.state.overrideOpened}
+                      >
+                        {selectedUnit.state.overrideOpened
+                          ? "Юнит уже открыт"
+                          : overrideBusyUnitId === selectedUnit.id
+                            ? "Открываем…"
+                            : "Открыть юнит"}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleOpenUnitPreview(selectedUnit.id)}
+                        disabled={previewLoading}
+                      >
+                        Открыть юнит (preview)
+                      </Button>
+                    </div>
                   </header>
 
                   <section className={styles.previewBlock}>
@@ -683,7 +822,7 @@ export default function TeacherStudentProfilePanel({
                     </div>
 
                     {previewUnitId !== selectedUnit.id ? (
-                      <div className={styles.previewHint}>Нажмите «Открыть юнит ученику», чтобы загрузить превью.</div>
+                      <div className={styles.previewHint}>Нажмите «Открыть юнит (preview)», чтобы загрузить превью.</div>
                     ) : null}
 
                     {previewLoading ? <div className={styles.loading}>Загрузка превью…</div> : null}

@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AttemptKind, ContentStatus, Role, StudentTaskStatus } from '@prisma/client';
+import { AttemptKind, ContentStatus, Role, StudentTaskStatus, StudentUnitStatus } from '@prisma/client';
 import argon2 from 'argon2';
 import { randomInt } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -227,6 +227,15 @@ export class StudentsService {
           id: string;
           title: string;
           sortOrder: number;
+          state: {
+            status: StudentUnitStatus;
+            completionPercent: number;
+            solvedPercent: number;
+            countedTasks: number;
+            solvedTasks: number;
+            totalTasks: number;
+            overrideOpened: boolean;
+          };
           tasks: Array<{
             id: string;
             title: string | null;
@@ -284,6 +293,7 @@ export class StudentsService {
         const allTasks = course.sections.flatMap((section) =>
           section.units.flatMap((unit) => unit.tasks),
         );
+        const allUnitIds = course.sections.flatMap((section) => section.units.map((unit) => unit.id));
         const taskIds = allTasks.map((task) => task.id);
         const activeRevisionIds = allTasks
           .map((task) => task.activeRevisionId)
@@ -316,11 +326,27 @@ export class StudentsService {
               _count: { _all: true },
             })
           : [];
+        const unitStates = allUnitIds.length
+          ? await this.prisma.studentUnitState.findMany({
+              where: { studentId, unitId: { in: allUnitIds } },
+              select: {
+                unitId: true,
+                status: true,
+                completionPercent: true,
+                solvedPercent: true,
+                countedTasks: true,
+                solvedTasks: true,
+                totalTasks: true,
+                overrideOpened: true,
+              },
+            })
+          : [];
 
         const statesMap = new Map(states.map((state) => [state.taskId, state]));
         const attemptsMap = new Map(
           attemptsUsed.map((item) => [`${item.taskId}:${item.taskRevisionId}`, item._count._all]),
         );
+        const unitStatesMap = new Map(unitStates.map((state) => [state.unitId, state]));
         const now = new Date();
 
         courseTree = {
@@ -334,6 +360,15 @@ export class StudentsService {
               id: unit.id,
               title: unit.title,
               sortOrder: unit.sortOrder,
+              state: {
+                status: unitStatesMap.get(unit.id)?.status ?? StudentUnitStatus.locked,
+                completionPercent: unitStatesMap.get(unit.id)?.completionPercent ?? 0,
+                solvedPercent: unitStatesMap.get(unit.id)?.solvedPercent ?? 0,
+                countedTasks: unitStatesMap.get(unit.id)?.countedTasks ?? 0,
+                solvedTasks: unitStatesMap.get(unit.id)?.solvedTasks ?? 0,
+                totalTasks: unitStatesMap.get(unit.id)?.totalTasks ?? unit.tasks.length,
+                overrideOpened: unitStatesMap.get(unit.id)?.overrideOpened ?? false,
+              },
               tasks: unit.tasks.map((task) => {
                 const normalizedState = normalizeTaskState(
                   statesMap.get(task.id) ?? null,
@@ -359,7 +394,10 @@ export class StudentsService {
                     requiredSkippedFlag: normalizedState.requiredSkipped,
                     isCredited: creditedStatuses.has(status),
                     isTeacherCredited: status === StudentTaskStatus.teacher_credited,
-                    canTeacherCredit: status === StudentTaskStatus.credited_without_progress,
+                    canTeacherCredit:
+                      status !== StudentTaskStatus.correct &&
+                      status !== StudentTaskStatus.accepted &&
+                      status !== StudentTaskStatus.teacher_credited,
                   },
                 };
               }),

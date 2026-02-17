@@ -65,6 +65,26 @@
   border-radius: var(--control-radius);
 }
 
+.notice {
+  border: var(--border-width-thin) solid color-mix(in srgb, #16a34a 32%, var(--glass-border));
+  background: color-mix(in srgb, #16a34a 10%, var(--surface-1));
+  color: var(--text-primary);
+  padding: 10px 12px;
+  border-radius: var(--control-radius);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .loading,
 .empty {
   color: var(--text-muted);
@@ -76,6 +96,7 @@
   align-items: flex-end;
   justify-content: flex-start;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .fieldLabel,
@@ -95,6 +116,28 @@
   font-size: 14px;
   border-radius: var(--control-radius);
   margin-top: 6px;
+}
+
+.select:focus-visible {
+  outline: 2px solid var(--border-primary);
+  outline-offset: 2px;
+}
+
+.notificationsChip {
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: 999px;
+  background: var(--surface-1);
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 7px 11px;
+}
+
+.notificationsChipActive {
+  border-color: color-mix(in srgb, #d97706 38%, var(--glass-border));
+  background: color-mix(in srgb, #d97706 14%, var(--surface-1));
+  color: var(--text-primary);
 }
 
 .photoQueueBlock {
@@ -232,6 +275,12 @@
   box-shadow: var(--nav-hover-shadow);
 }
 
+.sectionButton:focus-visible,
+.unitButton:focus-visible {
+  outline: 2px solid var(--border-primary);
+  outline-offset: 2px;
+}
+
 .sectionButtonActive,
 .unitButtonActive {
   background: var(--nav-active-bg);
@@ -294,10 +343,51 @@
   border-bottom: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 78%, transparent);
 }
 
+.unitHeaderMain {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
 .unitHeaderTitle {
   font-weight: 700;
   font-size: 22px;
   line-height: 1.2;
+}
+
+.unitHeaderMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.unitMetric {
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+
+.unitOverrideFlag {
+  border: var(--border-width-thin) solid color-mix(in srgb, #1d4ed8 34%, var(--glass-border));
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  background: color-mix(in srgb, #1d4ed8 12%, var(--surface-2));
+}
+
+.unitActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .previewBlock {
@@ -510,6 +600,11 @@
   color: var(--text-primary);
   padding: 8px 10px;
   resize: vertical;
+}
+
+.photoRejectInput:focus-visible {
+  outline: 2px solid var(--border-primary);
+  outline-offset: 2px;
 }
 
 .photoReviewButtons {

@@ -665,15 +665,37 @@ export class ContentService {
   }
 
   async deleteUnit(id: string) {
-    const exists = await this.prisma.unit.findUnique({ where: { id } });
-    if (!exists) throw new NotFoundException('Unit not found');
+    const exists = await this.prisma.unit.findUnique({
+      where: { id },
+      select: { id: true, sectionId: true },
+    });
+    if (!exists) {
+      throw new NotFoundException({
+        code: 'UNIT_NOT_FOUND',
+        message: 'Unit not found',
+      });
+    }
 
     const tasksCount = await this.prisma.task.count({ where: { unitId: id } });
     if (tasksCount > 0) {
-      throw new ConflictException('Cannot delete Unit: tasks exist');
+      throw new ConflictException({
+        code: 'UNIT_HAS_TASKS',
+        message: 'Cannot delete Unit: tasks exist',
+      });
     }
 
-    return this.prisma.unit.delete({ where: { id } });
+    return this.prisma.$transaction(async (tx) => {
+      await tx.unitGraphEdge.deleteMany({
+        where: {
+          sectionId: exists.sectionId,
+          OR: [{ prereqUnitId: id }, { unitId: id }],
+        },
+      });
+      await tx.unitGraphLayout.deleteMany({
+        where: { sectionId: exists.sectionId, unitId: id },
+      });
+      return tx.unit.delete({ where: { id } });
+    });
   }
 
   async getTask(id: string) {

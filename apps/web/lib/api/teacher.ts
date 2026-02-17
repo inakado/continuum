@@ -143,6 +143,15 @@ export type TeacherStudentTreeUnit = {
   id: string;
   title: string;
   sortOrder: number;
+  state: {
+    status: "locked" | "available" | "in_progress" | "completed";
+    completionPercent: number;
+    solvedPercent: number;
+    countedTasks: number;
+    solvedTasks: number;
+    totalTasks: number;
+    overrideOpened: boolean;
+  };
   tasks: TeacherStudentTreeTask[];
 };
 
@@ -669,8 +678,22 @@ export const teacherApi = {
   },
 
   creditStudentTask(studentId: string, taskId: string) {
-    return apiRequest<{ status: string; taskId: string; studentId: string }>(
+    return apiRequest<{ ok: true; status: string; taskId: string; studentId: string }>(
       `/teacher/students/${studentId}/tasks/${taskId}/credit`,
+      { method: "POST" },
+    );
+  },
+
+  creditTask(studentId: string, taskId: string) {
+    return apiRequest<{ ok: true; status: string; taskId: string; studentId: string }>(
+      `/teacher/students/${studentId}/tasks/${taskId}/credit`,
+      { method: "POST" },
+    );
+  },
+
+  overrideOpenUnit(studentId: string, unitId: string) {
+    return apiRequest<{ ok: true }>(
+      `/teacher/students/${studentId}/units/${unitId}/override-open`,
       { method: "POST" },
     );
   },
