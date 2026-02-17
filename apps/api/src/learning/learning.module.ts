@@ -13,6 +13,7 @@ import { StudentPhotoTasksController } from './student-photo-tasks.controller';
 import { StudentSectionGraphController } from './student-section-graph.controller';
 import { StudentTaskSolutionsController } from './student-task-solutions.controller';
 import { StudentUnitsController } from './student-units.controller';
+import { TeacherPhotoReviewInboxController } from './teacher-photo-review-inbox.controller';
 import { TeacherPhotoSubmissionsController } from './teacher-photo-submissions.controller';
 import { TeacherNotificationsController } from './teacher-notifications.controller';
 import { TeacherStudentUnitPreviewController } from './teacher-student-unit-preview.controller';
@@ -35,6 +36,7 @@ import { TeacherUnitOverrideOpenController } from './teacher-unit-override-open.
     StudentSectionGraphController,
     StudentTaskSolutionsController,
     StudentUnitsController,
+    TeacherPhotoReviewInboxController,
     TeacherPhotoSubmissionsController,
     TeacherNotificationsController,
     TeacherStudentUnitPreviewController,

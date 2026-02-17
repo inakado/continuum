@@ -29,6 +29,17 @@ const PHOTO_SUBMISSION_STATUSES = new Set<PhotoTaskSubmissionStatus>([
   PhotoTaskSubmissionStatus.accepted,
   PhotoTaskSubmissionStatus.rejected,
 ]);
+const INBOX_SORT_VALUES = new Set(['oldest', 'newest'] as const);
+type InboxSort = 'oldest' | 'newest';
+type InboxStatus = 'pending_review' | 'accepted' | 'rejected';
+type InboxFilters = {
+  status?: InboxStatus;
+  studentId?: string;
+  courseId?: string;
+  sectionId?: string;
+  unitId?: string;
+  taskId?: string;
+};
 
 type PublishedPhotoTask = {
   id: string;
@@ -361,6 +372,267 @@ export class PhotoTaskService {
       total,
       limit,
       offset,
+    };
+  }
+
+  async listInboxForTeacher(
+    teacherId: string,
+    statusRaw: unknown,
+    studentIdRaw: unknown,
+    courseIdRaw: unknown,
+    sectionIdRaw: unknown,
+    unitIdRaw: unknown,
+    taskIdRaw: unknown,
+    limitRaw: unknown,
+    offsetRaw: unknown,
+    sortRaw: unknown,
+  ) {
+    const filters = this.parseInboxFilters(
+      statusRaw,
+      studentIdRaw,
+      courseIdRaw,
+      sectionIdRaw,
+      unitIdRaw,
+      taskIdRaw,
+    );
+    const sort = this.parseInboxSort(sortRaw);
+    const limit = this.parseLimit(limitRaw);
+    const offset = this.parseOffset(offsetRaw);
+    const where = this.buildInboxWhere(teacherId, filters);
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.photoTaskSubmission.findMany({
+        where,
+        orderBy: this.buildInboxOrderBy(sort),
+        take: limit,
+        skip: offset,
+        select: {
+          id: true,
+          status: true,
+          submittedAt: true,
+          assetKeysJson: true,
+          studentUserId: true,
+          taskId: true,
+          unitId: true,
+          student: {
+            select: {
+              id: true,
+              login: true,
+              studentProfile: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                },
+              },
+            },
+          },
+          task: {
+            select: {
+              id: true,
+              title: true,
+              unit: {
+                select: {
+                  id: true,
+                  title: true,
+                  section: {
+                    select: {
+                      id: true,
+                      title: true,
+                      course: {
+                        select: {
+                          id: true,
+                          title: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      }),
+      this.prisma.photoTaskSubmission.count({ where }),
+    ]);
+
+    return {
+      items: items.map((item) => ({
+        submissionId: item.id,
+        status: this.mapSubmissionStatusForInbox(item.status),
+        submittedAt: item.submittedAt,
+        assetKeysCount: this.parseAssetKeysJson(item.assetKeysJson).length,
+        student: {
+          id: item.student.id,
+          login: item.student.login,
+          firstName: item.student.studentProfile?.firstName ?? null,
+          lastName: item.student.studentProfile?.lastName ?? null,
+        },
+        course: {
+          id: item.task.unit.section.course.id,
+          title: item.task.unit.section.course.title,
+        },
+        section: {
+          id: item.task.unit.section.id,
+          title: item.task.unit.section.title,
+        },
+        unit: {
+          id: item.task.unit.id,
+          title: item.task.unit.title,
+        },
+        task: {
+          id: item.task.id,
+          title: item.task.title,
+        },
+      })),
+      total,
+      limit,
+      offset,
+      sort,
+    };
+  }
+
+  async getInboxSubmissionForTeacher(
+    teacherId: string,
+    submissionId: string,
+    statusRaw: unknown,
+    studentIdRaw: unknown,
+    courseIdRaw: unknown,
+    sectionIdRaw: unknown,
+    unitIdRaw: unknown,
+    taskIdRaw: unknown,
+    sortRaw: unknown,
+  ) {
+    const filters = this.parseInboxFilters(
+      statusRaw,
+      studentIdRaw,
+      courseIdRaw,
+      sectionIdRaw,
+      unitIdRaw,
+      taskIdRaw,
+    );
+    const sort = this.parseInboxSort(sortRaw);
+    const aclWhere = this.buildInboxWhere(teacherId, {});
+
+    const submission = await this.prisma.photoTaskSubmission.findFirst({
+      where: {
+        ...aclWhere,
+        id: submissionId,
+      },
+      select: {
+        id: true,
+        status: true,
+        submittedAt: true,
+        reviewedAt: true,
+        rejectedReason: true,
+        assetKeysJson: true,
+        studentUserId: true,
+        taskId: true,
+        unitId: true,
+        student: {
+          select: {
+            id: true,
+            login: true,
+            studentProfile: {
+              select: {
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        },
+        task: {
+          select: {
+            id: true,
+            title: true,
+            unit: {
+              select: {
+                id: true,
+                title: true,
+                section: {
+                  select: {
+                    id: true,
+                    title: true,
+                    course: {
+                      select: {
+                        id: true,
+                        title: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        taskRevision: {
+          select: {
+            statementLite: true,
+          },
+        },
+      },
+    });
+
+    if (!submission) {
+      throw new NotFoundException({
+        code: 'PHOTO_SUBMISSION_NOT_FOUND',
+        message: 'Photo submission not found',
+      });
+    }
+
+    const filteredWhere = this.buildInboxWhere(teacherId, filters);
+    const prevSubmissionId = await this.findAdjacentInboxSubmissionId(
+      filteredWhere,
+      submission,
+      sort,
+      'prev',
+    );
+    const nextSubmissionId = await this.findAdjacentInboxSubmissionId(
+      filteredWhere,
+      submission,
+      sort,
+      'next',
+    );
+
+    return {
+      submission: {
+        submissionId: submission.id,
+        status: this.mapSubmissionStatusForInbox(submission.status),
+        submittedAt: submission.submittedAt,
+        reviewedAt: submission.reviewedAt,
+        rejectedReason: submission.rejectedReason,
+        assetKeys: this.parseAssetKeysJson(submission.assetKeysJson),
+        student: {
+          id: submission.student.id,
+          login: submission.student.login,
+          firstName: submission.student.studentProfile?.firstName ?? null,
+          lastName: submission.student.studentProfile?.lastName ?? null,
+        },
+        course: {
+          id: submission.task.unit.section.course.id,
+          title: submission.task.unit.section.course.title,
+        },
+        section: {
+          id: submission.task.unit.section.id,
+          title: submission.task.unit.section.title,
+        },
+        unit: {
+          id: submission.task.unit.id,
+          title: submission.task.unit.title,
+        },
+        task: {
+          id: submission.task.id,
+          title: submission.task.title,
+          statementLite: submission.taskRevision.statementLite,
+        },
+      },
+      navigation: {
+        prevSubmissionId,
+        nextSubmissionId,
+      },
+      appliedFilters: {
+        ...filters,
+        sort,
+      },
     };
   }
 
@@ -822,9 +1094,151 @@ export class PhotoTaskService {
     };
   }
 
+  private parseInboxFilters(
+    statusRaw: unknown,
+    studentIdRaw: unknown,
+    courseIdRaw: unknown,
+    sectionIdRaw: unknown,
+    unitIdRaw: unknown,
+    taskIdRaw: unknown,
+  ): InboxFilters {
+    return {
+      status: this.parseInboxStatus(statusRaw),
+      studentId: this.parseOptionalId(studentIdRaw),
+      courseId: this.parseOptionalId(courseIdRaw),
+      sectionId: this.parseOptionalId(sectionIdRaw),
+      unitId: this.parseOptionalId(unitIdRaw),
+      taskId: this.parseOptionalId(taskIdRaw),
+    };
+  }
+
+  private parseOptionalId(raw: unknown): string | undefined {
+    if (typeof raw !== 'string') return undefined;
+    const trimmed = raw.trim();
+    return trimmed || undefined;
+  }
+
+  private parseInboxStatus(raw: unknown): InboxStatus {
+    const parsed = typeof raw === 'string' ? raw.trim() : '';
+    if (!parsed || parsed === 'pending_review' || parsed === 'submitted') {
+      return 'pending_review';
+    }
+    if (parsed === 'accepted' || parsed === 'rejected') return parsed;
+
+    throw new ConflictException({
+      code: 'INVALID_QUEUE_STATUS',
+      message: 'status must be one of: pending_review, accepted, rejected',
+    });
+  }
+
+  private parseInboxSort(raw: unknown): InboxSort {
+    const parsed = typeof raw === 'string' ? raw.trim() : '';
+    if (!parsed) return 'oldest';
+    if (INBOX_SORT_VALUES.has(parsed as InboxSort)) return parsed as InboxSort;
+    throw new ConflictException({
+      code: 'INVALID_SORT',
+      message: 'sort must be one of: oldest, newest',
+    });
+  }
+
+  private mapInboxStatusToDb(status?: InboxStatus): PhotoTaskSubmissionStatus | undefined {
+    if (!status) return undefined;
+    if (status === 'pending_review') return PhotoTaskSubmissionStatus.submitted;
+    if (status === 'accepted') return PhotoTaskSubmissionStatus.accepted;
+    return PhotoTaskSubmissionStatus.rejected;
+  }
+
+  private mapSubmissionStatusForInbox(status: PhotoTaskSubmissionStatus): InboxStatus {
+    if (status === PhotoTaskSubmissionStatus.submitted) return 'pending_review';
+    if (status === PhotoTaskSubmissionStatus.accepted) return 'accepted';
+    return 'rejected';
+  }
+
+  private buildInboxWhere(
+    teacherId: string,
+    filters: InboxFilters,
+  ): Prisma.PhotoTaskSubmissionWhereInput {
+    return {
+      student: {
+        studentProfile: {
+          is: {
+            leadTeacherId: teacherId,
+          },
+        },
+      },
+      ...(filters.status ? { status: this.mapInboxStatusToDb(filters.status) } : null),
+      ...(filters.studentId ? { studentUserId: filters.studentId } : null),
+      ...(filters.unitId ? { unitId: filters.unitId } : null),
+      ...(filters.taskId ? { taskId: filters.taskId } : null),
+      ...(filters.sectionId || filters.courseId
+        ? {
+            unit: {
+              ...(filters.sectionId ? { sectionId: filters.sectionId } : null),
+              ...(filters.courseId ? { section: { courseId: filters.courseId } } : null),
+            },
+          }
+        : null),
+    };
+  }
+
+  private buildInboxOrderBy(sort: InboxSort): Prisma.PhotoTaskSubmissionOrderByWithRelationInput[] {
+    if (sort === 'oldest') {
+      return [{ submittedAt: 'asc' }, { id: 'asc' }];
+    }
+    return [{ submittedAt: 'desc' }, { id: 'desc' }];
+  }
+
+  private async findAdjacentInboxSubmissionId(
+    where: Prisma.PhotoTaskSubmissionWhereInput,
+    current: { id: string; submittedAt: Date },
+    sort: InboxSort,
+    direction: 'prev' | 'next',
+  ): Promise<string | null> {
+    const newerThanCurrent: Prisma.PhotoTaskSubmissionWhereInput = {
+      OR: [
+        { submittedAt: { gt: current.submittedAt } },
+        { submittedAt: current.submittedAt, id: { gt: current.id } },
+      ],
+    };
+    const olderThanCurrent: Prisma.PhotoTaskSubmissionWhereInput = {
+      OR: [
+        { submittedAt: { lt: current.submittedAt } },
+        { submittedAt: current.submittedAt, id: { lt: current.id } },
+      ],
+    };
+
+    const comparator =
+      sort === 'oldest'
+        ? direction === 'prev'
+          ? olderThanCurrent
+          : newerThanCurrent
+        : direction === 'prev'
+          ? newerThanCurrent
+          : olderThanCurrent;
+
+    const orderBy =
+      sort === 'oldest'
+        ? direction === 'prev'
+          ? ([{ submittedAt: 'desc' }, { id: 'desc' }] as Prisma.PhotoTaskSubmissionOrderByWithRelationInput[])
+          : ([{ submittedAt: 'asc' }, { id: 'asc' }] as Prisma.PhotoTaskSubmissionOrderByWithRelationInput[])
+        : direction === 'prev'
+          ? ([{ submittedAt: 'asc' }, { id: 'asc' }] as Prisma.PhotoTaskSubmissionOrderByWithRelationInput[])
+          : ([{ submittedAt: 'desc' }, { id: 'desc' }] as Prisma.PhotoTaskSubmissionOrderByWithRelationInput[]);
+
+    const adjacent = await this.prisma.photoTaskSubmission.findFirst({
+      where: {
+        AND: [where, comparator],
+      },
+      orderBy,
+      select: { id: true },
+    });
+
+    return adjacent?.id ?? null;
+  }
+
   private parseQueueStatus(raw: unknown): PhotoTaskSubmissionStatus {
     const parsed = typeof raw === 'string' ? raw.trim() : '';
-    if (!parsed) return PhotoTaskSubmissionStatus.submitted;
+    if (!parsed || parsed === 'pending_review') return PhotoTaskSubmissionStatus.submitted;
     if (PHOTO_SUBMISSION_STATUSES.has(parsed as PhotoTaskSubmissionStatus)) {
       return parsed as PhotoTaskSubmissionStatus;
     }

@@ -94,6 +94,7 @@ export type StudentSummary = {
   createdAt: string;
   updatedAt: string;
   activeNotificationsCount: number;
+  pendingPhotoReviewCount: number;
 };
 
 export type TeacherSummary = {
@@ -136,6 +137,7 @@ export type TeacherStudentTreeTask = {
   answerType: TaskAnswerType;
   isRequired: boolean;
   sortOrder: number;
+  pendingPhotoReviewCount: number;
   state: TeacherStudentTaskState;
 };
 
@@ -355,6 +357,104 @@ export type TeacherPhotoReviewResponse = {
     solvedTasks: number;
     completionPercent: number;
     solvedPercent: number;
+  };
+};
+
+export type TeacherReviewSubmissionStatus = "pending_review" | "accepted" | "rejected";
+
+export type TeacherReviewInboxItem = {
+  submissionId: string;
+  status: TeacherReviewSubmissionStatus;
+  submittedAt: string;
+  assetKeysCount: number;
+  student: {
+    id: string;
+    login: string;
+    firstName: string | null;
+    lastName: string | null;
+  };
+  course: {
+    id: string;
+    title: string;
+  };
+  section: {
+    id: string;
+    title: string;
+  };
+  unit: {
+    id: string;
+    title: string;
+  };
+  task: {
+    id: string;
+    title: string | null;
+  };
+};
+
+export type TeacherReviewInboxResponse = {
+  items: TeacherReviewInboxItem[];
+  total: number;
+  limit: number;
+  offset: number;
+  sort: "oldest" | "newest";
+};
+
+export type TeacherReviewInboxFilters = {
+  status?: TeacherReviewSubmissionStatus;
+  studentId?: string;
+  courseId?: string;
+  sectionId?: string;
+  unitId?: string;
+  taskId?: string;
+  limit?: number;
+  offset?: number;
+  sort?: "oldest" | "newest";
+};
+
+export type TeacherReviewSubmissionDetailResponse = {
+  submission: {
+    submissionId: string;
+    status: TeacherReviewSubmissionStatus;
+    submittedAt: string;
+    reviewedAt: string | null;
+    rejectedReason: string | null;
+    assetKeys: string[];
+    student: {
+      id: string;
+      login: string;
+      firstName: string | null;
+      lastName: string | null;
+    };
+    course: {
+      id: string;
+      title: string;
+    };
+    section: {
+      id: string;
+      title: string;
+    };
+    unit: {
+      id: string;
+      title: string;
+    };
+    task: {
+      id: string;
+      title: string | null;
+      statementLite: string;
+    };
+  };
+  navigation: {
+    prevSubmissionId: string | null;
+    nextSubmissionId: string | null;
+  };
+  appliedFilters: {
+    status?: TeacherReviewSubmissionStatus;
+    studentId?: string;
+    courseId?: string;
+    sectionId?: string;
+    unitId?: string;
+    taskId?: string;
+    sort: "oldest" | "newest";
   };
 };
 
@@ -620,6 +720,38 @@ export const teacherApi = {
 
   getStudentUnitPreview(studentId: string, unitId: string) {
     return apiRequest<TeacherStudentUnitPreview>(`/teacher/students/${studentId}/units/${unitId}`);
+  },
+
+  listTeacherPhotoInbox(params?: TeacherReviewInboxFilters) {
+    const search = new URLSearchParams();
+    if (params?.status) search.set("status", params.status);
+    if (params?.studentId) search.set("studentId", params.studentId);
+    if (params?.courseId) search.set("courseId", params.courseId);
+    if (params?.sectionId) search.set("sectionId", params.sectionId);
+    if (params?.unitId) search.set("unitId", params.unitId);
+    if (params?.taskId) search.set("taskId", params.taskId);
+    if (params?.limit !== undefined) search.set("limit", String(params.limit));
+    if (params?.offset !== undefined) search.set("offset", String(params.offset));
+    if (params?.sort) search.set("sort", params.sort);
+    const suffix = search.toString();
+    return apiRequest<TeacherReviewInboxResponse>(
+      `/teacher/photo-submissions${suffix ? `?${suffix}` : ""}`,
+    );
+  },
+
+  getTeacherPhotoSubmissionDetail(submissionId: string, params?: Omit<TeacherReviewInboxFilters, "limit" | "offset">) {
+    const search = new URLSearchParams();
+    if (params?.status) search.set("status", params.status);
+    if (params?.studentId) search.set("studentId", params.studentId);
+    if (params?.courseId) search.set("courseId", params.courseId);
+    if (params?.sectionId) search.set("sectionId", params.sectionId);
+    if (params?.unitId) search.set("unitId", params.unitId);
+    if (params?.taskId) search.set("taskId", params.taskId);
+    if (params?.sort) search.set("sort", params.sort);
+    const suffix = search.toString();
+    return apiRequest<TeacherReviewSubmissionDetailResponse>(
+      `/teacher/photo-submissions/${submissionId}${suffix ? `?${suffix}` : ""}`,
+    );
   },
 
   listStudentPhotoQueue(

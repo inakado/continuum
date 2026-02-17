@@ -5,7 +5,14 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AttemptKind, ContentStatus, Role, StudentTaskStatus, StudentUnitStatus } from '@prisma/client';
+import {
+  AttemptKind,
+  ContentStatus,
+  PhotoTaskSubmissionStatus,
+  Role,
+  StudentTaskStatus,
+  StudentUnitStatus,
+} from '@prisma/client';
 import argon2 from 'argon2';
 import { randomInt } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -169,6 +176,20 @@ export class StudentsService {
       if (!studentId || !studentIdSet.has(studentId)) return;
       activeNotificationsMap.set(studentId, (activeNotificationsMap.get(studentId) ?? 0) + 1);
     });
+    const studentIds = students.map((student) => student.userId);
+    const pendingPhotoReviewCounts = studentIds.length
+      ? await this.prisma.photoTaskSubmission.groupBy({
+          by: ['studentUserId'],
+          where: {
+            studentUserId: { in: studentIds },
+            status: PhotoTaskSubmissionStatus.submitted,
+          },
+          _count: { _all: true },
+        })
+      : [];
+    const pendingPhotoReviewMap = new Map(
+      pendingPhotoReviewCounts.map((item) => [item.studentUserId, item._count._all]),
+    );
 
     return students.map((student) => ({
       id: student.userId,
@@ -180,6 +201,7 @@ export class StudentsService {
       createdAt: student.createdAt,
       updatedAt: student.updatedAt,
       activeNotificationsCount: activeNotificationsMap.get(student.userId) ?? 0,
+      pendingPhotoReviewCount: pendingPhotoReviewMap.get(student.userId) ?? 0,
     }));
   }
 
@@ -243,6 +265,7 @@ export class StudentsService {
             answerType: string;
             isRequired: boolean;
             sortOrder: number;
+            pendingPhotoReviewCount: number;
             state: {
               status: StudentTaskStatus;
               attemptsUsed: number;
@@ -341,12 +364,26 @@ export class StudentsService {
               },
             })
           : [];
+        const pendingPhotoReviewCountsByTask = taskIds.length
+          ? await this.prisma.photoTaskSubmission.groupBy({
+              by: ['taskId'],
+              where: {
+                studentUserId: studentId,
+                taskId: { in: taskIds },
+                status: PhotoTaskSubmissionStatus.submitted,
+              },
+              _count: { _all: true },
+            })
+          : [];
 
         const statesMap = new Map(states.map((state) => [state.taskId, state]));
         const attemptsMap = new Map(
           attemptsUsed.map((item) => [`${item.taskId}:${item.taskRevisionId}`, item._count._all]),
         );
         const unitStatesMap = new Map(unitStates.map((state) => [state.unitId, state]));
+        const pendingPhotoReviewMap = new Map(
+          pendingPhotoReviewCountsByTask.map((item) => [item.taskId, item._count._all]),
+        );
         const now = new Date();
 
         courseTree = {
@@ -386,6 +423,7 @@ export class StudentsService {
                   answerType: task.activeRevision?.answerType ?? 'numeric',
                   isRequired: task.isRequired,
                   sortOrder: task.sortOrder,
+                  pendingPhotoReviewCount: pendingPhotoReviewMap.get(task.id) ?? 0,
                   state: {
                     status,
                     attemptsUsed: attemptsKey ? (attemptsMap.get(attemptsKey) ?? 0) : 0,

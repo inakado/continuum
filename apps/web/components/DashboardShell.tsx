@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart3, BookOpen, FileText, LogOut, Users } from "lucide-react";
+import { BarChart3, BookOpen, ClipboardCheck, FileText, LogOut, Users } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import ThemeToggle from "@/components/ThemeToggle";
 import styles from "./dashboard-shell.module.css";
@@ -60,6 +60,9 @@ const resolveNavIcon = (label: string, href: string) => {
   }
   if (normalized.includes("учен")) {
     return <Users className={styles.navIcon} aria-hidden="true" strokeWidth={1.7} />;
+  }
+  if (normalized.includes("проверк")) {
+    return <ClipboardCheck className={styles.navIcon} aria-hidden="true" strokeWidth={1.7} />;
   }
   if (normalized.includes("аналит")) {
     return <BarChart3 className={styles.navIcon} aria-hidden="true" strokeWidth={1.7} />;

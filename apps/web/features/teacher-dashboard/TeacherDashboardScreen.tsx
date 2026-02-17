@@ -11,13 +11,17 @@ import { getContentStatusLabel } from "@/lib/status-labels";
 import { getApiErrorMessage } from "@/features/teacher-content/shared/api-errors";
 import { useTeacherLogout } from "@/features/teacher-content/auth/use-teacher-logout";
 import TeacherStudentsPanel from "@/features/teacher-students/TeacherStudentsPanel";
+import TeacherReviewInboxPanel from "@/features/teacher-review/TeacherReviewInboxPanel";
+import TeacherReviewSubmissionDetailPanel from "@/features/teacher-review/TeacherReviewSubmissionDetailPanel";
 import styles from "./teacher-dashboard.module.css";
 
-type ActiveSection = "edit" | "students" | "analytics";
+type ActiveSection = "edit" | "students" | "review" | "analytics";
 
 type TeacherDashboardScreenProps = {
   active: ActiveSection;
   initialSectionId?: string;
+  initialStudentId?: string;
+  initialSubmissionId?: string;
 };
 
 type ContentConfig = {
@@ -35,7 +39,12 @@ const TeacherSectionGraphPanel = dynamic(() => import("./TeacherSectionGraphPane
   ),
 });
 
-export default function TeacherDashboardScreen({ active, initialSectionId }: TeacherDashboardScreenProps) {
+export default function TeacherDashboardScreen({
+  active,
+  initialSectionId,
+  initialStudentId,
+  initialSubmissionId,
+}: TeacherDashboardScreenProps) {
   const router = useRouter();
   const handleLogout = useTeacherLogout();
   const isEditMode = active === "edit";
@@ -65,6 +74,11 @@ export default function TeacherDashboardScreen({ active, initialSectionId }: Tea
           title: "Ученики",
           subtitle: "Создание, сброс паролей и передача между преподавателями",
         };
+      case "review":
+        return {
+          title: "Проверка фото",
+          subtitle: "Глобальная очередь отправок с быстрым переходом к следующей задаче",
+        };
       case "analytics":
         return {
           title: "Аналитика",
@@ -90,6 +104,11 @@ export default function TeacherDashboardScreen({ active, initialSectionId }: Tea
         label: "Ученики",
         href: "/teacher/students",
         active: active === "students",
+      },
+      {
+        label: "Проверка фото",
+        href: "/teacher/review",
+        active: active === "review",
       },
       {
         label: "Аналитика",
@@ -291,7 +310,13 @@ export default function TeacherDashboardScreen({ active, initialSectionId }: Tea
         ) : null}
 
         {active === "students" ? (
-          <TeacherStudentsPanel />
+          <TeacherStudentsPanel studentId={initialStudentId} />
+        ) : active === "review" ? (
+          initialSubmissionId ? (
+            <TeacherReviewSubmissionDetailPanel submissionId={initialSubmissionId} />
+          ) : (
+            <TeacherReviewInboxPanel />
+          )
         ) : active === "analytics" ? (
           <div className={styles.placeholder}>
             <div className={styles.placeholderTitle}>{content.title}</div>
