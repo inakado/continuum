@@ -430,6 +430,7 @@ export class PhotoTaskService {
             select: {
               id: true,
               title: true,
+              sortOrder: true,
               unit: {
                 select: {
                   id: true,
@@ -482,6 +483,7 @@ export class PhotoTaskService {
         task: {
           id: item.task.id,
           title: item.task.title,
+          sortOrder: item.task.sortOrder,
         },
       })),
       total,
@@ -544,6 +546,7 @@ export class PhotoTaskService {
           select: {
             id: true,
             title: true,
+            sortOrder: true,
             unit: {
               select: {
                 id: true,
@@ -622,6 +625,7 @@ export class PhotoTaskService {
         task: {
           id: submission.task.id,
           title: submission.task.title,
+          sortOrder: submission.task.sortOrder,
           statementLite: submission.taskRevision.statementLite,
         },
       },

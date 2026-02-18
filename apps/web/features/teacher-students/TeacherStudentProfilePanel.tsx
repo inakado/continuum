@@ -1,12 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import LiteTex from "@/components/LiteTex";
 import Button from "@/components/ui/Button";
 import {
   teacherApi,
-  type TeacherReviewInboxItem,
   type TeacherStudentProfileResponse,
   type TeacherStudentTreeTask,
   type TeacherStudentTreeUnit,
@@ -49,15 +48,6 @@ const unitStatusClassName: Record<TeacherStudentTreeUnit["state"]["status"], str
   completed: "statusSuccess",
 };
 
-const formatDateTime = (value: string) =>
-  new Date(value).toLocaleString("ru-RU", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
 const formatPercent = (value: number) => `${Math.round(value)}%`;
 
 const getDisplayName = (
@@ -73,6 +63,15 @@ const getDisplayName = (
 
 const countPendingInUnit = (unit: TeacherStudentTreeUnit) =>
   unit.tasks.reduce((acc, task) => acc + task.pendingPhotoReviewCount, 0);
+
+const getTaskLabelHint = (title: string | null, index: number) => {
+  if (!title) return null;
+  const normalized = title.trim();
+  if (!normalized) return null;
+  if (/^задача\s*\d+$/i.test(normalized)) return null;
+  if (new RegExp(`^задача\\s*${index + 1}$`, "i").test(normalized)) return null;
+  return normalized;
+};
 
 export default function TeacherStudentProfilePanel({
   studentId,
@@ -99,10 +98,7 @@ export default function TeacherStudentProfilePanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [reviewPreviewItems, setReviewPreviewItems] = useState<TeacherReviewInboxItem[]>([]);
   const [reviewTotal, setReviewTotal] = useState(0);
-  const [reviewLoading, setReviewLoading] = useState(false);
-  const [reviewError, setReviewError] = useState<string | null>(null);
 
   useEffect(() => {
     setActiveCourseId(focusedCourseId);
@@ -150,24 +146,17 @@ export default function TeacherStudentProfilePanel({
   }, [activeCourseId, onRefreshStudents, studentId]);
 
   const loadReviewPreview = useCallback(async () => {
-    setReviewLoading(true);
-    setReviewError(null);
     try {
       const response = await teacherApi.listTeacherPhotoInbox({
         status: "pending_review",
         studentId,
         sort: "oldest",
-        limit: 3,
+        limit: 1,
         offset: 0,
       });
-      setReviewPreviewItems(response.items);
       setReviewTotal(response.total);
-    } catch (err) {
-      setReviewPreviewItems([]);
+    } catch {
       setReviewTotal(0);
-      setReviewError(formatApiErrorPayload(err));
-    } finally {
-      setReviewLoading(false);
     }
   }, [studentId]);
 
@@ -225,9 +214,8 @@ export default function TeacherStudentProfilePanel({
   }, [courseTree, selectedSectionId, selectedTaskId, selectedUnitId]);
 
   const selectedCourse = useMemo(() => {
-    if (!details) return null;
-    const courseId = activeCourseId ?? details.selectedCourseId ?? null;
-    if (!courseId) return null;
+    if (!details || !activeCourseId) return null;
+    const courseId = activeCourseId;
     return details.courses.find((course) => course.id === courseId) ?? null;
   }, [activeCourseId, details]);
 
@@ -397,85 +385,69 @@ export default function TeacherStudentProfilePanel({
           </p>
         </div>
         <div className={styles.headerActions}>
-          <span className={reviewTotal > 0 ? styles.headerAttentionBadge : styles.headerAttentionMuted}>
-            {reviewTotal > 0 ? `Требует внимания: ${reviewTotal}` : "Требующих проверки нет"}
-          </span>
-          <Button variant="ghost" onClick={onBack}>
+          <Button
+            variant="ghost"
+            className={styles.reviewQueueButton}
+            data-pending={reviewTotal > 0 ? "true" : "false"}
+            onClick={() => openReviewInbox()}
+          >
+            Фото на проверке: {reviewTotal}
+          </Button>
+          <Button variant="ghost" className={styles.backButton} onClick={onBack}>
             Назад к ученикам
           </Button>
         </div>
       </header>
 
-      <section className={styles.needsReviewBlock} aria-label="Требуется проверка">
-        <header className={styles.needsReviewHeader}>
-          <div>
-            <h3 className={styles.needsReviewTitle}>Требуется проверка</h3>
-            <p className={styles.needsReviewHint}>Очередь фото-проверок вынесена в отдельный workflow.</p>
-          </div>
-          <div className={styles.needsReviewCounter}>На проверке: {reviewTotal}</div>
-        </header>
-
-        {reviewError ? (
-          <div className={styles.error} role="status" aria-live="polite">
-            {reviewError}
-          </div>
-        ) : null}
-
-        {reviewLoading ? <div className={styles.loading}>Загрузка очереди…</div> : null}
-
-        {!reviewLoading && reviewTotal === 0 ? <div className={styles.neutralState}>Нет задач на проверке</div> : null}
-
-        {reviewPreviewItems.length ? (
-          <div className={styles.previewList}>
-            {reviewPreviewItems.map((item) => (
-              <article key={item.submissionId} className={styles.previewItem}>
-                <div className={styles.previewPath}>
-                  {item.course.title} / {item.section.title} / {item.unit.title}
-                </div>
-                <div className={styles.previewTask}>{item.task.title ?? `Задача ${item.task.id}`}</div>
-                <div className={styles.previewMeta}>Отправлено: {formatDateTime(item.submittedAt)}</div>
-              </article>
-            ))}
-          </div>
-        ) : null}
-
-        <Button onClick={() => openReviewInbox()} disabled={reviewTotal === 0 && !reviewPreviewItems.length}>
-          Открыть очередь проверок ({reviewTotal})
-        </Button>
-      </section>
-
       <section className={styles.drilldown}>
         <header className={styles.drillHeader}>
-          <div>
-            <div className={styles.columnTitle}>Drilldown Навигация</div>
-            <h3 className={styles.stageTitle}>Курс → Раздел → Юнит → Задача</h3>
-          </div>
-          <div className={styles.breadcrumbs}>
-            <button type="button" className={styles.breadcrumbButton} onClick={goCoursesRoot}>
-              Профиль
-            </button>
-            {selectedCourse ? (
+          <h3 className={styles.stageTitle}>Материалы и прогресс</h3>
+        </header>
+
+        <nav className={styles.pathNav} aria-label="Иерархия контента">
+          <button
+            type="button"
+            className={`${styles.pathButton} ${
+              !selectedCourse && !selectedSection && !selectedUnit ? styles.pathCurrent : ""
+            }`}
+            onClick={goCoursesRoot}
+          >
+            Курсы
+          </button>
+          {selectedCourse ? (
+            <>
+              <span className={styles.pathSeparator}>/</span>
               <button
                 type="button"
-                className={`${styles.breadcrumbButton} ${activeCourseId ? styles.breadcrumbActive : ""}`}
+                className={`${styles.pathButton} ${
+                  selectedCourse && !selectedSection && !selectedUnit ? styles.pathCurrent : ""
+                }`}
                 onClick={goSectionsRoot}
               >
                 {selectedCourse.title}
               </button>
-            ) : null}
-            {selectedSection ? (
+            </>
+          ) : null}
+          {selectedSection ? (
+            <>
+              <span className={styles.pathSeparator}>/</span>
               <button
                 type="button"
-                className={`${styles.breadcrumbButton} ${selectedSectionId ? styles.breadcrumbActive : ""}`}
+                className={`${styles.pathButton} ${
+                  selectedSection && !selectedUnit ? styles.pathCurrent : ""
+                }`}
                 onClick={goUnitsRoot}
               >
                 {selectedSection.title}
               </button>
-            ) : null}
-            {selectedUnit ? (
+            </>
+          ) : null}
+          {selectedUnit ? (
+            <>
+              <span className={styles.pathSeparator}>/</span>
               <button
                 type="button"
-                className={`${styles.breadcrumbButton} ${selectedUnitId ? styles.breadcrumbActive : ""}`}
+                className={`${styles.pathButton} ${styles.pathCurrent}`}
                 onClick={() => {
                   if (!activeCourseId || !selectedSectionId || !selectedUnitId) return;
                   setSelectedTaskId(null);
@@ -488,9 +460,9 @@ export default function TeacherStudentProfilePanel({
               >
                 {selectedUnit.title}
               </button>
-            ) : null}
-          </div>
-        </header>
+            </>
+          ) : null}
+        </nav>
 
         {error ? (
           <div className={styles.error} role="status" aria-live="polite">
@@ -512,19 +484,23 @@ export default function TeacherStudentProfilePanel({
           <>
             {stage === "courses" ? (
               <section>
-                <p className={styles.stageSubtitle}>Выберите курс ученика</p>
                 <div className={styles.list}>
                   {details.courses.map((course) => (
-                    <article key={course.id} className={styles.card}>
+                    <article
+                      key={course.id}
+                      className={`${styles.card} ${styles.clickableCard}`}
+                      onClick={() => openCourse(course.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          openCourse(course.id);
+                        }
+                      }}
+                      role="button"
+                      tabIndex={0}
+                    >
                       <div className={styles.cardTitle}>{course.title}</div>
-                      <div className={styles.metaRow}>
-                        Шаг 1/4: курс открывает структуру Раздел → Юнит → Задачи
-                      </div>
-                      <div className={styles.actions}>
-                        <Button variant="ghost" onClick={() => openCourse(course.id)}>
-                          Открыть курс
-                        </Button>
-                      </div>
+                      <div className={styles.metaRow}>Откройте курс, чтобы посмотреть разделы и юниты.</div>
                     </article>
                   ))}
                 </div>
@@ -533,7 +509,6 @@ export default function TeacherStudentProfilePanel({
 
             {stage === "sections" ? (
               <section>
-                <p className={styles.stageSubtitle}>Курс: {selectedCourse?.title ?? courseTree?.title ?? "-"}</p>
                 {!courseTree || courseTree.sections.length === 0 ? (
                   <div className={styles.empty}>В курсе нет опубликованных разделов.</div>
                 ) : (
@@ -544,15 +519,22 @@ export default function TeacherStudentProfilePanel({
                         0,
                       );
                       return (
-                        <article key={section.id} className={styles.card}>
+                        <article
+                          key={section.id}
+                          className={`${styles.card} ${styles.clickableCard}`}
+                          onClick={() => openSection(section.id)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              openSection(section.id);
+                            }
+                          }}
+                          role="button"
+                          tabIndex={0}
+                        >
                           <div className={styles.cardTitle}>{section.title}</div>
                           <div className={styles.metaRow}>Юнитов: {section.units.length}</div>
                           <div className={styles.metaRow}>На проверке фото: {sectionPendingCount}</div>
-                          <div className={styles.actions}>
-                            <Button variant="ghost" onClick={() => openSection(section.id)}>
-                              Открыть раздел
-                            </Button>
-                          </div>
                         </article>
                       );
                     })}
@@ -563,58 +545,81 @@ export default function TeacherStudentProfilePanel({
 
             {stage === "units" ? (
               <section>
-                <p className={styles.stageSubtitle}>Раздел: {selectedSection?.title ?? "-"}</p>
                 {!selectedSection || selectedSection.units.length === 0 ? (
                   <div className={styles.empty}>В разделе нет опубликованных юнитов.</div>
                 ) : (
-                  <div className={styles.list}>
-                    {selectedSection.units.map((unit) => (
-                      <article
-                        key={unit.id}
-                        className={`${styles.card} ${styles.clickableCard}`}
-                        onClick={() => openUnit(unit.id)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            openUnit(unit.id);
-                          }
-                        }}
-                        role="button"
-                        tabIndex={0}
-                      >
-                        <div className={styles.cardTitle}>{unit.title}</div>
-                        <div className={styles.metaRow}>
-                          <span className={`${styles.statusBadge} ${styles[unitStatusClassName[unit.state.status]]}`}>
-                            {getStudentUnitStatusLabel(unit.state.status)}
-                          </span>
-                          <span>Прогресс: {formatPercent(unit.state.completionPercent)}</span>
-                          <span>Решено: {formatPercent(unit.state.solvedPercent)}</span>
-                        </div>
-                        <div className={styles.metaRow}>На проверке фото: {countPendingInUnit(unit)}</div>
-                        <div className={styles.metaRow}>Нажмите карточку, чтобы открыть задачи юнита</div>
-                        {unit.state.overrideOpened ? (
-                          <div className={styles.unitOverrideFlag}>Открыт вручную</div>
-                        ) : null}
-                        <div className={styles.actions}>
-                          {unit.state.status === "locked" ? (
-                            <Button
-                              variant="ghost"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void handleOverrideOpenUnit(unit.id);
-                              }}
-                              disabled={overrideBusyUnitId === unit.id || unit.state.overrideOpened}
-                            >
-                              {unit.state.overrideOpened
-                                ? "Юнит открыт"
-                                : overrideBusyUnitId === unit.id
-                                  ? "Открываем юнит…"
-                                  : "Открыть юнит"}
-                            </Button>
-                          ) : null}
-                        </div>
-                      </article>
-                    ))}
+                  <div className={styles.unitsTableWrap}>
+                    <table className={styles.unitsTable}>
+                      <thead>
+                        <tr>
+                          <th scope="col">Юнит</th>
+                          <th scope="col">Статус</th>
+                          <th scope="col">Прогресс</th>
+                          <th scope="col">Решено</th>
+                          <th scope="col">Фото</th>
+                          <th scope="col" className={styles.unitsActionsHeader}>
+                            Действия
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedSection.units.map((unit) => {
+                          const pendingPhotoCount = countPendingInUnit(unit);
+                          return (
+                            <tr key={unit.id}>
+                              <td className={styles.unitTitleCell}>
+                                <button
+                                  type="button"
+                                  className={styles.unitTitleButton}
+                                  onClick={() => openUnit(unit.id)}
+                                >
+                                  {unit.title}
+                                </button>
+                              </td>
+                              <td className={styles.tableCenterCell}>
+                                <div className={styles.unitStatusCell}>
+                                  <span
+                                    className={`${styles.statusBadge} ${styles[unitStatusClassName[unit.state.status]]}`}
+                                  >
+                                    {getStudentUnitStatusLabel(unit.state.status)}
+                                  </span>
+                                  {unit.state.overrideOpened ? (
+                                    <span className={styles.unitOverrideInline}>Открыт вручную</span>
+                                  ) : null}
+                                </div>
+                              </td>
+                              <td className={styles.tableCenterCell}>{formatPercent(unit.state.completionPercent)}</td>
+                              <td className={styles.tableCenterCell}>{formatPercent(unit.state.solvedPercent)}</td>
+                              <td className={styles.tableCenterCell}>
+                                {pendingPhotoCount > 0 ? (
+                                  <span className={styles.photoPendingFlag}>{pendingPhotoCount}</span>
+                                ) : (
+                                  <span className={styles.tableMuted}>0</span>
+                                )}
+                              </td>
+                              <td className={styles.unitActionsCell}>
+                                {unit.state.status === "locked" ? (
+                                  <button
+                                    type="button"
+                                    className={`${styles.inlineActionButton} ${styles.inlineActionAccent}`}
+                                    onClick={() => void handleOverrideOpenUnit(unit.id)}
+                                    disabled={overrideBusyUnitId === unit.id || unit.state.overrideOpened}
+                                  >
+                                    {unit.state.overrideOpened
+                                      ? "Открыт"
+                                      : overrideBusyUnitId === unit.id
+                                        ? "Открываем…"
+                                        : "Открыть вручную"}
+                                  </button>
+                                ) : (
+                                  <span className={styles.tableMuted}>—</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </section>
@@ -622,76 +627,119 @@ export default function TeacherStudentProfilePanel({
 
             {stage === "tasks" ? (
               <section>
-                <p className={styles.stageSubtitle}>Юнит: {selectedUnit?.title ?? "-"}</p>
+                <p className={styles.stageSubtitle}>Задачи юнита: {selectedUnit?.title ?? "-"}</p>
                 {!selectedUnit ? (
                   <div className={styles.empty}>Юнит не найден.</div>
                 ) : selectedUnit.tasks.length === 0 ? (
                   <div className={styles.empty}>В этом юните нет опубликованных задач.</div>
                 ) : (
-                  <div className={styles.list}>
-                    {selectedUnit.tasks.map((task, index) => {
-                      const hasPendingPhoto = task.answerType === "photo" && task.pendingPhotoReviewCount > 0;
-                      const statementExpanded = selectedTaskId === task.id;
-                      return (
-                        <article key={task.id} className={styles.card}>
-                          <div className={styles.cardTitle}>{task.title ?? `Задача ${index + 1}`}</div>
-                          <div className={styles.metaRow}>
-                            <span className={styles.answerTypeBadge}>{answerTypeLabel[task.answerType]}</span>
-                            {task.isRequired ? <span className={styles.requiredFlag}>Обязательная</span> : null}
-                            {hasPendingPhoto ? (
-                              <span className={styles.photoPendingFlag}>На проверке: {task.pendingPhotoReviewCount}</span>
-                            ) : null}
-                          </div>
-                          <div className={styles.metaRow}>
-                            <span className={`${styles.statusBadge} ${styles[statusClassName[task.state.status]]}`}>
-                              {getStudentTaskStatusLabel(task.state.status)}
-                            </span>
-                            <span>Попытки: {task.state.attemptsUsed}</span>
-                          </div>
-                          <div className={styles.inlineActions}>
-                            <button
-                              type="button"
-                              className={styles.inlineActionButton}
-                              onClick={() => toggleTaskStatement(task.id)}
-                            >
-                              {statementExpanded ? "Скрыть условие" : "Показать условие"}
-                            </button>
-                            {hasPendingPhoto ? (
-                              <button
-                                type="button"
-                                className={styles.inlineActionButton}
-                                onClick={() =>
-                                  openReviewInbox({
-                                    courseId: selectedCourse?.id ?? courseTree?.id,
-                                    sectionId: selectedSection?.id,
-                                    unitId: selectedUnit.id,
-                                    taskId: task.id,
-                                  })
-                                }
-                              >
-                                К проверке фото
-                              </button>
-                            ) : null}
-                          </div>
-                          <div className={styles.actions}>
-                            {task.state.canTeacherCredit ? (
-                              <Button
-                                variant="ghost"
-                                onClick={() => void handleCreditTask(task)}
-                                disabled={creditBusyTaskId === task.id}
-                              >
-                                {creditBusyTaskId === task.id ? "Зачёт…" : "Зачесть задачу"}
-                              </Button>
-                            ) : null}
-                          </div>
-                          {statementExpanded ? (
-                            <div className={styles.taskStatement}>
-                              <LiteTex value={task.statementLite} block />
-                            </div>
-                          ) : null}
-                        </article>
-                      );
-                    })}
+                  <div className={styles.tasksTableWrap}>
+                    <table className={styles.tasksTable}>
+                      <thead>
+                        <tr>
+                          <th scope="col">№</th>
+                          <th scope="col">Тип</th>
+                          <th scope="col">Статус</th>
+                          <th scope="col">Попытки</th>
+                          <th scope="col">Проверка</th>
+                          <th scope="col" className={styles.tasksActionsHeader}>
+                            Действия
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedUnit.tasks.map((task, index) => {
+                          const hasPendingPhoto = task.answerType === "photo" && task.pendingPhotoReviewCount > 0;
+                          const statementExpanded = selectedTaskId === task.id;
+                          const taskLabelHint = getTaskLabelHint(task.title, index);
+                          return (
+                            <Fragment key={task.id}>
+                              <tr className={statementExpanded ? styles.taskRowExpanded : undefined}>
+                                <td className={styles.taskIndexCell}>
+                                  <div className={styles.taskIndexHead}>
+                                    <div className={styles.taskIndexValue}>{index + 1}</div>
+                                    {task.isRequired ? (
+                                      <span
+                                        className={styles.requiredIcon}
+                                        aria-label="Обязательная задача"
+                                        title="Обязательная задача"
+                                      >
+                                        ※
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                  {taskLabelHint ? <div className={styles.taskIndexHint}>{taskLabelHint}</div> : null}
+                                </td>
+                                <td className={styles.tableCenterCell}>
+                                  <span className={styles.answerTypeBadge}>{answerTypeLabel[task.answerType]}</span>
+                                </td>
+                                <td className={styles.tableCenterCell}>
+                                  <span className={`${styles.statusBadge} ${styles[statusClassName[task.state.status]]}`}>
+                                    {getStudentTaskStatusLabel(task.state.status)}
+                                  </span>
+                                </td>
+                                <td className={styles.tableCenterCell}>{task.state.attemptsUsed}</td>
+                                <td className={styles.tableCenterCell}>
+                                  {hasPendingPhoto ? (
+                                    <span className={styles.photoPendingFlag}>{task.pendingPhotoReviewCount}</span>
+                                  ) : (
+                                    <span className={styles.tableMuted}>—</span>
+                                  )}
+                                </td>
+                                <td>
+                                  <div className={styles.tableActions}>
+                                    <button
+                                      type="button"
+                                      className={styles.inlineActionButton}
+                                      onClick={() => toggleTaskStatement(task.id)}
+                                    >
+                                      {statementExpanded ? "Скрыть" : "Условие"}
+                                    </button>
+                                    {hasPendingPhoto ? (
+                                      <button
+                                        type="button"
+                                        className={styles.inlineActionButton}
+                                        onClick={() =>
+                                          openReviewInbox({
+                                            courseId: selectedCourse?.id ?? courseTree?.id,
+                                            sectionId: selectedSection?.id,
+                                            unitId: selectedUnit.id,
+                                            taskId: task.id,
+                                          })
+                                        }
+                                      >
+                                        Проверить фото
+                                      </button>
+                                    ) : (
+                                      <span className={styles.actionPlaceholder} aria-hidden="true" />
+                                    )}
+                                    {task.state.canTeacherCredit ? (
+                                      <button
+                                        type="button"
+                                        className={`${styles.inlineActionButton} ${styles.inlineActionAccent}`}
+                                        onClick={() => void handleCreditTask(task)}
+                                        disabled={creditBusyTaskId === task.id}
+                                      >
+                                        {creditBusyTaskId === task.id ? "Зачёт…" : "Зачесть"}
+                                      </button>
+                                    ) : (
+                                      <span className={styles.actionPlaceholder} aria-hidden="true" />
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                              {statementExpanded ? (
+                                <tr className={styles.taskStatementRow}>
+                                  <td colSpan={6} className={styles.taskStatementCell}>
+                                    <LiteTex value={task.statementLite} block />
+                                  </td>
+                                </tr>
+                              ) : null}
+                            </Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </section>

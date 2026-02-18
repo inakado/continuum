@@ -388,6 +388,7 @@ export type TeacherReviewInboxItem = {
   task: {
     id: string;
     title: string | null;
+    sortOrder: number;
   };
 };
 
@@ -440,6 +441,7 @@ export type TeacherReviewSubmissionDetailResponse = {
     task: {
       id: string;
       title: string | null;
+      sortOrder: number;
       statementLite: string;
     };
   };

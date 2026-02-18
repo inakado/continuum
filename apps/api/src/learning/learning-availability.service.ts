@@ -315,7 +315,15 @@ export class LearningAvailabilityService {
         totalTasks === 0 ? 0 : Math.floor((countedTasks * 100) / totalTasks);
       const solvedPercent = totalTasks === 0 ? 0 : Math.floor((solvedTasks * 100) / totalTasks);
 
-      const effectiveMinOptionalCountedTasksToComplete = unit.minOptionalCountedTasksToComplete;
+      const optionalTasksCount = totalTasks - requiredTasksCount;
+      const hasExplicitCompletionGate =
+        requiredTasksCount > 0 || unit.minOptionalCountedTasksToComplete > 0;
+      // Guard against zero-gate configuration:
+      // if unit has only optional tasks and minOptional = 0,
+      // require all optional tasks to be counted before marking unit completed.
+      const effectiveMinOptionalCountedTasksToComplete = hasExplicitCompletionGate
+        ? unit.minOptionalCountedTasksToComplete
+        : optionalTasksCount;
       const requiredGateSatisfied = requiredCountedTasks === requiredTasksCount;
       const isCompleted =
         requiredGateSatisfied && optionalCountedTasks >= effectiveMinOptionalCountedTasksToComplete;

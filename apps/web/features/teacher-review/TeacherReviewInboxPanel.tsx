@@ -39,6 +39,8 @@ const getStudentName = (student: { firstName?: string | null; lastName?: string 
   return parts.length ? parts.join(" ") : student.login;
 };
 
+const getTaskDisplayLabel = (task: { sortOrder: number }) => String(task.sortOrder + 1);
+
 export default function TeacherReviewInboxPanel() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -119,17 +121,21 @@ export default function TeacherReviewInboxPanel() {
     router.push(`/teacher/review${search ? `?${search}` : ""}`);
   }, [router]);
 
-  const hasExtendedFilters = Boolean(
-    filters.studentId || filters.courseId || filters.sectionId || filters.unitId || filters.taskId,
+  const hasAnyCustomFilters = Boolean(
+    filters.status !== "pending_review" ||
+      filters.sort !== "oldest" ||
+      filters.studentId ||
+      filters.courseId ||
+      filters.sectionId ||
+      filters.unitId ||
+      filters.taskId,
   );
 
   return (
     <section className={styles.panel}>
-      <header className={styles.header}>
-        <div>
-          <p className={styles.kicker}>Review Inbox</p>
-          <h2 className={styles.title}>Проверка фото-отправок</h2>
-          <p className={styles.subtitle}>Один поток проверки, без переключения в прогресс-дерево</p>
+      <header className={styles.toolbar}>
+        <div className={styles.totalLine}>
+          <span>В очереди: {total}</span>
         </div>
         <div className={styles.headerActions}>
           <Button variant="ghost" onClick={loadInbox}>
@@ -148,7 +154,7 @@ export default function TeacherReviewInboxPanel() {
         </div>
       </header>
 
-      <section className={styles.filters}>
+      <section className={styles.filtersRow}>
         <label className={styles.filterField}>
           Статус
           <select
@@ -196,31 +202,18 @@ export default function TeacherReviewInboxPanel() {
           </select>
         </label>
 
-        {hasExtendedFilters ? (
+        {hasAnyCustomFilters ? (
           <Button variant="ghost" onClick={resetFilters}>
             Сбросить фильтры
           </Button>
         ) : null}
       </section>
 
-      {filters.courseId || filters.sectionId || filters.unitId || filters.taskId ? (
-        <div className={styles.contextChips}>
-          {filters.courseId ? <span className={styles.chip}>Курс: {filters.courseId}</span> : null}
-          {filters.sectionId ? <span className={styles.chip}>Раздел: {filters.sectionId}</span> : null}
-          {filters.unitId ? <span className={styles.chip}>Юнит: {filters.unitId}</span> : null}
-          {filters.taskId ? <span className={styles.chip}>Задача: {filters.taskId}</span> : null}
-        </div>
-      ) : null}
-
       {error ? (
         <div className={styles.error} role="status" aria-live="polite">
           {error}
         </div>
       ) : null}
-
-      <div className={styles.totalLine}>
-        <span>Найдено в очереди: {total}</span>
-      </div>
 
       {loading ? <div className={styles.loading}>Загрузка очереди…</div> : null}
 
@@ -235,41 +228,53 @@ export default function TeacherReviewInboxPanel() {
       ) : null}
 
       {!loading && items.length ? (
-        <div className={styles.list}>
-          {items.map((item) => (
-            <article key={item.submissionId} className={styles.item}>
-              <div className={styles.itemMain}>
-                <div className={styles.itemHeader}>
-                  <div className={styles.studentName}>{getStudentName(item.student)}</div>
-                  <div className={styles.studentLogin}>@{item.student.login}</div>
-                </div>
-
-                <div className={styles.metaRow}>
-                  <span className={`${styles.status} ${styles[statusClassName[item.status]]}`}>
-                    {getPhotoReviewStatusLabel(item.status)}
-                  </span>
-                  <span>Отправлено: {formatDateTime(item.submittedAt)}</span>
-                  <span>Файлов: {item.assetKeysCount}</span>
-                </div>
-
-                <div className={styles.pathRow}>
-                  <span>{item.course.title}</span>
-                  <span>/</span>
-                  <span>{item.section.title}</span>
-                  <span>/</span>
-                  <span>{item.unit.title}</span>
-                </div>
-
-                <div className={styles.taskTitle}>{item.task.title ?? `Задача ${item.task.id}`}</div>
-              </div>
-
-              <div className={styles.itemActions}>
-                <Button variant="ghost" onClick={() => openSubmission(item.submissionId)}>
-                  Открыть
-                </Button>
-              </div>
-            </article>
-          ))}
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th scope="col">Ученик</th>
+                <th scope="col" className={styles.columnCenter}>Задача</th>
+                <th scope="col">Раздел</th>
+                <th scope="col">Отправлено</th>
+                <th scope="col" className={styles.columnCenter}>Статус</th>
+                <th scope="col" className={styles.columnCenter}>Фото</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr
+                  key={item.submissionId}
+                  className={styles.tableRowClickable}
+                  onClick={() => openSubmission(item.submissionId)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      openSubmission(item.submissionId);
+                    }
+                  }}
+                  role="link"
+                  tabIndex={0}
+                  aria-label={`Открыть отправку ученика ${getStudentName(item.student)}`}
+                >
+                  <td className={styles.studentCell}>
+                    <div className={styles.studentName}>{getStudentName(item.student)}</div>
+                    <div className={styles.studentLogin}>@{item.student.login}</div>
+                  </td>
+                  <td className={styles.taskCell}>{getTaskDisplayLabel(item.task)}</td>
+                  <td className={styles.pathCell}>
+                    {item.course.title} / {item.section.title} / {item.unit.title}
+                  </td>
+                  <td>{formatDateTime(item.submittedAt)}</td>
+                  <td className={styles.columnCenter}>
+                    <span className={`${styles.status} ${styles[statusClassName[item.status]]}`}>
+                      {getPhotoReviewStatusLabel(item.status)}
+                    </span>
+                  </td>
+                  <td className={styles.columnCenter}>{item.assetKeysCount}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : null}
     </section>

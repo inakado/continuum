@@ -187,70 +187,60 @@
   color: var(--text-muted);
 }
 
-.attentionGroup {
+.actionsMenu {
+  position: relative;
+}
+
+.actionsMenuTrigger {
+  min-width: 124px;
+}
+
+.actionsMenuList {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  min-width: 216px;
   display: grid;
-  gap: 6px;
-  justify-items: end;
-}
-
-.attentionBadge,
-.attentionMuted,
-.notificationsBadge,
-.notificationsMuted {
-  border: var(--border-width-thin) solid var(--glass-border);
+  gap: 4px;
+  padding: 8px;
+  border: var(--border-width) solid var(--card-border);
   border-radius: var(--control-radius);
-  padding: 4px 8px;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  background: var(--card-bg);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
 }
 
-.attentionBadge {
-  border-color: color-mix(in srgb, #d97706 36%, var(--glass-border));
-  background: color-mix(in srgb, #d97706 14%, var(--surface-2));
+.actionsMenuItem {
+  border: var(--border-width-thin) solid transparent;
+  border-radius: calc(var(--control-radius) - 4px);
+  background: transparent;
   color: var(--text-primary);
+  text-align: left;
+  font-size: 13px;
+  line-height: 1.3;
+  padding: 8px 10px;
+  cursor: pointer;
 }
 
-.attentionMuted {
-  color: var(--text-muted);
-  background: var(--surface-1);
+.actionsMenuItem:hover:not(:disabled) {
+  border-color: var(--glass-border);
+  background: var(--surface-2);
 }
 
-.notificationsBadge {
-  border-color: color-mix(in srgb, #f97316 35%, var(--glass-border));
-  background: color-mix(in srgb, #f97316 14%, var(--surface-2));
+.actionsMenuItem:focus-visible {
+  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline-offset: var(--focus-ring-offset);
 }
 
-.notificationsMuted {
-  color: var(--text-muted);
-  background: var(--surface-1);
+.actionsMenuItem:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
-.primaryActions,
-.secondaryActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.primaryActions button {
-  --button-bg: var(--glass-tint);
-  --button-border: var(--panel-border);
-  --button-text: var(--text-primary);
-  --button-hover-bg: var(--surface-2);
-  --button-hover-border: var(--border-primary);
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
-}
-
-.secondaryActions button {
-  --button-bg: var(--surface-1);
-  --button-border: var(--glass-border);
-  --button-text: var(--text-primary);
-  --button-hover-bg: var(--surface-2);
-  --button-hover-border: var(--border-primary);
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
+.actionsMenuItemDanger {
+  color: color-mix(in srgb, #ef4444 72%, var(--text-primary));
 }
 
 .editPanel,

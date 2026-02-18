@@ -72,12 +72,12 @@ export default function TeacherDashboardScreen({
       case "students":
         return {
           title: "Ученики",
-          subtitle: "Создание, сброс паролей и передача между преподавателями",
+          subtitle: "",
         };
       case "review":
         return {
           title: "Проверка фото",
-          subtitle: "Глобальная очередь отправок с быстрым переходом к следующей задаче",
+          subtitle: "",
         };
       case "analytics":
         return {
@@ -299,7 +299,7 @@ export default function TeacherDashboardScreen({
         <div className={styles.header}>
           <div>
             <h1 className={styles.title}>{content.title}</h1>
-            <p className={styles.subtitle}>{content.subtitle}</p>
+            {content.subtitle ? <p className={styles.subtitle}>{content.subtitle}</p> : null}
           </div>
         </div>
 

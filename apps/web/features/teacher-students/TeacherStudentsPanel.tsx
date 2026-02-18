@@ -45,7 +45,9 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
   const [editBusy, setEditBusy] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null);
+  const [openActionsStudentId, setOpenActionsStudentId] = useState<string | null>(null);
   const studentsRequestIdRef = useRef(0);
+  const actionsMenuRef = useRef<HTMLDivElement | null>(null);
 
   const fetchStudents = useCallback(async (search: string) => {
     const requestId = ++studentsRequestIdRef.current;
@@ -94,6 +96,32 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
     }, 300);
     return () => window.clearTimeout(handle);
   }, [query, fetchStudents, studentId]);
+
+  useEffect(() => {
+    if (!openActionsStudentId) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (actionsMenuRef.current && target && actionsMenuRef.current.contains(target)) return;
+      setOpenActionsStudentId(null);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpenActionsStudentId(null);
+      }
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [openActionsStudentId]);
+
+  useEffect(() => {
+    if (!openActionsStudentId) return;
+    if (students.some((student) => student.id === openActionsStudentId)) return;
+    setOpenActionsStudentId(null);
+  }, [openActionsStudentId, students]);
 
   const handleCreate = async () => {
     const trimmed = createLogin.trim();
@@ -212,6 +240,7 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
     setError(null);
     try {
       await teacherApi.deleteStudent(student.id);
+      setOpenActionsStudentId((prev) => (prev === student.id ? null : prev));
       if (editStudentId === student.id) {
         setEditStudentId(null);
         setEditFirstName("");
@@ -375,9 +404,9 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
           {listState === "ready"
             ? students.map((student) => {
                 const isTransferActive = transferStudentId === student.id;
+                const isActionsMenuOpen = openActionsStudentId === student.id;
                 const availableTeachers = teachers.filter((teacher) => teacher.id !== student.leadTeacherId);
                 const hasPendingReview = student.pendingPhotoReviewCount > 0;
-                const hasNotifications = student.activeNotificationsCount > 0;
 
                 return (
                   <article
@@ -399,59 +428,93 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
                         <div className={styles.studentMeta}>Логин: {student.login}</div>
                         <div className={styles.studentMeta}>Ведущий: {student.leadTeacherLogin}</div>
                       </div>
-                      <div className={styles.attentionGroup}>
-                        <span className={hasPendingReview ? styles.attentionBadge : styles.attentionMuted}>
-                          {hasPendingReview
-                            ? `Требует внимания: фото ${student.pendingPhotoReviewCount}`
-                            : "Фото на проверке: 0"}
-                        </span>
-                        <span className={hasNotifications ? styles.notificationsBadge : styles.notificationsMuted}>
-                          {hasNotifications
-                            ? `Уведомления: ${student.activeNotificationsCount}`
-                            : "Уведомлений нет"}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className={styles.primaryActions} onClick={(event) => event.stopPropagation()}>
-                      <Button variant="ghost" onClick={() => router.push(`/teacher/students/${student.id}`)}>
-                        Открыть профиль
-                      </Button>
-                      {hasPendingReview ? (
+                      <div
+                        className={styles.actionsMenu}
+                        ref={isActionsMenuOpen ? actionsMenuRef : null}
+                        onClick={(event) => event.stopPropagation()}
+                      >
                         <Button
                           variant="ghost"
+                          className={styles.actionsMenuTrigger}
+                          aria-expanded={isActionsMenuOpen}
+                          aria-haspopup="menu"
+                          aria-controls={`student-actions-${student.id}`}
                           onClick={() =>
-                            router.push(
-                              `/teacher/review?status=pending_review&sort=oldest&studentId=${student.id}`,
-                            )
+                            setOpenActionsStudentId((prev) => (prev === student.id ? null : student.id))
                           }
                         >
-                          К проверке фото
+                          Действия
                         </Button>
-                      ) : null}
-                    </div>
-
-                    <div className={styles.secondaryActions} onClick={(event) => event.stopPropagation()}>
-                      <Button
-                        variant="ghost"
-                        onClick={() => void handleResetPassword(student)}
-                        disabled={resetBusyId === student.id}
-                      >
-                        Сбросить пароль
-                      </Button>
-                      <Button variant="ghost" onClick={() => handleStartEdit(student)}>
-                        Редактировать
-                      </Button>
-                      <Button variant="ghost" onClick={() => handleStartTransfer(student)}>
-                        Передать
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        onClick={() => void handleDelete(student)}
-                        disabled={deleteBusyId === student.id}
-                      >
-                        Удалить
-                      </Button>
+                        {isActionsMenuOpen ? (
+                          <div
+                            id={`student-actions-${student.id}`}
+                            className={styles.actionsMenuList}
+                            role="menu"
+                          >
+                            {hasPendingReview ? (
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className={styles.actionsMenuItem}
+                                onClick={() => {
+                                  setOpenActionsStudentId(null);
+                                  router.push(
+                                    `/teacher/review?status=pending_review&sort=oldest&studentId=${student.id}`,
+                                  );
+                                }}
+                              >
+                                К проверке фото
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className={styles.actionsMenuItem}
+                              onClick={() => {
+                                setOpenActionsStudentId(null);
+                                void handleResetPassword(student);
+                              }}
+                              disabled={resetBusyId === student.id}
+                            >
+                              Сбросить пароль
+                            </button>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className={styles.actionsMenuItem}
+                              onClick={() => {
+                                setOpenActionsStudentId(null);
+                                handleStartEdit(student);
+                              }}
+                            >
+                              Редактировать
+                            </button>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className={styles.actionsMenuItem}
+                              onClick={() => {
+                                setOpenActionsStudentId(null);
+                                handleStartTransfer(student);
+                              }}
+                            >
+                              Передать
+                            </button>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className={`${styles.actionsMenuItem} ${styles.actionsMenuItemDanger}`}
+                              onClick={() => {
+                                setOpenActionsStudentId(null);
+                                void handleDelete(student);
+                              }}
+                              disabled={deleteBusyId === student.id}
+                            >
+                              Удалить
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
 
                     {editStudentId === student.id ? (
