@@ -75,17 +75,43 @@
   flex-wrap: wrap;
 }
 
-.panelKicker {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+.breadcrumbs {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--text-muted);
 }
 
-.panelTitle {
-  font-family: var(--font-unbounded), sans-serif;
-  font-weight: 300;
-  font-size: 16px;
-  margin-top: 4px;
+.breadcrumbLink,
+.breadcrumbCurrent {
+  font-size: 14px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.breadcrumbLink {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.breadcrumbLink:hover {
+  color: var(--text-primary);
+}
+
+.breadcrumbCurrent {
+  color: var(--text-primary);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: min(56vw, 640px);
+}
+
+.breadcrumbDivider {
+  color: color-mix(in srgb, var(--text-muted) 75%, transparent);
 }
 
 .panelActions {
@@ -161,13 +187,14 @@
 .card {
   border: var(--border-width) solid var(--card-border);
   padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 10px;
+  row-gap: 8px;
+  align-items: start;
   text-align: left;
   background: var(--card-bg);
   min-height: 120px;
-  justify-content: space-between;
   border-radius: var(--card-radius);
   box-shadow: var(--card-shadow);
   backdrop-filter: var(--glass-filter);
@@ -194,6 +221,7 @@
   gap: 6px;
   cursor: pointer;
   touch-action: manipulation;
+  min-width: 0;
 }
 
 .cardMain:focus-visible {
@@ -214,18 +242,40 @@
 
 .cardActions {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: row;
+  gap: 4px;
+  align-items: center;
+  justify-self: end;
+  align-self: start;
+  margin-top: 0;
 }
 
 .cardActions button {
-  --button-bg: var(--surface-1);
-  --button-border: var(--glass-border);
-  --button-text: var(--text-primary);
+  --button-bg: transparent;
+  --button-border: transparent;
+  --button-border-width: 0px;
+  --button-text: var(--text-muted);
   --button-hover-bg: var(--surface-2);
-  --button-hover-border: var(--border-primary);
+  --button-hover-border: transparent;
   --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
+  --button-hover-shadow: none;
+  box-shadow: none;
+}
+
+.cardIconAction {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cardIconAction svg {
+  width: 16px;
+  height: 16px;
 }
 
 .cardTitle {
@@ -239,14 +289,21 @@
 
 .cardTitleRow {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 0;
 }
 
 .cardMeta {
   font-size: 12px;
   color: var(--text-muted);
+}
+
+.cardControls {
+  display: grid;
+  justify-items: end;
+  align-content: start;
+  gap: 6px;
 }
 
 .cardActive .cardMeta {

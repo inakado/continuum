@@ -190,6 +190,14 @@ export default function TeacherReviewSubmissionDetailPanel({ submissionId }: Pro
       {!loading && submission ? (
         <div className={styles.content}>
           <section className={styles.viewer}>
+            <div className={styles.viewerTop}>
+              <span className={styles.zoomBadge}>Масштаб 100%</span>
+              {assetKeys.length > 1 ? (
+                <span className={styles.assetCounter}>
+                  {activeAssetIndex + 1} / {assetKeys.length}
+                </span>
+              ) : null}
+            </div>
             {activeAssetUrl ? (
               <a
                 className={styles.viewerFrameLink}

@@ -130,6 +130,8 @@
 }
 
 .card {
+  position: relative;
+  z-index: 0;
   border: var(--border-width) solid var(--card-border);
   background: var(--card-bg);
   padding: 14px;
@@ -164,6 +166,10 @@
   border-color: color-mix(in srgb, var(--border-primary) 50%, var(--card-border));
 }
 
+.cardMenuOpen {
+  z-index: 30;
+}
+
 .cardHeader {
   display: flex;
   flex-wrap: wrap;
@@ -192,7 +198,28 @@
 }
 
 .actionsMenuTrigger {
-  min-width: 124px;
+  --button-bg: transparent;
+  --button-border: transparent;
+  --button-border-width: 0px;
+  --button-text: var(--text-muted);
+  --button-hover-bg: var(--surface-1);
+  --button-hover-border: transparent;
+  --button-hover-text: var(--text-primary);
+  --button-hover-shadow: none;
+  box-shadow: none;
+  min-width: 32px;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.actionsMenuIcon {
+  width: 18px;
+  height: 18px;
 }
 
 .actionsMenuList {

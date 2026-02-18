@@ -7,6 +7,7 @@ import Textarea from "@/components/ui/Textarea";
 import Checkbox from "@/components/ui/Checkbox";
 import Button from "@/components/ui/Button";
 import LiteTex from "@/components/LiteTex";
+import { Plus, Trash2 } from "lucide-react";
 import styles from "./task-form.module.css";
 
 export type AnswerType = "numeric" | "single_choice" | "multi_choice" | "photo";
@@ -294,8 +295,11 @@ export default function TaskForm({
         <div className={styles.section}>
           <div className={styles.sectionHeader}>
             <div className={styles.sectionTitle}>Части числового ответа</div>
-            <Button
-              variant="ghost"
+            <button
+              type="button"
+              className={styles.addIconButton}
+              aria-label="Добавить часть"
+              title="Добавить часть"
               onClick={() =>
                 setForm((prev) => ({
                   ...prev,
@@ -306,8 +310,8 @@ export default function TaskForm({
                 }))
               }
             >
-              Добавить часть
-            </Button>
+              <Plus size={16} aria-hidden="true" />
+            </button>
           </div>
           {fieldErrors.numericParts ? (
             <div className={styles.fieldError}>{fieldErrors.numericParts}</div>
@@ -351,8 +355,11 @@ export default function TaskForm({
                   />
                 </label>
                 <div className={styles.rowActions}>
-                  <Button
-                    variant="ghost"
+                  <button
+                    type="button"
+                    className={styles.rowIconButton}
+                    aria-label={`Удалить часть ${index + 1}`}
+                    title="Удалить часть"
                     onClick={() =>
                       setForm((prev) => ({
                         ...prev,
@@ -360,8 +367,8 @@ export default function TaskForm({
                       }))
                     }
                   >
-                    Удалить
-                  </Button>
+                    <Trash2 size={16} aria-hidden="true" />
+                  </button>
                 </div>
               </div>
             ))}
@@ -373,8 +380,11 @@ export default function TaskForm({
         <div className={styles.section}>
           <div className={styles.sectionHeader}>
             <div className={styles.sectionTitle}>Варианты ответа</div>
-            <Button
-              variant="ghost"
+            <button
+              type="button"
+              className={styles.addIconButton}
+              aria-label="Добавить вариант"
+              title="Добавить вариант"
               onClick={() =>
                 setForm((prev) => ({
                   ...prev,
@@ -385,8 +395,8 @@ export default function TaskForm({
                 }))
               }
             >
-              Добавить вариант
-            </Button>
+              <Plus size={16} aria-hidden="true" />
+            </button>
           </div>
           {fieldErrors.choices ? <div className={styles.fieldError}>{fieldErrors.choices}</div> : null}
           <div className={styles.choiceList}>
@@ -397,52 +407,57 @@ export default function TaskForm({
                   : correctMultiIndices.includes(index);
               return (
                 <div key={`choice-${index}`} className={styles.choiceRow}>
-                <div className={styles.choiceIndex}>Вариант {index + 1}</div>
-                  <label className={styles.label}>
-                    Текст (KaTeX)
-                    <Input
-                      value={choice.textLite}
-                      onChange={(event) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          choices: prev.choices.map((c, i) =>
-                            i === index ? { ...c, textLite: event.target.value } : c,
-                          ),
-                        }))
-                      }
-                    />
-                  </label>
-                  <div className={styles.inlinePreview}>
-                    <div className={styles.inlinePreviewLabel}>Предпросмотр</div>
-                    <div className={styles.inlinePreviewBox}>
-                      {choice.textLite.trim() ? <LiteTex value={choice.textLite} /> : null}
-                    </div>
-                  </div>
-                  <label className={styles.correctMark}>
-                    <input
-                      type={form.answerType === "single_choice" ? "radio" : "checkbox"}
-                      checked={isCorrect}
-                      onChange={() => {
-                        if (form.answerType === "single_choice") {
-                          setCorrectSingleIndex(index);
-                        } else {
-                          setCorrectMultiIndices((prev) =>
-                            prev.includes(index)
-                              ? prev.filter((value) => value !== index)
-                              : [...prev, index],
-                          );
+                  <div className={styles.choiceMain}>
+                    <div className={styles.choiceIndex}>Вариант {index + 1}</div>
+                    <label className={styles.label}>
+                      Текст (KaTeX)
+                      <Input
+                        value={choice.textLite}
+                        onChange={(event) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            choices: prev.choices.map((c, i) =>
+                              i === index ? { ...c, textLite: event.target.value } : c,
+                            ),
+                          }))
                         }
-                      }}
-                    />
-                    Правильный
-                  </label>
-                  <div className={styles.rowActions}>
-                    <Button
-                      variant="ghost"
-                      onClick={() => removeChoiceAt(index)}
-                    >
-                      Удалить
-                    </Button>
+                      />
+                    </label>
+                    <div className={styles.inlinePreview}>
+                      <div className={styles.inlinePreviewLabel}>Предпросмотр</div>
+                      <div className={styles.inlinePreviewBox}>
+                        {choice.textLite.trim() ? <LiteTex value={choice.textLite} /> : null}
+                      </div>
+                    </div>
+                    <label className={styles.correctMark}>
+                      <input
+                        type={form.answerType === "single_choice" ? "radio" : "checkbox"}
+                        checked={isCorrect}
+                        onChange={() => {
+                          if (form.answerType === "single_choice") {
+                            setCorrectSingleIndex(index);
+                          } else {
+                            setCorrectMultiIndices((prev) =>
+                              prev.includes(index)
+                                ? prev.filter((value) => value !== index)
+                                : [...prev, index],
+                            );
+                          }
+                        }}
+                      />
+                      Правильный
+                    </label>
+                    <div className={styles.rowActions}>
+                      <button
+                        type="button"
+                        className={styles.rowIconButton}
+                        aria-label={`Удалить вариант ${index + 1}`}
+                        title="Удалить вариант"
+                        onClick={() => removeChoiceAt(index)}
+                      >
+                        <Trash2 size={16} aria-hidden="true" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { MoreHorizontal } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { teacherApi, type StudentSummary, type TeacherSummary } from "@/lib/api/teacher";
@@ -144,7 +145,6 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
         label: "Новый ученик создан",
       });
       await refreshStudents();
-      router.push(`/teacher/students/${created.id}`);
     } catch (err) {
       setCreateError(formatApiErrorPayload(err));
     } finally {
@@ -286,7 +286,6 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
           <TeacherStudentProfilePanel
             studentId={studentId}
             fallbackName={studentId}
-            onBack={() => router.push("/teacher/students")}
             onRefreshStudents={refreshStudents}
           />
         </div>
@@ -411,7 +410,9 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
                 return (
                   <article
                     key={student.id}
-                    className={`${styles.card} ${isTransferActive ? styles.cardActive : ""}`}
+                    className={`${styles.card} ${isTransferActive ? styles.cardActive : ""} ${
+                      isActionsMenuOpen ? styles.cardMenuOpen : ""
+                    }`}
                     onClick={() => router.push(`/teacher/students/${student.id}`)}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
@@ -443,7 +444,7 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
                             setOpenActionsStudentId((prev) => (prev === student.id ? null : student.id))
                           }
                         >
-                          Действия
+                          <MoreHorizontal className={styles.actionsMenuIcon} aria-hidden="true" />
                         </Button>
                         {isActionsMenuOpen ? (
                           <div

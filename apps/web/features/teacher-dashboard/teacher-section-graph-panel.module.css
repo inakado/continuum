@@ -4,82 +4,49 @@
   gap: 16px;
 }
 
-.topActions {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  border: var(--border-width) solid var(--panel-border);
-  padding: 12px;
-  background: var(--panel-bg);
-  border-radius: var(--panel-radius);
-  box-shadow: var(--panel-shadow);
-  backdrop-filter: var(--glass-filter);
-  -webkit-backdrop-filter: var(--glass-filter);
-}
-
-.topActions button {
-  --button-bg: var(--surface-1);
-  --button-border: var(--glass-border);
-  --button-text: var(--text-primary);
-  --button-hover-bg: var(--surface-2);
-  --button-hover-border: var(--border-primary);
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
-}
-
-.header {
-  display: flex;
+.breadcrumbs {
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
-  justify-content: space-between;
+  gap: 8px;
   flex-wrap: wrap;
-}
-
-.backButton {
-  --button-bg: var(--surface-1);
-  --button-border: var(--glass-border);
-  --button-text: var(--text-primary);
-  --button-hover-bg: var(--surface-2);
-  --button-hover-border: var(--border-primary);
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
-}
-
-.backButton:hover:not(:disabled) {
-  background: var(--surface-2) !important;
-  color: var(--text-primary) !important;
-  border-color: var(--border-primary) !important;
-  box-shadow: var(--nav-hover-shadow);
-}
-
-.kicker {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  min-width: 0;
   color: var(--text-muted);
 }
 
-.title {
-  font-family: var(--font-unbounded), sans-serif;
-  font-weight: 300;
-  font-size: 18px;
+.breadcrumbLink,
+.breadcrumbText,
+.breadcrumbCurrent {
+  font-size: 14px;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
-.toolbar {
-  display: grid;
-  grid-template-columns: minmax(200px, 1fr) auto auto auto;
-  gap: 8px;
-  align-items: center;
+.breadcrumbLink {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.2s ease;
 }
 
-.toolbar button {
-  --button-bg: var(--surface-1);
-  --button-border: var(--glass-border);
-  --button-text: var(--text-primary);
-  --button-hover-bg: var(--surface-2);
-  --button-hover-border: var(--border-primary);
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
+.breadcrumbLink:hover {
+  color: var(--text-primary);
+}
+
+.breadcrumbText {
+  color: var(--text-muted);
+}
+
+.breadcrumbCurrent {
+  color: var(--text-primary);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: min(58vw, 640px);
+}
+
+.breadcrumbDivider {
+  color: color-mix(in srgb, var(--text-muted) 75%, transparent);
 }
 
 .error {
@@ -107,16 +74,101 @@
   height: 60vh;
   min-height: 420px;
   position: relative;
+  overflow: hidden;
   border-radius: var(--panel-radius);
   box-shadow: var(--panel-shadow);
   backdrop-filter: var(--glass-filter);
   -webkit-backdrop-filter: var(--glass-filter);
 }
 
+.graphCanvas {
+  position: absolute;
+  inset: 0;
+}
+
+.graphToolbar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.graphToolbar button {
+  --button-bg: var(--surface-1);
+  --button-border: var(--glass-border);
+  --button-text: var(--text-primary);
+  --button-hover-bg: var(--surface-2);
+  --button-hover-border: var(--border-primary);
+  --button-hover-text: var(--text-primary);
+  --button-hover-shadow: var(--nav-hover-shadow);
+}
+
+.createPopup {
+  position: absolute;
+  top: 62px;
+  left: 12px;
+  z-index: 7;
+  width: min(360px, calc(100% - 24px));
+  border: var(--border-width) solid var(--panel-border);
+  border-radius: var(--card-radius);
+  background: var(--card-bg);
+  box-shadow: var(--panel-shadow);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  padding: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.popupLabel {
+  display: grid;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.popupActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.popupActions button {
+  --button-bg: var(--surface-1);
+  --button-border: var(--glass-border);
+  --button-text: var(--text-primary);
+  --button-hover-bg: var(--surface-2);
+  --button-hover-border: var(--border-primary);
+  --button-hover-text: var(--text-primary);
+  --button-hover-shadow: var(--nav-hover-shadow);
+}
+
+.selectionHint {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  z-index: 6;
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: var(--control-radius);
+  background: var(--surface-1);
+  padding: 6px 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+  max-width: min(420px, calc(100% - 24px));
+}
+
 .loading {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
   display: grid;
   place-items: center;
-  height: 100%;
   color: var(--text-muted);
   font-size: 14px;
 }
@@ -124,6 +176,7 @@
 .empty {
   position: absolute;
   inset: 0;
+  z-index: 4;
   display: grid;
   place-items: center;
   text-align: center;
@@ -182,7 +235,51 @@
 }
 
 @media (max-width: 960px) {
-  .toolbar {
+  .graphToolbar {
+    right: 12px;
+  }
+
+  .createPopup {
+    right: 12px;
+  }
+
+  .selectionHint {
+    top: auto;
+    bottom: 12px;
+  }
+}
+
+@media (max-width: 720px) {
+  .breadcrumbLink,
+  .breadcrumbText,
+  .breadcrumbCurrent {
+    font-size: 13px;
+  }
+
+  .graphPanel {
+    min-height: 480px;
+  }
+
+  .graphToolbar {
+    left: 8px;
+    right: 8px;
+    gap: 6px;
+  }
+
+  .graphToolbar button {
+    min-height: 40px;
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .createPopup {
+    left: 8px;
+    right: 8px;
+    width: auto;
+  }
+
+  .popupActions {
+    display: grid;
     grid-template-columns: 1fr;
   }
 }

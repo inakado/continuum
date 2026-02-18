@@ -2,6 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { ChevronDown, ChevronRight, GraduationCap } from "lucide-react";
 import LiteTex from "@/components/LiteTex";
 import Button from "@/components/ui/Button";
 import {
@@ -18,7 +19,6 @@ import styles from "./teacher-student-profile-panel.module.css";
 type Props = {
   studentId: string;
   fallbackName: string;
-  onBack: () => void;
   onRefreshStudents?: () => Promise<void>;
 };
 
@@ -42,10 +42,10 @@ const statusClassName: Record<TeacherStudentTreeTask["state"]["status"], string>
 };
 
 const unitStatusClassName: Record<TeacherStudentTreeUnit["state"]["status"], string> = {
-  locked: "statusDanger",
-  available: "statusNeutral",
-  in_progress: "statusWarning",
-  completed: "statusSuccess",
+  locked: "unitStatusLocked",
+  available: "unitStatusAvailable",
+  in_progress: "unitStatusInProgress",
+  completed: "unitStatusCompleted",
 };
 
 const formatPercent = (value: number) => `${Math.round(value)}%`;
@@ -64,19 +64,9 @@ const getDisplayName = (
 const countPendingInUnit = (unit: TeacherStudentTreeUnit) =>
   unit.tasks.reduce((acc, task) => acc + task.pendingPhotoReviewCount, 0);
 
-const getTaskLabelHint = (title: string | null, index: number) => {
-  if (!title) return null;
-  const normalized = title.trim();
-  if (!normalized) return null;
-  if (/^задача\s*\d+$/i.test(normalized)) return null;
-  if (new RegExp(`^задача\\s*${index + 1}$`, "i").test(normalized)) return null;
-  return normalized;
-};
-
 export default function TeacherStudentProfilePanel({
   studentId,
   fallbackName,
-  onBack,
   onRefreshStudents,
 }: Props) {
   const router = useRouter();
@@ -378,11 +368,20 @@ export default function TeacherStudentProfilePanel({
       <header className={styles.header}>
         <div className={styles.headerMain}>
           <h2 className={styles.title}>{displayName}</h2>
-          <p className={styles.subtitle}>
-            {details
-              ? `Логин: ${details.profile.login} · Ведущий учитель: ${details.profile.leadTeacherLogin}`
-              : ""}
-          </p>
+          {details ? (
+            <div className={styles.headerMetaRow}>
+              <span className={styles.headerMetaItem}>
+                <span className={styles.headerMetaGlyph} aria-hidden="true">
+                  @
+                </span>
+                <span className={styles.headerMetaValue}>{details.profile.login}</span>
+              </span>
+              <span className={styles.headerMetaItem}>
+                <GraduationCap className={styles.headerMetaIcon} aria-hidden="true" />
+                <span className={styles.headerMetaValue}>{details.profile.leadTeacherLogin ?? "—"}</span>
+              </span>
+            </div>
+          ) : null}
         </div>
         <div className={styles.headerActions}>
           <Button
@@ -393,76 +392,72 @@ export default function TeacherStudentProfilePanel({
           >
             Фото на проверке: {reviewTotal}
           </Button>
-          <Button variant="ghost" className={styles.backButton} onClick={onBack}>
-            Назад к ученикам
-          </Button>
         </div>
       </header>
 
       <section className={styles.drilldown}>
         <header className={styles.drillHeader}>
           <h3 className={styles.stageTitle}>Материалы и прогресс</h3>
+          <nav className={styles.pathNav} aria-label="Иерархия контента">
+            <button
+              type="button"
+              className={`${styles.pathButton} ${
+                !selectedCourse && !selectedSection && !selectedUnit ? styles.pathCurrent : ""
+              }`}
+              onClick={goCoursesRoot}
+            >
+              Курсы
+            </button>
+            {selectedCourse ? (
+              <>
+                <span className={styles.pathSeparator}>›</span>
+                <button
+                  type="button"
+                  className={`${styles.pathButton} ${
+                    selectedCourse && !selectedSection && !selectedUnit ? styles.pathCurrent : ""
+                  }`}
+                  onClick={goSectionsRoot}
+                >
+                  {selectedCourse.title}
+                </button>
+              </>
+            ) : null}
+            {selectedSection ? (
+              <>
+                <span className={styles.pathSeparator}>›</span>
+                <button
+                  type="button"
+                  className={`${styles.pathButton} ${
+                    selectedSection && !selectedUnit ? styles.pathCurrent : ""
+                  }`}
+                  onClick={goUnitsRoot}
+                >
+                  {selectedSection.title}
+                </button>
+              </>
+            ) : null}
+            {selectedUnit ? (
+              <>
+                <span className={styles.pathSeparator}>›</span>
+                <button
+                  type="button"
+                  className={`${styles.pathButton} ${styles.pathCurrent}`}
+                  onClick={() => {
+                    if (!activeCourseId || !selectedSectionId || !selectedUnitId) return;
+                    setSelectedTaskId(null);
+                    syncContext({
+                      courseId: activeCourseId,
+                      sectionId: selectedSectionId,
+                      unitId: selectedUnitId,
+                    });
+                  }}
+                >
+                  {selectedUnit.title}
+                </button>
+              </>
+            ) : null}
+          </nav>
         </header>
-
-        <nav className={styles.pathNav} aria-label="Иерархия контента">
-          <button
-            type="button"
-            className={`${styles.pathButton} ${
-              !selectedCourse && !selectedSection && !selectedUnit ? styles.pathCurrent : ""
-            }`}
-            onClick={goCoursesRoot}
-          >
-            Курсы
-          </button>
-          {selectedCourse ? (
-            <>
-              <span className={styles.pathSeparator}>/</span>
-              <button
-                type="button"
-                className={`${styles.pathButton} ${
-                  selectedCourse && !selectedSection && !selectedUnit ? styles.pathCurrent : ""
-                }`}
-                onClick={goSectionsRoot}
-              >
-                {selectedCourse.title}
-              </button>
-            </>
-          ) : null}
-          {selectedSection ? (
-            <>
-              <span className={styles.pathSeparator}>/</span>
-              <button
-                type="button"
-                className={`${styles.pathButton} ${
-                  selectedSection && !selectedUnit ? styles.pathCurrent : ""
-                }`}
-                onClick={goUnitsRoot}
-              >
-                {selectedSection.title}
-              </button>
-            </>
-          ) : null}
-          {selectedUnit ? (
-            <>
-              <span className={styles.pathSeparator}>/</span>
-              <button
-                type="button"
-                className={`${styles.pathButton} ${styles.pathCurrent}`}
-                onClick={() => {
-                  if (!activeCourseId || !selectedSectionId || !selectedUnitId) return;
-                  setSelectedTaskId(null);
-                  syncContext({
-                    courseId: activeCourseId,
-                    sectionId: selectedSectionId,
-                    unitId: selectedUnitId,
-                  });
-                }}
-              >
-                {selectedUnit.title}
-              </button>
-            </>
-          ) : null}
-        </nav>
 
         {error ? (
           <div className={styles.error} role="status" aria-live="polite">
@@ -575,32 +570,52 @@ export default function TeacherStudentProfilePanel({
                                 >
                                   {unit.title}
                                 </button>
+                                {unit.state.overrideOpened ? (
+                                  <div className={styles.unitTitleMeta}>Открыт вручную</div>
+                                ) : null}
                               </td>
                               <td className={styles.tableCenterCell}>
-                                <div className={styles.unitStatusCell}>
-                                  <span
-                                    className={`${styles.statusBadge} ${styles[unitStatusClassName[unit.state.status]]}`}
-                                  >
-                                    {getStudentUnitStatusLabel(unit.state.status)}
+                                <span
+                                  className={`${styles.statusBadge} ${styles[unitStatusClassName[unit.state.status]]}`}
+                                >
+                                  {getStudentUnitStatusLabel(unit.state.status)}
+                                </span>
+                              </td>
+                              <td className={styles.tableCenterCell}>
+                                <div className={styles.unitProgressCell}>
+                                  <div className={styles.progressTrack} aria-hidden="true">
+                                    <span
+                                      className={styles.progressFill}
+                                      style={{
+                                        width: `${Math.max(0, Math.min(unit.state.completionPercent, 100))}%`,
+                                      }}
+                                    />
+                                  </div>
+                                  <span className={styles.progressValue}>
+                                    {formatPercent(unit.state.completionPercent)}
                                   </span>
-                                  {unit.state.overrideOpened ? (
-                                    <span className={styles.unitOverrideInline}>Открыт вручную</span>
-                                  ) : null}
                                 </div>
                               </td>
-                              <td className={styles.tableCenterCell}>{formatPercent(unit.state.completionPercent)}</td>
-                              <td className={styles.tableCenterCell}>{formatPercent(unit.state.solvedPercent)}</td>
+                              <td
+                                className={`${styles.tableCenterCell} ${
+                                  unit.state.solvedPercent >= 100 ? styles.solvedAccent : ""
+                                }`}
+                              >
+                                {formatPercent(unit.state.solvedPercent)}
+                              </td>
                               <td className={styles.tableCenterCell}>
                                 {pendingPhotoCount > 0 ? (
-                                  <span className={styles.photoPendingFlag}>{pendingPhotoCount}</span>
+                                  <span className={`${styles.photoPendingFlag} ${styles.photoPendingStrong}`}>
+                                    {pendingPhotoCount}
+                                  </span>
                                 ) : (
                                   <span className={styles.tableMuted}>0</span>
                                 )}
                               </td>
                               <td className={styles.unitActionsCell}>
                                 {unit.state.status === "locked" ? (
-                                  <button
-                                    type="button"
+                                  <Button
+                                    variant="ghost"
                                     className={`${styles.inlineActionButton} ${styles.inlineActionAccent}`}
                                     onClick={() => void handleOverrideOpenUnit(unit.id)}
                                     disabled={overrideBusyUnitId === unit.id || unit.state.overrideOpened}
@@ -610,7 +625,7 @@ export default function TeacherStudentProfilePanel({
                                       : overrideBusyUnitId === unit.id
                                         ? "Открываем…"
                                         : "Открыть вручную"}
-                                  </button>
+                                  </Button>
                                 ) : (
                                   <span className={styles.tableMuted}>—</span>
                                 )}
@@ -637,38 +652,42 @@ export default function TeacherStudentProfilePanel({
                     <table className={styles.tasksTable}>
                       <thead>
                         <tr>
-                          <th scope="col">№</th>
-                          <th scope="col">Тип</th>
-                          <th scope="col">Статус</th>
-                          <th scope="col">Попытки</th>
-                          <th scope="col">Проверка</th>
+                          <th scope="col" className={styles.tasksNumberHeader}>
+                            №
+                          </th>
+                          <th scope="col" className={styles.tasksTypeHeader}>
+                            Тип
+                          </th>
+                          <th scope="col" className={styles.tasksStatusHeader}>
+                            Статус
+                          </th>
+                          <th scope="col" className={styles.tasksAttemptsHeader}>
+                            Попытки
+                          </th>
+                          <th scope="col" className={styles.tasksPhotoHeader}>
+                            Фото
+                          </th>
                           <th scope="col" className={styles.tasksActionsHeader}>
                             Действия
                           </th>
+                          <th scope="col" className={styles.tasksExpandHeader} />
                         </tr>
                       </thead>
                       <tbody>
                         {selectedUnit.tasks.map((task, index) => {
                           const hasPendingPhoto = task.answerType === "photo" && task.pendingPhotoReviewCount > 0;
                           const statementExpanded = selectedTaskId === task.id;
-                          const taskLabelHint = getTaskLabelHint(task.title, index);
+                          const taskRowClassName = [
+                            statementExpanded ? styles.taskRowExpanded : "",
+                            task.isRequired ? styles.requiredTaskRow : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" ");
                           return (
                             <Fragment key={task.id}>
-                              <tr className={statementExpanded ? styles.taskRowExpanded : undefined}>
-                                <td className={styles.taskIndexCell}>
-                                  <div className={styles.taskIndexHead}>
-                                    <div className={styles.taskIndexValue}>{index + 1}</div>
-                                    {task.isRequired ? (
-                                      <span
-                                        className={styles.requiredIcon}
-                                        aria-label="Обязательная задача"
-                                        title="Обязательная задача"
-                                      >
-                                        ※
-                                      </span>
-                                    ) : null}
-                                  </div>
-                                  {taskLabelHint ? <div className={styles.taskIndexHint}>{taskLabelHint}</div> : null}
+                              <tr className={taskRowClassName || undefined}>
+                                <td className={styles.taskNumberCell}>
+                                  <span className={styles.taskNumberValue}>{index + 1}</span>
                                 </td>
                                 <td className={styles.tableCenterCell}>
                                   <span className={styles.answerTypeBadge}>{answerTypeLabel[task.answerType]}</span>
@@ -681,56 +700,60 @@ export default function TeacherStudentProfilePanel({
                                 <td className={styles.tableCenterCell}>{task.state.attemptsUsed}</td>
                                 <td className={styles.tableCenterCell}>
                                   {hasPendingPhoto ? (
-                                    <span className={styles.photoPendingFlag}>{task.pendingPhotoReviewCount}</span>
-                                  ) : (
-                                    <span className={styles.tableMuted}>—</span>
-                                  )}
-                                </td>
-                                <td>
-                                  <div className={styles.tableActions}>
                                     <button
                                       type="button"
-                                      className={styles.inlineActionButton}
-                                      onClick={() => toggleTaskStatement(task.id)}
+                                      className={`${styles.photoPendingFlag} ${styles.photoPendingButton}`}
+                                      onClick={() =>
+                                        openReviewInbox({
+                                          courseId: selectedCourse?.id ?? courseTree?.id,
+                                          sectionId: selectedSection?.id,
+                                          unitId: selectedUnit.id,
+                                          taskId: task.id,
+                                        })
+                                      }
+                                      title="Открыть проверку фото"
                                     >
-                                      {statementExpanded ? "Скрыть" : "Условие"}
+                                      {task.pendingPhotoReviewCount}
                                     </button>
-                                    {hasPendingPhoto ? (
-                                      <button
-                                        type="button"
-                                        className={styles.inlineActionButton}
-                                        onClick={() =>
-                                          openReviewInbox({
-                                            courseId: selectedCourse?.id ?? courseTree?.id,
-                                            sectionId: selectedSection?.id,
-                                            unitId: selectedUnit.id,
-                                            taskId: task.id,
-                                          })
-                                        }
-                                      >
-                                        Проверить фото
-                                      </button>
-                                    ) : (
-                                      <span className={styles.actionPlaceholder} aria-hidden="true" />
-                                    )}
+                                  ) : (
+                                    <span className={styles.tableMuted}>0</span>
+                                  )}
+                                </td>
+                                <td className={styles.taskActionsCell}>
+                                  <div className={styles.tableActions}>
                                     {task.state.canTeacherCredit ? (
-                                      <button
-                                        type="button"
+                                      <Button
+                                        variant="ghost"
                                         className={`${styles.inlineActionButton} ${styles.inlineActionAccent}`}
                                         onClick={() => void handleCreditTask(task)}
                                         disabled={creditBusyTaskId === task.id}
                                       >
                                         {creditBusyTaskId === task.id ? "Зачёт…" : "Зачесть"}
-                                      </button>
+                                      </Button>
                                     ) : (
-                                      <span className={styles.actionPlaceholder} aria-hidden="true" />
+                                      <span className={styles.tableMuted}>—</span>
                                     )}
                                   </div>
+                                </td>
+                                <td className={styles.statementToggleCell}>
+                                  <button
+                                    type="button"
+                                    className={styles.statementToggleButton}
+                                    onClick={() => toggleTaskStatement(task.id)}
+                                    aria-label={statementExpanded ? "Скрыть условие" : "Показать условие"}
+                                    title={statementExpanded ? "Скрыть условие" : "Показать условие"}
+                                  >
+                                    {statementExpanded ? (
+                                      <ChevronDown className={styles.statementToggleIcon} aria-hidden="true" />
+                                    ) : (
+                                      <ChevronRight className={styles.statementToggleIcon} aria-hidden="true" />
+                                    )}
+                                  </button>
                                 </td>
                               </tr>
                               {statementExpanded ? (
                                 <tr className={styles.taskStatementRow}>
-                                  <td colSpan={6} className={styles.taskStatementCell}>
+                                  <td colSpan={7} className={styles.taskStatementCell}>
                                     <LiteTex value={task.statementLite} block />
                                   </td>
                                 </tr>

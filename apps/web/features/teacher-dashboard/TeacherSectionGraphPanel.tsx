@@ -27,6 +27,7 @@ import styles from "./teacher-section-graph-panel.module.css";
 
 type Props = {
   sectionId: string;
+  courseTitle?: string | null;
   sectionTitle?: string | null;
   onBack?: () => void;
 };
@@ -127,11 +128,13 @@ const GraphCanvas = memo(function GraphCanvas({
       fitView
       defaultEdgeOptions={defaultEdgeOptionsRef.current}
     >
+      <Background gap={22} size={1} color="color-mix(in srgb, var(--text-muted) 30%, transparent)" />
+      <Controls showInteractive={false} />
     </ReactFlow>
   );
 });
 
-export default function TeacherSectionGraphPanel({ sectionId, sectionTitle, onBack }: Props) {
+export default function TeacherSectionGraphPanel({ sectionId, courseTitle, sectionTitle, onBack }: Props) {
   const router = useRouter();
   const [nodes, setNodes, onNodesChange] = useNodesState<UnitNodeData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -139,8 +142,12 @@ export default function TeacherSectionGraphPanel({ sectionId, sectionTitle, onBa
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [authRequired, setAuthRequired] = useState(false);
+  const [isCreatePopupOpen, setIsCreatePopupOpen] = useState(false);
   const [newUnitTitle, setNewUnitTitle] = useState("");
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [resolvedCourseTitle, setResolvedCourseTitle] = useState<string | null>(courseTitle ?? null);
+  const [resolvedSectionTitle, setResolvedSectionTitle] = useState<string | null>(sectionTitle ?? null);
+  const createTitleInputRef = useRef<HTMLInputElement | null>(null);
 
   const applyGraph = useCallback(
     (graph: SectionGraphResponse) => {
@@ -171,6 +178,50 @@ export default function TeacherSectionGraphPanel({ sectionId, sectionTitle, onBa
   useEffect(() => {
     fetchGraph();
   }, [fetchGraph]);
+
+  useEffect(() => {
+    setResolvedCourseTitle(courseTitle ?? null);
+  }, [courseTitle]);
+
+  useEffect(() => {
+    setResolvedSectionTitle(sectionTitle ?? null);
+  }, [sectionTitle]);
+
+  useEffect(() => {
+    if (authRequired) return;
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const section = await teacherApi.getSection(sectionId);
+        if (cancelled) return;
+        setResolvedSectionTitle(section.title);
+        if (!courseTitle) {
+          try {
+            const course = await teacherApi.getCourse(section.courseId);
+            if (cancelled) return;
+            setResolvedCourseTitle(course.title);
+          } catch {
+            if (cancelled) return;
+            setResolvedCourseTitle(null);
+          }
+        }
+      } catch {
+        if (cancelled) return;
+        if (!sectionTitle) setResolvedSectionTitle(null);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authRequired, courseTitle, sectionId, sectionTitle]);
+
+  useEffect(() => {
+    if (!isCreatePopupOpen) return;
+    const id = window.setTimeout(() => createTitleInputRef.current?.focus(), 0);
+    return () => window.clearTimeout(id);
+  }, [isCreatePopupOpen]);
 
   const handleConnect = useCallback(
     (connection: Connection) => {
@@ -243,6 +294,7 @@ export default function TeacherSectionGraphPanel({ sectionId, sectionTitle, onBa
         }),
       );
       setNewUnitTitle("");
+      setIsCreatePopupOpen(false);
       setStatus("Юнит создан. Не забудьте сохранить граф.");
     } catch (err) {
       const message = getApiErrorMessage(err);
@@ -255,7 +307,12 @@ export default function TeacherSectionGraphPanel({ sectionId, sectionTitle, onBa
     if (!selectedEdgeId) return;
     setEdges((current) => current.filter((edge) => edge.id !== selectedEdgeId));
     setSelectedEdgeId(null);
+    setStatus("Ребро удалено локально. Не забудьте сохранить граф.");
   };
+
+  const handleSelectionChange = useCallback((selection: { edges?: Edge[]; nodes?: Node[] }) => {
+    setSelectedEdgeId(selection.edges?.[0]?.id ?? null);
+  }, []);
 
   const handleNodeClick = useCallback(
     (_: unknown, node: Node) => {
@@ -264,9 +321,13 @@ export default function TeacherSectionGraphPanel({ sectionId, sectionTitle, onBa
     [router],
   );
 
-  const handleSelectionChange = useCallback((selection: { edges: Edge[] }) => {
-    setSelectedEdgeId(selection.edges[0]?.id ?? null);
-  }, []);
+  const handleBackToStructure = useCallback(() => {
+    if (onBack) {
+      onBack();
+      return;
+    }
+    router.push("/teacher");
+  }, [onBack, router]);
 
   if (authRequired) {
     return <AuthRequired />;
@@ -274,32 +335,16 @@ export default function TeacherSectionGraphPanel({ sectionId, sectionTitle, onBa
 
   return (
     <div className={styles.wrapper}>
-      <div className={styles.topActions}>
-        <div className={styles.header}>
-          {onBack ? (
-            <Button variant="ghost" onClick={onBack} className={styles.backButton}>
-              ← К разделам
-            </Button>
-          ) : null}
-        </div>
-        <div className={styles.toolbar}>
-          <Input
-            value={newUnitTitle}
-            onChange={(event) => setNewUnitTitle(event.target.value)}
-            name="unitTitle"
-            autoComplete="off"
-            placeholder="Название юнита…"
-          />
-          <Button onClick={handleCreateUnit} disabled={!newUnitTitle.trim()}>
-            Создать юнит
-          </Button>
-          <Button variant="ghost" onClick={handleSave}>
-            Сохранить граф
-          </Button>
-          <Button variant="ghost" onClick={handleDeleteSelectedEdge} disabled={!selectedEdgeId}>
-            Удалить ребро
-          </Button>
-        </div>
+      <div className={styles.breadcrumbs}>
+        <button type="button" className={styles.breadcrumbLink} onClick={handleBackToStructure}>
+          Курсы
+        </button>
+        <span className={styles.breadcrumbDivider}>/</span>
+        <button type="button" className={styles.breadcrumbLink} onClick={handleBackToStructure}>
+          {resolvedCourseTitle ?? "Курс"}
+        </button>
+        <span className={styles.breadcrumbDivider}>/</span>
+        <span className={styles.breadcrumbCurrent}>{resolvedSectionTitle ?? "Раздел"}</span>
       </div>
 
       {error ? (
@@ -310,21 +355,71 @@ export default function TeacherSectionGraphPanel({ sectionId, sectionTitle, onBa
       {status ? <div className={styles.status}>{status}</div> : null}
 
       <div className={styles.graphPanel} aria-busy={loading}>
+        <div className={styles.graphToolbar}>
+          <Button onClick={() => setIsCreatePopupOpen(true)}>Создать юнит</Button>
+          <Button variant="ghost" onClick={handleSave}>
+            Сохранить граф
+          </Button>
+          <Button variant="ghost" onClick={handleDeleteSelectedEdge} disabled={!selectedEdgeId}>
+            Удалить ребро
+          </Button>
+        </div>
+
+        {isCreatePopupOpen ? (
+          <div className={styles.createPopup} role="dialog" aria-label="Создание юнита">
+            <label className={styles.popupLabel}>
+              Название юнита
+              <Input
+                ref={createTitleInputRef}
+                value={newUnitTitle}
+                onChange={(event) => setNewUnitTitle(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void handleCreateUnit();
+                  }
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    setIsCreatePopupOpen(false);
+                  }
+                }}
+                name="unitTitle"
+                autoComplete="off"
+                placeholder="Например, Кинематика..."
+              />
+            </label>
+            <div className={styles.popupActions}>
+              <Button onClick={() => void handleCreateUnit()} disabled={!newUnitTitle.trim()}>
+                Создать
+              </Button>
+              <Button variant="ghost" onClick={() => setIsCreatePopupOpen(false)}>
+                Отмена
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        {selectedEdgeId ? (
+          <div className={styles.selectionHint}>Выбрано ребро. Можно удалить и затем сохранить граф.</div>
+        ) : null}
+
         {loading ? (
           <div className={styles.loading}>Загрузка графа…</div>
         ) : (
           <>
-            <GraphCanvas
-              nodes={nodes}
-              edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={handleConnect}
-              onNodeClick={handleNodeClick}
-              onSelectionChange={handleSelectionChange}
-            />
+            <div className={styles.graphCanvas}>
+              <GraphCanvas
+                nodes={nodes}
+                edges={edges}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={handleConnect}
+                onNodeClick={handleNodeClick}
+                onSelectionChange={handleSelectionChange}
+              />
+            </div>
             {nodes.length === 0 ? (
-              <div className={styles.empty}>В разделе нет юнитов. Создайте первый в панели выше.</div>
+              <div className={styles.empty}>В разделе нет юнитов. Создайте первый юнит вверху графа.</div>
             ) : null}
           </>
         )}

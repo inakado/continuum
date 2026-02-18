@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff, Trash2 } from "lucide-react";
 import DashboardShell from "@/components/DashboardShell";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -123,6 +124,8 @@ export default function TeacherDashboardScreen({
     if (!selectedCourse) return [];
     return [...selectedCourse.sections].sort((a, b) => a.sortOrder - b.sortOrder);
   }, [selectedCourse]);
+
+  const showMainHeader = active !== "edit";
 
   const fetchCourses = useCallback(async () => {
     if (!isEditMode) return;
@@ -296,12 +299,21 @@ export default function TeacherDashboardScreen({
       onLogout={handleLogout}
     >
       <div className={styles.content}>
-        <div className={styles.header}>
-          <div>
-            <h1 className={styles.title}>{content.title}</h1>
-            {content.subtitle ? <p className={styles.subtitle}>{content.subtitle}</p> : null}
+        {showMainHeader ? (
+          <div className={styles.header}>
+            <div>
+              <h1 className={styles.title}>{content.title}</h1>
+              {content.subtitle ? <p className={styles.subtitle}>{content.subtitle}</p> : null}
+            </div>
+            {active === "students" && initialStudentId ? (
+              <div className={styles.panelActions}>
+                <Button variant="ghost" onClick={() => router.push("/teacher/students")}>
+                  Назад к ученикам
+                </Button>
+              </div>
+            ) : null}
           </div>
-        </div>
+        ) : null}
 
         {error ? (
           <div className={styles.error} role="status" aria-live="polite">
@@ -326,22 +338,18 @@ export default function TeacherDashboardScreen({
           <TeacherSectionGraphPanel
             sectionId={selectedSectionId}
             sectionTitle={selectedSectionTitle}
+            courseTitle={selectedCourse?.title ?? null}
             onBack={handleBackToList}
           />
         ) : (
           <section className={styles.panel}>
             <div className={styles.panelHeader}>
-              <div>
-                <div className={styles.panelKicker}>Структура контента</div>
-                <div className={styles.panelTitle}>
-                  {selectedCourse ? selectedCourse.title : "Курсы"}
-                </div>
-              </div>
-              <div className={styles.panelActions}>
+              <div className={styles.breadcrumbs}>
                 {selectedCourse ? (
                   <>
-                    <Button
-                      variant="ghost"
+                    <button
+                      type="button"
+                      className={styles.breadcrumbLink}
                       onClick={() => {
                         setSelectedCourse(null);
                         setSelectedCourseId(null);
@@ -349,17 +357,25 @@ export default function TeacherDashboardScreen({
                         setSectionTitle("");
                       }}
                     >
-                      ← Курсы
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        setShowSectionForm((prev) => !prev);
-                        setSectionFormError(null);
-                      }}
-                    >
-                      Новый раздел
-                    </Button>
+                      Курсы
+                    </button>
+                    <span className={styles.breadcrumbDivider}>/</span>
+                    <span className={styles.breadcrumbCurrent}>{selectedCourse.title}</span>
                   </>
+                ) : (
+                  <span className={styles.breadcrumbCurrent}>Курсы</span>
+                )}
+              </div>
+              <div className={styles.panelActions}>
+                {selectedCourse ? (
+                  <Button
+                    onClick={() => {
+                      setShowSectionForm((prev) => !prev);
+                      setSectionFormError(null);
+                    }}
+                  >
+                    Новый раздел
+                  </Button>
                 ) : (
                   <Button
                     onClick={() => {
@@ -423,21 +439,44 @@ export default function TeacherDashboardScreen({
                           >
                             <div className={styles.cardTitleRow}>
                               <div className={styles.cardTitle}>{section.title}</div>
-                              <span className={styles.status} data-status={section.status}>
-                                {getContentStatusLabel(section.status)}
-                              </span>
                             </div>
                           </button>
-                          <div className={styles.cardActions}>
-                            <Button
-                              variant="ghost"
-                              onClick={() => handlePublishSectionToggle(section)}
-                            >
-                              {section.status === "published" ? "В черновик" : "Опубликовать"}
-                            </Button>
-                            <Button variant="ghost" onClick={() => handleDeleteSection(section)}>
-                              Удалить
-                            </Button>
+                          <div className={styles.cardControls}>
+                            <span className={styles.status} data-status={section.status}>
+                              {getContentStatusLabel(section.status)}
+                            </span>
+                            <div className={styles.cardActions}>
+                              <Button
+                                variant="ghost"
+                                className={styles.cardIconAction}
+                                title={
+                                  section.status === "published"
+                                    ? "Снять с публикации"
+                                    : "Опубликовать"
+                                }
+                                aria-label={
+                                  section.status === "published"
+                                    ? "Снять раздел с публикации"
+                                    : "Опубликовать раздел"
+                                }
+                                onClick={() => handlePublishSectionToggle(section)}
+                              >
+                                {section.status === "published" ? (
+                                  <EyeOff size={16} aria-hidden="true" />
+                                ) : (
+                                  <Eye size={16} aria-hidden="true" />
+                                )}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                className={styles.cardIconAction}
+                                title="Удалить раздел"
+                                aria-label="Удалить раздел"
+                                onClick={() => handleDeleteSection(section)}
+                              >
+                                <Trash2 size={16} aria-hidden="true" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -500,24 +539,47 @@ export default function TeacherDashboardScreen({
                           >
                             <div className={styles.cardTitleRow}>
                               <div className={styles.cardTitle}>{course.title}</div>
-                              <span className={styles.status} data-status={course.status}>
-                                {getContentStatusLabel(course.status)}
-                              </span>
                             </div>
                             <div className={styles.cardMeta}>
                               {course.description ? course.description : "Без описания"}
                             </div>
                           </button>
-                          <div className={styles.cardActions}>
-                            <Button
-                              variant="ghost"
-                              onClick={() => handlePublishCourseToggle(course)}
-                            >
-                              {course.status === "published" ? "В черновик" : "Опубликовать"}
-                            </Button>
-                            <Button variant="ghost" onClick={() => handleDeleteCourse(course)}>
-                              Удалить
-                            </Button>
+                          <div className={styles.cardControls}>
+                            <span className={styles.status} data-status={course.status}>
+                              {getContentStatusLabel(course.status)}
+                            </span>
+                            <div className={styles.cardActions}>
+                              <Button
+                                variant="ghost"
+                                className={styles.cardIconAction}
+                                title={
+                                  course.status === "published"
+                                    ? "Снять с публикации"
+                                    : "Опубликовать"
+                                }
+                                aria-label={
+                                  course.status === "published"
+                                    ? "Снять курс с публикации"
+                                    : "Опубликовать курс"
+                                }
+                                onClick={() => handlePublishCourseToggle(course)}
+                              >
+                                {course.status === "published" ? (
+                                  <EyeOff size={16} aria-hidden="true" />
+                                ) : (
+                                  <Eye size={16} aria-hidden="true" />
+                                )}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                className={styles.cardIconAction}
+                                title="Удалить курс"
+                                aria-label="Удалить курс"
+                                onClick={() => handleDeleteCourse(course)}
+                              >
+                                <Trash2 size={16} aria-hidden="true" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       ))}

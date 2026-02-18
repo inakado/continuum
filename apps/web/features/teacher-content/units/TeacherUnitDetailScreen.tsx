@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ChangeEvent,
   type ComponentProps,
 } from "react";
 import { useRouter } from "next/navigation";
@@ -43,6 +44,7 @@ import { EditorView } from "@codemirror/view";
 import { StreamLanguage } from "@codemirror/language";
 import { stex } from "@codemirror/legacy-modes/mode/stex";
 import LiteTex from "@/components/LiteTex";
+import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 type CodeMirrorProps = ComponentProps<typeof import("@uiw/react-codemirror").default>;
 type PdfCanvasPreviewProps = ComponentProps<typeof import("@/components/PdfCanvasPreview").default>;
 
@@ -173,12 +175,18 @@ const SortableTaskCard = memo(function SortableTaskCard({
         <LiteTex value={task.statementLite} block />
       </div>
       <div className={styles.taskActions}>
-        <Button variant="ghost" onClick={() => onEdit(task)}>
-          Редактировать
-        </Button>
-        <Button variant="ghost" onClick={() => onDelete(task)}>
-          Удалить
-        </Button>
+        <button type="button" className={styles.taskEditAction} onClick={() => onEdit(task)}>
+          <Pencil size={16} aria-hidden="true" />
+          <span>Редактировать</span>
+        </button>
+        <button
+          type="button"
+          className={styles.taskDeleteAction}
+          onClick={() => onDelete(task)}
+          aria-label={`Удалить задачу №${index + 1}`}
+        >
+          <Trash2 size={16} aria-hidden="true" />
+        </button>
       </div>
     </div>
   );
@@ -251,6 +259,8 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
   const router = useRouter();
   const handleLogout = useTeacherLogout();
   const [unit, setUnit] = useState<UnitWithTasks | null>(null);
+  const [courseTitle, setCourseTitle] = useState<string | null>(null);
+  const [sectionTitle, setSectionTitle] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -477,6 +487,39 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
     fetchUnit();
   }, [fetchUnit]);
 
+  useEffect(() => {
+    if (!unit?.sectionId) {
+      setCourseTitle(null);
+      setSectionTitle(null);
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const section = await teacherApi.getSection(unit.sectionId);
+        if (cancelled) return;
+        setSectionTitle(section.title);
+        try {
+          const course = await teacherApi.getCourse(section.courseId);
+          if (cancelled) return;
+          setCourseTitle(course.title);
+        } catch {
+          if (cancelled) return;
+          setCourseTitle(null);
+        }
+      } catch {
+        if (cancelled) return;
+        setSectionTitle(null);
+        setCourseTitle(null);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [unit?.sectionId]);
+
   const latexExtensions = useMemo(
     () => [StreamLanguage.define(stex), EditorView.lineWrapping],
     [],
@@ -650,6 +693,18 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
       setIsDeletingUnit(false);
     }
   }, [isDeletingUnit, router, unit]);
+
+  const handleBackToSection = useCallback(() => {
+    if (unit?.sectionId) {
+      router.push(`/teacher/sections/${unit.sectionId}`);
+      return;
+    }
+    router.back();
+  }, [router, unit?.sectionId]);
+
+  const handleBackToCourses = useCallback(() => {
+    router.push("/teacher");
+  }, [router]);
 
   const handleTaskEdit = useCallback((selected: Task) => {
     setEditingTask(selected);
@@ -1036,33 +1091,59 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
     >
       <div className={styles.content}>
         <div className={styles.header}>
-          <div>
-            <h1 className={styles.title}>{unit?.title ?? "Юнит"}</h1>
-            <p className={styles.subtitle}>Редактор юнита</p>
-          </div>
-          <div className={styles.headerActions}>
-            {unit ? (
-              <Checkbox
-                label="Опубликовано"
-                checked={unit.status === "published"}
-                onChange={handleUnitPublishToggle}
-              />
-            ) : null}
-            {unit ? (
-              <Button
-                variant="ghost"
-                onClick={handleUnitDelete}
-                disabled={isDeletingUnit}
-                className={styles.deleteUnitButton}
+          <div className={styles.headerTop}>
+            <nav className={styles.breadcrumbs} aria-label="Навигация">
+              <button
+                type="button"
+                className={styles.breadcrumbIconButton}
+                onClick={handleBackToSection}
+                aria-label="Назад к разделу"
               >
-                {isDeletingUnit ? "Удаление..." : "Удалить юнит"}
-              </Button>
-            ) : null}
-            {saveStatusText ? (
-              <div className={styles.saveStatus} role="status" aria-live="polite">
-                {saveStatusText}
-              </div>
-            ) : null}
+                <ArrowLeft size={18} />
+              </button>
+              <button type="button" className={styles.breadcrumbLink} onClick={handleBackToCourses}>
+                Курсы
+              </button>
+              <span className={styles.breadcrumbDivider}>/</span>
+              <button type="button" className={styles.breadcrumbLink} onClick={handleBackToSection}>
+                {courseTitle ?? sectionTitle ?? "Раздел"}
+              </button>
+              <span className={styles.breadcrumbDivider}>/</span>
+              <span className={styles.breadcrumbCurrent} aria-current="page">
+                {unit?.title ?? "Юнит"}
+              </span>
+            </nav>
+            <div className={styles.headerActions}>
+              {unit ? (
+                <button
+                  type="button"
+                  className={styles.publishToggle}
+                  onClick={() => void handleUnitPublishToggle()}
+                  aria-pressed={unit.status === "published"}
+                >
+                  <span className={styles.publishToggleTrack} aria-hidden="true">
+                    <span className={styles.publishToggleThumb} />
+                  </span>
+                  <span className={styles.publishToggleLabel}>Опубликовано</span>
+                </button>
+              ) : null}
+              {unit ? (
+                <Button
+                  variant="ghost"
+                  onClick={handleUnitDelete}
+                  disabled={isDeletingUnit}
+                  className={styles.deleteUnitButton}
+                >
+                  <Trash2 size={18} />
+                  {isDeletingUnit ? "Удаление..." : "Удалить юнит"}
+                </Button>
+              ) : null}
+              {saveStatusText ? (
+                <div className={styles.saveStatus} role="status" aria-live="polite">
+                  {saveStatusText}
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
 
@@ -1079,21 +1160,8 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
             active={activeTab}
             onChange={setActiveTab}
             ariaLabel="Вкладки юнита"
+            className={styles.unitTabs}
           />
-          <Button
-            variant="ghost"
-            onClick={() => {
-              if (unit?.sectionId) {
-                router.push(`/teacher/sections/${unit.sectionId}`);
-              } else {
-                router.back();
-              }
-            }}
-            className={styles.backInline}
-            disabled={!unit?.sectionId}
-          >
-            ← Назад
-          </Button>
         </div>
 
         <div id={activePanelId} role="tabpanel" aria-labelledby={activeTabId}>
@@ -1312,7 +1380,7 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
                     </div>
                   </div>
 
-                  <div className={styles.progressMetric}>
+                  <div className={`${styles.progressMetric} ${styles.progressMetricOptional}`}>
                     <span className={styles.progressMetricLabel}>Необязательные</span>
                     {isOptionalMinEditing || !hasSavedOptionalMin ? (
                       <div className={styles.inlineOptionalEditor}>
@@ -1468,7 +1536,7 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
                       <Checkbox
                         label="Опубликовано"
                         checked={editingTask.status === "published"}
-                        onChange={(event) => {
+                        onChange={(event: ChangeEvent<HTMLInputElement>) => {
                           const nextChecked = event.target.checked;
                           const isPublished = editingTask.status === "published";
                           if (nextChecked === isPublished) return;
@@ -1479,7 +1547,9 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
                       <Checkbox
                         label="Опубликовать"
                         checked={creatingTaskPublish}
-                        onChange={(event) => setCreatingTaskPublish(event.target.checked)}
+                        onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                          setCreatingTaskPublish(event.target.checked)
+                        }
                       />
                     ) : null
                   }

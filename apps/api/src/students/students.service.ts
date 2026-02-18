@@ -332,18 +332,43 @@ export class StudentsService {
                 lockedUntil: true,
                 requiredSkipped: true,
                 activeRevisionId: true,
+                creditedRevisionId: true,
               },
             })
           : [];
-        const attemptsUsed = taskIds.length
+        const activeAutoAttemptRevisionIds = new Set(activeRevisionIds);
+        const creditedAttemptRevisionIds = new Set(
+          states
+            .map((state) => state.creditedRevisionId)
+            .filter((value): value is string => Boolean(value)),
+        );
+        const allAttemptRevisionIds = new Set([
+          ...activeAutoAttemptRevisionIds,
+          ...creditedAttemptRevisionIds,
+        ]);
+
+        const autoAttemptsUsed = taskIds.length
           ? await this.prisma.attempt.groupBy({
               by: ['taskId', 'taskRevisionId'],
               where: {
                 studentId,
                 taskId: { in: taskIds },
                 kind: { not: AttemptKind.photo },
-                ...(activeRevisionIds.length
-                  ? { taskRevisionId: { in: activeRevisionIds } }
+                ...(activeAutoAttemptRevisionIds.size
+                  ? { taskRevisionId: { in: [...activeAutoAttemptRevisionIds] } }
+                  : null),
+              },
+              _count: { _all: true },
+            })
+          : [];
+        const creditedAttemptsUsed = taskIds.length
+          ? await this.prisma.attempt.groupBy({
+              by: ['taskId', 'taskRevisionId'],
+              where: {
+                studentId,
+                taskId: { in: taskIds },
+                ...(allAttemptRevisionIds.size
+                  ? { taskRevisionId: { in: [...allAttemptRevisionIds] } }
                   : null),
               },
               _count: { _all: true },
@@ -377,8 +402,11 @@ export class StudentsService {
           : [];
 
         const statesMap = new Map(states.map((state) => [state.taskId, state]));
-        const attemptsMap = new Map(
-          attemptsUsed.map((item) => [`${item.taskId}:${item.taskRevisionId}`, item._count._all]),
+        const autoAttemptsMap = new Map(
+          autoAttemptsUsed.map((item) => [`${item.taskId}:${item.taskRevisionId}`, item._count._all]),
+        );
+        const creditedAttemptsMap = new Map(
+          creditedAttemptsUsed.map((item) => [`${item.taskId}:${item.taskRevisionId}`, item._count._all]),
         );
         const unitStatesMap = new Map(unitStates.map((state) => [state.unitId, state]));
         const pendingPhotoReviewMap = new Map(
@@ -412,10 +440,23 @@ export class StudentsService {
                   task.activeRevisionId,
                   now,
                 );
-                const attemptsKey = task.activeRevisionId
+                const activeAttemptsKey = task.activeRevisionId
                   ? `${task.id}:${task.activeRevisionId}`
                   : '';
+                const stateSnapshot = statesMap.get(task.id) ?? null;
+                const creditedAttemptsKey = stateSnapshot?.creditedRevisionId
+                  ? `${task.id}:${stateSnapshot.creditedRevisionId}`
+                  : '';
                 const status = normalizedState.status;
+                const attemptsUsed = creditedStatuses.has(status)
+                  ? creditedAttemptsKey
+                    ? (creditedAttemptsMap.get(creditedAttemptsKey) ?? 0)
+                    : activeAttemptsKey
+                      ? (creditedAttemptsMap.get(activeAttemptsKey) ?? 0)
+                      : 0
+                  : activeAttemptsKey
+                    ? (autoAttemptsMap.get(activeAttemptsKey) ?? 0)
+                    : 0;
                 return {
                   id: task.id,
                   title: task.title,
@@ -426,7 +467,7 @@ export class StudentsService {
                   pendingPhotoReviewCount: pendingPhotoReviewMap.get(task.id) ?? 0,
                   state: {
                     status,
-                    attemptsUsed: attemptsKey ? (attemptsMap.get(attemptsKey) ?? 0) : 0,
+                    attemptsUsed,
                     wrongAttempts: normalizedState.wrongAttempts,
                     blockedUntil: normalizedState.blockedUntil,
                     requiredSkippedFlag: normalizedState.requiredSkipped,

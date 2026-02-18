@@ -41,6 +41,39 @@
   line-height: 1.4;
 }
 
+.headerMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: center;
+}
+
+.headerMetaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.headerMetaIcon {
+  width: 14px;
+  height: 14px;
+  color: color-mix(in srgb, var(--text-muted) 80%, var(--text-primary));
+}
+
+.headerMetaGlyph {
+  color: color-mix(in srgb, var(--text-muted) 82%, var(--text-primary));
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.headerMetaValue {
+  color: var(--text-primary);
+}
+
 .headerActions {
   display: flex;
   align-items: center;
@@ -67,10 +100,6 @@
 .reviewQueueButton[data-pending="true"] {
   --button-bg: color-mix(in srgb, #d97706 12%, var(--surface-1));
   --button-border: color-mix(in srgb, #d97706 34%, var(--glass-border));
-}
-
-.backButton {
-  --button-border-width: var(--border-width-thin);
 }
 
 .breadcrumbButton,
@@ -126,7 +155,10 @@
 
 .drillHeader {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 16px;
+  flex-wrap: wrap;
 }
 
 .stageTitle {
@@ -149,6 +181,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
+  justify-content: flex-end;
 }
 
 .pathSeparator {
@@ -160,9 +193,10 @@
 .pathButton {
   border: none;
   background: transparent;
-  color: var(--text-primary);
+  color: var(--text-muted);
   padding: 0;
   font-size: 13px;
+  font-weight: 500;
   line-height: 1.25;
   cursor: pointer;
   transition: color 0.2s ease, text-decoration-color 0.2s ease;
@@ -170,19 +204,13 @@
 
 .pathButton:hover {
   color: var(--text-primary);
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
-  text-decoration-color: color-mix(in srgb, var(--border-primary) 55%, transparent);
+  text-decoration: none;
 }
 
 .pathCurrent {
   color: var(--text-primary);
   font-weight: 600;
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 3px;
-  text-decoration-color: var(--border-primary);
+  text-decoration: none;
 }
 
 .list {
@@ -191,12 +219,19 @@
   gap: 12px;
 }
 
-.tasksTableWrap,
+.tasksTableWrap {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: auto;
+}
+
 .unitsTableWrap {
-  border: var(--border-width-thin) solid var(--card-border);
-  border-radius: var(--card-radius);
-  background: var(--card-bg);
-  box-shadow: var(--card-shadow);
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   overflow: auto;
 }
 
@@ -207,15 +242,21 @@
   border-collapse: collapse;
 }
 
+.tasksTable {
+  table-layout: fixed;
+  min-width: 980px;
+}
+
 .unitsTable {
   table-layout: fixed;
+  min-width: 980px;
 }
 
 .tasksTable th,
 .tasksTable td,
 .unitsTable th,
 .unitsTable td {
-  padding: 9px 12px;
+  padding: 12px 12px;
   border-bottom: var(--border-width-thin) solid var(--card-border);
   vertical-align: middle;
   font-size: 13px;
@@ -229,9 +270,19 @@
   z-index: 1;
   background: var(--surface-1);
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.unitsTable th {
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
+.unitsTable td {
+  padding-top: 20px;
+  padding-bottom: 20px;
 }
 
 .tasksTable tbody tr:last-child td,
@@ -242,6 +293,33 @@
 .tasksTable tbody tr:hover td,
 .unitsTable tbody tr:hover td {
   background: color-mix(in srgb, var(--border-primary) 5%, var(--surface-1));
+}
+
+.tasksTable th:first-child,
+.tasksTable td.taskNumberCell {
+  text-align: left;
+}
+
+.tasksNumberHeader {
+  width: 72px;
+}
+
+.tasksTypeHeader {
+  width: 170px;
+}
+
+.tasksStatusHeader {
+  width: 160px;
+}
+
+.tasksAttemptsHeader,
+.tasksPhotoHeader {
+  width: 108px;
+}
+
+.tasksExpandHeader {
+  width: 44px;
+  text-align: center;
 }
 
 .unitsTable th:first-child,
@@ -265,10 +343,7 @@
 }
 
 .unitTitleButton:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  text-decoration-thickness: 1px;
-  text-decoration-color: color-mix(in srgb, var(--border-primary) 55%, transparent);
+  color: var(--text-primary);
 }
 
 .unitTitleButton:focus-visible {
@@ -277,68 +352,83 @@
   border-radius: 4px;
 }
 
-.unitStatusCell {
-  display: grid;
-  gap: 4px;
-  justify-items: center;
-}
-
-.unitOverrideInline {
+.unitTitleMeta {
+  margin-top: 8px;
   color: var(--text-muted);
   font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   line-height: 1.25;
 }
 
 .unitsActionsHeader {
-  width: 180px;
+  width: 210px;
 }
 
 .unitActionsCell {
   text-align: center;
 }
 
+.unitProgressCell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.progressTrack {
+  position: relative;
+  width: 148px;
+  height: 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-2) 90%, var(--glass-border));
+  overflow: hidden;
+}
+
+.progressFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: color-mix(in srgb, #10b981 84%, var(--text-primary));
+}
+
+.progressValue {
+  min-width: 44px;
+  text-align: right;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.solvedAccent {
+  color: color-mix(in srgb, #10b981 80%, var(--text-primary));
+  font-weight: 700;
+}
+
 .taskRowExpanded td {
   background: color-mix(in srgb, var(--border-primary) 9%, var(--surface-1));
 }
 
-.taskIndexCell {
-  width: 170px;
+.taskNumberCell {
+  min-width: 74px;
+  padding-left: 16px;
 }
 
-.taskIndexHead {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.taskIndexValue {
+.taskNumberValue {
   color: var(--text-primary);
   font-weight: 700;
   font-size: 14px;
-}
-
-.requiredIcon {
-  color: color-mix(in srgb, #d97706 72%, var(--text-primary));
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.taskIndexHint {
-  margin-top: 4px;
-  color: var(--text-muted);
-  font-size: 12px;
-  line-height: 1.35;
-  max-width: 280px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
 }
 
 .tasksActionsHeader {
   text-align: center;
-  width: 340px;
+  width: 168px;
 }
 
 .tableCenterCell {
@@ -356,20 +446,68 @@
 }
 
 .tableActions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(102px, auto));
-  gap: 6px;
+  display: inline-flex;
   justify-content: center;
   align-items: center;
+  width: 100%;
+  min-height: 30px;
 }
 
-.actionPlaceholder {
-  height: 30px;
-  border-radius: var(--control-radius);
-  visibility: hidden;
+.taskActionsCell {
+  text-align: center;
+}
+
+.requiredTaskRow td:first-child {
+  box-shadow: inset 3px 0 0 color-mix(in srgb, #d97706 70%, var(--surface-1));
+}
+
+.statementToggleCell {
+  text-align: center;
+  width: 44px;
+}
+
+.statementToggleButton {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  width: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.2s ease, background-color 0.2s ease;
+  border-radius: 8px;
+}
+
+.statementToggleButton:hover {
+  color: var(--text-primary);
+}
+
+.statementToggleButton:focus-visible {
+  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.statementToggleIcon {
+  width: 14px;
+  height: 14px;
+}
+
+.photoPendingButton {
+  cursor: pointer;
 }
 
 .inlineActionAccent {
+  --button-bg: color-mix(in srgb, #3b82f6 10%, var(--surface-1));
+  --button-border: color-mix(in srgb, #3b82f6 34%, var(--glass-border));
+  --button-text: var(--text-primary);
+  --button-hover-bg: color-mix(in srgb, #3b82f6 16%, var(--surface-1));
+  --button-hover-border: color-mix(in srgb, #3b82f6 52%, var(--glass-border));
+  --button-hover-text: var(--text-primary);
   border-color: color-mix(in srgb, #3b82f6 34%, var(--glass-border));
   background: color-mix(in srgb, #3b82f6 10%, var(--surface-1));
 }
@@ -477,7 +615,10 @@
   border: var(--border-width-thin) solid var(--glass-border);
   background: var(--surface-1);
   color: var(--text-primary);
-  padding: 3px 10px;
+  padding: 5px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .statusNeutral {
@@ -505,6 +646,32 @@
   background: color-mix(in srgb, #3b82f6 10%, var(--surface-1));
 }
 
+.unitStatusLocked {
+  border-color: color-mix(in srgb, #ef4444 34%, var(--glass-border));
+  background: color-mix(in srgb, #ef4444 12%, var(--surface-1));
+}
+
+.unitStatusAvailable {
+  border-color: color-mix(in srgb, #3b82f6 34%, var(--glass-border));
+  background: color-mix(in srgb, #3b82f6 10%, var(--surface-1));
+}
+
+.unitStatusInProgress {
+  border-color: color-mix(in srgb, #d97706 34%, var(--glass-border));
+  background: color-mix(in srgb, #d97706 12%, var(--surface-1));
+}
+
+.unitStatusCompleted {
+  border-color: color-mix(in srgb, #22c55e 34%, var(--glass-border));
+  background: color-mix(in srgb, #22c55e 12%, var(--surface-1));
+}
+
+.photoPendingStrong {
+  min-width: 34px;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
 .taskStatementCell :global(.katex-display) {
   margin: 0.4em 0;
 }
@@ -514,8 +681,24 @@
     grid-template-columns: 1fr;
   }
 
+  .drillHeader {
+    align-items: flex-start;
+  }
+
+  .pathNav {
+    justify-content: flex-start;
+  }
+
   .tasksTableWrap,
   .unitsTableWrap {
     overflow-x: auto;
+  }
+
+  .unitProgressCell {
+    min-width: 210px;
+  }
+
+  .tableActions {
+    margin-left: 0;
   }
 }
