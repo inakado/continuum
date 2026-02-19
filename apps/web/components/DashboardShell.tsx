@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart3, BookOpen, ClipboardCheck, FileText, LogOut, Users } from "lucide-react";
+import { BarChart3, BookOpen, ClipboardCheck, FileText, LogOut, Settings, Users } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import ThemeToggle from "@/components/ThemeToggle";
 import styles from "./dashboard-shell.module.css";
@@ -19,6 +19,7 @@ type DashboardShellProps = {
   children: ReactNode;
   appearance?: "default" | "glass";
   onLogout?: () => void;
+  settingsHref?: string;
 };
 
 const SIDEBAR_DIMENSIONS = {
@@ -77,6 +78,7 @@ export default function DashboardShell({
   children,
   appearance = "default",
   onLogout,
+  settingsHref,
 }: DashboardShellProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const closeTimer = useRef<number | null>(null);
@@ -228,7 +230,7 @@ export default function DashboardShell({
           Перейти к содержимому
         </a>
         <div
-          className={styles.shell}
+          className={`${styles.shell} ${settingsHref ? styles.shellWithSettings : ""}`}
           data-sidebar-open={isSidebarOpen ? "true" : "false"}
           ref={shellRef}
         >
@@ -256,11 +258,23 @@ export default function DashboardShell({
           >
             <div className={styles.sidebarInner}>
               <div className={styles.sidebarHeader}>
-                <div>
+                <div className={styles.sidebarHeaderText}>
                   <div className={styles.kicker}>Континуум</div>
                   <div className={styles.sidebarTitle}>{title}</div>
                 </div>
-                <ThemeToggle compact />
+                <div className={styles.sidebarHeaderActions}>
+                  {settingsHref ? (
+                    <Link
+                      href={settingsHref}
+                      className={styles.sidebarIconAction}
+                      aria-label="Настройки преподавателя"
+                      title="Настройки преподавателя"
+                    >
+                      <Settings className={styles.navIcon} aria-hidden="true" strokeWidth={1.7} />
+                    </Link>
+                  ) : null}
+                  <ThemeToggle compact />
+                </div>
               </div>
               {subtitle ? <div className={styles.sidebarSubtitle}>{subtitle}</div> : null}
               <nav className={styles.nav} aria-label="Разделы">

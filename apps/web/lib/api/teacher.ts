@@ -92,6 +92,7 @@ export type StudentSummary = {
   lastName?: string | null;
   leadTeacherId: string;
   leadTeacherLogin: string;
+  leadTeacherDisplayName?: string;
   createdAt: string;
   updatedAt: string;
   activeNotificationsCount: number;
@@ -101,6 +102,22 @@ export type StudentSummary = {
 export type TeacherSummary = {
   id: string;
   login: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  middleName?: string | null;
+};
+
+export type TeacherMeResponse = {
+  user: {
+    id: string;
+    login: string;
+    role: "teacher" | "student" | string;
+  };
+  profile: {
+    firstName: string;
+    lastName: string;
+    middleName?: string | null;
+  } | null;
 };
 
 export type TeacherNotification = {
@@ -179,6 +196,7 @@ export type TeacherStudentProfileResponse = {
     lastName?: string | null;
     leadTeacherId: string;
     leadTeacherLogin: string;
+    leadTeacherDisplayName?: string;
   };
   notifications: {
     activeCount: number;
@@ -499,6 +517,28 @@ export const teacherApi = {
     return apiRequest<MeResponse>("/auth/me");
   },
 
+  getTeacherMe() {
+    return apiRequest<TeacherMeResponse>("/teacher/me");
+  },
+
+  updateTeacherMeProfile(data: {
+    firstName: string;
+    lastName: string;
+    middleName?: string | null;
+  }) {
+    return apiRequest<TeacherMeResponse>("/teacher/me", {
+      method: "PATCH",
+      body: data,
+    });
+  },
+
+  changeTeacherMyPassword(data: { currentPassword: string; newPassword: string }) {
+    return apiRequest<{ ok: true }>("/teacher/me/change-password", {
+      method: "POST",
+      body: data,
+    });
+  },
+
   listCourses() {
     return apiRequest<Course[]>("/teacher/courses");
   },
@@ -773,6 +813,39 @@ export const teacherApi = {
 
   listTeachers() {
     return apiRequest<TeacherSummary[]>("/teacher/teachers");
+  },
+
+  createTeacher(data: {
+    login: string;
+    firstName: string;
+    lastName: string;
+    middleName?: string | null;
+    password?: string | null;
+    generatePassword?: boolean;
+  }) {
+    return apiRequest<{
+      id: string;
+      login: string;
+      firstName: string;
+      lastName: string;
+      middleName?: string | null;
+      password?: string | null;
+    }>("/teacher/teachers", {
+      method: "POST",
+      body: data,
+    });
+  },
+
+  deleteTeacher(id: string) {
+    return apiRequest<{
+      id: string;
+      login: string;
+      firstName?: string | null;
+      lastName?: string | null;
+      middleName?: string | null;
+    }>(`/teacher/teachers/${id}`, {
+      method: "DELETE",
+    });
   },
 
   getStudentProfile(studentId: string, params?: { courseId?: string }) {

@@ -9,6 +9,7 @@ export type MeResponse = {
   profile?: {
     firstName?: string | null;
     lastName?: string | null;
+    middleName?: string | null;
   } | null;
 };
 

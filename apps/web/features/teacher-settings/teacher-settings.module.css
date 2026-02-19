@@ -1,0 +1,157 @@
+.content {
+  display: grid;
+  gap: 16px;
+}
+
+.header {
+  display: grid;
+  gap: 4px;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-unbounded), sans-serif;
+  font-weight: 300;
+  font-size: clamp(22px, 2vw, 30px);
+  color: var(--text-primary);
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.card {
+  border: var(--border-width) solid var(--panel-border);
+  border-radius: var(--card-radius);
+  background: var(--card-bg);
+  box-shadow: var(--card-shadow);
+  padding: 16px 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.cardTitle {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.grid2,
+.grid3 {
+  display: grid;
+  gap: 10px;
+}
+
+.grid2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.grid3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rowActions button {
+  --button-bg: var(--surface-1);
+  --button-border: var(--glass-border);
+  --button-text: var(--text-primary);
+  --button-hover-bg: var(--surface-2);
+  --button-hover-border: var(--border-primary);
+  --button-hover-text: var(--text-primary);
+  --button-hover-shadow: var(--nav-hover-shadow);
+}
+
+.status {
+  min-height: 18px;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.generatedPassword {
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: var(--control-radius);
+  background: color-mix(in srgb, var(--surface-1) 90%, transparent);
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.error {
+  border: var(--border-width-thin) solid color-mix(in srgb, #ef4444 35%, var(--glass-border));
+  border-radius: var(--control-radius);
+  background: color-mix(in srgb, #ef4444 10%, var(--surface-2));
+  color: var(--text-primary);
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.stub {
+  border: var(--border-width-thin) dashed var(--glass-border);
+  border-radius: var(--control-radius);
+  background: color-mix(in srgb, var(--surface-1) 88%, transparent);
+  color: var(--text-muted);
+  padding: 10px;
+  font-size: 12px;
+}
+
+.teacherList {
+  display: grid;
+  gap: 8px;
+}
+
+.teacherRow {
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: var(--control-radius);
+  background: color-mix(in srgb, var(--surface-1) 92%, transparent);
+  padding: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.teacherMain {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.teacherName {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.teacherLogin {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.selfBadge {
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}

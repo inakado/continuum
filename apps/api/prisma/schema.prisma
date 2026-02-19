@@ -86,6 +86,7 @@ model User {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   domainEventLogs               DomainEventLog[]      @relation("DomainEventActor")
+  teacherProfile                TeacherProfile?
   studentProfile                StudentProfile?       @relation("StudentProfileUser")
   leadStudents                  StudentProfile[]      @relation("StudentProfileLeadTeacher")
   studentUnitStates             StudentUnitState[]
@@ -158,6 +159,19 @@ model StudentProfile {
 
   @@index([leadTeacherId])
   @@map("student_profile")
+}
+
+model TeacherProfile {
+  userId     String   @id @map("user_id") @db.Uuid
+  firstName  String   @map("first_name")
+  lastName   String   @map("last_name")
+  middleName String?  @map("middle_name")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("teacher_profile")
 }
 
 model Course {

@@ -11,6 +11,7 @@ import { teacherApi, Course, CourseWithSections, Section } from "@/lib/api/teach
 import { getContentStatusLabel } from "@/lib/status-labels";
 import { getApiErrorMessage } from "@/features/teacher-content/shared/api-errors";
 import { useTeacherLogout } from "@/features/teacher-content/auth/use-teacher-logout";
+import { useTeacherIdentity } from "@/features/teacher-content/shared/use-teacher-identity";
 import TeacherStudentsPanel from "@/features/teacher-students/TeacherStudentsPanel";
 import TeacherReviewInboxPanel from "@/features/teacher-review/TeacherReviewInboxPanel";
 import TeacherReviewSubmissionDetailPanel from "@/features/teacher-review/TeacherReviewSubmissionDetailPanel";
@@ -541,6 +542,7 @@ export default function TeacherDashboardScreen({
 }: TeacherDashboardScreenProps) {
   const router = useRouter();
   const handleLogout = useTeacherLogout();
+  const identity = useTeacherIdentity();
   const content = CONTENT_BY_SECTION[active];
   const navItems = useMemo(() => getNavItems(active), [active]);
   const showMainHeader = active !== "edit";
@@ -560,7 +562,13 @@ export default function TeacherDashboardScreen({
   };
 
   return (
-    <DashboardShell title="Преподаватель" navItems={navItems} appearance="glass" onLogout={handleLogout}>
+    <DashboardShell
+      title={identity.displayName || "Преподаватель"}
+      navItems={navItems}
+      appearance="glass"
+      onLogout={handleLogout}
+      settingsHref="/teacher/settings"
+    >
       <div className={styles.content}>
         {showMainHeader ? (
           <div className={styles.header}>

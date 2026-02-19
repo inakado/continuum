@@ -377,7 +377,9 @@ export default function TeacherStudentProfilePanel({
               </span>
               <span className={styles.headerMetaItem}>
                 <GraduationCap className={styles.headerMetaIcon} aria-hidden="true" />
-                <span className={styles.headerMetaValue}>{details.profile.leadTeacherLogin ?? "—"}</span>
+                <span className={styles.headerMetaValue}>
+                  {details.profile.leadTeacherDisplayName ?? details.profile.leadTeacherLogin ?? "—"}
+                </span>
               </span>
             </div>
           ) : null}

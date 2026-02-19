@@ -24,6 +24,7 @@ import { teacherApi } from "@/lib/api/teacher";
 import { getContentStatusLabel } from "@/lib/status-labels";
 import { getApiErrorMessage } from "../shared/api-errors";
 import { useTeacherLogout } from "../auth/use-teacher-logout";
+import { useTeacherIdentity } from "../shared/use-teacher-identity";
 import TaskForm, { type TaskFormData } from "../tasks/TaskForm";
 import styles from "./teacher-unit-detail.module.css";
 import {
@@ -276,6 +277,7 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
   const tabsId = useId();
   const router = useRouter();
   const handleLogout = useTeacherLogout();
+  const identity = useTeacherIdentity();
   const [unit, setUnit] = useState<UnitWithTasks | null>(null);
   const [courseTitle, setCourseTitle] = useState<string | null>(null);
   const [sectionTitle, setSectionTitle] = useState<string | null>(null);
@@ -1272,10 +1274,11 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
 
   return (
     <DashboardShell
-      title="Преподаватель"
+      title={identity.displayName || "Преподаватель"}
       navItems={navItems}
       appearance="glass"
       onLogout={handleLogout}
+      settingsHref="/teacher/settings"
     >
       <div className={styles.content}>
         <div className={styles.header}>

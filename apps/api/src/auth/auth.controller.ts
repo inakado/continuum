@@ -139,15 +139,24 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('me')
   async me(@Req() req: AuthRequest) {
-    if (req.user.role !== Role.student) {
-      return { user: req.user, profile: null };
+    if (req.user.role === Role.student) {
+      const profile = await this.prisma.studentProfile.findUnique({
+        where: { userId: req.user.id },
+        select: { firstName: true, lastName: true },
+      });
+
+      return { user: req.user, profile };
     }
 
-    const profile = await this.prisma.studentProfile.findUnique({
-      where: { userId: req.user.id },
-      select: { firstName: true, lastName: true },
-    });
+    if (req.user.role === Role.teacher) {
+      const profile = await this.prisma.teacherProfile.findUnique({
+        where: { userId: req.user.id },
+        select: { firstName: true, lastName: true, middleName: true },
+      });
 
-    return { user: req.user, profile };
+      return { user: req.user, profile };
+    }
+
+    return { user: req.user, profile: null };
   }
 }

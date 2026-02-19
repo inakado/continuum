@@ -19,6 +19,7 @@ export type ApiErrorCode =
   | "UNIT_LOCKED"
   | "STUDENT_NOT_ASSIGNED_TO_TEACHER"
   | "STUDENT_NOT_FOUND"
+  | "TEACHER_NOT_FOUND"
   | "UNIT_NOT_FOUND"
   | "TASK_NOT_FOUND"
   | "TASK_STATE_NOT_FOUND"
@@ -26,7 +27,14 @@ export type ApiErrorCode =
   | "OVERRIDE_ALREADY_EXISTS"
   | "TASK_NOT_BLOCKED"
   | "PHOTO_SUBMISSION_NOT_FOUND"
-  | "INVALID_ASSET_KEY";
+  | "INVALID_ASSET_KEY"
+  | "INVALID_CURRENT_PASSWORD"
+  | "WEAK_PASSWORD"
+  | "LOGIN_ALREADY_EXISTS"
+  | "LOGIN_REQUIRED"
+  | "INVALID_PROFILE_NAME"
+  | "CANNOT_DELETE_SELF"
+  | "TEACHER_HAS_STUDENTS";
 
 const contentStatusLabels: Record<ContentStatus, string> = {
   draft: "Черновик",
@@ -62,6 +70,7 @@ const apiErrorCodeLabels: Record<ApiErrorCode, string> = {
   UNIT_LOCKED: "Юнит пока заблокирован.",
   STUDENT_NOT_ASSIGNED_TO_TEACHER: "Ученик не назначен этому преподавателю.",
   STUDENT_NOT_FOUND: "Ученик не найден.",
+  TEACHER_NOT_FOUND: "Преподаватель не найден.",
   UNIT_NOT_FOUND: "Юнит не найден.",
   TASK_NOT_FOUND: "Задача не найдена.",
   TASK_STATE_NOT_FOUND: "Состояние задачи ученика не найдено.",
@@ -70,6 +79,13 @@ const apiErrorCodeLabels: Record<ApiErrorCode, string> = {
   TASK_NOT_BLOCKED: "Задача сейчас не заблокирована.",
   PHOTO_SUBMISSION_NOT_FOUND: "Фото-отправка не найдена.",
   INVALID_ASSET_KEY: "Файл не найден для выбранной отправки.",
+  INVALID_CURRENT_PASSWORD: "Текущий пароль указан неверно.",
+  WEAK_PASSWORD: "Пароль слишком слабый: минимум 8 символов, буквы и цифры.",
+  LOGIN_ALREADY_EXISTS: "Такой логин уже существует.",
+  LOGIN_REQUIRED: "Укажите логин.",
+  INVALID_PROFILE_NAME: "Проверьте корректность ФИО.",
+  CANNOT_DELETE_SELF: "Нельзя удалить собственного пользователя.",
+  TEACHER_HAS_STUDENTS: "Нельзя удалить преподавателя, пока к нему привязаны ученики.",
 };
 
 export const getContentStatusLabel = (status?: ContentStatus | null) => {

@@ -440,7 +440,9 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
                       <div className={styles.identity}>
                         <div className={styles.studentName}>{getDisplayName(student)}</div>
                         <div className={styles.studentMeta}>Логин: {student.login}</div>
-                        <div className={styles.studentMeta}>Ведущий: {student.leadTeacherLogin}</div>
+                        <div className={styles.studentMeta}>
+                          Ведущий: {student.leadTeacherDisplayName ?? student.leadTeacherLogin}
+                        </div>
                       </div>
                       <div
                         className={styles.actionsMenu}

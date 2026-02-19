@@ -119,6 +119,10 @@
     --main-shell-squeeze var(--sidebar-motion-duration) var(--sidebar-motion-ease);
 }
 
+.shellWithSettings {
+  --sidebar-icon-slot: 66px;
+}
+
 .sidebar {
   position: fixed;
   top: 0;
@@ -175,7 +179,7 @@
   align-self: stretch;
 }
 
-.sidebarHeader > div {
+.sidebarHeaderText {
   overflow: hidden;
   max-width: 100%;
   opacity: 1;
@@ -183,6 +187,39 @@
   transition: max-width var(--sidebar-motion-duration) var(--sidebar-motion-ease),
     opacity var(--sidebar-motion-duration) var(--sidebar-motion-ease),
     transform var(--sidebar-motion-duration) var(--sidebar-motion-ease);
+}
+
+.sidebarHeaderActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.sidebarIconAction {
+  width: var(--theme-toggle-compact, 34px);
+  height: var(--theme-toggle-compact, 34px);
+  min-width: var(--theme-toggle-compact, 34px);
+  min-height: var(--theme-toggle-compact, 34px);
+  border: var(--border-width) solid var(--panel-border);
+  border-radius: var(--theme-toggle-radius, var(--control-radius));
+  background: var(--panel-bg);
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.sidebarIconAction:hover {
+  transform: translateY(-1px);
+  background: var(--bg-accent);
+  color: var(--text-accent);
+}
+
+.sidebarIconAction:focus-visible {
+  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .kicker {
@@ -308,7 +345,7 @@
   will-change: transform;
 }
 
-.shell[data-sidebar-open="false"] .sidebarHeader > div {
+.shell[data-sidebar-open="false"] .sidebarHeaderText {
   max-width: 0;
   opacity: 0;
 }
@@ -322,6 +359,19 @@
   padding-right: calc((var(--sidebar-width) - var(--sidebar-icon-slot)) / 2);
   gap: 0;
   justify-content: center;
+}
+
+.shellWithSettings[data-sidebar-open="false"] {
+  --theme-toggle-compact: 30px;
+  --theme-toggle-icon: 18px;
+  --theme-toggle-radius: 10px;
+  --sidebar-icon-slot: 44px;
+}
+
+.shellWithSettings[data-sidebar-open="false"] .sidebarHeaderActions {
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
 }
 
 .shell[data-sidebar-open="false"] .sidebarInner {
@@ -407,7 +457,7 @@
     display: block;
   }
 
-  .shell[data-sidebar-open="false"] .sidebarHeader > div {
+  .shell[data-sidebar-open="false"] .sidebarHeaderText {
     max-width: 100%;
     opacity: 1;
   }
