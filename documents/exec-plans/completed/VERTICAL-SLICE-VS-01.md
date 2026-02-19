@@ -1,4 +1,7 @@
-# VERTICAL-SLICE-VS-01.md
+# VERTICAL-SLICE-VS-01
+Статус: `Archived` (migrated execution plan; source of truth — code).
+
+> Этот документ перемещён из `documents/` в `documents/exec-plans/completed/` (plans are first-class artifacts).
 Проект: **Континуум**  
 Слайс: **VS-01 — Контентный скелет + публикация + просмотр учеником**  
 Назначение документа: дать агенту “картину целиком” по VS-01 (что и в каком порядке делаем), без глубоких деталей реализации.

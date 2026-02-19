@@ -1,4 +1,7 @@
-# VERTICAL-SLICE-VS-09.md
+# VERTICAL-SLICE-VS-09
+Статус: `Archived` (migrated execution plan; source of truth — code).
+
+> Этот документ перемещён из `documents/` в `documents/exec-plans/completed/` (plans are first-class artifacts).
 Проект: **CONTINUUM**  
 Слайс: **VS-09 Theory/Method PDF Pipeline**  
 Статус: **STEP 4 (override) реализован**

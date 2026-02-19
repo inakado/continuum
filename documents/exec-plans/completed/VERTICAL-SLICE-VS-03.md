@@ -1,4 +1,7 @@
-# VERTICAL-SLICE-VS-03.md
+# VERTICAL-SLICE-VS-03
+Статус: `Archived` (migrated execution plan; source of truth — code).
+
+> Этот документ перемещён из `documents/` в `documents/exec-plans/completed/` (plans are first-class artifacts).
 Проект: **Континуум**  
 Слайс: **VS-03 — Learning Core v1: Students + Attempts + Shuffling + Task Statuses + 3+3 + Notifications (без фото-ревью)**  
 Назначение: дать агенту **картину целиком** по VS-03 — *что делаем и в каком порядке*, без глубоких деталей реализации.  
@@ -12,7 +15,7 @@
 2) Минимальный набор для VS-03:
    - `VERTICAL-SLICE-VS-03.md` (этот файл)
    - `ARCHITECTURE.md` (границы BC, слои, modular monolith)
-   - `ER-MODEL.md` (сущности attempts/progress/notifications, PK/FK/индексы)
+   - `apps/api/prisma/schema.prisma` + `documents/generated/db-schema.md` (SoR по БД)
    - `DOMAIN-EVENTS.md` (каноничные имена событий и категории)
    - `HANDLER-MAP.md` (куда писать handlers/jobs)
    - `DECISIONS.md` (ключевые правила 3+3, required, ревизии и пр.)

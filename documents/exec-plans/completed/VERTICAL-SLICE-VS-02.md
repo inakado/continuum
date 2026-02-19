@@ -1,10 +1,13 @@
-# VERTICAL-SLICE-VS-02.md
+# VERTICAL-SLICE-VS-02
+Статус: `Archived` (migrated execution plan; source of truth — code).
+
+> Этот документ перемещён из `documents/` в `documents/exec-plans/completed/` (plans are first-class artifacts).
 Проект: «Континуум»  
 Слайс: VS-02 — Dashboards + Graph Editor + Unit Tabs (Theory/Method/Tasks/Video/Attachments)  
 Статус: draft (для реализации агентом)
 
 > **Назначение документа:** дать агенту целостную картину VS-02: что делаем, в каком порядке, какие API/таблицы/страницы затрагиваем.  
-> **Правило:** перед началом любого шага агент читает `documents/DOCS-INDEX.md`, затем открывает нужные документы (например `ARCHITECTURE.md`, `DESIGN-SYSTEM.md`, `ER-MODEL.md`, `HANDLER-MAP.md`, `DOMAIN-EVENTS.md`).  
+> **Правило:** перед началом любого шага агент читает `documents/DOCS-INDEX.md`, затем открывает нужные документы (например `ARCHITECTURE.md`, `DESIGN-SYSTEM.md`, `documents/generated/db-schema.md`, `HANDLER-MAP.md`, `DOMAIN-EVENTS.md`).  
 > **Важно:** VS-02 не включает прогресс/попытки/unlock — только UX + граф + вкладки юнита.
 
 ---

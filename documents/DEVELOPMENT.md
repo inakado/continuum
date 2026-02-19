@@ -2,6 +2,10 @@
 
 Краткий контрольный контур для dev‑запуска.
 
+Статус: `Draft` (источник истины — код/скрипты).
+
+## Implemented
+
 ## Переменные
 - `API_PORT` (default: 3000)
 - `NEXT_PUBLIC_API_BASE_URL` (default: http://localhost:3000)
@@ -23,7 +27,7 @@
 Проверяет:
 1) API `/health` и `/ready`
 2) `POST /debug/enqueue-ping`
-3) Web `/debug`
+3) Web `/login`
 
 ## Prisma / миграции
 1) Схема менялась → создаём миграцию в контейнере:
@@ -45,3 +49,7 @@
    - повторить `docker compose up -d --build api` после успешного `pnpm -w install`.
 4) Если зависимости уже установлены и нужно лишь подхватить изменения кода, можно быстрее:
    - `docker compose restart api`
+
+## Planned
+
+- CI-проверки документации (валидность ссылок, отсутствие сирот, наличие `Implemented/Planned` в ключевых SoR-доках).

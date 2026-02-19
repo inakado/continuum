@@ -1,213 +1,106 @@
-# DOMAIN-EVENTS.md
-**Проект:** «Континуум» закрытая платформа обучения (Teachers + Students)  
-**Назначение:** единый каталог доменных событий (фактов домена) для audit log, проекций (analytics/search), отладки.  
-**Принцип:** событие = “факт в домене”, не “insert/update”.  
-**Категории:** `admin | learning | system`  
+# DOMAIN-EVENTS
+**Проект:** «Континуум»  
+**Назначение:** единый каталог доменных событий (audit log + диагностика + будущие проекции).  
 
+Статус: `Draft` (источник истины — код).
 
----
+## 0) Общие правила (`Implemented`)
 
-## 0) Общие правила
+1) Событие пишется после успешного выполнения операции (обычно сразу после записи в БД).
+2) Событие хранится в `domain_event_log` (см. `apps/api/prisma/schema.prisma`, модель `DomainEventLog`).
+3) `payload` всегда включает `actorRole` (добавляется в `EventsLogService.append()`), даже если `actor_user_id` = null.
 
-1) **Событие пишется после успешного выполнения команды** (обычно в той же транзакции).
-2) У события есть минимум:
-   - `event_type` (строка)
-   - `category` (admin|learning|system)
-   - `actor_user_id` (nullable)
-   - `entity_ref` (`entity_type`, `entity_id`)
-   - `occurred_at`
-   - `payload` (jsonb, минимальный)
-3) События используются:
-   - для audit log (чтение/фильтрация),
-   - для инкрементальных проекций (analytics/search),
-   - для batch/диагностики пересчётов (publish/unpublish/graph updates).
+Поля в БД:
+- `category`: `admin | learning | system`
+- `event_type`: строка
+- `actor_user_id`: nullable
+- `entity_type`, `entity_id`
+- `payload`: json
+- `occurred_at`
 
----
+## 1) Список событий (`Implemented`, extracted from code)
 
-## 1) Identity & Access (BC1)
+> Источник: фактические вызовы `eventsLogService.append({ eventType: ... })` в `apps/api/src/**`.
 
-### Admin
-- **TeacherCreated** (admin)
-- **TeacherUpdated** (admin)
-- **StudentCreated** (admin)
-- **StudentPasswordReset** (admin)
-- **LeadTeacherAssignedToStudent** (admin) — первичное назначение
-- **LeadTeacherReassignedForStudent** (admin) — передача ученика другому ведущему
+### 1.1 Identity & Access (BC1-ish)
 
-### System
-- **UserAuthenticated** (system)
-- **UserLoggedOut** (system)
+- `TeacherCreated` (admin)
+- `TeacherDeleted` (admin)
+- `TeacherProfileUpdated` (admin)
+- `TeacherPasswordChanged` (admin)
+- `StudentCreated` (admin)
+- `StudentDeleted` (admin)
+- `StudentProfileUpdated` (admin)
+- `StudentPasswordReset` (admin)
+- `LeadTeacherAssignedToStudent` (admin)
+- `LeadTeacherReassignedForStudent` (admin)
 
-### Admin / Learning
-- **UserPasswordChanged** (admin|learning) — по роли/контексту
+### 1.2 Content (BC2)
 
----
+- `CourseCreated` (admin)
+- `CourseUpdated` (admin)
+- `CoursePublished` (admin)
+- `CourseUnpublished` (admin)
+- `CourseDeleted` (admin)
 
-## 2) Content Authoring & Publishing (BC2)
+- `SectionCreated` (admin)
+- `SectionUpdated` (admin)
+- `SectionPublished` (admin)
+- `SectionUnpublished` (admin)
+- `SectionDeleted` (admin)
 
-### Courses
-- **CourseCreated** (admin)
-- **CourseUpdated** (admin)
-- **CoursePublished** (admin)
-- **CourseUnpublished** (admin)
+- `UnitCreated` (admin)
+- `UnitUpdated` (admin)
+- `UnitPublished` (admin)
+- `UnitUnpublished` (admin)
+- `UnitDeleted` (admin)
 
-### Sections
-- **SectionCreated** (admin)
-- **SectionUpdated** (admin)
-- **SectionPublished** (admin)
-- **SectionUnpublished** (admin)
+- `TaskCreated` (admin)
+- `TaskRevised` (admin)
+- `TaskPublished` (admin)
+- `TaskUnpublished` (admin)
+- `TaskDeleted` (admin)
 
-### Units
-- **UnitCreated** (admin)
-- **UnitUpdated** (admin)
-- **UnitPublished** (admin)
-- **UnitUnpublished** (admin)
+- `UnitGraphUpdated` (admin)
 
-### Unit Graph (внутри section)
-- **UnitGraphEdgeAdded** (admin)
-- **UnitGraphEdgeRemoved** (admin)
-- **UnitGraphUpdated** (admin) — если применяем команду “set edges” пачкой
+### 1.3 Rendering (BC6-ish)
 
-### Tasks / Revisions
-- **TaskCreated** (admin)
-- **TaskPublished** (admin)
-- **TaskUnpublished** (admin)
-- **TaskRevised** (admin) — любое изменение → новая ревизия, активируется новая
-- **TaskRequiredFlagChanged** (admin)
+- `TaskSolutionPdfCompiled` (admin)
 
-### Concepts
-- **ConceptCreated** (admin)
-- **ConceptUpdated** (admin)
-- **ConceptArchived** (admin) — на будущее
-- **ConceptLinkedToUnit** (admin)
-- **ConceptUnlinkedFromUnit** (admin)
+### 1.4 Learning (BC3)
 
----
+- `AttemptSubmitted` (learning)
+- `AttemptEvaluatedCorrect` (learning)
+- `AttemptEvaluatedIncorrect` (learning)
+- `TaskLockedForStudent` (system)
+- `TaskAutoCreditedWithoutProgress` (system)
+- `RequiredTaskSkippedFlagSet` (system)
+- `TaskUnblockedForStudent` (admin)
+- `TaskTeacherCreditedForStudent` (admin)
+- `UnitOverrideOpenedForStudent` (admin)
 
-## 3) Learning Progress & Unlock (BC3)
+### 1.5 Manual Review (Photo) (BC4)
 
-### Unit availability / reach
-- **UnitBecameAvailableForStudent** (system)
-  - смысл: юнит впервые перешёл в `available` для ученика (это и есть метрика “дошли”)
-  - payload: `{ student_id, unit_id, reason: "unlock"|"override"|"recompute" }`
+- `PhotoAttemptSubmitted` (learning)
+- `PhotoAttemptAccepted` (admin)
+- `PhotoAttemptRejected` (admin)
 
-### Unit state transitions
-- **UnitProgressStartedForStudent** (learning)
-  - смысл: первый Attempt внутри юнита (строгий триггер)
-  - payload: `{ student_id, unit_id, first_attempt_id }`
+## 2) Planned / TODO
 
-- **UnitCompletedByStudent** (learning|system)
-  - смысл: выполнены required-гейты + min_counted_tasks (counted)
-  - payload: `{ student_id, unit_id, counted_tasks, solved_tasks, total_tasks }`
+> Эти события встречаются в старых legacy-доках/планах, но пока не подтверждены в коде как эмитящиеся.
 
-### Attempts (auto-check: numeric/single/multi)
-- **AttemptSubmitted** (learning)
-  - payload: `{ attempt_id, student_id, task_id, task_revision_id, kind }`
-- **AttemptEvaluatedCorrect** (learning)
-  - payload: `{ attempt_id, task_id, task_revision_id }`
-- **AttemptEvaluatedIncorrect** (learning)
-  - payload: `{ attempt_id, task_id, task_revision_id, wrong_attempts_after }`
+- `UserAuthenticated`, `UserLoggedOut`, `UserPasswordChanged`
+- `UnitBecameAvailableForStudent`, `UnitProgressStartedForStudent`, `UnitCompletedByStudent`
+- `TaskRequiredFlagChanged` (если вводим отдельную команду вместо “пересоздания ревизии/обновления”)
+- Rendering job lifecycle events (`RenderJobQueued|Started|Succeeded|Failed`, etc.) — если решим фиксировать их как события (сейчас это не нужно для core behavior).
 
-### Locks / auto-credit (3+3)
-- **TaskLockedForStudent** (system)
-  - смысл: 3-я неправильная попытка → `locked_until`
-  - payload: `{ student_id, task_id, task_revision_id, locked_until }`
+## 3) Source links
 
-- **TaskAutoCreditedWithoutProgress** (system)
-  - смысл: 6-я неправильная попытка → `credited_without_progress` + показ решения/ответа
-  - payload: `{ student_id, task_id, task_revision_id, required: bool }`
-
-- **RequiredTaskSkippedFlagSet** (system)
-  - смысл: required-задача была auto-credited → `required_skipped=true`
-  - payload: `{ student_id, task_id, task_revision_id }`
-
-### Teacher actions on progress
-- **UnitOverrideOpenedForStudent** (admin)
-  - payload: `{ teacher_id, student_id, unit_id }`
-
-- **TaskTeacherCreditedForStudent** (admin)
-  - смысл: учитель зачёл задачу так, чтобы она учитывалась в solved% (teacher_credited)
-  - payload: `{ teacher_id, student_id, task_id, task_revision_id, from_status }`
-
----
-
-## 4) Manual Review (Photo) (BC4)
-
-- **PhotoAttemptSubmitted** (learning)
-  - payload: `{ attempt_id, student_id, task_id, task_revision_id, asset_ids[] }`
-
-- **PhotoAttemptAccepted** (admin)
-  - payload: `{ attempt_id, decided_by_teacher_id, student_id, task_id, task_revision_id, comment? }`
-
-- **PhotoAttemptRejected** (admin)
-  - payload: `{ attempt_id, decided_by_teacher_id, student_id, task_id, task_revision_id, comment? }`
-
----
-
-## 5) Files & Assets (BC5)
-
-- **UploadSessionCreated** (system)
-- **AssetUploaded** (system)
-  - payload: `{ asset_id, kind, s3_key, mime_type, size_bytes, uploaded_by }`
-
-- **AssetAttachedToEntity** (admin|system)
-  - payload: `{ asset_id, entity_type, entity_id, slot }`
-
-> `AssetDeleted` — только если вводим удаление ассетов. Сейчас не фиксируем как обязательное событие.
-
----
-
-## 6) Rendering (Rich LaTeX) (BC6)
-
-- **RenderRequested** (admin|system)
-  - payload: `{ entity_type: "unit_theory"|"task_solution", entity_id, revision_id? }`
-
-- **RenderJobQueued** (system)
-  - payload: `{ render_job_id, entity_type, entity_id, revision_id? }`
-
-- **RenderJobStarted** (system)
-  - payload: `{ render_job_id }`
-
-- **RenderJobSucceeded** (system)
-  - payload: `{ render_job_id, pdf_asset_id }`
-
-- **RenderJobFailed** (system)
-  - payload: `{ render_job_id, error_summary }`
-
-- **RenderResultAttachedToEntity** (system)
-  - payload: `{ entity_type, entity_id, pdf_asset_id }`
-
----
-
-## 7) Analytics & Search projections (BC8/BC7) — system events
-
-> Это не “факты домена”, а “факты проекций”. Логируем только если нужно для диагностики.
-
-- **AnalyticsProjectionUpdated** (system)
-  - payload: `{ projection_name, scope, cursor? }`
-
-- **SearchIndexUpdated** (system)
-  - payload: `{ index_name, scope, cursor? }`
-
----
-
-## 8) Visibility / Recompute effects (system)
-
-> Нужны из-за правила: unpublish = “объекта нет и он не учитывается”, требуется пересчёт.
-
-- **StudentProgressRecomputedDueToUnpublish** (system)
-  - payload: `{ scope_type, scope_id, affected_students_count }`
-
-- **UnitAvailabilityRecomputedDueToPublishChange** (system)
-  - payload: `{ scope_type, scope_id, affected_students_count }`
-
-- **UnitAvailabilityRecomputedDueToGraphChange** (system)
-  - payload: `{ section_id, affected_students_count }`
-
----
-
-## 9) Mini-gap-check (для реализации)
-
-1) Событие **UnitBecameAvailableForStudent** пишем **однократно** на ученика/юнит при первом переходе в available (reach).
-2) `TaskLockedForStudent` пишем, `TaskUnlockedForStudent` не обязателен (unlock вычисляем по `locked_until`).
-3) `AttemptSubmitted` не создаётся, если задача заблокирована (`locked_until > now`) — это важно для честной статистики попыток.
+- Event store:
+  - `apps/api/prisma/schema.prisma` (model `DomainEventLog`)
+  - `apps/api/src/events/events-log.service.ts`
+- Emitters (примерно):
+  - `apps/api/src/content/*.controller.ts`
+  - `apps/api/src/learning/learning.service.ts`
+  - `apps/api/src/learning/photo-task.service.ts`
+  - `apps/api/src/students/*.controller.ts`

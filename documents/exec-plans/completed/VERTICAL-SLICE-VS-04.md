@@ -1,4 +1,7 @@
-# VERTICAL-SLICE-VS-04.md
+# VERTICAL-SLICE-VS-04
+Статус: `Archived` (migrated execution plan; source of truth — code).
+
+> Этот документ перемещён из `documents/` в `documents/exec-plans/completed/` (plans are first-class artifacts).
 Проект: **Континуум**  
 Слайс: **VS-04 — Unit Progress v1 + Required Gates + Completed Unit + Unlock AND (внутри раздела)**  
 Назначение документа: дать агенту “картину целиком” по VS-04 (что и в каком порядке делаем), без глубоких деталей реализации.  
@@ -9,7 +12,7 @@
 ## 0) Перед началом (обязательно)
 **Агент должен:**
 1) Открыть `documents/DOCS-INDEX.md` и выбрать релевантные документы под задачу (минимально достаточные).
-2) Для VS-04 обычно нужны: `ARCHITECTURE.md`, `ER-MODEL.md`, `DECISIONS.md`, `DOMAIN-EVENTS.md`, `HANDLER-MAP.md`, `VERTICAL-SLICE-VS-04.md` (этот файл).
+2) Для VS-04 обычно нужны: `ARCHITECTURE.md`, `apps/api/prisma/schema.prisma` + `documents/generated/db-schema.md`, `DECISIONS.md`, `DOMAIN-EVENTS.md`, `HANDLER-MAP.md`, `VERTICAL-SLICE-VS-04.md` (этот файл).
 3) Работать строго в стиле проекта: **тонкие страницы** (Next app), логика в `features/*`, запросы в `lib/api/*`, стиль по `DESIGN-SYSTEM.md`.
 
 ---

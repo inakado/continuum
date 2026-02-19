@@ -1,4 +1,7 @@
-# VERTICAL-SLICE-VS-06.md
+# VERTICAL-SLICE-VS-06
+Статус: `Archived` (migrated execution plan; source of truth — code).
+
+> Этот документ перемещён из `documents/` в `documents/exec-plans/completed/` (plans are first-class artifacts).
 
 Проект: **Континуум**  
 Слайс: **VS-06 Revisions Hardening & Boundary Cleanup (Stabilization)**  
@@ -60,7 +63,7 @@ VS-06 НЕ добавляет новые пользовательские фич
 
 1) Прочитать **DOCS-INDEX.md** и открыть по нему минимум:
 - ARCHITECTURE.md
-- ER-MODEL.md
+- apps/api/prisma/schema.prisma + documents/generated/db-schema.md
 - DECISIONS.md
 - DOMAIN-EVENTS.md
 - HANDLER-MAP.md

@@ -1,4 +1,7 @@
-# VERTICAL-SLICES-PLAN-VS-03..VS-10.md
+# VERTICAL-SLICES-PLAN (legacy)
+Статус: `Archived` (migrated execution plan; source of truth — code).
+
+> Этот документ перемещён из `documents/` в `documents/exec-plans/completed/` (plans are first-class artifacts).
 Проект: «Континуум»  
 Назначение: подробный план разработки вертикальных слайсов **начиная с VS-03**, чтобы держать общую картину и не терять порядок/границы.  
 Принцип: каждый VS — end-to-end, минимально достаточный “боевой” функционал, без добавления фич вне требований.

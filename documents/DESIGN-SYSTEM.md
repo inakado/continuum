@@ -3,14 +3,21 @@
 **Назначение**: дизайн‑система для ежедневной разработки UI (типографика, цвета, материалы, компоненты, UX‑правила, контент/PDF, ReactFlow).
 **Важно**: файл описывает текущую продуктовую систему. Вход/лендинги отражены здесь только в части общего визуального языка.
 
+Статус: `Draft` (источник истины — код/CSS).
+
 ---
+
+## Статусы фактов
+
+- `Implemented`: правила/токены/паттерны, которые уже видны в текущем UI (сверяется по `apps/web`).
+- `Planned`: будущие изменения дизайн‑системы (если добавляются — помечаются явно в разделе).
 
 ## 1) Типографика
 
 ### 1.1 Dual Font System (фиксировано)
 A) Акцент / брендинг / крупные заголовки
 - Шрифт: **Unbounded** (Google Fonts)
-- Вес: **400** (фиксировано)
+- Вес: **300** (текущая настройка в коде)
 - Использование: логотип, экран логина, крупные заголовки, брендинг
 
 B) Интерфейс и чтение
@@ -195,12 +202,12 @@ Glass‑стиль — основа для **teacher dashboards** и **student d
 
 ## 10) Tailwind Usage
 - Tailwind CSS **не используется** в продуктовых экранах и не должен менять существующие стили.
-- Даже если пакеты Tailwind присутствуют как зависимость, Tailwind не подключается глобально.
+- Даже если пакеты Tailwind присутствуют как зависимость, Tailwind не подключается глобально (в проекте нет `@tailwind` директив).
 
 ---
 
 ## 11) Мини‑чеклист ревью UI
-- Unbounded только для брендинга, weight 400
+- Unbounded только для брендинга, weight 300
 - Цвета соответствуют токенам `bg/text/border/accent/muted`
 - Glass‑элементы используют `--glass-*` и `--surface-*`
 - Границы 1px/1.5px, без тяжёлых линий
@@ -208,3 +215,17 @@ Glass‑стиль — основа для **teacher dashboards** и **student d
 - Инпуты без синего autofill
 - PDF выглядит как часть страницы, без viewer UI
 - Решения показываются только после `correct` или `auto-credit`
+
+## Source links
+
+- Typography + theme init:
+  - `apps/web/app/layout.tsx`
+  - `apps/web/app/globals.css`
+- Grainient login background:
+  - `apps/web/components/Grainient.jsx`
+  - `apps/web/features/auth/UnifiedLoginScreen.tsx`
+- UI kit components:
+  - `apps/web/components/ui/Button.tsx`
+  - `apps/web/components/ui/Input.tsx`
+- PDF rendering:
+  - `apps/web/components/PdfCanvasPreview.tsx`

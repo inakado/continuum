@@ -11,7 +11,7 @@
 - **Modular Monolith** на **NestJS** (единый деплой API), разбиение по модулям/Bounded Contexts.
 - Отдельный процесс **Worker** (BullMQ consumers) для:
   - Rich LaTeX рендера (Tectonic),
-  - batch-пересчётов прогресса/доступности при publish/unpublish и обновлениях графа.
+  - (Planned) batch-пересчётов прогресса/доступности при publish/unpublish и обновлениях графа (в текущем коде пересчёт делается синхронно в API).
 
 ### 1.2 Доменная декомпозиция (DDD)
 - Ключевая доменная сложность: **Learning Progress & Unlock** (attempts, 3+3, два процента, required-гейт, граф unlock).
@@ -47,7 +47,7 @@
 **Ответственность:** прогресс ученика, попытки, статусы, блокировки, 6-й auto-credit, required_skipped, unit status, unlock, override.  
 **Инварианты:**
 - `Unit.in_progress` строго при первом Attempt в юните
-- `Unit.completed` автоматически при required-гейте + min_counted_tasks
+- `Unit.completed` автоматически при required-гейте + пороге optional counted задач (`minOptionalCountedTasksToComplete`, с guard’ом для “нулевого гейта”)
 - счётчики ошибок/блокировок — по активной ревизии задачи
 - solved% и completion% считаются строго по правилам
 - override открывает юнит навсегда
@@ -62,27 +62,23 @@
 > Примечание: реализационно может быть подмодуль Learning, но границы и права удобно держать отдельно.
 
 ### BC5 — Files & Assets
-**Ответственность:** загрузка/хранение/выдача файлов (S3), signed URLs, ACL/права доступа, универсальная привязка файлов к сущностям.  
+**Ответственность:** хранение/выдача файлов (S3/MinIO), presigned URLs, проверки доступа на уровне API endpoints.  
 **Инварианты:**
 - доступ к файлам только через backend-проверку прав
-- единый механизм для: attachments, фото, pdf теории/решений
+- asset keys хранятся в доменных сущностях (например `Unit.theoryPdfAssetKey`, `TaskRevision.solutionPdfAssetKey`, `PhotoTaskSubmission.assetKeysJson`)
+- (Planned) универсальная привязка файлов к сущностям (если понадобится)
 
 ### BC6 — Rendering (Rich LaTeX)
-**Ответственность:** RenderJob lifecycle, очередь компиляции, статусы, логи, связь с Assets.  
+**Ответственность:** очередь компиляции LaTeX → PDF, worker compile + apply результата в API, логи ошибок/сниппеты.  
 **Инварианты:**
-- компиляция Tectonic выполняется worker’ом
-- статусы: idle/queued/rendering/ok/error
-- при ошибке лог сохраняется и отображается в UI учителя
+- компиляция Tectonic выполняется worker’ом (BullMQ queue `latex.compile`)
+- API защищается от stale-результатов при apply (сравнение assetKey и active revision)
 
 ### BC7 — Search (Concepts & Content Search)
-**Ответственность:** поиск по понятиям и выдача юнитов с путём Course→Section→Unit и статусом доступности.  
-**Правила:**
-- Student: только опубликованный контент (по цепочке)
-- Teacher: поиск включая draft
+**Статус:** `Planned` (в коде сейчас нет моделей `concepts`/индекса).
 
 ### BC8 — Analytics
-**Ответственность:** отчёты по юнитам/задачам (reach, avg percents, top ошибок/пропусков/pending/rejected) и расширяемость метрик.  
-**Подход:** проекции на доменных событиях.
+**Статус:** `Planned` (в коде сейчас нет проекций/агрегатов).
 
 ### BC9 — Audit & Domain Events Log
 **Ответственность:** единый лог доменных событий (admin/learning/system) с фильтрацией и payload.  
@@ -93,10 +89,10 @@
 ## 3) Связи BC и зависимости (dependency rules)
 
 ### 3.1 Разрешённые зависимости (на уровне чтения/портов)
-- **Learning → Content (read)**: total_tasks, required, граф prereq, min_counted_tasks, активная ревизия.
+- **Learning → Content (read)**: published tasks (required/optional), граф prereq, `minOptionalCountedTasksToComplete`, активная ревизия.
 - **ManualReview → Learning**: принятие/отклонение фото меняет состояние задачи/прогресса.
-- **Rendering → Files**: результат (PDF) сохраняется как Asset.
-- **Content/Learning/ManualReview/Files/Rendering → Audit**: пишут события.
+- **Rendering → Storage/Content**: результат (PDF) сохраняется в object storage и применяется в Content через internal endpoint.
+- **Content/Learning/ManualReview/Rendering → Audit**: пишут события.
 - **Search/Analytics ← Audit (+ read)**: строят проекции и агрегаты.
 
 ### 3.2 Запрещённые зависимости
@@ -127,26 +123,32 @@
 ## 5) Очереди и фоновые процессы
 
 ### 5.1 Очереди (BullMQ)
-- `render` — RenderJob для Tectonic
-- `batch` — массовые пересчёты (publish/unpublish, graph updates)
-- (опционально) `projections` — обновление analytics/search если нужно отделять
+- `latex.compile` — compile LaTeX→PDF (unit theory/method, task solution)
+- `system.ping` — debug queue (smoke/проверка worker)
+- (Planned) `batch.*` — массовые пересчёты (publish/unpublish, graph updates)
 
 ### 5.2 Worker процессы
-- `worker-render`: consumer очереди `render`
-- `worker-batch`: consumer очереди `batch` (можно объединить с render, но лучше логически разделять)
+- `apps/worker` обрабатывает `latex.compile` и `system.ping` (в одном процессе).
 
 ---
 
 ## 6) Фиксация политики пересчётов (unlock/progress)
 
-### DEC-11 (зафиксировано)
-**RecomputeAvailability: событийно + инкрементально, синхронно на критических путях**
-- Attempt/PhotoAccepted/TeacherCredit/Override:
-  - обновить состояния и метрики в транзакции,
-  - пересчитать доступность “вперёд” по section-графу для ученика,
-  - эмитить `UnitBecameAvailableForStudent` при переходе locked→available (это “reach”).
-- Publish/Unpublish, Graph update:
-  - запуск batch job пересчёта по затронутым ученикам.
+### Политика пересчётов сейчас (`Implemented`)
+
+**RecomputeAvailability: детерминированный пересчёт снапшотов по section-графу**
+
+- `LearningAvailabilityService.recomputeSectionAvailability(studentId, sectionId)`:
+  - загружает published units/edges/tasks,
+  - считает снапшоты (status + counters + percents),
+  - persisted в `student_unit_state` (upsert).
+- На критических путях (attempt, student views) пересчёт вызывается синхронно.
+- На publish/unpublish и обновлениях графа пересчёт выполняется синхронно в API через `LearningRecomputeService` (по всем активным студентам).
+
+### Planned evolution
+
+- Инкрементальный пересчёт “вперёд” + события reach (`UnitBecameAvailableForStudent`).
+- Перенос тяжёлых batch-пересчётов в worker queue.
 
 ---
 
@@ -160,7 +162,7 @@
 ### 7.2 S3/Assets
 - Только signed URLs с TTL.
 - Проверка прав доступа в API перед выдачей URL.
-- Привязка файла к сущности хранится в БД (entity_assets), выдача URL — через эту привязку.
+- Asset keys хранятся в доменных сущностях (см. Prisma schema); универсальной таблицы привязок пока нет.
 
 ### 7.3 LaTeX sandbox
 - Воркер запускается не от root, с лимитами CPU/mem.
@@ -173,70 +175,14 @@
 
 ## 8) Frontend Architecture (Next.js)
 
-
-### Слои и ответственность
-
-1) **app/** (routes/pages)
-- Файлы: `apps/web/app/**/page.tsx`, `layout.tsx`
-- Роль: **композиция** компонентов, чтение `params/searchParams`, навигация.
-- Запрещено:
-  - прямые запросы к API (fetch/axios) из страниц
-  - бизнес-логика и “толстая” верстка на сотни строк
-  - хранение токена/сессионной логики
-
-2) **features/** (feature modules)
-- Путь: `apps/web/features/<feature>/**`
-- Роль: use-cases UI: загрузка/мутации/состояния, адаптация данных под компоненты.
-- Здесь живут:
-  - hooks/containers
-  - feature-level компоненты (не универсальные)
-  - схемы валидации форм (если нужны)
-
-3) **components/** (UI kit + shared UI)
-- Путь: `apps/web/components/**`
-- Роль: переиспользуемые “кирпичи” UI без знания домена.
-- Примеры: Button, Input, Card.
-
-4) **lib/** (infra)
-- Путь: `apps/web/lib/**`
-- Роль: инфраструктура фронта:
-  - `lib/api/*` — API client + функции вызовов
-  - `lib/auth/*` — хранение токена/сессии (dev/prod политика)
-  - `lib/utils/*` — утилиты
-
-### Правила зависимости (границы)
-- `app/*` может импортировать только из `features/*` и `components/*` и `lib/*`.
-- `features/*` может импортировать из `components/*` и `lib/*`.
-- `components/*` не импортирует `features/*` и не знает про API.
-- Запросы к backend — только через `lib/api/*`, не напрямую из UI.
-
-### Принцип “тонких страниц”
-Если `page.tsx` начинает содержать:
-- сложные запросы/мутации,
-- много условной логики,
-- крупную верстку,
-
-то это сигнал вынести логику в `features/*`, а UI в `components/*`.
-
-### Примечание про стили
-UI следует правилам `DESIGN-SYSTEM.md` (геометрия, шрифты, токены цветов).
-
-### Конвенция: подписи статусов в UI
-- Единый источник текстов статусов: `apps/web/lib/status-labels.ts`.
-- Используем только централизованные мапперы:
-  `getContentStatusLabel`, `getStudentUnitStatusLabel`, `getStudentTaskStatusLabel`.
-- В экранах/компонентах запрещено рендерить сырой enum напрямую
-  (`locked`, `available`, `in_progress`, `completed`, `draft`, `published` и т.д.).
-- При добавлении нового статуса сначала обновляется `status-labels.ts`, затем подключается в UI.
-- Минимальный smoke после правки статусов:
-  `pnpm --filter web exec tsc -p tsconfig.json --noEmit`.
----
+См. `FRONTEND.md` (SoR для UI).
 
 ## 8) Документы, связанные с архитектурой
-- `PROJECT-OVERVIEW.md` — описание продукта и правил
-- `TECH-STACK.md` — технологии/библиотеки/безопасность
-- `DOMAIN-EVENTS.md` — доменные события (A3)
-- `HANDLER-MAP.md` — handlers (A4)
-- `ER-MODEL.md` — ER модель (A5)
-- `DECISIONS.md` — Decision Cards
+- `CONTENT.md` — content/publishing/graph/LaTeX pipeline (SoR)
+- `LEARNING.md` — attempts/progress/availability/3+3 (SoR)
+- `FRONTEND.md` — frontend SoR
+- `DOMAIN-EVENTS.md` — каталог событий (audit)
+- `HANDLER-MAP.md` — карта обработчиков (HTTP → services → events/jobs)
+- `generated/db-schema.md` — срез текущей БД модели (source: Prisma schema)
+- `DECISIONS.md` — decision cards (архитектурные фиксации; сверяются по коду)
 - `DOCS-INDEX.md` — навигация по документации

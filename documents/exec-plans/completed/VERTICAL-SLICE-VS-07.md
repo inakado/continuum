@@ -1,4 +1,7 @@
-# VERTICAL-SLICE-VS-07.md
+# VERTICAL-SLICE-VS-07
+Статус: `Archived` (migrated execution plan; source of truth — code).
+
+> Этот документ перемещён из `documents/` в `documents/exec-plans/completed/` (plans are first-class artifacts).
 
 Проект: **Континуум**  
 Слайс: **VS-07 Teacher Controls v1: Unit Override Open + Task Teacher Credit + Unblock/Reset + Required-Skipped Ops + Audit**  

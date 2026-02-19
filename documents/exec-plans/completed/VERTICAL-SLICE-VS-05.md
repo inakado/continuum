@@ -1,4 +1,7 @@
-# VERTICAL-SLICE-VS-05.md
+# VERTICAL-SLICE-VS-05
+Статус: `Archived` (migrated execution plan; source of truth — code).
+
+> Этот документ перемещён из `documents/` в `documents/exec-plans/completed/` (plans are first-class artifacts).
 Проект: **Континуум**  
 Слайс: **VS-05 — Photo Tasks v1 + Photo Review + Solution PDF (LaTeX→PDF) для задач**  
 Назначение документа: дать агенту “картину целиком” по VS-05 (что и в каком порядке делаем), **без глубоких деталей реализации**.

@@ -1,157 +1,50 @@
-# DOCS-INDEX.md
-**Проект**: «Континуум»  
-**Назначение**: навигация по документации для нейро-агента. Прочитав этот файл, агент должен понимать:  
-1) какие документы существуют,  
-2) что в каждом лежит,  
-3) куда идти за ответом в зависимости от задачи.  
-**Правило**: сначала прочитай этот индекс, затем открывай только нужные документы (минимизируй контекст).
+# DOCS-INDEX
 
----
+Документация организована по принципу progressive disclosure: короткая точка входа и специализированные SoR-доки.
 
-## 0) Быстрый роутер: “что мне нужно сделать → что читать”
+Этот файл: `documents/DOCS-INDEX.md` (индекс документации).
 
-### UI / фронтенд (обычный интерфейс ученика/учителя)
-Читай:
-- DESIGN-SYSTEM.md — шрифты/цвета/компоненты/UX паттерны, ReactFlow визуал, PDF/LiteTeX UX правила
-- TECH-STACK.md — библиотеки, версии, интеграции, безопасность (React/Next latest)
+## Статус индекса
 
-Не читай по умолчанию:
-- LANDING-MOTION-VANTA.md (только если работаешь над landing или переходом landing → dashboard)
+- `Implemented`: текущая структура каталогов/SoR-доков (сверяется по репозиторию).
+- `Planned`: механическая валидация структуры/ссылок/coverage в CI.
 
----
+## Корневая карта
 
-### Landing / анимации / Vanta
-Читай:
-- LANDING-MOTION-VANTA.md — Vanta Topology (код), theme re-init, motion “погружение”, perf правила
-- DESIGN-SYSTEM.md — для общего совпадения стиля (шрифты/цвета)
+- `AGENTS.md` — навигационная карта для агента (не энциклопедия).
 
----
+## System of Record (SoR)
 
-### Бэкенд / API / доменная логика
-Читай:
-- ARCHITECTURE.md — modular monolith (DDD), BC/modules, принципы, границы ответственности
-- HANDLER-MAP.md — список команд/хендлеров/ивент-хендлеров/джобов, поток “UI → domain → events → jobs/projections”
-- DOMAIN-EVENTS.md — каталог доменных событий (audit/projections), категории admin/learning/system
-- ER-MODEL.md — таблицы, PK/FK, индексы, модель ревизий, прогресс, попытки, файлы
-- DECISIONS.md — фиксации (DEC-xx), как именно трактуем спорные места требований
+- `documents/ARCHITECTURE.md` — карта доменов, модулей и слоев.
+- `documents/SECURITY.md` — security-политики и invariants.
+- `documents/RELIABILITY.md` — надежность, очереди, отказоустойчивость, runbooks.
+- `documents/QUALITY_SCORE.md` — оценка качества по шкале 0..5 (фокус: core product domain).
+- `documents/PLANS.md` — политика планирования и lifecycle execution plans.
+- `documents/CONTENT.md` — content/publishing/graph/LaTeX pipeline (SoR по контенту).
+- `documents/LEARNING.md` — attempts/progress/availability/3+3 (SoR по обучению).
+- `documents/DESIGN.md` — дизайн-принципы продукта.
+- `documents/FRONTEND.md` — фронтенд-архитектура и UI-guidelines.
+- `documents/DESIGN-SYSTEM.md` — дизайн-система UI (tokens/components/patterns).
+- `documents/PRODUCT_SENSE.md` — продуктовые приоритеты и decision heuristics.
+- `documents/DOMAIN-EVENTS.md` — каталог доменных событий (audit log / диагностика / будущие проекции).
+- `documents/HANDLER-MAP.md` — карта обработчиков (HTTP → services → events/jobs).
+- `documents/DEVELOPMENT.md` — dev запуск/миграции/смоук (операционный минимум).
+- `documents/DECISIONS.md` — decision cards (что выбрали и почему; сверено по коду).
 
----
+## Каталоги
 
-### База данных / миграции / Prisma schema
-Читай:
-- ER-MODEL.md — источник истины по сущностям и связям (PK/FK/уникальности/индексы)
-- DECISIONS.md — логика ревизий, unpublish пересчёт, 3+3, required и т.п. (чтобы БД отражала правила)
+- `documents/design-docs/index.md` — индекс дизайн-доков.
+- `documents/design-docs/core-beliefs.md` — core beliefs (agent-first).
+- `documents/product-specs/index.md` — индекс продуктовых спецификаций.
+- `documents/exec-plans/active/` — активные планы выполнения.
+- `documents/exec-plans/completed/` — завершенные планы.
+- `documents/exec-plans/completed/index.md` — индекс завершенных планов.
+- `documents/exec-plans/tech-debt-tracker.md` — трекер техдолга.
+- `documents/generated/db-schema.md` — срез текущей БД-модели.
+- `documents/references/README.md` — внешние референсы и LLM-friendly материалы.
 
----
+## Архив (история решений)
 
-### Очереди, воркеры, LaTeX рендер, S3
-Читай:
-- TECH-STACK.md — конкретные библиотеки и компоненты (BullMQ, Redis, Tectonic, S3/MinIO, PDF.js)
-- HANDLER-MAP.md — render/batch job handlers и когда они запускаются
-- DECISIONS.md — почему так, и какие ограничения (async, не блокировать API)
+- Вертикальные слайсы и планы старого формата сохранены как артефакты: `documents/exec-plans/completed/`.
 
----
-
-### Публикация/видимость (draft/published) и пересчёты
-Читай:
-- DECISIONS.md — DEC-04, DEC-11 (иерархическое скрытие, unpublish пересчёт)
-- HANDLER-MAP.md — batch recompute jobs
-- ER-MODEL.md — где храним статус и что пересчитываем
-
----
-
-### Audit log / события / аналитика
-Читай:
-- DOMAIN-EVENTS.md — список событий и их смысл
-- HANDLER-MAP.md — кто эмитит события, кто строит проекции/analytics
-- ER-MODEL.md — domain_event_log и индексы
-- DECISIONS.md — политика логирования и расширяемости метрик
-
----
-
-## 1) Список документов (канонический)
-
-Ниже перечислены документы проекта и “что там искать”.
-
-### 1.1 PROJECT-OVERVIEW.md
-- Краткое описание продукта и границ (One-pager / A0)
-- Роли, основные сценарии, MVP/не-MVP, ограничения, базовая терминология
-
-### 1.2 ARCHITECTURE.md
-- DDD карта мира: поддомены/BC, границы модулей
-- Modular monolith структура NestJS
-- Интеграции и основные принципы (без схем БД)
-- Frontend Architecture (Next.js) — обязательные правила слоёв (app/features/components/lib) и “тонких страниц” перед любыми UI-изменениями.
-
-### 1.3 TECH-STACK.md
-- Технологии и библиотеки (backend/frontend/storage/queue/PDF)
-- Версионность: React/Next latest (в т.ч. по CVE), правила обновлений
-- Security базовые практики на уровне зависимостей и сборки
-
-### 1.4 DOMAIN-EVENTS.md
-- Каталог доменных событий (admin/learning/system)
-- Какие события считаются фактами домена
-- Для чего используются (audit/projections/analytics/notifications)
-
-### 1.5 HANDLER-MAP.md
-- API Command Handlers (UI → команды)
-- Event Handlers (оркестрация, нотификации, проекции)
-- Job Handlers (render/batch воркеры)
-- Что читают/что пишут обработчики (data contours)
-
-### 1.6 ER-MODEL.md
-- ER модель для MVP (PostgreSQL)
-- Таблицы/поля, PK/FK, уникальности/индексы
-- Ревизии задач, прогресс, попытки, блокировки, overrides, файлы, render jobs, audit log
-
-### 1.7 DECISIONS.md
-- Decision Cards (DEC-xx)
-- Фиксации трактовок требований: 2 метрики, 3+3 попытки, required гейты, фото review, ревизии, publish/unpublish пересчёт, PDF view и т.д.
-- DEC-AUTH-01 — JWT в httpOnly cookie (auth + CORS credentials)
-
-### 1.8 DESIGN-SYSTEM.md
-- UI стиль: шрифты/цвета/геометрия/кнопки/формы
-- ReactFlow визуальные правила
-- Контент: LiteTeX/KaTeX и PDF.js правила отображения
-- Anti-patterns и чеклист ревью UI
-
-### 1.9 LANDING-MOTION-VANTA.md
-- Только landing: Vanta Topology (код), polling-init, theme re-init
-- Motion “погружение” landing → dashboard и perf правила
-- Не читать при обычной разработке UI (чтобы не забивать контекст)
-
-### 1.10 DEVELOPMENT.md
-
-Краткий контрольный контур для dev‑запуска.
-
-### 1.11 VERTICAL-SLICE-VS-01.md
-план работ по VS-01 (Identity/RBAC → контентные таблицы → Teacher CRUD+publish → Student read-only published views → минимальные UI), без деталей реализации.
-
-### 1.12 VERTICAL-SLICE-VS-02.md
-план работ по VS-02 Dashboards + Graph Editor + Unit Tabs (Theory/Method/Tasks/Video/Attachments), без прогресса/attempts/unlock`
----
-
-## 2) Как агенту отвечать/действовать (процесс)
-
-1) Прочитай DOCS-INDEX.md  
-2) Определи тип задачи:
-   - UI? Landing? Backend? DB? Rendering? Security?  
-3) Открой 1–3 наиболее релевантных документа по роутеру из раздела 0  
-4) Если сталкиваешься с неоднозначностью трактовки требований — открой DECISIONS.md  
-5) Если задача касается событий/логирования/аналитики — DOMAIN-EVENTS.md + HANDLER-MAP.md  
-6) Если задача касается схемы данных — ER-MODEL.md является источником истины
-
----
-
-## 3) Именование терминов (коротко, чтобы не путаться)
-
-- Course / Section / Unit / Task — контентная иерархия
-- Task Revision — ревизии задач (любая правка = новая ревизия)
-- Attempt — попытка решения (авто-check или photo)
-- Completion% — counted_tasks/total_tasks
-- Solved% — solved_tasks/total_tasks
-- Required — жёсткий гейт на unlock, возможен required_skipped после auto-credit
-- Draft/Published — видимость (иерархически), unpublish требует пересчёта
-
----
-Конец DOCS-INDEX.md
+Правило: любые устаревшие документы, не являющиеся SoR и не отражающие текущий код, удаляются (чтобы не создавать drift).
