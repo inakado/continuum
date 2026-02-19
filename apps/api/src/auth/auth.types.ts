@@ -8,4 +8,6 @@ export type AuthUser = {
 
 export type JwtPayload = {
   sub: string;
+  sid: string;
+  typ: 'access';
 };

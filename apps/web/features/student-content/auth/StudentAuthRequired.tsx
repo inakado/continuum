@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Button from "@/components/ui/Button";
 import styles from "./student-auth-required.module.css";
 
 export default function StudentAuthRequired() {
@@ -10,8 +9,8 @@ export default function StudentAuthRequired() {
       <div className={styles.card}>
         <div className={styles.title}>Нужна авторизация</div>
         <p className={styles.text}>Сессия не найдена. Перелогиньтесь, чтобы продолжить.</p>
-        <Link href="/login">
-          <Button>Войти</Button>
+        <Link href="/login" className={styles.loginLink}>
+          Войти
         </Link>
       </div>
     </div>

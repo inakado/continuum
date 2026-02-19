@@ -451,8 +451,8 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
                           variant="ghost"
                           className={styles.actionsMenuTrigger}
                           aria-expanded={isActionsMenuOpen}
-                          aria-haspopup="menu"
                           aria-controls={`student-actions-${student.id}`}
+                          aria-label={`Действия для ученика ${getDisplayName(student)}`}
                           onClick={() =>
                             setOpenActionsStudentId((prev) => (prev === student.id ? null : student.id))
                           }
@@ -460,15 +460,10 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
                           <MoreHorizontal className={styles.actionsMenuIcon} aria-hidden="true" />
                         </Button>
                         {isActionsMenuOpen ? (
-                          <div
-                            id={`student-actions-${student.id}`}
-                            className={styles.actionsMenuList}
-                            role="menu"
-                          >
+                          <div id={`student-actions-${student.id}`} className={styles.actionsMenuList}>
                             {hasPendingReview ? (
                               <button
                                 type="button"
-                                role="menuitem"
                                 className={styles.actionsMenuItem}
                                 onClick={() => {
                                   setOpenActionsStudentId(null);
@@ -482,7 +477,6 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
                             ) : null}
                             <button
                               type="button"
-                              role="menuitem"
                               className={styles.actionsMenuItem}
                               onClick={() => {
                                 setOpenActionsStudentId(null);
@@ -494,7 +488,6 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
                             </button>
                             <button
                               type="button"
-                              role="menuitem"
                               className={styles.actionsMenuItem}
                               onClick={() => {
                                 setOpenActionsStudentId(null);
@@ -505,7 +498,6 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
                             </button>
                             <button
                               type="button"
-                              role="menuitem"
                               className={styles.actionsMenuItem}
                               onClick={() => {
                                 setOpenActionsStudentId(null);
@@ -516,7 +508,6 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
                             </button>
                             <button
                               type="button"
-                              role="menuitem"
                               className={`${styles.actionsMenuItem} ${styles.actionsMenuItemDanger}`}
                               onClick={() => {
                                 setOpenActionsStudentId(null);

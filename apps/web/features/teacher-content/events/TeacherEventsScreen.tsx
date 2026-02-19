@@ -62,28 +62,30 @@ export default function TeacherEventsScreen() {
           {error}
         </div>
       ) : null}
-      <table className={styles.table} aria-busy={loading}>
-        <thead>
-          <tr className={`${styles.row} ${styles.header}`}>
-            <th scope="col">Когда</th>
-            <th scope="col">Событие</th>
-            <th scope="col">Кто</th>
-            <th scope="col">Сущность</th>
-            <th scope="col">Данные</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.id} className={styles.row}>
-              <td>{row.when}</td>
-              <td>{row.eventType}</td>
-              <td>{row.actor}</td>
-              <td className={styles.mono}>{row.entity}</td>
-              <td className={styles.payload}>{row.payload}</td>
+      <div className={styles.tableWrap}>
+        <table className={styles.table} aria-busy={loading}>
+          <thead>
+            <tr className={`${styles.row} ${styles.header}`}>
+              <th scope="col">Когда</th>
+              <th scope="col">Событие</th>
+              <th scope="col">Кто</th>
+              <th scope="col">Сущность</th>
+              <th scope="col">Данные</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id} className={styles.row}>
+                <td>{row.when}</td>
+                <td>{row.eventType}</td>
+                <td>{row.actor}</td>
+                <td className={styles.mono}>{row.entity}</td>
+                <td className={styles.payload}>{row.payload}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {loading ? <div className={styles.loading}>Загрузка…</div> : null}
       {!loading && rows.length === 0 ? (
         <div className={styles.empty}>Событий пока нет</div>

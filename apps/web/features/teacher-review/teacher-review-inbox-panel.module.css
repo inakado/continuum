@@ -168,12 +168,20 @@
   background: color-mix(in srgb, var(--border-primary) 5%, var(--surface-1));
 }
 
-.tableRowClickable {
-  cursor: pointer;
+.table tbody tr:focus-within td {
+  background: color-mix(in srgb, var(--border-primary) 8%, var(--surface-1));
 }
 
-.tableRowClickable:focus-visible td {
-  background: color-mix(in srgb, var(--border-primary) 8%, var(--surface-1));
+.rowLink {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--control-radius);
+}
+
+.rowLink:focus-visible {
+  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .studentCell {

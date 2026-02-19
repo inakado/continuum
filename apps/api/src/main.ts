@@ -4,8 +4,14 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 
+const isProd = () => {
+  const env = process.env.NODE_ENV || process.env.APP_ENV || '';
+  return env.toLowerCase() === 'production';
+};
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { logger: ['log', 'error', 'warn'] });
+  app.getHttpAdapter().getInstance().disable('x-powered-by');
   app.use(
     helmet({
       contentSecurityPolicy: false,
@@ -20,8 +26,18 @@ async function bootstrap() {
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
-  const originSetting =
-    corsOrigins.length === 1 && corsOrigins[0] === '*' ? true : corsOrigins;
+  let originSetting: true | string[] = corsOrigins;
+  if (corsOrigins.length === 1 && corsOrigins[0] === '*') {
+    if (isProd()) {
+      throw new Error(
+        'CORS_ORIGIN="*" is not allowed in production when credentials are enabled.',
+      );
+    }
+    originSetting = [fallbackOrigin];
+    console.warn(
+      `[security] CORS_ORIGIN="*" is unsafe with credentials; using fallback origin ${fallbackOrigin} in development.`,
+    );
+  }
   app.enableCors({
     origin: originSetting,
     credentials: true,

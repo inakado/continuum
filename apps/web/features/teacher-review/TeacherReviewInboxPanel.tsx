@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import Button from "@/components/ui/Button";
 import {
@@ -125,6 +126,14 @@ export default function TeacherReviewInboxPanel() {
     router.push(`/teacher/review${search ? `?${search}` : ""}`);
   }, [router]);
 
+  const getSubmissionHref = useCallback(
+    (submissionId: string) => {
+      const search = buildReviewSearch(filters);
+      return `/teacher/review/${submissionId}${search ? `?${search}` : ""}`;
+    },
+    [filters],
+  );
+
   const hasAnyCustomFilters = Boolean(
     filters.status !== "pending_review" ||
       filters.sort !== "oldest" ||
@@ -246,23 +255,16 @@ export default function TeacherReviewInboxPanel() {
             </thead>
             <tbody>
               {items.map((item) => (
-                <tr
-                  key={item.submissionId}
-                  className={styles.tableRowClickable}
-                  onClick={() => openSubmission(item.submissionId)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      openSubmission(item.submissionId);
-                    }
-                  }}
-                  role="link"
-                  tabIndex={0}
-                  aria-label={`Открыть отправку ученика ${getStudentName(item.student)}`}
-                >
+                <tr key={item.submissionId}>
                   <td className={styles.studentCell}>
-                    <div className={styles.studentName}>{getStudentName(item.student)}</div>
-                    <div className={styles.studentLogin}>@{item.student.login}</div>
+                    <Link
+                      href={getSubmissionHref(item.submissionId)}
+                      className={styles.rowLink}
+                      aria-label={`Открыть отправку ученика ${getStudentName(item.student)}`}
+                    >
+                      <div className={styles.studentName}>{getStudentName(item.student)}</div>
+                      <div className={styles.studentLogin}>@{item.student.login}</div>
+                    </Link>
                   </td>
                   <td className={styles.taskCell}>{getTaskDisplayLabel(item.task)}</td>
                   <td className={styles.pathCell}>

@@ -5,7 +5,7 @@
   background: var(--control-bg, var(--bg-primary));
   color: var(--text-primary);
   padding: 10px 12px;
-  font-size: 14px;
+  font-size: 16px;
   outline: none;
   border-radius: var(--control-radius);
 }

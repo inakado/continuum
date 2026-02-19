@@ -237,7 +237,6 @@ export type SectionGraphUpdateRequest = {
 };
 
 export type LoginResponse = {
-  accessToken: string;
   user: { id: string; login: string; role: string };
 };
 

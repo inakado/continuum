@@ -18,15 +18,37 @@
   gap: 10px;
 }
 
-.card :global(button) {
-  --button-bg: var(--surface-1);
-  --button-border: var(--glass-border);
-  --button-text: var(--text-primary);
-  --button-hover-bg: var(--surface-2);
-  --button-hover-border: var(--border-primary);
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
+.loginLink {
+  border: var(--border-width) solid var(--glass-border);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 10px 14px;
+  cursor: pointer;
+  touch-action: manipulation;
+  border-radius: var(--control-radius);
+  box-shadow: var(--button-shadow);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
   width: fit-content;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.loginLink:hover {
+  background: var(--surface-2);
+  border-color: var(--border-primary);
+  box-shadow: var(--nav-hover-shadow);
+}
+
+.loginLink:focus-visible {
+  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .title {

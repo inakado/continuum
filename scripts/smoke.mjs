@@ -1,10 +1,11 @@
 const results = [];
 
 const check = async (name, url, options = {}) => {
+  const { validate, ...fetchOptions } = options;
   try {
-    const res = await fetch(url, options);
+    const res = await fetch(url, fetchOptions);
     const text = await res.text();
-    const ok = res.ok;
+    const ok = typeof validate === "function" ? Boolean(validate(res, text)) : res.ok;
     results.push({ name, ok, status: res.status, body: text.slice(0, 300) });
   } catch (error) {
     results.push({ name, ok: false, status: "ERR", body: String(error) });
@@ -18,7 +19,12 @@ await check("api:enqueue", "http://localhost:3000/debug/enqueue-ping", {
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ from: "smoke" }),
 });
-await check("web:debug", "http://localhost:3001/debug");
+await check("web:login", "http://localhost:3001/login", {
+  validate: (res) => {
+    const contentType = res.headers.get("content-type") || "";
+    return res.status !== 404 && contentType.includes("text/html");
+  },
+});
 
 for (const item of results) {
   const status = item.ok ? "OK" : "FAIL";

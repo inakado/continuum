@@ -193,16 +193,23 @@ const Grainient = ({
     setSize();
 
     let raf = 0;
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const t0 = performance.now();
     const loop = t => {
       program.uniforms.iTime.value = (t - t0) * 0.001;
       renderer.render({ scene: mesh });
       raf = requestAnimationFrame(loop);
     };
-    raf = requestAnimationFrame(loop);
+
+    if (prefersReducedMotion) {
+      program.uniforms.iTime.value = 0;
+      renderer.render({ scene: mesh });
+    } else {
+      raf = requestAnimationFrame(loop);
+    }
 
     return () => {
-      cancelAnimationFrame(raf);
+      if (raf) cancelAnimationFrame(raf);
       ro.disconnect();
       try {
         container.removeChild(canvas);

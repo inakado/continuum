@@ -140,6 +140,7 @@
   overflow: auto;
   min-height: 320px;
   height: clamp(360px, calc(100vh - 300px), 760px);
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -147,6 +148,11 @@
   text-decoration: none;
   cursor: zoom-in;
   padding: clamp(6px, 0.8vw, 10px);
+}
+
+.viewerFrameLink:focus-visible {
+  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .viewerImage {

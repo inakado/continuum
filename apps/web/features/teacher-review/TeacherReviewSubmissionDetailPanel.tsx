@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import LiteTex from "@/components/LiteTex";
 import Button from "@/components/ui/Button";
@@ -298,7 +299,14 @@ export default function TeacherReviewSubmissionDetailPanel({ submissionId }: Pro
                 rel="noreferrer"
                 title="Открыть оригинал"
               >
-                <img src={activeAssetUrl} alt="Фото-ответ ученика" className={styles.viewerImage} />
+                <Image
+                  src={activeAssetUrl}
+                  alt="Фото-ответ ученика"
+                  className={styles.viewerImage}
+                  fill
+                  sizes="(max-width: 1180px) 100vw, 60vw"
+                  unoptimized
+                />
               </a>
             ) : (
               <div className={styles.viewerFrame}>
@@ -330,10 +338,13 @@ export default function TeacherReviewSubmissionDetailPanel({ submissionId }: Pro
                     aria-label={`Открыть кадр ${index + 1}`}
                   >
                     {photoPreviewUrlByAssetKey[assetKey] ? (
-                      <img
+                      <Image
                         src={photoPreviewUrlByAssetKey[assetKey]}
                         alt={`Миниатюра фото ${index + 1}`}
                         className={styles.thumbPreview}
+                        width={82}
+                        height={64}
+                        unoptimized
                       />
                     ) : (
                       <span className={styles.thumbIndex}>{index + 1}</span>

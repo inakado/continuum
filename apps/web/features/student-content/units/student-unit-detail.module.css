@@ -2,6 +2,8 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  --header-chip-radius: calc(var(--control-radius) + 8px);
+  --header-chip-inner-radius: calc(var(--control-radius) + 4px);
 }
 
 .header {
@@ -20,19 +22,18 @@
 
 .tabsRow {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  border-bottom: var(--border-width) solid var(--glass-border);
-  padding-bottom: 12px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 10px;
+  overflow: visible;
+  padding-bottom: 8px;
 }
 
 .backInline {
   margin-left: auto;
 }
 
-.tabsRow button {
+.backInline {
   --button-bg: var(--surface-1);
   --button-border: var(--glass-border);
   --button-text: var(--text-primary);
@@ -40,6 +41,52 @@
   --button-hover-border: var(--border-primary);
   --button-hover-text: var(--text-primary);
   --button-hover-shadow: var(--nav-hover-shadow);
+}
+
+.unitTabs {
+  display: inline-flex !important;
+  flex: 0 0 auto !important;
+  align-self: flex-start;
+  width: max-content;
+  min-width: max-content;
+  max-width: 100%;
+  flex-wrap: nowrap !important;
+  gap: 6px;
+  padding: 6px !important;
+  padding-bottom: 6px !important;
+  border-radius: var(--header-chip-radius);
+  border: var(--border-width) solid var(--glass-border);
+  border-bottom: var(--border-width) solid var(--glass-border) !important;
+  background: var(--surface-1);
+}
+
+.unitTabs [role="tab"] {
+  flex: 0 0 auto;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--header-chip-inner-radius);
+  min-height: 44px;
+  padding: 8px 18px;
+  border: var(--border-width-thin) solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  box-shadow: none;
+}
+
+.unitTabs [role="tab"]:hover {
+  background: var(--surface-2) !important;
+  border-color: var(--glass-border) !important;
+  color: var(--text-primary) !important;
+  box-shadow: none !important;
+}
+
+.unitTabs [role="tab"][aria-selected="true"] {
+  background: var(--surface-2);
+  color: var(--text-primary);
+  border-color: var(--glass-border);
+  box-shadow: var(--button-shadow);
 }
 
 .title {
@@ -66,126 +113,120 @@
 }
 
 .progressCard {
-  border: var(--border-width) solid var(--panel-border);
-  background:
-    linear-gradient(160deg, color-mix(in srgb, var(--surface-1) 86%, transparent), transparent 62%),
-    linear-gradient(340deg, color-mix(in srgb, var(--surface-2) 42%, transparent), transparent 60%),
-    var(--panel-bg);
-  border-radius: var(--panel-radius);
-  box-shadow: var(--panel-shadow);
+  border: var(--border-width-thin) solid var(--glass-border);
+  background: color-mix(in srgb, var(--surface-1) 92%, transparent);
+  border-radius: var(--card-radius);
   backdrop-filter: var(--glass-filter);
   -webkit-backdrop-filter: var(--glass-filter);
-  padding: 16px;
+  padding: 14px 16px;
   display: grid;
-  gap: 14px;
-}
-
-.progressTop {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
   gap: 12px;
-  flex-wrap: wrap;
 }
 
-.progressTitle {
-  font-family: var(--font-unbounded), sans-serif;
-  font-size: clamp(17px, 1.9vw, 22px);
-  font-weight: 300;
-  letter-spacing: -0.01em;
-  color: var(--text-primary);
-}
-
-.progressStatusPill {
-  border: var(--border-width) solid color-mix(in srgb, #22c55e 34%, var(--glass-border));
-  background: color-mix(in srgb, #22c55e 12%, var(--surface-1));
-  color: color-mix(in srgb, #22c55e 80%, var(--text-primary));
-  padding: 7px 12px;
-  border-radius: 999px;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-weight: 700;
-}
-
-.progressMetrics {
+.progressGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 18px;
 }
 
-.progressMetric {
-  border: var(--border-width) solid var(--glass-border);
-  background: color-mix(in srgb, var(--surface-1) 88%, transparent);
-  border-radius: var(--card-radius);
-  padding: 10px 11px;
+.progressStat {
   display: grid;
   gap: 8px;
 }
 
-.progressMetricLabel {
+.progressStatHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.progressStatLabel {
   font-size: 10px;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.11em;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
-.progressMetricValue {
-  font-family: var(--font-jetbrains-mono), "JetBrains Mono", monospace;
-  font-size: clamp(22px, 2.2vw, 30px);
+.progressStatValue {
+  font-family: inherit;
+  font-size: clamp(20px, 2vw, 30px);
+  font-weight: 600;
   line-height: 1;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.01em;
   color: var(--text-primary);
+  white-space: nowrap;
 }
 
-.progressMeter {
+.progressLine {
   width: 100%;
-  height: 8px;
+  height: 2px;
   border-radius: 999px;
   overflow: hidden;
-  background: color-mix(in srgb, var(--text-muted) 25%, transparent);
+  background: color-mix(in srgb, var(--text-muted) 20%, transparent);
 }
 
-.progressMeterFill {
+.progressLineFill {
   display: block;
   height: 100%;
   border-radius: 999px;
-  background: var(--border-primary);
 }
 
-.progressBottom {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  padding-top: 2px;
+.progressDivider {
+  border-top: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 84%, transparent);
 }
 
-.progressChip {
-  border: var(--border-width) solid var(--glass-border);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--surface-1) 86%, transparent);
-  padding: 7px 10px;
-  text-align: center;
-  font-size: 12px;
+.progressMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.progressMetaItem {
+  font-size: clamp(12px, 1.1vw, 15px);
   color: var(--text-muted);
+  font-family: inherit;
+  letter-spacing: 0.01em;
 }
 
-.progressChip strong {
+.progressMetaItem strong {
   color: var(--text-primary);
   font-weight: 700;
 }
 
 @media (max-width: 960px) {
-  .progressMetrics {
-    grid-template-columns: 1fr 1fr;
+  .tabsRow {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 10px;
   }
 
-  .progressMetric:nth-child(3) {
+  .unitTabs {
+    min-width: max-content;
+  }
+
+  .progressCard {
+    padding: 12px 14px;
+  }
+
+  .progressGrid {
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .progressStat:nth-child(3) {
     grid-column: 1 / -1;
   }
 
-  .progressBottom {
-    grid-template-columns: 1fr;
+  .progressMeta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
   }
 }
 
@@ -389,10 +430,8 @@
 }
 
 .photoCard {
-  border: var(--border-width) solid color-mix(in srgb, #38bdf8 30%, var(--glass-border));
-  background:
-    linear-gradient(160deg, color-mix(in srgb, #38bdf8 10%, transparent), transparent 64%),
-    color-mix(in srgb, var(--surface-1) 88%, transparent);
+  border: var(--border-width-thin) solid var(--glass-border);
+  background: color-mix(in srgb, var(--surface-1) 88%, transparent);
   border-radius: var(--card-radius);
   padding: 12px;
   display: grid;
@@ -999,6 +1038,41 @@
 }
 
 @media (max-width: 720px) {
+  .progressCard {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .progressGrid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .progressStat:nth-child(3) {
+    grid-column: auto;
+  }
+
+  .progressStatValue {
+    font-size: clamp(19px, 7vw, 26px);
+  }
+
+  .progressMetaItem {
+    font-size: clamp(12px, 4.2vw, 14px);
+  }
+
+  .unitTabs {
+    width: 100% !important;
+    min-width: 0;
+    flex: 1 1 auto !important;
+    border-radius: var(--header-chip-radius);
+  }
+
+  .unitTabs [role="tab"] {
+    min-height: 46px;
+    font-size: 14px;
+    padding: 8px 14px;
+  }
+
   .solutionPdfViewport,
   .solutionPdfFrame {
     min-height: 240px;

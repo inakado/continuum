@@ -3,6 +3,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ReactFlow, {
+  Background,
   Handle,
   MarkerType,
   Position,
@@ -11,10 +12,10 @@ import ReactFlow, {
   type NodeProps,
 } from "reactflow";
 import "reactflow/dist/style.css";
+import { Check, CircleDot, Lock, Play } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { studentApi, type GraphEdge, type GraphNode } from "@/lib/api/student";
 import { ApiError } from "@/lib/api/client";
-import { getStudentUnitStatusLabel } from "@/lib/status-labels";
 import styles from "./student-section-graph-panel.module.css";
 
 type Props = {
@@ -31,6 +32,14 @@ type UnitNodeData = {
   completionPercent: number;
   solvedPercent: number;
 };
+
+const NODE_SPACING_SCALE_X = 1.2;
+const NODE_SPACING_SCALE_Y = 1.34;
+
+const clampPercent = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
+
+const isCurrentUnitStatus = (status: GraphNode["status"] | undefined) =>
+  status === "available" || status === "in_progress";
 
 const getStatusClassName = (status: GraphNode["status"]) => {
   switch (status) {
@@ -54,7 +63,25 @@ const HIDDEN_HANDLE_STYLE = {
   pointerEvents: "none",
 } as const;
 
+const getStatusIcon = (status: GraphNode["status"]) => {
+  switch (status) {
+    case "completed":
+      return Check;
+    case "in_progress":
+      return Play;
+    case "available":
+      return CircleDot;
+    case "locked":
+    default:
+      return Lock;
+  }
+};
+
 const UnitNode = ({ data }: NodeProps<UnitNodeData>) => {
+  const completionPercent = clampPercent(data.completionPercent);
+  const solvedPercent = clampPercent(data.solvedPercent);
+  const StatusIcon = getStatusIcon(data.status);
+
   return (
     <div className={`${styles.node} ${getStatusClassName(data.status)}`}>
       <Handle
@@ -63,11 +90,27 @@ const UnitNode = ({ data }: NodeProps<UnitNodeData>) => {
         className={`${styles.handle} ${styles.handleTop}`}
         style={HIDDEN_HANDLE_STYLE}
       />
-      <div className={styles.nodeTitle}>{data.title}</div>
-      <div className={styles.nodeStatus}>{getStudentUnitStatusLabel(data.status)}</div>
+      <div className={styles.nodeHeader}>
+        <div className={styles.nodeTitle}>{data.title}</div>
+        <span className={styles.nodeStatusIconWrap} aria-hidden="true">
+          <StatusIcon size={12} strokeWidth={2.2} />
+        </span>
+      </div>
       <div className={styles.nodeMetrics}>
-        <div className={styles.nodeMetric}>Выполнение: {data.completionPercent}%</div>
-        <div className={styles.nodeMetric}>Решено: {data.solvedPercent}%</div>
+        <div className={styles.nodeMetricRow}>
+          <span className={styles.nodeMetricLabel}>Выполнение</span>
+          <span className={styles.nodeMetricValue}>{completionPercent}%</span>
+        </div>
+        <div className={styles.nodeMetricTrack} aria-hidden>
+          <span className={styles.nodeMetricFillPrimary} style={{ width: `${completionPercent}%` }} />
+        </div>
+        <div className={styles.nodeMetricRow}>
+          <span className={styles.nodeMetricLabel}>Решено</span>
+          <span className={styles.nodeMetricValue}>{solvedPercent}%</span>
+        </div>
+        <div className={styles.nodeMetricTrack} aria-hidden>
+          <span className={styles.nodeMetricFillSecondary} style={{ width: `${solvedPercent}%` }} />
+        </div>
       </div>
       <Handle
         type="source"
@@ -102,15 +145,57 @@ const buildFlowNodes = (nodes: GraphNode[]): Node<UnitNodeData>[] =>
     },
   }));
 
-const buildFlowEdges = (edges: GraphEdge[]): Edge[] =>
-  edges.map((edge) => ({
-    id: edge.id,
-    source: edge.fromUnitId,
-    target: edge.toUnitId,
-    type: "smoothstep",
-    markerEnd: { type: MarkerType.ArrowClosed, color: "var(--border-primary)" },
-    style: { stroke: "var(--border-primary)" },
+const scaleGraphNodePositions = (nodes: GraphNode[]): GraphNode[] => {
+  if (nodes.length < 2) return nodes;
+
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  for (const node of nodes) {
+    minX = Math.min(minX, node.position.x);
+    minY = Math.min(minY, node.position.y);
+  }
+
+  return nodes.map((node) => ({
+    ...node,
+    position: {
+      x: Math.round(minX + (node.position.x - minX) * NODE_SPACING_SCALE_X),
+      y: Math.round(minY + (node.position.y - minY) * NODE_SPACING_SCALE_Y),
+    },
   }));
+};
+
+const buildFlowEdges = (edges: GraphEdge[], nodes: GraphNode[]): Edge[] => {
+  const nodesById = new Map(nodes.map((node) => [node.unitId, node]));
+
+  return edges.map((edge) => {
+    const sourceNode = nodesById.get(edge.fromUnitId);
+    const targetNode = nodesById.get(edge.toUnitId);
+
+    const isCompletedPath =
+      sourceNode?.status === "completed" &&
+      (targetNode?.status === "completed" || isCurrentUnitStatus(targetNode?.status));
+
+    const isLockedPath = targetNode?.status === "locked";
+    const stroke = isCompletedPath
+      ? "color-mix(in srgb, #10b981 72%, var(--border-primary))"
+      : isLockedPath
+        ? "color-mix(in srgb, var(--text-muted) 45%, transparent)"
+        : "color-mix(in srgb, var(--border-primary) 38%, transparent)";
+
+    return {
+      id: edge.id,
+      source: edge.fromUnitId,
+      target: edge.toUnitId,
+      type: "smoothstep",
+      markerEnd: { type: MarkerType.ArrowClosed, color: stroke },
+      style: {
+        stroke,
+        strokeWidth: isCompletedPath ? 1.8 : 1.35,
+        opacity: isLockedPath ? 0.72 : 0.92,
+      },
+    };
+  });
+};
 
 type GraphCanvasProps = {
   nodes: Node<UnitNodeData>[];
@@ -138,11 +223,13 @@ const GraphCanvas = memo(function GraphCanvas({
       onNodeClick={onNodeClick}
       fitView
       defaultEdgeOptions={defaultEdgeOptionsRef.current}
-    />
+    >
+      <Background gap={24} size={1} color="color-mix(in srgb, var(--text-muted) 22%, transparent)" />
+    </ReactFlow>
   );
 });
 
-export default function StudentSectionGraphPanel({ sectionId, sectionTitle, onBack, onNotFound }: Props) {
+export default function StudentSectionGraphPanel({ sectionId, onBack, onNotFound }: Props) {
   const router = useRouter();
   const [nodes, setNodes] = useState<Node<UnitNodeData>[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
@@ -174,8 +261,9 @@ export default function StudentSectionGraphPanel({ sectionId, sectionTitle, onBa
     setLoading(true);
     try {
       const graph = await studentApi.getSectionGraph(sectionId);
-      setNodes(buildFlowNodes(graph.nodes));
-      setEdges(buildFlowEdges(graph.edges));
+      const scaledNodes = scaleGraphNodePositions(graph.nodes);
+      setNodes(buildFlowNodes(scaledNodes));
+      setEdges(buildFlowEdges(graph.edges, graph.nodes));
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) {
         onNotFound();
