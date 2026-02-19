@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ReactFlow, {
   Handle,
@@ -151,6 +151,23 @@ export default function StudentSectionGraphPanel({ sectionId, sectionTitle, onBa
   const [lockedHint, setLockedHint] = useState<string | null>(null);
   const [showLegend, setShowLegend] = useState(false);
 
+  const nodesById = useMemo(
+    () => new Map(nodes.map((item) => [item.id, item as Node<UnitNodeData>])),
+    [nodes],
+  );
+
+  const pendingPrerequisitesByNodeId = useMemo(() => {
+    const byTarget = new Map<string, string[]>();
+    for (const edge of edges) {
+      const sourceNode = nodesById.get(edge.source);
+      if (!sourceNode || sourceNode.data.status === "completed") continue;
+      const current = byTarget.get(edge.target) ?? [];
+      current.push(sourceNode.data.title);
+      byTarget.set(edge.target, current);
+    }
+    return byTarget;
+  }, [edges, nodesById]);
+
   const fetchGraph = useCallback(async () => {
     setError(null);
     setLockedHint(null);
@@ -180,14 +197,9 @@ export default function StudentSectionGraphPanel({ sectionId, sectionTitle, onBa
 
   const handleNodeClick = useCallback(
     (_: unknown, node: Node) => {
-      const clicked = nodes.find((item) => item.id === node.id);
+      const clicked = nodesById.get(node.id);
       if (clicked?.data.status === "locked") {
-        const lockedPrereqNames = edges
-          .filter((edge) => edge.target === node.id)
-          .map((edge) => nodes.find((item) => item.id === edge.source))
-          .filter((sourceNode): sourceNode is Node<UnitNodeData> => Boolean(sourceNode))
-          .filter((sourceNode) => sourceNode.data.status !== "completed")
-          .map((sourceNode) => sourceNode.data.title);
+        const lockedPrereqNames = pendingPrerequisitesByNodeId.get(node.id) ?? [];
 
         if (lockedPrereqNames.length > 0) {
           setLockedHint(
@@ -204,7 +216,7 @@ export default function StudentSectionGraphPanel({ sectionId, sectionTitle, onBa
       setLockedHint(null);
       router.push(`/student/units/${node.id}`);
     },
-    [edges, nodes, router],
+    [nodesById, pendingPrerequisitesByNodeId, router],
   );
 
   return (

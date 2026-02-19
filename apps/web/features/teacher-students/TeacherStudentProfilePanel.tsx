@@ -124,16 +124,13 @@ export default function TeacherStudentProfilePanel({
         courseId: activeCourseId ?? undefined,
       });
       setDetails(data);
-      if (onRefreshStudents) {
-        await onRefreshStudents();
-      }
     } catch (err) {
       setError(formatApiErrorPayload(err));
       setDetails(null);
     } finally {
       setLoading(false);
     }
-  }, [activeCourseId, onRefreshStudents, studentId]);
+  }, [activeCourseId, studentId]);
 
   const loadReviewPreview = useCallback(async () => {
     try {
@@ -258,13 +255,14 @@ export default function TeacherStudentProfilePanel({
         await teacherApi.overrideOpenUnit(studentId, unitId);
         setActionNotice("Доступ к юниту открыт вручную. Статусы обновлены.");
         await Promise.all([loadDetails(), loadReviewPreview()]);
+        void onRefreshStudents?.();
       } catch (err) {
         setError(formatApiErrorPayload(err));
       } finally {
         setOverrideBusyUnitId(null);
       }
     },
-    [loadDetails, loadReviewPreview, overrideBusyUnitId, studentId],
+    [loadDetails, loadReviewPreview, onRefreshStudents, overrideBusyUnitId, studentId],
   );
 
   const handleCreditTask = useCallback(
@@ -277,13 +275,14 @@ export default function TeacherStudentProfilePanel({
         await teacherApi.creditTask(studentId, task.id);
         setActionNotice("Задача зачтена. Прогресс и доступность пересчитаны.");
         await Promise.all([loadDetails(), loadReviewPreview()]);
+        void onRefreshStudents?.();
       } catch (err) {
         setError(formatApiErrorPayload(err));
       } finally {
         setCreditBusyTaskId(null);
       }
     },
-    [creditBusyTaskId, loadDetails, loadReviewPreview, studentId],
+    [creditBusyTaskId, loadDetails, loadReviewPreview, onRefreshStudents, studentId],
   );
 
   const openCourse = useCallback(

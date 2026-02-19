@@ -95,6 +95,19 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
     setView("courses");
   }, []);
 
+  const handleGraphNotFound = useCallback(() => {
+    try {
+      window.localStorage.removeItem(LAST_SECTION_KEY);
+    } catch {
+      // ignore
+    }
+    setSelectedSectionId(null);
+    setSelectedSectionTitle(null);
+    setSelectedCourseId(null);
+    setSelectedCourse(null);
+    setView("courses");
+  }, []);
+
   useEffect(() => {
     const hashOverride = typeof window !== "undefined" && window.location.hash === COURSES_HASH;
     if (queryOverride || hashOverride) {
@@ -164,10 +177,9 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [boot, view, selectedSectionId, selectedSectionTitle]);
+  }, [boot, handleGraphNotFound, selectedSectionId, selectedSectionTitle, view]);
 
-  const handleCourseClick = async (courseId: string) => {
+  const handleCourseClick = useCallback(async (courseId: string) => {
     const requestId = ++courseRequestIdRef.current;
     setError(null);
     setSelectedCourseId(courseId);
@@ -181,9 +193,9 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
       if (requestId !== courseRequestIdRef.current) return;
       setError(err instanceof Error ? err.message : "Ошибка загрузки курса");
     }
-  };
+  }, []);
 
-  const handleSectionClick = (section: Section) => {
+  const handleSectionClick = useCallback((section: Section) => {
     setSelectedSectionId(section.id);
     setSelectedSectionTitle(section.title);
     setView("graph");
@@ -192,13 +204,13 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
     } catch {
       // ignore
     }
-  };
+  }, []);
 
-  const handleBackToCourses = () => {
+  const handleBackToCourses = useCallback(() => {
     forceShowCourses();
-  };
+  }, [forceShowCourses]);
 
-  const handleBackToSections = async () => {
+  const handleBackToSections = useCallback(async () => {
     if (selectedCourse) {
       setView("sections");
       return;
@@ -216,20 +228,7 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
     }
     // If we restored a graph without knowing its course context, go back to courses.
     forceShowCourses();
-  };
-
-  const handleGraphNotFound = () => {
-    try {
-      window.localStorage.removeItem(LAST_SECTION_KEY);
-    } catch {
-      // ignore
-    }
-    setSelectedSectionId(null);
-    setSelectedSectionTitle(null);
-    setSelectedCourseId(null);
-    setSelectedCourse(null);
-    setView("courses");
-  };
+  }, [forceShowCourses, selectedCourse, selectedCourseId]);
 
   return (
     <DashboardShell

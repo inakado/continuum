@@ -689,7 +689,6 @@ export class PhotoTaskService {
     ttlRaw: unknown,
   ) {
     await this.studentsService.assertTeacherOwnsStudent(teacherId, studentId);
-    await this.requirePublishedPhotoTask(this.prisma, taskId);
 
     const assetKey = this.photoTaskPolicyService.parseSingleAssetKey(assetKeyRaw);
 

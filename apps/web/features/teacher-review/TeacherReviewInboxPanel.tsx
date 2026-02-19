@@ -44,7 +44,11 @@ const getTaskDisplayLabel = (task: { sortOrder: number }) => String(task.sortOrd
 export default function TeacherReviewInboxPanel() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const filters = useMemo(() => readReviewRouteFilters(searchParams), [searchParams]);
+  const searchParamsKey = searchParams.toString();
+  const filters = useMemo(
+    () => readReviewRouteFilters(new URLSearchParams(searchParamsKey)),
+    [searchParamsKey],
+  );
 
   const [items, setItems] = useState<TeacherReviewInboxItem[]>([]);
   const [total, setTotal] = useState(0);

@@ -273,6 +273,18 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
     return "ready";
   }, [loading, students.length]);
 
+  const availableTeachersByLeadTeacherId = useMemo(() => {
+    const map = new Map<string, TeacherSummary[]>();
+    for (const teacher of teachers) {
+      if (map.has(teacher.id)) continue;
+      map.set(
+        teacher.id,
+        teachers.filter((candidate) => candidate.id !== teacher.id),
+      );
+    }
+    return map;
+  }, [teachers]);
+
   const getDisplayName = (student: StudentSummary) => {
     const parts = [student.lastName, student.firstName].filter(Boolean);
     if (parts.length > 0) return parts.join(" ");
@@ -404,7 +416,8 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
             ? students.map((student) => {
                 const isTransferActive = transferStudentId === student.id;
                 const isActionsMenuOpen = openActionsStudentId === student.id;
-                const availableTeachers = teachers.filter((teacher) => teacher.id !== student.leadTeacherId);
+                const availableTeachers =
+                  availableTeachersByLeadTeacherId.get(student.leadTeacherId) ?? teachers;
                 const hasPendingReview = student.pendingPhotoReviewCount > 0;
 
                 return (

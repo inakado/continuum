@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import LiteTex from "@/components/LiteTex";
 import Button from "@/components/ui/Button";
@@ -39,14 +39,22 @@ const getTaskNumberLabel = (task: { sortOrder: number }) => `№ ${task.sortOrde
 export default function TeacherReviewSubmissionDetailPanel({ submissionId }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const filters = useMemo(() => readReviewRouteFilters(searchParams), [searchParams]);
+  const searchParamsKey = searchParams.toString();
+  const filters = useMemo(
+    () => readReviewRouteFilters(new URLSearchParams(searchParamsKey)),
+    [searchParamsKey],
+  );
 
   const [detail, setDetail] = useState<TeacherReviewSubmissionDetailResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState<"accept" | "reject" | null>(null);
   const [photoPreviewUrlByAssetKey, setPhotoPreviewUrlByAssetKey] = useState<Record<string, string>>({});
+  const [photoPreviewErrorByAssetKey, setPhotoPreviewErrorByAssetKey] = useState<Record<string, true>>({});
   const [activeAssetIndex, setActiveAssetIndex] = useState(0);
+  const [photoPreviewRetryToken, setPhotoPreviewRetryToken] = useState(0);
+  const photoPreviewCacheRef = useRef<Record<string, string>>({});
+  const photoPreviewErrorRef = useRef<Record<string, true>>({});
 
   const loadDetail = useCallback(async () => {
     setLoading(true);
@@ -55,6 +63,7 @@ export default function TeacherReviewSubmissionDetailPanel({ submissionId }: Pro
       const response = await teacherApi.getTeacherPhotoSubmissionDetail(submissionId, filters);
       setDetail(response);
       setActiveAssetIndex(0);
+      setPhotoPreviewErrorByAssetKey({});
     } catch (err) {
       setDetail(null);
       setError(formatApiErrorPayload(err));
@@ -68,15 +77,25 @@ export default function TeacherReviewSubmissionDetailPanel({ submissionId }: Pro
   }, [loadDetail]);
 
   useEffect(() => {
+    photoPreviewCacheRef.current = photoPreviewUrlByAssetKey;
+  }, [photoPreviewUrlByAssetKey]);
+
+  useEffect(() => {
+    photoPreviewErrorRef.current = photoPreviewErrorByAssetKey;
+  }, [photoPreviewErrorByAssetKey]);
+
+  useEffect(() => {
     let cancelled = false;
 
     const preload = async () => {
       const submission = detail?.submission;
       if (!submission) return;
-      const missingAssetKeys = submission.assetKeys.filter((assetKey) => !photoPreviewUrlByAssetKey[assetKey]);
+      const missingAssetKeys = submission.assetKeys.filter(
+        (assetKey) => !photoPreviewCacheRef.current[assetKey] && !photoPreviewErrorRef.current[assetKey],
+      );
       if (!missingAssetKeys.length) return;
 
-      await Promise.all(
+      const entries = await Promise.all(
         missingAssetKeys.map(async (assetKey) => {
           try {
             const response = await teacherApi.presignStudentTaskPhotoView(
@@ -86,12 +105,70 @@ export default function TeacherReviewSubmissionDetailPanel({ submissionId }: Pro
               300,
             );
             if (cancelled) return;
-            setPhotoPreviewUrlByAssetKey((prev) => ({ ...prev, [assetKey]: response.url }));
+            return { assetKey, url: response.url, failed: false } as const;
           } catch {
-            /* fallback: link button below */
+            /* fallback: show retry state in viewer */
+            return { assetKey, url: null, failed: true } as const;
           }
         }),
       );
+
+      if (cancelled) return;
+
+      const prepared = entries.filter(
+        (entry): entry is { readonly assetKey: string; readonly url: string; readonly failed: false } =>
+          Boolean(entry && entry.url),
+      );
+      const failedAssetKeys = entries
+        .filter((entry): entry is { readonly assetKey: string; readonly url: null; readonly failed: true } =>
+          Boolean(entry?.failed),
+        )
+        .map((entry) => entry.assetKey);
+
+      if (prepared.length) {
+        setPhotoPreviewUrlByAssetKey((prev) => {
+          let changed = false;
+          const next = { ...prev };
+          for (const { assetKey, url } of prepared) {
+            if (next[assetKey] === url) continue;
+            next[assetKey] = url;
+            changed = true;
+          }
+          if (!changed) return prev;
+          photoPreviewCacheRef.current = next;
+          return next;
+        });
+      }
+
+      if (failedAssetKeys.length) {
+        setPhotoPreviewErrorByAssetKey((prev) => {
+          let changed = false;
+          const next = { ...prev };
+          for (const assetKey of failedAssetKeys) {
+            if (next[assetKey]) continue;
+            next[assetKey] = true;
+            changed = true;
+          }
+          if (!changed) return prev;
+          photoPreviewErrorRef.current = next;
+          return next;
+        });
+      }
+
+      if (prepared.length) {
+        setPhotoPreviewErrorByAssetKey((prev) => {
+          let changed = false;
+          const next = { ...prev };
+          for (const { assetKey } of prepared) {
+            if (!next[assetKey]) continue;
+            delete next[assetKey];
+            changed = true;
+          }
+          if (!changed) return prev;
+          photoPreviewErrorRef.current = next;
+          return next;
+        });
+      }
     };
 
     void preload();
@@ -99,7 +176,21 @@ export default function TeacherReviewSubmissionDetailPanel({ submissionId }: Pro
     return () => {
       cancelled = true;
     };
-  }, [detail, photoPreviewUrlByAssetKey]);
+  }, [detail, photoPreviewRetryToken]);
+
+  const retryActivePreview = useCallback(() => {
+    if (!detail?.submission) return;
+    const activeAssetKey = detail.submission.assetKeys[activeAssetIndex];
+    if (!activeAssetKey) return;
+    setPhotoPreviewErrorByAssetKey((prev) => {
+      if (!prev[activeAssetKey]) return prev;
+      const next = { ...prev };
+      delete next[activeAssetKey];
+      photoPreviewErrorRef.current = next;
+      return next;
+    });
+    setPhotoPreviewRetryToken((prev) => prev + 1);
+  }, [activeAssetIndex, detail]);
 
   const queryString = useMemo(() => buildReviewSearch(filters), [filters]);
 
@@ -156,6 +247,7 @@ export default function TeacherReviewSubmissionDetailPanel({ submissionId }: Pro
   const assetKeys = submission?.assetKeys ?? [];
   const activeAssetKey = assetKeys[activeAssetIndex] ?? null;
   const activeAssetUrl = activeAssetKey ? photoPreviewUrlByAssetKey[activeAssetKey] : null;
+  const activeAssetLoadFailed = activeAssetKey ? Boolean(photoPreviewErrorByAssetKey[activeAssetKey]) : false;
   const profileFocusSearch = submission
     ? new URLSearchParams({
         courseId: submission.course.id,
@@ -210,7 +302,20 @@ export default function TeacherReviewSubmissionDetailPanel({ submissionId }: Pro
               </a>
             ) : (
               <div className={styles.viewerFrame}>
-                <div className={styles.viewerPlaceholder}>Превью загружается…</div>
+                {activeAssetLoadFailed ? (
+                  <div className={styles.viewerPlaceholderError}>
+                    <span>Не удалось загрузить превью.</span>
+                    <Button
+                      variant="ghost"
+                      className={styles.viewerRetryButton}
+                      onClick={() => void retryActivePreview()}
+                    >
+                      Повторить
+                    </Button>
+                  </div>
+                ) : (
+                  <div className={styles.viewerPlaceholder}>Превью загружается…</div>
+                )}
               </div>
             )}
 

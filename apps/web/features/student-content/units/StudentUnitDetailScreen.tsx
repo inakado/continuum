@@ -36,6 +36,13 @@ const PHOTO_MAX_FILES = 5;
 const PHOTO_MAX_SIZE_BYTES = 20 * 1024 * 1024;
 const PHOTO_ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const PHOTO_REVIEWABLE_STATUS = new Set<TaskState["status"]>(["not_started", "in_progress", "rejected"]);
+const CREDITED_TASK_STATUSES = new Set<TaskState["status"]>([
+  "correct",
+  "accepted",
+  "credited_without_progress",
+  "teacher_credited",
+]);
+const SOLVED_TASK_STATUSES = new Set<TaskState["status"]>(["correct", "accepted", "teacher_credited"]);
 const PdfCanvasPreview = dynamic(() => import("@/components/PdfCanvasPreview"), {
   ssr: false,
   loading: () => <div className={styles.stub}>Загрузка PDF...</div>,
@@ -133,6 +140,7 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
   const [photoErrorByTask, setPhotoErrorByTask] = useState<Record<string, string | null>>({});
   const [photoStatusByTask, setPhotoStatusByTask] = useState<Record<string, string | null>>({});
   const [photoPreviewUrlByAssetKey, setPhotoPreviewUrlByAssetKey] = useState<Record<string, string>>({});
+  const photoPreviewUrlByAssetKeyRef = useRef<Record<string, string>>({});
   const [photoFileDialogTaskId, setPhotoFileDialogTaskId] = useState<string | null>(null);
 
   const fetchUnit = useCallback(async () => {
@@ -267,15 +275,24 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
     }
   }, []);
 
+  useEffect(() => {
+    photoPreviewUrlByAssetKeyRef.current = photoPreviewUrlByAssetKey;
+  }, [photoPreviewUrlByAssetKey]);
+
   const getPhotoPreviewUrl = useCallback(
     async (taskId: string, assetKey: string) => {
-      const cached = photoPreviewUrlByAssetKey[assetKey];
+      const cached = photoPreviewUrlByAssetKeyRef.current[assetKey];
       if (cached) return cached;
       const response = await studentApi.presignPhotoView(taskId, assetKey, 180);
-      setPhotoPreviewUrlByAssetKey((prev) => ({ ...prev, [assetKey]: response.url }));
+      setPhotoPreviewUrlByAssetKey((prev) => {
+        if (prev[assetKey] === response.url) return prev;
+        const next = { ...prev, [assetKey]: response.url };
+        photoPreviewUrlByAssetKeyRef.current = next;
+        return next;
+      });
       return response.url;
     },
-    [photoPreviewUrlByAssetKey],
+    [],
   );
 
   const validatePhotoFiles = useCallback((files: File[]) => {
@@ -457,28 +474,30 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
 
   const completionPercent = unit?.completionPercent ?? 0;
   const solvedPercent = unit?.solvedPercent ?? 0;
+  const { totalTasks, countedTasks, solvedTasks, requiredTotal, requiredDone } = useMemo(() => {
+    let countedFallback = 0;
+    let solvedFallback = 0;
+    let requiredTotalFallback = 0;
+    let requiredDoneFallback = 0;
 
-  const totalTasks = unit?.totalTasks ?? orderedTasks.length;
-  const countedTasks =
-    unit?.countedTasks ??
-    orderedTasks.filter((task) =>
-      ["correct", "accepted", "credited_without_progress", "teacher_credited"].includes(
-        task.state?.status ?? "not_started",
-      ),
-    ).length;
-  const solvedTasks =
-    unit?.solvedTasks ??
-    orderedTasks.filter((task) =>
-      ["correct", "accepted", "teacher_credited"].includes(task.state?.status ?? "not_started"),
-    ).length;
-  const requiredTotal = orderedTasks.filter((task) => task.isRequired).length;
-  const requiredDone = orderedTasks.filter(
-    (task) =>
-      task.isRequired &&
-      ["correct", "accepted", "credited_without_progress", "teacher_credited"].includes(
-        task.state?.status ?? "not_started",
-      ),
-  ).length;
+    for (const task of orderedTasks) {
+      const status = task.state?.status ?? "not_started";
+      const isCredited = CREDITED_TASK_STATUSES.has(status);
+      if (isCredited) countedFallback += 1;
+      if (SOLVED_TASK_STATUSES.has(status)) solvedFallback += 1;
+      if (!task.isRequired) continue;
+      requiredTotalFallback += 1;
+      if (isCredited) requiredDoneFallback += 1;
+    }
+
+    return {
+      totalTasks: unit?.totalTasks ?? orderedTasks.length,
+      countedTasks: unit?.countedTasks ?? countedFallback,
+      solvedTasks: unit?.solvedTasks ?? solvedFallback,
+      requiredTotal: requiredTotalFallback,
+      requiredDone: requiredDoneFallback,
+    };
+  }, [orderedTasks, unit?.countedTasks, unit?.solvedTasks, unit?.totalTasks]);
   const unitStatusLabel = getStudentUnitStatusLabel(unit?.unitStatus ?? null);
   const normalizePercent = useCallback((value: number) => Math.max(0, Math.min(100, Math.round(value))), []);
   const completionMeter = normalizePercent(completionPercent);
@@ -513,11 +532,8 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
   );
 
   const isCreditedStatus = useCallback(
-    (status?: string | null) =>
-      status === "correct" ||
-      status === "accepted" ||
-      status === "credited_without_progress" ||
-      status === "teacher_credited",
+    (status?: TaskState["status"] | null) =>
+      CREDITED_TASK_STATUSES.has((status ?? "not_started") as TaskState["status"]),
     [],
   );
 
@@ -621,23 +637,44 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
       if (!activeTask || activeTask.answerType !== "photo" || !latestPhotoSubmission) return;
       const keys = latestPhotoSubmission.assetKeys;
       if (!keys.length) return;
-      await Promise.all(
-        keys.map(async (assetKey) => {
-          if (photoPreviewUrlByAssetKey[assetKey]) return;
+      const missingKeys = keys.filter((assetKey) => !photoPreviewUrlByAssetKeyRef.current[assetKey]);
+      if (!missingKeys.length) return;
+
+      const entries = await Promise.all(
+        missingKeys.map(async (assetKey) => {
           try {
-            const url = await getPhotoPreviewUrl(activeTask.id, assetKey);
-            if (cancelled || !url) return;
+            const response = await studentApi.presignPhotoView(activeTask.id, assetKey, 180);
+            return [assetKey, response.url] as const;
           } catch {
             /* preview fallback остается ссылкой без thumbnail */
+            return null;
           }
         }),
       );
+
+      if (cancelled) return;
+
+      const prepared = entries.filter((entry): entry is readonly [string, string] => Boolean(entry));
+      if (!prepared.length) return;
+
+      setPhotoPreviewUrlByAssetKey((prev) => {
+        let changed = false;
+        const next = { ...prev };
+        for (const [assetKey, url] of prepared) {
+          if (next[assetKey] === url) continue;
+          next[assetKey] = url;
+          changed = true;
+        }
+        if (!changed) return prev;
+        photoPreviewUrlByAssetKeyRef.current = next;
+        return next;
+      });
     };
     void run();
     return () => {
       cancelled = true;
     };
-  }, [activeTask, getPhotoPreviewUrl, latestPhotoSubmission, photoPreviewUrlByAssetKey]);
+  }, [activeTask, latestPhotoSubmission]);
 
   useEffect(() => {
     if (!activeTask) return;
@@ -689,6 +726,11 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
     if (!activeTask) return null;
     return attemptPerPart[activeTask.id] ?? null;
   }, [activeTask, attemptPerPart]);
+
+  const attemptPerPartByKey = useMemo(() => {
+    if (!attemptPerPartResults) return null;
+    return new Map(attemptPerPartResults.map((item) => [item.partKey, item.correct]));
+  }, [attemptPerPartResults]);
 
   const updateNumericValue = useCallback((taskId: string, partKey: string, value: string) => {
     setNumericAnswers((prev) => ({
@@ -1135,15 +1177,13 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
                                   {attemptPerPartResults ? (
                                     <span
                                       className={`${styles.partResult} ${
-                                        attemptPerPartResults.find((item) => item.partKey === part.key)
-                                          ?.correct
+                                        attemptPerPartByKey?.get(part.key)
                                           ? styles.partResultCorrect
                                           : styles.partResultIncorrect
                                       }`}
                                     >
                                       {
-                                        attemptPerPartResults.find((item) => item.partKey === part.key)
-                                          ?.correct
+                                        attemptPerPartByKey?.get(part.key)
                                           ? "верно"
                                           : "ошибка"
                                       }

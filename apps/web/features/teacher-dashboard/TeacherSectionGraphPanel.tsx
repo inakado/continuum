@@ -234,11 +234,6 @@ export default function TeacherSectionGraphPanel({ sectionId, courseTitle, secti
         return;
       }
 
-      if (edges.some((edge) => edge.source === connection.source && edge.target === connection.target)) {
-        setError("GraphDuplicateEdgeNotAllowed");
-        return;
-      }
-
       const nextEdge: Edge = {
         id: `edge-${connection.source}-${connection.target}`,
         source: connection.source,
@@ -248,9 +243,15 @@ export default function TeacherSectionGraphPanel({ sectionId, courseTitle, secti
         style: { stroke: "var(--border-primary)" },
       };
 
-      setEdges((current) => addEdge(nextEdge, current));
+      setEdges((current) => {
+        if (current.some((edge) => edge.source === connection.source && edge.target === connection.target)) {
+          setError("GraphDuplicateEdgeNotAllowed");
+          return current;
+        }
+        return addEdge(nextEdge, current);
+      });
     },
-    [edges, setEdges],
+    [setEdges],
   );
 
   const handleSave = async () => {

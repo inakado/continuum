@@ -30,6 +30,29 @@ type ContentConfig = {
   subtitle: string;
 };
 
+type TeacherEditModeProps = {
+  initialSectionId?: string;
+};
+
+const CONTENT_BY_SECTION: Record<ActiveSection, ContentConfig> = {
+  edit: {
+    title: "Создание и редактирование",
+    subtitle: "Выберите курс и раздел, чтобы перейти к графу",
+  },
+  students: {
+    title: "Ученики",
+    subtitle: "",
+  },
+  review: {
+    title: "Проверка фото",
+    subtitle: "",
+  },
+  analytics: {
+    title: "Аналитика",
+    subtitle: "Раздел в разработке",
+  },
+};
+
 const TeacherSectionGraphPanel = dynamic(() => import("./TeacherSectionGraphPanel"), {
   ssr: false,
   loading: () => (
@@ -40,15 +63,51 @@ const TeacherSectionGraphPanel = dynamic(() => import("./TeacherSectionGraphPane
   ),
 });
 
-export default function TeacherDashboardScreen({
-  active,
-  initialSectionId,
-  initialStudentId,
-  initialSubmissionId,
-}: TeacherDashboardScreenProps) {
+const getNavItems = (active: ActiveSection) => [
+  {
+    label: "Создание и редактирование",
+    href: "/teacher",
+    active: active === "edit",
+  },
+  {
+    label: "Ученики",
+    href: "/teacher/students",
+    active: active === "students",
+  },
+  {
+    label: "Проверка фото",
+    href: "/teacher/review",
+    active: active === "review",
+  },
+  {
+    label: "Аналитика",
+    href: "/teacher/analytics",
+    active: active === "analytics",
+  },
+];
+
+function TeacherStudentsMode({ initialStudentId }: { initialStudentId?: string }) {
+  return <TeacherStudentsPanel studentId={initialStudentId} />;
+}
+
+function TeacherReviewMode({ initialSubmissionId }: { initialSubmissionId?: string }) {
+  if (initialSubmissionId) {
+    return <TeacherReviewSubmissionDetailPanel submissionId={initialSubmissionId} />;
+  }
+  return <TeacherReviewInboxPanel />;
+}
+
+function TeacherAnalyticsMode({ content }: { content: ContentConfig }) {
+  return (
+    <div className={styles.placeholder}>
+      <div className={styles.placeholderTitle}>{content.title}</div>
+      <div className={styles.placeholderSubtitle}>{content.subtitle}</div>
+    </div>
+  );
+}
+
+function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
   const router = useRouter();
-  const handleLogout = useTeacherLogout();
-  const isEditMode = active === "edit";
   const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [selectedCourse, setSelectedCourse] = useState<CourseWithSections | null>(null);
@@ -68,67 +127,12 @@ export default function TeacherDashboardScreen({
   const coursesRequestIdRef = useRef(0);
   const sectionsRequestIdRef = useRef(0);
 
-  const content = useMemo<ContentConfig>(() => {
-    switch (active) {
-      case "students":
-        return {
-          title: "Ученики",
-          subtitle: "",
-        };
-      case "review":
-        return {
-          title: "Проверка фото",
-          subtitle: "",
-        };
-      case "analytics":
-        return {
-          title: "Аналитика",
-          subtitle: "Раздел в разработке",
-        };
-      case "edit":
-      default:
-        return {
-          title: "Создание и редактирование",
-          subtitle: "Выберите курс и раздел, чтобы перейти к графу",
-        };
-    }
-  }, [active]);
-
-  const navItems = useMemo(
-    () => [
-      {
-        label: "Создание и редактирование",
-        href: "/teacher",
-        active: active === "edit",
-      },
-      {
-        label: "Ученики",
-        href: "/teacher/students",
-        active: active === "students",
-      },
-      {
-        label: "Проверка фото",
-        href: "/teacher/review",
-        active: active === "review",
-      },
-      {
-        label: "Аналитика",
-        href: "/teacher/analytics",
-        active: active === "analytics",
-      },
-    ],
-    [active],
-  );
-
   const sortedSections = useMemo(() => {
     if (!selectedCourse) return [];
     return [...selectedCourse.sections].sort((a, b) => a.sortOrder - b.sortOrder);
   }, [selectedCourse]);
 
-  const showMainHeader = active !== "edit";
-
   const fetchCourses = useCallback(async () => {
-    if (!isEditMode) return;
     const requestId = ++coursesRequestIdRef.current;
     setLoadingCourses(true);
     setError(null);
@@ -144,10 +148,9 @@ export default function TeacherDashboardScreen({
         setLoadingCourses(false);
       }
     }
-  }, [isEditMode]);
+  }, []);
 
   const selectCourse = useCallback(async (courseId: string) => {
-    if (!isEditMode) return;
     const requestId = ++sectionsRequestIdRef.current;
     setSelectedCourseId(courseId);
     setSelectedCourse(null);
@@ -167,17 +170,17 @@ export default function TeacherDashboardScreen({
         setLoadingSections(false);
       }
     }
-  }, [isEditMode]);
+  }, []);
 
   useEffect(() => {
-    fetchCourses();
+    void fetchCourses();
   }, [fetchCourses]);
 
   useEffect(() => {
-    if (initialSectionId && isEditMode) {
+    if (initialSectionId) {
       setSelectedSectionId(initialSectionId);
     }
-  }, [initialSectionId, isEditMode]);
+  }, [initialSectionId]);
 
   const handleCreateCourse = async () => {
     if (!courseTitle.trim() || creatingCourse) return;
@@ -292,12 +295,272 @@ export default function TeacherDashboardScreen({
   };
 
   return (
-    <DashboardShell
-      title="Преподаватель"
-      navItems={navItems}
-      appearance="glass"
-      onLogout={handleLogout}
-    >
+    <>
+      {error ? (
+        <div className={styles.error} role="status" aria-live="polite">
+          {error}
+        </div>
+      ) : null}
+
+      {selectedSectionId ? (
+        <TeacherSectionGraphPanel
+          sectionId={selectedSectionId}
+          sectionTitle={selectedSectionTitle}
+          courseTitle={selectedCourse?.title ?? null}
+          onBack={handleBackToList}
+        />
+      ) : (
+        <section className={styles.panel}>
+          <div className={styles.panelHeader}>
+            <div className={styles.breadcrumbs}>
+              {selectedCourse ? (
+                <>
+                  <button
+                    type="button"
+                    className={styles.breadcrumbLink}
+                    onClick={() => {
+                      setSelectedCourse(null);
+                      setSelectedCourseId(null);
+                      setShowSectionForm(false);
+                      setSectionTitle("");
+                    }}
+                  >
+                    Курсы
+                  </button>
+                  <span className={styles.breadcrumbDivider}>/</span>
+                  <span className={styles.breadcrumbCurrent}>{selectedCourse.title}</span>
+                </>
+              ) : (
+                <span className={styles.breadcrumbCurrent}>Курсы</span>
+              )}
+            </div>
+            <div className={styles.panelActions}>
+              {selectedCourse ? (
+                <Button
+                  onClick={() => {
+                    setShowSectionForm((prev) => !prev);
+                    setSectionFormError(null);
+                  }}
+                >
+                  Новый раздел
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => {
+                    setShowCourseForm((prev) => !prev);
+                    setCourseFormError(null);
+                  }}
+                >
+                  Создать курс
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className={styles.panelBody}>
+            {selectedCourse ? (
+              <>
+                {showSectionForm ? (
+                  <div className={styles.inlineForm}>
+                    <label className={styles.label}>
+                      Название раздела
+                      <Input
+                        value={sectionTitle}
+                        onChange={(event) => setSectionTitle(event.target.value)}
+                        name="sectionTitle"
+                        autoComplete="off"
+                        placeholder="Например, Дроби и проценты…"
+                      />
+                    </label>
+                    {sectionFormError ? (
+                      <div className={styles.formError}>{sectionFormError}</div>
+                    ) : null}
+                    <div className={styles.actions}>
+                      <Button onClick={handleCreateSection} disabled={!sectionTitle.trim() || creatingSection}>
+                        Сохранить раздел
+                      </Button>
+                      <Button variant="ghost" onClick={() => setShowSectionForm(false)}>
+                        Отмена
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {loadingSections ? (
+                  <div className={styles.empty}>Загрузка разделов…</div>
+                ) : sortedSections.length === 0 ? (
+                  <div className={styles.empty}>Разделов пока нет.</div>
+                ) : (
+                  <div className={styles.cardGrid}>
+                    {sortedSections.map((section) => (
+                      <div key={section.id} className={styles.card}>
+                        <button type="button" className={styles.cardMain} onClick={() => handleSectionClick(section)}>
+                          <div className={styles.cardTitleRow}>
+                            <div className={styles.cardTitle}>{section.title}</div>
+                          </div>
+                        </button>
+                        <div className={styles.cardControls}>
+                          <span className={styles.status} data-status={section.status}>
+                            {getContentStatusLabel(section.status)}
+                          </span>
+                          <div className={styles.cardActions}>
+                            <Button
+                              variant="ghost"
+                              className={styles.cardIconAction}
+                              title={section.status === "published" ? "Снять с публикации" : "Опубликовать"}
+                              aria-label={
+                                section.status === "published"
+                                  ? "Снять раздел с публикации"
+                                  : "Опубликовать раздел"
+                              }
+                              onClick={() => handlePublishSectionToggle(section)}
+                            >
+                              {section.status === "published" ? (
+                                <EyeOff size={16} aria-hidden="true" />
+                              ) : (
+                                <Eye size={16} aria-hidden="true" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              className={styles.cardIconAction}
+                              title="Удалить раздел"
+                              aria-label="Удалить раздел"
+                              onClick={() => handleDeleteSection(section)}
+                            >
+                              <Trash2 size={16} aria-hidden="true" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                {showCourseForm ? (
+                  <div className={styles.inlineForm}>
+                    <label className={styles.label}>
+                      Название курса
+                      <Input
+                        value={courseTitle}
+                        onChange={(event) => setCourseTitle(event.target.value)}
+                        name="courseTitle"
+                        autoComplete="off"
+                        placeholder="Например, Математика 7 класс…"
+                      />
+                    </label>
+                    {courseFormError ? <div className={styles.formError}>{courseFormError}</div> : null}
+                    <div className={styles.actions}>
+                      <Button onClick={handleCreateCourse} disabled={!courseTitle.trim() || creatingCourse}>
+                        Сохранить курс
+                      </Button>
+                      <Button variant="ghost" onClick={() => setShowCourseForm(false)}>
+                        Отмена
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {loadingCourses ? (
+                  <div className={styles.empty}>Загрузка курсов…</div>
+                ) : courses.length === 0 ? (
+                  <div className={styles.empty}>Пока нет курсов. Создайте первый.</div>
+                ) : (
+                  <div className={styles.cardGrid}>
+                    {courses.map((course) => (
+                      <div
+                        key={course.id}
+                        className={`${styles.card} ${selectedCourseId === course.id ? styles.cardActive : ""}`}
+                      >
+                        <button
+                          type="button"
+                          className={styles.cardMain}
+                          onClick={() => {
+                            setShowCourseForm(false);
+                            setCourseTitle("");
+                            setCourseFormError(null);
+                            void selectCourse(course.id);
+                          }}
+                        >
+                          <div className={styles.cardTitleRow}>
+                            <div className={styles.cardTitle}>{course.title}</div>
+                          </div>
+                          <div className={styles.cardMeta}>{course.description ? course.description : "Без описания"}</div>
+                        </button>
+                        <div className={styles.cardControls}>
+                          <span className={styles.status} data-status={course.status}>
+                            {getContentStatusLabel(course.status)}
+                          </span>
+                          <div className={styles.cardActions}>
+                            <Button
+                              variant="ghost"
+                              className={styles.cardIconAction}
+                              title={course.status === "published" ? "Снять с публикации" : "Опубликовать"}
+                              aria-label={
+                                course.status === "published" ? "Снять курс с публикации" : "Опубликовать курс"
+                              }
+                              onClick={() => void handlePublishCourseToggle(course)}
+                            >
+                              {course.status === "published" ? (
+                                <EyeOff size={16} aria-hidden="true" />
+                              ) : (
+                                <Eye size={16} aria-hidden="true" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              className={styles.cardIconAction}
+                              title="Удалить курс"
+                              aria-label="Удалить курс"
+                              onClick={() => void handleDeleteCourse(course)}
+                            >
+                              <Trash2 size={16} aria-hidden="true" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </section>
+      )}
+    </>
+  );
+}
+
+export default function TeacherDashboardScreen({
+  active,
+  initialSectionId,
+  initialStudentId,
+  initialSubmissionId,
+}: TeacherDashboardScreenProps) {
+  const router = useRouter();
+  const handleLogout = useTeacherLogout();
+  const content = CONTENT_BY_SECTION[active];
+  const navItems = useMemo(() => getNavItems(active), [active]);
+  const showMainHeader = active !== "edit";
+
+  const renderActiveMode = () => {
+    switch (active) {
+      case "students":
+        return <TeacherStudentsMode initialStudentId={initialStudentId} />;
+      case "review":
+        return <TeacherReviewMode initialSubmissionId={initialSubmissionId} />;
+      case "analytics":
+        return <TeacherAnalyticsMode content={content} />;
+      case "edit":
+      default:
+        return <TeacherEditMode initialSectionId={initialSectionId} />;
+    }
+  };
+
+  return (
+    <DashboardShell title="Преподаватель" navItems={navItems} appearance="glass" onLogout={handleLogout}>
       <div className={styles.content}>
         {showMainHeader ? (
           <div className={styles.header}>
@@ -315,281 +578,7 @@ export default function TeacherDashboardScreen({
           </div>
         ) : null}
 
-        {error ? (
-          <div className={styles.error} role="status" aria-live="polite">
-            {error}
-          </div>
-        ) : null}
-
-        {active === "students" ? (
-          <TeacherStudentsPanel studentId={initialStudentId} />
-        ) : active === "review" ? (
-          initialSubmissionId ? (
-            <TeacherReviewSubmissionDetailPanel submissionId={initialSubmissionId} />
-          ) : (
-            <TeacherReviewInboxPanel />
-          )
-        ) : active === "analytics" ? (
-          <div className={styles.placeholder}>
-            <div className={styles.placeholderTitle}>{content.title}</div>
-            <div className={styles.placeholderSubtitle}>{content.subtitle}</div>
-          </div>
-        ) : selectedSectionId ? (
-          <TeacherSectionGraphPanel
-            sectionId={selectedSectionId}
-            sectionTitle={selectedSectionTitle}
-            courseTitle={selectedCourse?.title ?? null}
-            onBack={handleBackToList}
-          />
-        ) : (
-          <section className={styles.panel}>
-            <div className={styles.panelHeader}>
-              <div className={styles.breadcrumbs}>
-                {selectedCourse ? (
-                  <>
-                    <button
-                      type="button"
-                      className={styles.breadcrumbLink}
-                      onClick={() => {
-                        setSelectedCourse(null);
-                        setSelectedCourseId(null);
-                        setShowSectionForm(false);
-                        setSectionTitle("");
-                      }}
-                    >
-                      Курсы
-                    </button>
-                    <span className={styles.breadcrumbDivider}>/</span>
-                    <span className={styles.breadcrumbCurrent}>{selectedCourse.title}</span>
-                  </>
-                ) : (
-                  <span className={styles.breadcrumbCurrent}>Курсы</span>
-                )}
-              </div>
-              <div className={styles.panelActions}>
-                {selectedCourse ? (
-                  <Button
-                    onClick={() => {
-                      setShowSectionForm((prev) => !prev);
-                      setSectionFormError(null);
-                    }}
-                  >
-                    Новый раздел
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={() => {
-                      setShowCourseForm((prev) => !prev);
-                      setCourseFormError(null);
-                    }}
-                  >
-                    Создать курс
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            <div className={styles.panelBody}>
-              {selectedCourse ? (
-                <>
-                  {showSectionForm ? (
-                    <div className={styles.inlineForm}>
-                      <label className={styles.label}>
-                        Название раздела
-                        <Input
-                          value={sectionTitle}
-                          onChange={(event) => setSectionTitle(event.target.value)}
-                          name="sectionTitle"
-                          autoComplete="off"
-                          placeholder="Например, Дроби и проценты…"
-                        />
-                      </label>
-                      {sectionFormError ? (
-                        <div className={styles.formError}>{sectionFormError}</div>
-                      ) : null}
-                      <div className={styles.actions}>
-                        <Button
-                          onClick={handleCreateSection}
-                          disabled={!sectionTitle.trim() || creatingSection}
-                        >
-                          Сохранить раздел
-                        </Button>
-                        <Button variant="ghost" onClick={() => setShowSectionForm(false)}>
-                          Отмена
-                        </Button>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {loadingSections ? (
-                    <div className={styles.empty}>Загрузка разделов…</div>
-                  ) : sortedSections.length === 0 ? (
-                    <div className={styles.empty}>Разделов пока нет.</div>
-                  ) : (
-                    <div className={styles.cardGrid}>
-                      {sortedSections.map((section) => (
-                        <div
-                          key={section.id}
-                          className={styles.card}
-                        >
-                          <button
-                            type="button"
-                            className={styles.cardMain}
-                            onClick={() => handleSectionClick(section)}
-                          >
-                            <div className={styles.cardTitleRow}>
-                              <div className={styles.cardTitle}>{section.title}</div>
-                            </div>
-                          </button>
-                          <div className={styles.cardControls}>
-                            <span className={styles.status} data-status={section.status}>
-                              {getContentStatusLabel(section.status)}
-                            </span>
-                            <div className={styles.cardActions}>
-                              <Button
-                                variant="ghost"
-                                className={styles.cardIconAction}
-                                title={
-                                  section.status === "published"
-                                    ? "Снять с публикации"
-                                    : "Опубликовать"
-                                }
-                                aria-label={
-                                  section.status === "published"
-                                    ? "Снять раздел с публикации"
-                                    : "Опубликовать раздел"
-                                }
-                                onClick={() => handlePublishSectionToggle(section)}
-                              >
-                                {section.status === "published" ? (
-                                  <EyeOff size={16} aria-hidden="true" />
-                                ) : (
-                                  <Eye size={16} aria-hidden="true" />
-                                )}
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                className={styles.cardIconAction}
-                                title="Удалить раздел"
-                                aria-label="Удалить раздел"
-                                onClick={() => handleDeleteSection(section)}
-                              >
-                                <Trash2 size={16} aria-hidden="true" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  {showCourseForm ? (
-                    <div className={styles.inlineForm}>
-                      <label className={styles.label}>
-                        Название курса
-                        <Input
-                          value={courseTitle}
-                          onChange={(event) => setCourseTitle(event.target.value)}
-                          name="courseTitle"
-                          autoComplete="off"
-                          placeholder="Например, Математика 7 класс…"
-                        />
-                      </label>
-                      {courseFormError ? (
-                        <div className={styles.formError}>{courseFormError}</div>
-                      ) : null}
-                      <div className={styles.actions}>
-                        <Button
-                          onClick={handleCreateCourse}
-                          disabled={!courseTitle.trim() || creatingCourse}
-                        >
-                          Сохранить курс
-                        </Button>
-                        <Button variant="ghost" onClick={() => setShowCourseForm(false)}>
-                          Отмена
-                        </Button>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {loadingCourses ? (
-                    <div className={styles.empty}>Загрузка курсов…</div>
-                  ) : courses.length === 0 ? (
-                    <div className={styles.empty}>Пока нет курсов. Создайте первый.</div>
-                  ) : (
-                    <div className={styles.cardGrid}>
-                      {courses.map((course) => (
-                        <div
-                          key={course.id}
-                          className={`${styles.card} ${
-                            selectedCourseId === course.id ? styles.cardActive : ""
-                          }`}
-                        >
-                          <button
-                            type="button"
-                            className={styles.cardMain}
-                            onClick={() => {
-                              setShowCourseForm(false);
-                              setCourseTitle("");
-                              setCourseFormError(null);
-                              selectCourse(course.id);
-                            }}
-                          >
-                            <div className={styles.cardTitleRow}>
-                              <div className={styles.cardTitle}>{course.title}</div>
-                            </div>
-                            <div className={styles.cardMeta}>
-                              {course.description ? course.description : "Без описания"}
-                            </div>
-                          </button>
-                          <div className={styles.cardControls}>
-                            <span className={styles.status} data-status={course.status}>
-                              {getContentStatusLabel(course.status)}
-                            </span>
-                            <div className={styles.cardActions}>
-                              <Button
-                                variant="ghost"
-                                className={styles.cardIconAction}
-                                title={
-                                  course.status === "published"
-                                    ? "Снять с публикации"
-                                    : "Опубликовать"
-                                }
-                                aria-label={
-                                  course.status === "published"
-                                    ? "Снять курс с публикации"
-                                    : "Опубликовать курс"
-                                }
-                                onClick={() => handlePublishCourseToggle(course)}
-                              >
-                                {course.status === "published" ? (
-                                  <EyeOff size={16} aria-hidden="true" />
-                                ) : (
-                                  <Eye size={16} aria-hidden="true" />
-                                )}
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                className={styles.cardIconAction}
-                                title="Удалить курс"
-                                aria-label="Удалить курс"
-                                onClick={() => handleDeleteCourse(course)}
-                              >
-                                <Trash2 size={16} aria-hidden="true" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </section>
-        )}
+        {renderActiveMode()}
       </div>
     </DashboardShell>
   );
