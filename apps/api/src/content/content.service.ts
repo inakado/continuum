@@ -21,6 +21,7 @@ type TaskRevisionRecord = {
   id: string;
   answerType: TaskAnswerType;
   statementLite: string;
+  statementImageAssetKey: string | null;
   solutionLite: string | null;
   solutionRichLatex: string | null;
   solutionPdfAssetKey: string | null;
@@ -634,6 +635,40 @@ export class ContentService {
     };
   }
 
+  async getTaskStatementImageState(taskId: string) {
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      select: {
+        id: true,
+        activeRevisionId: true,
+        activeRevision: {
+          select: {
+            id: true,
+            statementImageAssetKey: true,
+          },
+        },
+      },
+    });
+    if (!task) {
+      throw new NotFoundException({
+        code: 'TASK_NOT_FOUND',
+        message: 'Task not found',
+      });
+    }
+    if (!task.activeRevisionId || !task.activeRevision) {
+      throw new ConflictException({
+        code: 'TASK_ACTIVE_REVISION_MISSING',
+        message: 'Task active revision is missing',
+      });
+    }
+
+    return {
+      taskId: task.id,
+      activeRevisionId: task.activeRevisionId,
+      statementImageAssetKey: task.activeRevision.statementImageAssetKey,
+    };
+  }
+
   async setTaskRevisionSolutionPdfAssetKey(taskRevisionId: string, key: string) {
     // Allowed in-place exception: apply phase only attaches compiled PDF to the current revision.
     return this.prisma.taskRevision.update({
@@ -645,6 +680,21 @@ export class ContentService {
         id: true,
         taskId: true,
         solutionPdfAssetKey: true,
+      },
+    });
+  }
+
+  async setTaskRevisionStatementImageAssetKey(taskRevisionId: string, key: string | null) {
+    // Allowed in-place exception: only attaches/removes a statement illustration in active revision.
+    return this.prisma.taskRevision.update({
+      where: { id: taskRevisionId },
+      data: {
+        statementImageAssetKey: key,
+      },
+      select: {
+        id: true,
+        taskId: true,
+        statementImageAssetKey: true,
       },
     });
   }
@@ -725,6 +775,7 @@ export class ContentService {
       numericPartsJson: dto.numericPartsJson,
       choicesJson: dto.choicesJson,
       correctAnswerJson: dto.correctAnswerJson,
+      statementImageAssetKey: null,
       solutionLite: dto.solutionLite ?? null,
       solutionRichLatex: null,
       solutionPdfAssetKey: null,
@@ -763,6 +814,7 @@ export class ContentService {
         id: revision.id,
         answerType: revision.answerType,
         statementLite: revision.statementLite,
+        statementImageAssetKey: revision.statementImageAssetKey,
         solutionLite: revision.solutionLite,
         solutionRichLatex: revision.solutionRichLatex,
         solutionPdfAssetKey: revision.solutionPdfAssetKey,
@@ -821,6 +873,7 @@ export class ContentService {
         dto.correctAnswerJson !== undefined
           ? dto.correctAnswerJson
           : currentView.correctAnswerJson,
+      statementImageAssetKey: currentView.statementImageAssetKey ?? null,
       solutionLite:
         dto.solutionLite !== undefined ? dto.solutionLite : currentView.solutionLite,
       solutionRichLatex: currentView.solutionRichLatex ?? null,
@@ -835,6 +888,7 @@ export class ContentService {
       numericPartsJson: merged.numericPartsJson,
       choicesJson: merged.choicesJson,
       correctAnswerJson: merged.correctAnswerJson,
+      statementImageAssetKey: merged.statementImageAssetKey,
       solutionLite: merged.solutionLite ?? null,
       solutionRichLatex: merged.solutionRichLatex,
       solutionPdfAssetKey: merged.solutionPdfAssetKey,
@@ -870,6 +924,7 @@ export class ContentService {
         id: revision.id,
         answerType: revision.answerType,
         statementLite: revision.statementLite,
+        statementImageAssetKey: revision.statementImageAssetKey,
         solutionLite: revision.solutionLite,
         solutionRichLatex: revision.solutionRichLatex,
         solutionPdfAssetKey: revision.solutionPdfAssetKey,
@@ -1003,6 +1058,7 @@ export class ContentService {
           ? sortedChoices
           : null,
       correctAnswerJson,
+      statementImageAssetKey: revision.statementImageAssetKey,
       solutionLite: revision.solutionLite,
       solutionRichLatex: revision.solutionRichLatex,
       solutionPdfAssetKey: revision.solutionPdfAssetKey,
@@ -1032,6 +1088,7 @@ export class ContentService {
       numericPartsJson: NumericPart[] | null;
       choicesJson: Choice[] | null;
       correctAnswerJson: CorrectAnswer | null;
+      statementImageAssetKey: string | null;
       solutionLite: string | null;
       solutionRichLatex: string | null;
       solutionPdfAssetKey: string | null;
@@ -1043,6 +1100,7 @@ export class ContentService {
         revisionNo,
         answerType: normalized.answerType,
         statementLite: normalized.statementLite,
+        statementImageAssetKey: normalized.statementImageAssetKey,
         solutionLite: normalized.solutionLite,
         solutionRichLatex: normalized.solutionRichLatex,
         solutionPdfAssetKey: normalized.solutionPdfAssetKey,
@@ -1266,6 +1324,7 @@ export class ContentService {
     numericPartsJson?: unknown;
     choicesJson?: unknown;
     correctAnswerJson?: unknown;
+    statementImageAssetKey?: unknown;
     solutionLite?: unknown;
     solutionRichLatex?: unknown;
     solutionPdfAssetKey?: unknown;
@@ -1275,6 +1334,7 @@ export class ContentService {
     numericPartsJson: NumericPart[] | null;
     choicesJson: Choice[] | null;
     correctAnswerJson: CorrectAnswer | null;
+    statementImageAssetKey: string | null;
     solutionLite: string | null;
     solutionRichLatex: string | null;
     solutionPdfAssetKey: string | null;
@@ -1291,6 +1351,13 @@ export class ContentService {
       maxLength: 20_000,
       errorCode: 'InvalidSolutionLite',
     });
+    let statementImageAssetKey: string | null = null;
+    if (payload.statementImageAssetKey !== undefined && payload.statementImageAssetKey !== null) {
+      if (typeof payload.statementImageAssetKey !== 'string') {
+        throw new BadRequestException('InvalidStatementImageAssetKey');
+      }
+      statementImageAssetKey = this.normalizeAssetKey(payload.statementImageAssetKey);
+    }
     const solutionRichLatex = this.sanitizeRichText(
       payload.solutionRichLatex as string | null | undefined,
     );
@@ -1310,6 +1377,7 @@ export class ContentService {
         numericPartsJson: numericParts,
         choicesJson: null,
         correctAnswerJson: null,
+        statementImageAssetKey,
         solutionLite,
         solutionRichLatex,
         solutionPdfAssetKey,
@@ -1332,6 +1400,7 @@ export class ContentService {
         numericPartsJson: null,
         choicesJson: choices,
         correctAnswerJson: correctAnswer,
+        statementImageAssetKey,
         solutionLite,
         solutionRichLatex,
         solutionPdfAssetKey,
@@ -1354,6 +1423,7 @@ export class ContentService {
       numericPartsJson: null,
       choicesJson: null,
       correctAnswerJson: null,
+      statementImageAssetKey,
       solutionLite,
       solutionRichLatex,
       solutionPdfAssetKey,

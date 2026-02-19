@@ -94,11 +94,21 @@ type TaskSolutionCompileState = {
   previewUrl: string | null;
 };
 
+type TaskStatementImageState = {
+  loading: boolean;
+  error: string | null;
+  updatedAt: number | null;
+  key: string | null;
+  previewUrl: string | null;
+};
+
 const AUTOSAVE_DEBOUNCE_MS = 1000;
 const COMPILE_POLL_INTERVAL_MS = 1500;
 const COMPILE_POLL_TIMEOUT_MS = 120_000;
 const APPLY_RACE_RETRY_COUNT = 2;
 const APPLY_RACE_DELAY_MS = 900;
+const STATEMENT_IMAGE_MAX_SIZE_BYTES = 20 * 1024 * 1024;
+const STATEMENT_IMAGE_ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 const answerTypeLabels: Record<TaskFormData["answerType"], string> = {
   numeric: "Числовая",
@@ -252,6 +262,14 @@ const createInitialTaskSolutionState = (task?: Task | null): TaskSolutionCompile
   previewUrl: null,
 });
 
+const createInitialTaskStatementImageState = (task?: Task | null): TaskStatementImageState => ({
+  loading: false,
+  error: null,
+  updatedAt: null,
+  key: task?.statementImageAssetKey ?? null,
+  previewUrl: null,
+});
+
 const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
 export default function TeacherUnitDetailScreen({ unitId }: Props) {
@@ -295,11 +313,15 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
   const [taskSolutionCompileState, setTaskSolutionCompileState] = useState<TaskSolutionCompileState>(
     createInitialTaskSolutionState(),
   );
+  const [taskStatementImageState, setTaskStatementImageState] = useState<TaskStatementImageState>(
+    createInitialTaskStatementImageState(),
+  );
 
   const snapshotRef = useRef<ReturnType<typeof buildSnapshot> | null>(null);
   const timerRef = useRef<number | null>(null);
   const inflightRef = useRef(0);
   const editorGridRef = useRef<HTMLDivElement | null>(null);
+  const taskStatementImageInputRef = useRef<HTMLInputElement | null>(null);
 
   const navItems = useMemo(
     () => [
@@ -400,6 +422,19 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
     return buildPdfPreviewSrc(response.url);
   }, [editingTask?.id]);
 
+  const refreshTaskStatementImagePreviewUrl = useCallback(async () => {
+    if (!editingTask?.id) return null;
+    const response = await teacherApi.presignTaskStatementImageView(editingTask.id, 600);
+    const nextUrl = buildPdfPreviewSrc(response.url);
+    setTaskStatementImageState((prev) => ({
+      ...prev,
+      key: response.key,
+      previewUrl: nextUrl,
+      error: null,
+    }));
+    return nextUrl;
+  }, [editingTask?.id]);
+
   useEffect(() => {
     if (!editingTask) {
       setTaskSolutionLatex("");
@@ -435,6 +470,39 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
       cancelled = true;
     };
   }, [editingTask?.id, editingTask?.solutionPdfAssetKey, editingTask?.solutionRichLatex]);
+
+  useEffect(() => {
+    if (!editingTask) {
+      setTaskStatementImageState(createInitialTaskStatementImageState());
+      return;
+    }
+
+    let cancelled = false;
+    setTaskStatementImageState(createInitialTaskStatementImageState(editingTask));
+    if (!editingTask.statementImageAssetKey) return;
+
+    void (async () => {
+      try {
+        const response = await teacherApi.presignTaskStatementImageView(editingTask.id, 600);
+        if (cancelled) return;
+        setTaskStatementImageState((prev) => ({
+          ...prev,
+          key: response.key,
+          previewUrl: buildPdfPreviewSrc(response.url),
+        }));
+      } catch {
+        if (cancelled) return;
+        setTaskStatementImageState((prev) => ({
+          ...prev,
+          previewUrl: null,
+        }));
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [editingTask?.id, editingTask?.statementImageAssetKey]);
 
   const fetchUnit = useCallback(async (): Promise<UnitWithTasks | null> => {
     setError(null);
@@ -1082,6 +1150,126 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
     }
   }, [editingTask, fetchUnit, taskSolutionLatex]);
 
+  const handleTaskStatementImageSelected = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0] ?? null;
+      event.currentTarget.value = "";
+      if (!editingTask || !file) return;
+
+      if (!STATEMENT_IMAGE_ALLOWED_TYPES.has(file.type.toLowerCase())) {
+        setTaskStatementImageState((prev) => ({
+          ...prev,
+          error: "Разрешены только JPEG, PNG и WEBP.",
+        }));
+        return;
+      }
+      if (file.size > STATEMENT_IMAGE_MAX_SIZE_BYTES) {
+        setTaskStatementImageState((prev) => ({
+          ...prev,
+          error: `Максимальный размер файла: ${Math.round(
+            STATEMENT_IMAGE_MAX_SIZE_BYTES / (1024 * 1024),
+          )} MB.`,
+        }));
+        return;
+      }
+
+      setTaskStatementImageState((prev) => ({
+        ...prev,
+        loading: true,
+        error: null,
+      }));
+
+      try {
+        const presigned = await teacherApi.presignTaskStatementImageUpload(editingTask.id, {
+          filename: file.name,
+          contentType: file.type,
+          sizeBytes: file.size,
+        });
+        const headers = new Headers(presigned.headers ?? {});
+        if (!headers.has("Content-Type")) {
+          headers.set("Content-Type", file.type);
+        }
+
+        const uploadResponse = await fetch(presigned.uploadUrl, {
+          method: "PUT",
+          headers,
+          body: file,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error(`Не удалось загрузить файл (${uploadResponse.status}).`);
+        }
+
+        await teacherApi.applyTaskStatementImage(editingTask.id, presigned.assetKey);
+        const view = await teacherApi.presignTaskStatementImageView(editingTask.id, 600);
+
+        setTaskStatementImageState((prev) => ({
+          ...prev,
+          loading: false,
+          error: null,
+          updatedAt: Date.now(),
+          key: view.key,
+          previewUrl: buildPdfPreviewSrc(view.url),
+        }));
+
+        await fetchUnit();
+      } catch (err) {
+        setTaskStatementImageState((prev) => ({
+          ...prev,
+          loading: false,
+          error: getApiErrorMessage(err),
+        }));
+      }
+    },
+    [editingTask, fetchUnit],
+  );
+
+  const handleTaskStatementImageRemove = useCallback(async () => {
+    if (!editingTask) return;
+
+    setTaskStatementImageState((prev) => ({
+      ...prev,
+      loading: true,
+      error: null,
+    }));
+
+    try {
+      await teacherApi.deleteTaskStatementImage(editingTask.id);
+      setTaskStatementImageState((prev) => ({
+        ...prev,
+        loading: false,
+        error: null,
+        updatedAt: Date.now(),
+        key: null,
+        previewUrl: null,
+      }));
+      await fetchUnit();
+    } catch (err) {
+      setTaskStatementImageState((prev) => ({
+        ...prev,
+        loading: false,
+        error: getApiErrorMessage(err),
+      }));
+    }
+  }, [editingTask, fetchUnit]);
+
+  const handleTaskStatementImagePreviewError = useCallback(() => {
+    void refreshTaskStatementImagePreviewUrl().catch((err) => {
+      setTaskStatementImageState((prev) => ({
+        ...prev,
+        error: getApiErrorMessage(err),
+      }));
+    });
+  }, [refreshTaskStatementImagePreviewUrl]);
+
+  const taskStatementImageStatusText = taskStatementImageState.loading
+    ? "Загрузка изображения…"
+    : taskStatementImageState.error
+      ? taskStatementImageState.error
+      : taskStatementImageState.key
+        ? "Изображение сохранено."
+        : "Изображение не прикреплено.";
+
   return (
     <DashboardShell
       title="Преподаватель"
@@ -1556,76 +1744,148 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
                   initial={
                     taskFormInitial
                   }
-                  extraSection={
-                    <div className={styles.taskSolutionSection}>
-                      <div className={styles.taskSolutionHeader}>
-                        <div className={styles.taskSolutionTitle}>Решение (LaTeX → PDF)</div>
+                  afterStatementSection={
+                    <div className={styles.taskStatementImageSection}>
+                      <div className={styles.taskStatementImageHeader}>
+                        <div className={styles.taskStatementImageTitle}>Изображение условия</div>
                         {editingTask ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={() => void runTaskSolutionCompile()}
-                            disabled={taskSolutionCompileState.loading}
-                          >
-                            {taskSolutionCompileState.loading ? "Компиляция..." : "Скомпилировать PDF"}
-                          </Button>
+                          <div className={styles.taskStatementImageActions}>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => taskStatementImageInputRef.current?.click()}
+                              disabled={taskStatementImageState.loading}
+                            >
+                              {taskStatementImageState.key ? "Заменить" : "Добавить изображение"}
+                            </Button>
+                            {taskStatementImageState.key ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() => void handleTaskStatementImageRemove()}
+                                disabled={taskStatementImageState.loading}
+                              >
+                                Удалить
+                              </Button>
+                            ) : null}
+                          </div>
                         ) : null}
                       </div>
 
                       {editingTask ? (
-                        <div className={styles.taskSolutionGrid}>
-                          <div className={styles.taskSolutionEditor}>
-                            <textarea
-                              className={styles.taskSolutionTextarea}
-                              value={taskSolutionLatex}
-                              onChange={(event) => setTaskSolutionLatex(event.target.value)}
-                              aria-label="LaTeX решения"
-                              placeholder="\\documentclass{article}\n\\begin{document}\nРешение...\n\\end{document}"
-                            />
+                        <>
+                          <input
+                            ref={taskStatementImageInputRef}
+                            className={styles.taskStatementImageInput}
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            tabIndex={-1}
+                            aria-hidden="true"
+                            onChange={(event) => {
+                              void handleTaskStatementImageSelected(event);
+                            }}
+                          />
+                          <div className={styles.taskStatementImageStatus} role="status" aria-live="polite">
+                            {taskStatementImageStatusText}
                           </div>
-                          <div className={styles.taskSolutionRight}>
-                            {taskSolutionCompileState.error ? (
-                              <div className={styles.compileError} role="status" aria-live="polite">
-                                {taskSolutionCompileState.error}
-                                {taskSolutionCompileState.logSnippet ? (
-                                  <pre className={styles.taskSolutionLogSnippet}>
-                                    {taskSolutionCompileState.logSnippet}
-                                  </pre>
-                                ) : null}
-                              </div>
-                            ) : null}
-                            <div className={styles.taskSolutionViewportWrap}>
-                              {taskSolutionCompileState.updatedAt ? (
-                                <div className={styles.taskSolutionMeta}>
-                                  PDF обновлён:{" "}
-                                  {new Date(taskSolutionCompileState.updatedAt).toLocaleString("ru-RU")}
-                                </div>
-                              ) : null}
-                              <div className={styles.taskSolutionViewport}>
-                                {taskSolutionCompileState.previewUrl ? (
-                                  <PdfCanvasPreview
-                                    className={styles.taskSolutionFrame}
-                                    url={taskSolutionCompileState.previewUrl}
-                                    refreshKey={taskSolutionCompileState.key ?? undefined}
-                                    getFreshUrl={refreshTaskSolutionPreviewUrl}
-                                    scrollFeel="inertial-heavy"
-                                    freezeWidth
-                                  />
-                                ) : (
-                                  <div className={styles.previewStub}>
-                                    PDF появится здесь после компиляции.
-                                  </div>
-                                )}
-                              </div>
+                          {taskStatementImageState.updatedAt ? (
+                            <div className={styles.taskStatementImageMeta}>
+                              Обновлено:{" "}
+                              {new Date(taskStatementImageState.updatedAt).toLocaleString("ru-RU")}
                             </div>
+                          ) : null}
+                          <div className={styles.taskStatementImageViewport}>
+                            {taskStatementImageState.previewUrl ? (
+                              <img
+                                src={taskStatementImageState.previewUrl}
+                                alt="Изображение условия задачи"
+                                className={styles.taskStatementImagePreview}
+                                onError={handleTaskStatementImagePreviewError}
+                              />
+                            ) : (
+                              <div className={styles.previewStub}>
+                                Изображение условия появится здесь после загрузки.
+                              </div>
+                            )}
                           </div>
-                        </div>
+                        </>
                       ) : (
                         <div className={styles.taskSolutionStub}>
-                          Сначала создайте задачу, затем откройте её редактирование для сборки PDF-решения.
+                          Сначала создайте задачу, затем прикрепите изображение условия.
                         </div>
                       )}
                     </div>
+                  }
+                  extraSection={
+                    <div className={styles.taskSolutionSection}>
+                        <div className={styles.taskSolutionHeader}>
+                          <div className={styles.taskSolutionTitle}>Решение (LaTeX → PDF)</div>
+                          {editingTask ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => void runTaskSolutionCompile()}
+                              disabled={taskSolutionCompileState.loading}
+                            >
+                              {taskSolutionCompileState.loading ? "Компиляция..." : "Скомпилировать PDF"}
+                            </Button>
+                          ) : null}
+                        </div>
+
+                        {editingTask ? (
+                          <div className={styles.taskSolutionGrid}>
+                            <div className={styles.taskSolutionEditor}>
+                              <textarea
+                                className={styles.taskSolutionTextarea}
+                                value={taskSolutionLatex}
+                                onChange={(event) => setTaskSolutionLatex(event.target.value)}
+                                aria-label="LaTeX решения"
+                                placeholder="\\documentclass{article}\n\\begin{document}\nРешение...\n\\end{document}"
+                              />
+                            </div>
+                            <div className={styles.taskSolutionRight}>
+                              {taskSolutionCompileState.error ? (
+                                <div className={styles.compileError} role="status" aria-live="polite">
+                                  {taskSolutionCompileState.error}
+                                  {taskSolutionCompileState.logSnippet ? (
+                                    <pre className={styles.taskSolutionLogSnippet}>
+                                      {taskSolutionCompileState.logSnippet}
+                                    </pre>
+                                  ) : null}
+                                </div>
+                              ) : null}
+                              <div className={styles.taskSolutionViewportWrap}>
+                                {taskSolutionCompileState.updatedAt ? (
+                                  <div className={styles.taskSolutionMeta}>
+                                    PDF обновлён:{" "}
+                                    {new Date(taskSolutionCompileState.updatedAt).toLocaleString("ru-RU")}
+                                  </div>
+                                ) : null}
+                                <div className={styles.taskSolutionViewport}>
+                                  {taskSolutionCompileState.previewUrl ? (
+                                    <PdfCanvasPreview
+                                      className={styles.taskSolutionFrame}
+                                      url={taskSolutionCompileState.previewUrl}
+                                      refreshKey={taskSolutionCompileState.key ?? undefined}
+                                      getFreshUrl={refreshTaskSolutionPreviewUrl}
+                                      scrollFeel="inertial-heavy"
+                                      freezeWidth
+                                    />
+                                  ) : (
+                                    <div className={styles.previewStub}>
+                                      PDF появится здесь после компиляции.
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className={styles.taskSolutionStub}>
+                            Сначала создайте задачу, затем откройте её редактирование для сборки PDF-решения.
+                          </div>
+                        )}
+                      </div>
                   }
                 />
               ) : null}

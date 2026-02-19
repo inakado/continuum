@@ -703,6 +703,38 @@
   color: var(--text-primary);
 }
 
+.statementImageBlock {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.statementImage {
+  display: block;
+  width: min(100%, 560px);
+  max-width: 100%;
+  max-height: 520px;
+  border-radius: var(--control-radius);
+  object-fit: contain;
+  background: #fff;
+}
+
+.statementImageHint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.statementImageError {
+  border: var(--border-width-thin) solid color-mix(in srgb, #ef4444 35%, var(--glass-border));
+  border-radius: var(--control-radius);
+  background: color-mix(in srgb, #ef4444 10%, var(--surface-2));
+  color: var(--text-primary);
+  padding: 8px 10px;
+  font-size: 12px;
+  width: min(100%, 560px);
+}
+
 .taskMeta {
   display: flex;
   flex-wrap: wrap;

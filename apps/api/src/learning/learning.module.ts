@@ -12,6 +12,7 @@ import { StudentAttemptsController } from './student-attempts.controller';
 import { StudentPhotoTasksController } from './student-photo-tasks.controller';
 import { StudentSectionGraphController } from './student-section-graph.controller';
 import { StudentTaskSolutionsController } from './student-task-solutions.controller';
+import { StudentTaskStatementImageController } from './student-task-statement-image.controller';
 import { StudentUnitsController } from './student-units.controller';
 import { TeacherPhotoReviewInboxController } from './teacher-photo-review-inbox.controller';
 import { TeacherPhotoSubmissionsController } from './teacher-photo-submissions.controller';
@@ -35,6 +36,7 @@ import { TeacherUnitOverrideOpenController } from './teacher-unit-override-open.
     StudentPhotoTasksController,
     StudentSectionGraphController,
     StudentTaskSolutionsController,
+    StudentTaskStatementImageController,
     StudentUnitsController,
     TeacherPhotoReviewInboxController,
     TeacherPhotoSubmissionsController,

@@ -100,6 +100,15 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
   const [taskSolutionPdfUrlByTask, setTaskSolutionPdfUrlByTask] = useState<Record<string, string | null>>({});
   const [taskSolutionLoadingByTask, setTaskSolutionLoadingByTask] = useState<Record<string, boolean>>({});
   const [taskSolutionErrorByTask, setTaskSolutionErrorByTask] = useState<Record<string, string | null>>({});
+  const [statementImageUrlByTask, setStatementImageUrlByTask] = useState<Record<string, string | null>>(
+    {},
+  );
+  const [statementImageLoadingByTask, setStatementImageLoadingByTask] = useState<
+    Record<string, boolean>
+  >({});
+  const [statementImageErrorByTask, setStatementImageErrorByTask] = useState<
+    Record<string, string | null>
+  >({});
   const [taskSolutionErrorCodeByTask, setTaskSolutionErrorCodeByTask] = useState<
     Record<string, string | null>
   >({});
@@ -129,6 +138,7 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
     method: PDF_ZOOM_DEFAULT,
   });
   const flashTimeoutsRef = useRef<Record<string, number>>({});
+  const statementImageRetryRef = useRef<Record<string, boolean>>({});
   const photoFileInputRef = useRef<HTMLInputElement | null>(null);
   const [photoSelectedFilesByTask, setPhotoSelectedFilesByTask] = useState<Record<string, File[]>>({});
   const [photoLoadingByTask, setPhotoLoadingByTask] = useState<Record<string, boolean>>({});
@@ -250,6 +260,28 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
       throw err;
     } finally {
       setTaskSolutionLoadingByTask((prev) => ({ ...prev, [taskId]: false }));
+    }
+  }, []);
+
+  const loadStatementImage = useCallback(async (taskId: string) => {
+    setStatementImageLoadingByTask((prev) => ({ ...prev, [taskId]: true }));
+    setStatementImageErrorByTask((prev) => ({ ...prev, [taskId]: null }));
+    try {
+      const response = await studentApi.getTaskStatementImagePresignForStudent(taskId, 180);
+      statementImageRetryRef.current[taskId] = false;
+      setStatementImageUrlByTask((prev) => ({ ...prev, [taskId]: response.url }));
+      return response.url;
+    } catch (err) {
+      if (err instanceof ApiError && err.code === "STATEMENT_IMAGE_MISSING") {
+        setStatementImageUrlByTask((prev) => ({ ...prev, [taskId]: null }));
+        setStatementImageErrorByTask((prev) => ({ ...prev, [taskId]: null }));
+        return null;
+      }
+      setStatementImageUrlByTask((prev) => ({ ...prev, [taskId]: null }));
+      setStatementImageErrorByTask((prev) => ({ ...prev, [taskId]: getStudentErrorMessage(err) }));
+      throw err;
+    } finally {
+      setStatementImageLoadingByTask((prev) => ({ ...prev, [taskId]: false }));
     }
   }, []);
 
@@ -515,6 +547,14 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
   const showCorrectBadge = activeState?.status === "correct";
   const isSolutionVisible = Boolean(activeTask && showSolutionByTask[activeTask.id]);
   const isPhotoTask = activeTask?.answerType === "photo";
+  const hasStatementImage = Boolean(activeTask?.hasStatementImage);
+  const activeTaskStatementImageUrl = activeTask ? (statementImageUrlByTask[activeTask.id] ?? null) : null;
+  const activeTaskStatementImageLoading = activeTask
+    ? Boolean(statementImageLoadingByTask[activeTask.id])
+    : false;
+  const activeTaskStatementImageError = activeTask
+    ? (statementImageErrorByTask[activeTask.id] ?? null)
+    : null;
   const activeTaskSolutionPdfUrl = activeTask ? (taskSolutionPdfUrlByTask[activeTask.id] ?? null) : null;
   const activeTaskSolutionLoading = activeTask ? Boolean(taskSolutionLoadingByTask[activeTask.id]) : false;
   const activeTaskSolutionError = activeTask ? (taskSolutionErrorByTask[activeTask.id] ?? null) : null;
@@ -535,6 +575,15 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
     }
   }, [activeTask, loadTaskSolutionPdf]);
 
+  const refreshTaskStatementImageUrl = useCallback(async () => {
+    if (!activeTask || !activeTask.hasStatementImage) return null;
+    try {
+      return await loadStatementImage(activeTask.id);
+    } catch {
+      return null;
+    }
+  }, [activeTask, loadStatementImage]);
+
   useEffect(() => {
     if (!activeTask || activeTask.answerType === "photo") return;
     if (!isSolutionVisible) return;
@@ -548,6 +597,19 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
     activeTaskSolutionPdfUrl,
     isSolutionVisible,
     loadTaskSolutionPdf,
+  ]);
+
+  useEffect(() => {
+    if (!activeTask || !activeTask.hasStatementImage) return;
+    if (activeTaskStatementImageUrl || activeTaskStatementImageLoading) return;
+    void loadStatementImage(activeTask.id).catch(() => {
+      // сообщение уже выставлено в state
+    });
+  }, [
+    activeTask,
+    activeTaskStatementImageLoading,
+    activeTaskStatementImageUrl,
+    loadStatementImage,
   ]);
 
 
@@ -731,6 +793,22 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
       setAttemptLoading((prev) => ({ ...prev, [taskId]: false }));
     }
   }, [activeTask, fetchUnit, multiAnswers, numericAnswers, singleAnswers]);
+
+  const handleStatementImageLoadError = useCallback(() => {
+    if (!activeTask || !activeTask.hasStatementImage) return;
+    const taskId = activeTask.id;
+    if (statementImageRetryRef.current[taskId]) {
+      setStatementImageErrorByTask((prev) => ({
+        ...prev,
+        [taskId]: "Не удалось обновить изображение условия.",
+      }));
+      return;
+    }
+    statementImageRetryRef.current[taskId] = true;
+    void refreshTaskStatementImageUrl().catch(() => {
+      // ошибка выставляется в state
+    });
+  }, [activeTask, refreshTaskStatementImageUrl]);
 
   return (
     <DashboardShell
@@ -1015,6 +1093,26 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
                       <div className={styles.taskStatement}>
                         <LiteTex value={activeTask.statementLite} block />
                       </div>
+                      {hasStatementImage ? (
+                        <div className={styles.statementImageBlock}>
+                          {activeTaskStatementImageLoading ? (
+                            <div className={styles.statementImageHint}>Загрузка изображения…</div>
+                          ) : activeTaskStatementImageError ? (
+                            <div className={styles.statementImageError} role="status" aria-live="polite">
+                              {activeTaskStatementImageError}
+                            </div>
+                          ) : activeTaskStatementImageUrl ? (
+                            <img
+                              src={activeTaskStatementImageUrl}
+                              alt="Иллюстрация к условию задачи"
+                              className={styles.statementImage}
+                              onError={handleStatementImageLoadError}
+                            />
+                          ) : (
+                            <div className={styles.statementImageHint}>Изображение условия недоступно.</div>
+                          )}
+                        </div>
+                      ) : null}
 
                       {activeState?.requiredSkipped ? (
                         <div className={styles.taskMeta}>

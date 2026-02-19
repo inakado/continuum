@@ -52,6 +52,7 @@ export type Task = {
   unitId: string;
   title: string | null;
   statementLite: string;
+  statementImageAssetKey?: string | null;
   answerType: TaskAnswerType;
   numericPartsJson?: NumericPart[] | null;
   choicesJson?: Choice[] | null;
@@ -277,6 +278,29 @@ export type UnitPdfPresignedResponse = {
 };
 
 export type TaskSolutionPdfPresignedResponse = {
+  ok: true;
+  taskId: string;
+  taskRevisionId: string;
+  key: string;
+  expiresInSec: number;
+  url: string;
+};
+
+export type TaskStatementImagePresignUploadResponse = {
+  uploadUrl: string;
+  assetKey: string;
+  headers?: Record<string, string>;
+  expiresInSec: number;
+};
+
+export type TaskStatementImageApplyResponse = {
+  ok: true;
+  taskId: string;
+  taskRevisionId: string;
+  assetKey: string | null;
+};
+
+export type TaskStatementImagePresignViewResponse = {
   ok: true;
   taskId: string;
   taskRevisionId: string;
@@ -579,6 +603,47 @@ export const teacherApi = {
     const search = new URLSearchParams({ ttlSec: String(ttlSec) });
     return apiRequest<TaskSolutionPdfPresignedResponse>(
       `/teacher/tasks/${taskId}/solution/pdf-presign?${search.toString()}`,
+    );
+  },
+
+  presignTaskStatementImageUpload(
+    taskId: string,
+    file: { filename: string; contentType: string; sizeBytes: number },
+    ttlSec?: number,
+  ) {
+    return apiRequest<TaskStatementImagePresignUploadResponse>(
+      `/teacher/tasks/${taskId}/statement-image/presign-upload`,
+      {
+        method: "POST",
+        body: {
+          file,
+          ...(ttlSec !== undefined ? { ttlSec } : null),
+        },
+      },
+    );
+  },
+
+  applyTaskStatementImage(taskId: string, assetKey: string) {
+    return apiRequest<TaskStatementImageApplyResponse>(
+      `/teacher/tasks/${taskId}/statement-image/apply`,
+      {
+        method: "POST",
+        body: { assetKey },
+      },
+    );
+  },
+
+  deleteTaskStatementImage(taskId: string) {
+    return apiRequest<TaskStatementImageApplyResponse>(
+      `/teacher/tasks/${taskId}/statement-image`,
+      { method: "DELETE" },
+    );
+  },
+
+  presignTaskStatementImageView(taskId: string, ttlSec = 600) {
+    const search = new URLSearchParams({ ttlSec: String(ttlSec) });
+    return apiRequest<TaskStatementImagePresignViewResponse>(
+      `/teacher/tasks/${taskId}/statement-image/presign-view?${search.toString()}`,
     );
   },
 

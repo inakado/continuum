@@ -182,12 +182,19 @@
 }
 
 .unitTabs {
-  flex: 0 0 auto;
+  display: inline-flex !important;
+  flex: 0 0 auto !important;
+  align-self: flex-start;
+  width: max-content;
+  min-width: max-content;
+  max-width: 100%;
+  flex-wrap: nowrap !important;
   gap: 6px;
   padding: 6px !important;
   padding-bottom: 6px !important;
   border-radius: var(--header-chip-radius);
   border: var(--border-width) solid var(--glass-border);
+  border-bottom: var(--border-width) solid var(--glass-border) !important;
   background: var(--surface-1);
 }
 
@@ -824,6 +831,84 @@
   gap: 12px;
 }
 
+.taskStatementImageSection {
+  border: var(--border-width) solid var(--glass-border);
+  border-radius: var(--card-radius);
+  background: var(--card-bg);
+  padding: 14px 24px;
+  display: grid;
+  gap: 12px;
+}
+
+.taskStatementImageHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: 12px;
+  row-gap: 8px;
+}
+
+.taskStatementImageTitle {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  font-weight: 700;
+  min-width: 0;
+}
+
+.taskStatementImageActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.taskStatementImageActions button {
+  --button-bg: var(--surface-1);
+  --button-border: var(--glass-border);
+  --button-text: var(--text-primary);
+  --button-hover-bg: var(--surface-2);
+  --button-hover-border: var(--border-primary);
+  --button-hover-text: var(--text-primary);
+  --button-hover-shadow: var(--nav-hover-shadow);
+}
+
+.taskStatementImageInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.taskStatementImageStatus {
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.taskStatementImageMeta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.taskStatementImageViewport {
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: var(--control-radius);
+  background: color-mix(in srgb, var(--surface-1) 86%, transparent);
+  min-height: 220px;
+  overflow: hidden;
+}
+
+.taskStatementImagePreview {
+  display: block;
+  width: 100%;
+  max-height: 460px;
+  object-fit: contain;
+  margin: 0 auto;
+  background: #fff;
+}
+
 .taskSolutionHeader {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1023,7 +1108,6 @@
   }
 
   .unitTabs {
-    width: 100%;
     border-radius: var(--header-chip-radius);
   }
 
@@ -1037,11 +1121,23 @@
     padding: 12px 16px;
   }
 
+  .taskStatementImageSection {
+    padding: 12px 16px;
+  }
+
   .taskSolutionHeader {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .taskStatementImageHeader {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .taskSolutionHeader button {
+    justify-self: start;
+  }
+
+  .taskStatementImageActions {
     justify-self: start;
   }
 

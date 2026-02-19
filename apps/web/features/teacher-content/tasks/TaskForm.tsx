@@ -42,6 +42,7 @@ type TaskFormProps = {
   onCancel?: () => void;
   rightAction?: ReactNode;
   error?: string | null;
+  afterStatementSection?: ReactNode;
   extraSection?: ReactNode;
 };
 
@@ -363,6 +364,7 @@ export default function TaskForm({
   onCancel,
   rightAction,
   error,
+  afterStatementSection,
   extraSection,
 }: TaskFormProps) {
   const [form, setForm] = useState<TaskFormData>(defaultState);
@@ -592,6 +594,8 @@ export default function TaskForm({
         onStatementChange={(value) => setForm((prev) => ({ ...prev, statementLite: value }))}
         statementError={fieldErrors.statementLite}
       />
+
+      {afterStatementSection}
 
       {answerFieldsByType[form.answerType]}
 

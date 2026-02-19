@@ -29,6 +29,9 @@ export const getStudentErrorMessage = (error: unknown) => {
     if (error.code === "SOLUTION_PDF_MISSING") {
       return "PDF-решение ещё не подготовлено преподавателем.";
     }
+    if (error.code === "STATEMENT_IMAGE_MISSING") {
+      return "Изображение условия пока недоступно.";
+    }
     if (error.status === 401 || error.status === 403) {
       return "Перелогиньтесь";
     }

@@ -183,6 +183,7 @@ export class LearningService {
         const normalizedState = this.normalizeTaskState(state ?? null, task.activeRevisionId, now);
         const {
           correctAnswerJson,
+          statementImageAssetKey,
           solutionLite,
           solutionPdfAssetKey,
           solutionRichLatex,
@@ -204,6 +205,7 @@ export class LearningService {
           : null;
         return {
           ...rest,
+          hasStatementImage: Boolean(statementImageAssetKey),
           numericPartsJson: safeNumericParts,
           ...(isCredited
             ? { correctAnswerJson, solutionLite, solutionPdfAssetKey, solutionRichLatex }
@@ -300,6 +302,74 @@ export class LearningService {
       throw new NotFoundException({
         code: 'SOLUTION_PDF_MISSING',
         message: 'Task solution PDF is not compiled yet',
+      });
+    }
+
+    return {
+      taskId: task.id,
+      taskRevisionId: task.activeRevisionId,
+      key,
+    };
+  }
+
+  async getTaskStatementImageAssetKeyForStudent(studentId: string, taskId: string) {
+    const task = await this.prisma.task.findFirst({
+      where: {
+        id: taskId,
+        status: ContentStatus.published,
+        unit: {
+          status: ContentStatus.published,
+          section: {
+            status: ContentStatus.published,
+            course: { status: ContentStatus.published },
+          },
+        },
+      },
+      select: {
+        id: true,
+        activeRevisionId: true,
+        activeRevision: {
+          select: {
+            id: true,
+            statementImageAssetKey: true,
+          },
+        },
+        unit: {
+          select: {
+            id: true,
+            sectionId: true,
+          },
+        },
+      },
+    });
+
+    if (!task) {
+      throw new NotFoundException({
+        code: 'TASK_NOT_FOUND',
+        message: 'Task not found',
+      });
+    }
+    if (!task.activeRevisionId || !task.activeRevision) {
+      throw new ConflictException({
+        code: 'TASK_ACTIVE_REVISION_MISSING',
+        message: 'Task active revision is missing',
+      });
+    }
+
+    const sectionSnapshots = await this.learningAvailabilityService.recomputeSectionAvailability(
+      studentId,
+      task.unit.sectionId,
+    );
+    const unitSnapshot = sectionSnapshots.get(task.unit.id);
+    if (!unitSnapshot || unitSnapshot.status === StudentUnitStatus.locked) {
+      throw new ConflictException({ code: 'UNIT_LOCKED', message: 'Unit is locked' });
+    }
+
+    const key = task.activeRevision.statementImageAssetKey;
+    if (!key) {
+      throw new NotFoundException({
+        code: 'STATEMENT_IMAGE_MISSING',
+        message: 'Task statement image is not uploaded yet',
       });
     }
 

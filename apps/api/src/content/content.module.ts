@@ -14,6 +14,7 @@ import { TeacherSectionGraphController } from './teacher-section-graph.controlle
 import { TeacherSectionsController } from './teacher-sections.controller';
 import { TeacherUnitsController } from './teacher-units.controller';
 import { TeacherTasksController } from './teacher-tasks.controller';
+import { TaskStatementImagePolicyService } from './task-statement-image-policy.service';
 import { UnitPdfPolicyService } from './unit-pdf-policy.service';
 
 @Module({
@@ -29,7 +30,12 @@ import { UnitPdfPolicyService } from './unit-pdf-policy.service';
     TeacherUnitsController,
     TeacherTasksController,
   ],
-  providers: [ContentService, UnitPdfPolicyService, LatexCompileQueueService],
-  exports: [ContentService, UnitPdfPolicyService],
+  providers: [
+    ContentService,
+    UnitPdfPolicyService,
+    TaskStatementImagePolicyService,
+    LatexCompileQueueService,
+  ],
+  exports: [ContentService, UnitPdfPolicyService, TaskStatementImagePolicyService],
 })
 export class ContentModule {}
