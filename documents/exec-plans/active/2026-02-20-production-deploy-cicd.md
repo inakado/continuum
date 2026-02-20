@@ -47,7 +47,7 @@
 - [x] Обновить SoR документы и индекс документации.
 - [x] Перевести web-шрифты на локальные пакеты (`@fontsource/inter`, `@fontsource/unbounded`) для независимости от Google Fonts.
 - [x] Привязать `origin` к GitHub репозиторию и выполнить первый push в `main`.
-- [ ] Выполнить end-to-end deploy на реальном VPS и зафиксировать фактический smoke из production.
+- [x] Выполнить end-to-end deploy на реальном VPS и зафиксировать фактический smoke из production.
 
 ## 4.1) Progress update (2026-02-20)
 
@@ -68,6 +68,12 @@
   - DNS домена `vl-physics.ru` обновлён: `A` указывает на VPS IP `82.202.128.50` (подтверждено через `@8.8.8.8` и `@1.1.1.1`).
 - CI progress:
   - GitHub Actions `quality` и `security` проходят полностью после фикса `fast-xml-parser` до `5.3.6` (commit `be3e2c6`).
+- Production smoke (manual):
+  - backend поднят в `docker-compose.prod.yml` (`api`/`worker`/`postgres`/`redis`);
+  - migrations применены через `docker compose ... run --rm api ... prisma migrate deploy`;
+  - frontend собран и запущен через `continuum-web.service`;
+  - nginx + TLS настроены для `vl-physics.ru`;
+  - проверки: `https://vl-physics.ru/login` = 200, `https://vl-physics.ru/api/health` = 200, `POST /debug/enqueue-ping` = 201.
 
 ## 5. Риски и контроль
 
@@ -132,6 +138,27 @@
 - Как чинить: копировать `prisma` каталог и `prisma.config.ts` в runner image и пересобрать `api`.
 - Как проверить: migrate deploy проходит внутри контейнера без ошибки schema location.
 
+8) **Production api падает из-за отсутствия `JWT_SECRET`**
+- Где упало: `docker compose -f docker-compose.prod.yml up -d --build api worker`.
+- Что увидели: `Error: JWT_SECRET must be set in production`.
+- Почему: в `deploy/env/api.env` не было валидного `JWT_SECRET`.
+- Как чинить: задать `JWT_SECRET` в `deploy/env/api.env` и перезапустить `api`.
+- Как проверить: `api` в статусе `healthy`, `/health` и `/ready` отвечают 200.
+
+9) **`continuum-web.service` отсутствует в systemd**
+- Где упало: `sudo -n /usr/bin/systemctl restart continuum-web`.
+- Что увидели: `Unit continuum-web.service not found`.
+- Почему: unit-файл не установлен в `/etc/systemd/system`.
+- Как чинить: под `root` установить unit, сделать `systemctl daemon-reload` и `systemctl enable continuum-web`.
+- Как проверить: `systemctl is-active continuum-web` = `active`.
+
+10) **`nginx -t` падает до выпуска сертификата**
+- Где упало: `nginx -t`.
+- Что увидели: `cannot load certificate "/etc/letsencrypt/live/<domain>/fullchain.pem"`.
+- Почему: SSL-конфиг применён до `certbot`.
+- Как чинить: сначала HTTP-only bootstrap конфиг, затем `certbot --nginx -d <domain> --redirect`.
+- Как проверить: `curl -I https://<domain>/login` и `curl -I https://<domain>/api/health` дают 200.
+
 ## 7. Критерии завершения
 
 - CI workflow стабильно проходит на PR в `main`.
@@ -151,19 +178,14 @@
 - включить manual approval для `production`.
 
 2) На VPS:
-- заполнить `deploy/env/*.env` реальными значениями (`CHANGE_ME_*` заменить), включая Beget S3 параметры;
-- запустить manual migration в docker network:
-  - `docker compose -f docker-compose.prod.yml run --rm api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`.
+- сохранить и бэкапнуть финальные production env (`deploy/env/*.env`) и nginx/systemd конфиг.
 
-3) Первый production запуск:
-- `docker compose -f docker-compose.prod.yml up -d --build`;
-- `NEXT_PUBLIC_API_BASE_URL=/api pnpm --filter web build`;
-- `systemctl restart continuum-web`;
-- настроить `nginx` + `certbot`.
+3) Операционные донастройки:
+- завершить GitHub `production` environment secrets;
+- проверить deploy workflow по manual approval на одном тестовом релизе.
 
 4) Верификация и фиксация:
-- `GET /api/health` = 200;
-- `GET /api/ready` = 200;
-- `POST /api/debug/enqueue-ping` = 201;
-- `GET /login` = 200;
-- задокументировать фактический smoke и перенести план в `documents/exec-plans/completed/`.
+- `GET https://vl-physics.ru/api/health` = 200;
+- `GET https://vl-physics.ru/login` = 200;
+- smoke worker (`enqueue-ping`) = 201;
+- перенести план в `documents/exec-plans/completed/` после проверки deploy workflow.

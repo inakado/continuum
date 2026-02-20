@@ -111,20 +111,20 @@ curl -fsS http://127.0.0.1:3000/ready
 
 ## 8) Frontend systemd service
 
-Install service:
+Install service (под `root`):
 
 ```bash
-sudo cp deploy/systemd/continuum-web.service /etc/systemd/system/continuum-web.service
-sudo systemctl daemon-reload
-sudo systemctl enable continuum-web
+cp deploy/systemd/continuum-web.service /etc/systemd/system/continuum-web.service
+systemctl daemon-reload
+systemctl enable continuum-web
 ```
 
-Build and run frontend:
+Build and run frontend (под `deploy`):
 
 ```bash
 cd /srv/continuum
 NEXT_PUBLIC_API_BASE_URL=/api pnpm --filter web build
-sudo systemctl restart continuum-web
+sudo -n systemctl restart continuum-web
 ```
 
 Check:
@@ -136,21 +136,68 @@ curl -fsS http://127.0.0.1:3001/login >/dev/null
 ## 9) Nginx and TLS
 
 1. Replace `app.example.com` in `deploy/nginx/continuum.conf`.
-2. Install config:
+2. Если сертификата ещё нет, не включайте SSL-конфиг сразу. Сначала поднимите bootstrap HTTP-only конфиг:
 
 ```bash
-sudo cp deploy/nginx/continuum.conf /etc/nginx/sites-available/continuum.conf
-sudo ln -sf /etc/nginx/sites-available/continuum.conf /etc/nginx/sites-enabled/continuum.conf
-sudo nginx -t
-sudo systemctl reload nginx
+cat >/etc/nginx/sites-available/continuum.conf <<'EOF'
+server {
+  listen 80;
+  listen [::]:80;
+  server_name app.example.com;
+
+  client_max_body_size 25m;
+
+  location = /api {
+    return 301 /api/;
+  }
+
+  location /api/ {
+    proxy_pass http://127.0.0.1:3000/;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+  }
+
+  location / {
+    proxy_pass http://127.0.0.1:3001;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+  }
+}
+EOF
 ```
 
-3. Issue Let's Encrypt certificate:
+3. Enable and reload nginx:
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d app.example.com
+ln -sf /etc/nginx/sites-available/continuum.conf /etc/nginx/sites-enabled/continuum.conf
+rm -f /etc/nginx/sites-enabled/default
+nginx -t
+systemctl restart nginx
+```
+
+4. Issue Let's Encrypt certificate (certbot сам обновит nginx config):
+
+```bash
+apt-get update
+apt-get install -y certbot python3-certbot-nginx
+certbot --nginx -d app.example.com --redirect
+```
+
+5. Verify HTTPS:
+
+```bash
+curl -I https://app.example.com/login
+curl -I https://app.example.com/api/health
 ```
 
 ## 10) GitHub Actions secrets (Environment: production)
@@ -199,3 +246,21 @@ curl -fsS http://127.0.0.1:3001/login >/dev/null
    - `docker compose -f docker-compose.prod.yml run --rm api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`
 7. Настроенный GitHub Environment `production` c manual approval и secrets:
    - `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `APP_DIR`, `APP_DOMAIN`.
+
+## 13) Troubleshooting (production-first)
+
+- `JWT_SECRET must be set in production` при старте `api`:
+  - заполнить `JWT_SECRET` в `deploy/env/api.env`;
+  - `docker compose -f docker-compose.prod.yml up -d --build api`.
+
+- `Failed to restart continuum-web.service: Unit ... not found`:
+  - unit-файл ещё не установлен в `/etc/systemd/system/`;
+  - установить unit под `root`, затем `systemctl daemon-reload && systemctl enable continuum-web`.
+
+- `nginx -t` падает на `cannot load certificate ... fullchain.pem`:
+  - вы применили SSL-конфиг до выпуска certbot;
+  - сначала используйте HTTP bootstrap-конфиг, затем `certbot --nginx`.
+
+- `sudo` под `deploy` просит пароль:
+  - без отдельного sudoers-правила это ожидаемо;
+  - минимально для deploy-пайплайна: NOPASSWD на `systemctl restart continuum-web`.

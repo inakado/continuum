@@ -181,6 +181,24 @@ Production policy (`Implemented`):
 - **Фикс:** копировать `prisma` каталог и `prisma.config.ts` в runner stage `apps/api/Dockerfile`, затем пересобрать `api`.
 - **Проверка:** migrate deploy выполняется без ошибки schema location.
 
+- **Симптом:** `api` в production уходит в restart-loop с `Error: JWT_SECRET must be set in production.`
+- **Команда:** `docker compose -f docker-compose.prod.yml logs --no-color --tail=120 api`
+- **Причина:** в `deploy/env/api.env` не задан `JWT_SECRET` (или пустой).
+- **Фикс:** задать сильный `JWT_SECRET`, затем `docker compose -f docker-compose.prod.yml up -d --build api`.
+- **Проверка:** `docker compose -f docker-compose.prod.yml ps` показывает `api` как `healthy`.
+
+- **Симптом:** `sudo -n systemctl restart continuum-web` → `Unit continuum-web.service not found`.
+- **Команда:** `sudo -n systemctl restart continuum-web`
+- **Причина:** unit-файл ещё не установлен в `/etc/systemd/system/continuum-web.service`.
+- **Фикс:** под `root` выполнить `cp deploy/systemd/continuum-web.service /etc/systemd/system/continuum-web.service && systemctl daemon-reload && systemctl enable continuum-web`.
+- **Проверка:** `systemctl is-active continuum-web` возвращает `active`.
+
+- **Симптом:** `nginx -t` падает с `cannot load certificate ... fullchain.pem`.
+- **Команда:** `nginx -t`
+- **Причина:** SSL-блок включён до выпуска сертификата Let's Encrypt.
+- **Фикс:** сначала применить HTTP-only nginx конфиг и запустить `certbot --nginx -d <domain> --redirect`; только потом использовать SSL-пути.
+- **Проверка:** `curl -I https://<domain>/login` и `curl -I https://<domain>/api/health` дают `200`.
+
 ## Planned
 
 - CI-проверки документации (валидность ссылок, отсутствие сирот, наличие `Implemented/Planned` в ключевых SoR-доках).

@@ -37,6 +37,11 @@
 - CD workflow (`.github/workflows/deploy.yml`) запускается только вручную (`workflow_dispatch`) и использует GitHub Environment `production`.
 - В CD есть hard gate: без подтверждения manual migration deploy job завершается ошибкой.
 - Post-deploy checks включают `/health`, `/ready`, enqueue ping и frontend `/login`.
+- Production smoke на VPS (2026-02-20, `vl-physics.ru`) подтверждён:
+  - `GET https://vl-physics.ru/login` = 200
+  - `GET https://vl-physics.ru/api/health` = 200
+  - `GET http://127.0.0.1:3000/ready` = 200
+  - `POST http://127.0.0.1:3000/debug/enqueue-ping` = 201
 
 ### Rollback baseline
 
