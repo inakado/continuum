@@ -48,6 +48,7 @@ COPY packages/shared/package.json ./packages/shared/package.json
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 COPY --from=builder /app/apps/api/prisma.config.ts ./apps/api/prisma.config.ts
+COPY --from=builder /app/apps/api/scripts ./apps/api/scripts
 COPY apps/api/package.json ./apps/api/package.json
 
 EXPOSE 3000

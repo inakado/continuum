@@ -159,6 +159,21 @@
 - Как чинить: сначала HTTP-only bootstrap конфиг, затем `certbot --nginx -d <domain> --redirect`.
 - Как проверить: `curl -I https://<domain>/login` и `curl -I https://<domain>/api/health` дают 200.
 
+11) **После прод-запуска нельзя войти teacher/student**
+- Где упало: ручной smoke входа через `/login`.
+- Что увидели: в базе нет ожидаемых учётных записей для первичного входа.
+- Почему: seed пользователей не был запущен после миграций.
+- Как чинить: выполнить seed через API контейнер:
+  - `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'node apps/api/scripts/seed-users.mjs --teacher-login=teacher1 --teacher-password=Pass123! --student-login=student1 --student-password=Pass123!'`
+- Как проверить: логин teacher/student проходит, `/auth/me` возвращает корректную роль.
+
+12) **Логин-экран визуально “толще” после перехода на локальные шрифты**
+- Где упало: визуальная проверка `/login`.
+- Что увидели: бренд-текст выглядит тяжелее, чем до миграции с `next/font/google`.
+- Почему: для `Unbounded` были подключены дополнительные веса (`400..700`), отличающиеся от прежнего light-акцента.
+- Как чинить: оставить `@fontsource/unbounded/300.css` и `font-weight: 300` для бренда.
+- Как проверить: `/login` визуально соответствует прежнему стилю.
+
 ## 7. Критерии завершения
 
 - CI workflow стабильно проходит на PR в `main`.

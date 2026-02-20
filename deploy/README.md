@@ -109,7 +109,21 @@ curl -fsS http://127.0.0.1:3000/health
 curl -fsS http://127.0.0.1:3000/ready
 ```
 
-## 8) Frontend systemd service
+## 8) Seed teacher/student (optional, for first login)
+
+Если в базе ещё нет пользователей, создайте базовые аккаунты:
+
+```bash
+cd /srv/continuum
+docker compose -f docker-compose.prod.yml run --rm --build api sh -lc \
+'node apps/api/scripts/seed-users.mjs \
+  --teacher-login=teacher1 \
+  --teacher-password=Pass123! \
+  --student-login=student1 \
+  --student-password=Pass123!'
+```
+
+## 9) Frontend systemd service
 
 Install service (под `root`):
 
@@ -133,7 +147,7 @@ Check:
 curl -fsS http://127.0.0.1:3001/login >/dev/null
 ```
 
-## 9) Nginx and TLS
+## 10) Nginx and TLS
 
 1. Replace `app.example.com` in `deploy/nginx/continuum.conf`.
 2. Если сертификата ещё нет, не включайте SSL-конфиг сразу. Сначала поднимите bootstrap HTTP-only конфиг:
@@ -200,7 +214,7 @@ curl -I https://app.example.com/login
 curl -I https://app.example.com/api/health
 ```
 
-## 10) GitHub Actions secrets (Environment: production)
+## 11) GitHub Actions secrets (Environment: production)
 
 - `DEPLOY_HOST`
 - `DEPLOY_USER`
@@ -208,7 +222,7 @@ curl -I https://app.example.com/api/health
 - `APP_DIR` (example: `/srv/continuum`)
 - `APP_DOMAIN` (example: `app.example.com`)
 
-## 11) Rollback
+## 12) Rollback
 
 ```bash
 cd /srv/continuum
@@ -227,7 +241,7 @@ curl -fsS http://127.0.0.1:3000/ready
 curl -fsS http://127.0.0.1:3001/login >/dev/null
 ```
 
-## 12) Что требуется от владельца проекта
+## 13) Что требуется от владельца проекта
 
 Минимум для запуска CI/CD и первого production deploy:
 
@@ -247,7 +261,7 @@ curl -fsS http://127.0.0.1:3001/login >/dev/null
 7. Настроенный GitHub Environment `production` c manual approval и secrets:
    - `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `APP_DIR`, `APP_DOMAIN`.
 
-## 13) Troubleshooting (production-first)
+## 14) Troubleshooting (production-first)
 
 - `JWT_SECRET must be set in production` при старте `api`:
   - заполнить `JWT_SECRET` в `deploy/env/api.env`;

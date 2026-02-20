@@ -199,6 +199,19 @@ Production policy (`Implemented`):
 - **Фикс:** сначала применить HTTP-only nginx конфиг и запустить `certbot --nginx -d <domain> --redirect`; только потом использовать SSL-пути.
 - **Проверка:** `curl -I https://<domain>/login` и `curl -I https://<domain>/api/health` дают `200`.
 
+- **Симптом:** нельзя войти в production (нет teacher/student), хотя API живой.
+- **Команда:** попытка логина на `/login` с `teacher1`/`student1`.
+- **Причина:** seed пользователей не выполнялся после миграций.
+- **Фикс:** создать пользователей через контейнер API:
+  - `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'node apps/api/scripts/seed-users.mjs --teacher-login=teacher1 --teacher-password=Pass123! --student-login=student1 --student-password=Pass123!'`
+- **Проверка:** логин teacher/student проходит, `/auth/me` возвращает пользователя.
+
+- **Симптом:** логотип/бренд на экране логина визуально “толще”, чем до перехода с `next/font/google`.
+- **Команда:** визуальная проверка `/login` после перехода на локальные шрифты.
+- **Причина:** для `Unbounded` были подключены веса `300..700`, а до миграции использовался легкий акцент (300).
+- **Фикс:** оставить локально только `@fontsource/unbounded/300.css` и зафиксировать `.brand { font-weight: 300; }`.
+- **Проверка:** `/login` визуально соответствует прежнему виду (более легкий бренд-текст).
+
 ## Planned
 
 - CI-проверки документации (валидность ссылок, отсутствие сирот, наличие `Implemented/Planned` в ключевых SoR-доках).
