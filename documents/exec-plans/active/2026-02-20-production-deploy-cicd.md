@@ -125,6 +125,13 @@
 - Как чинить: в runner stage копировать package-level `node_modules` и пересобрать образы (`api`, `worker`).
 - Как проверить: `api` в статусе healthy, migrations внутри docker выполняются, `prisma` доступен в `docker compose run --rm api`.
 
+7) **`prisma migrate deploy` в `api` контейнере падает: `Could not find Prisma Schema`**
+- Где упало: `docker compose -f docker-compose.prod.yml run --rm api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`.
+- Что увидели: Prisma ищет `schema.prisma`/`prisma/schema.prisma` и не находит.
+- Почему: в runner stage `apps/api/Dockerfile` не были скопированы `apps/api/prisma` и `apps/api/prisma.config.ts`.
+- Как чинить: копировать `prisma` каталог и `prisma.config.ts` в runner image и пересобрать `api`.
+- Как проверить: migrate deploy проходит внутри контейнера без ошибки schema location.
+
 ## 7. Критерии завершения
 
 - CI workflow стабильно проходит на PR в `main`.

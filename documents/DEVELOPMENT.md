@@ -175,6 +175,12 @@ Production policy (`Implemented`):
   - `docker compose -f docker-compose.prod.yml build --no-cache api worker`
 - **Проверка:** `api` стартует без `MODULE_NOT_FOUND`, `prisma migrate deploy` внутри `docker compose run --rm api ...` выполняется.
 
+- **Симптом:** `docker compose ... run api ... prisma migrate deploy` падает с `Could not find Prisma Schema`.
+- **Команда:** `docker compose -f docker-compose.prod.yml run --rm api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`
+- **Причина:** в runner image не скопированы `apps/api/prisma` и `apps/api/prisma.config.ts`.
+- **Фикс:** копировать `prisma` каталог и `prisma.config.ts` в runner stage `apps/api/Dockerfile`, затем пересобрать `api`.
+- **Проверка:** migrate deploy выполняется без ошибки schema location.
+
 ## Planned
 
 - CI-проверки документации (валидность ссылок, отсутствие сирот, наличие `Implemented/Planned` в ключевых SoR-доках).
