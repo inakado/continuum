@@ -78,27 +78,38 @@ Production policy:
 
 ```bash
 cd /srv/continuum
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml up -d postgres redis
 ```
 
 Policy: backend build выполняется только в Docker.
 
-Validate:
+## 6) Manual DB migration before deploy
+
+Важно: для production не запускаем миграции с хоста через `pnpm ... prisma migrate deploy`,
+потому что `DATABASE_URL` обычно указывает на `postgres:5432` (имя сервиса внутри docker network),
+а это имя не резолвится на хосте.
+
+```bash
+cd /srv/continuum
+docker compose -f docker-compose.prod.yml run --rm api \
+  sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'
+```
+
+## 7) Start API and Worker
+
+```bash
+cd /srv/continuum
+docker compose -f docker-compose.prod.yml up -d --build api worker
+```
+
+Validate backend:
 
 ```bash
 curl -fsS http://127.0.0.1:3000/health
 curl -fsS http://127.0.0.1:3000/ready
 ```
 
-## 6) Manual DB migration before deploy
-
-```bash
-cd /srv/continuum
-DATABASE_URL=postgresql://continuum:<db-password>@postgres:5432/continuum \
-  pnpm --filter @continuum/api exec prisma migrate deploy
-```
-
-## 7) Frontend systemd service
+## 8) Frontend systemd service
 
 Install service:
 
@@ -122,7 +133,7 @@ Check:
 curl -fsS http://127.0.0.1:3001/login >/dev/null
 ```
 
-## 8) Nginx and TLS
+## 9) Nginx and TLS
 
 1. Replace `app.example.com` in `deploy/nginx/continuum.conf`.
 2. Install config:
@@ -142,7 +153,7 @@ sudo apt-get install -y certbot python3-certbot-nginx
 sudo certbot --nginx -d app.example.com
 ```
 
-## 9) GitHub Actions secrets (Environment: production)
+## 10) GitHub Actions secrets (Environment: production)
 
 - `DEPLOY_HOST`
 - `DEPLOY_USER`
@@ -150,7 +161,7 @@ sudo certbot --nginx -d app.example.com
 - `APP_DIR` (example: `/srv/continuum`)
 - `APP_DOMAIN` (example: `app.example.com`)
 
-## 10) Rollback
+## 11) Rollback
 
 ```bash
 cd /srv/continuum
@@ -169,7 +180,7 @@ curl -fsS http://127.0.0.1:3000/ready
 curl -fsS http://127.0.0.1:3001/login >/dev/null
 ```
 
-## 11) Что требуется от владельца проекта
+## 12) Что требуется от владельца проекта
 
 Минимум для запуска CI/CD и первого production deploy:
 
@@ -185,6 +196,6 @@ curl -fsS http://127.0.0.1:3001/login >/dev/null
    - Node 20 + pnpm,
    - `systemd`, `nginx`, `certbot`.
 6. Ручной запуск миграций перед первым deploy:
-   - `DATABASE_URL=... pnpm --filter @continuum/api exec prisma migrate deploy`
+   - `docker compose -f docker-compose.prod.yml run --rm api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`
 7. Настроенный GitHub Environment `production` c manual approval и secrets:
    - `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `APP_DIR`, `APP_DOMAIN`.

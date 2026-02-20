@@ -91,7 +91,7 @@
    - `docker compose exec -T api sh -lc "DATABASE_URL=postgresql://continuum:continuum@postgres:5432/continuum pnpm --filter @continuum/api exec prisma generate"`
 3) Prisma v7 читает env из `apps/api/prisma.config.ts`. Для локального запуска обязательно доступны `DATABASE_URL` или `POSTGRES_*`.
 4) Production manual migration (до deploy):
-   - `DATABASE_URL=... pnpm --filter @continuum/api exec prisma migrate deploy`
+   - `docker compose -f docker-compose.prod.yml run --rm api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`
 
 ## Production deploy артефакты
 - `docker-compose.prod.yml` — production compose без bind-монтажей исходников.
@@ -160,6 +160,20 @@ Production policy (`Implemented`):
 - **Фикс (dev):** `pnpm dev:web`
 - **Фикс (prod):** `NEXT_PUBLIC_API_BASE_URL=/api pnpm --filter web build && sudo systemctl restart continuum-web`
 - **Проверка:** `curl -fsS http://localhost:3001/login >/dev/null`.
+
+- **Симптом:** `prisma migrate deploy` в production падает с `P1001: Can't reach database server at postgres:5432`.
+- **Команда:** `DATABASE_URL=postgresql://...@postgres:5432/... pnpm --filter @continuum/api exec prisma migrate deploy`
+- **Причина:** команда запущена на хосте VPS, где `postgres` (docker service name) не резолвится.
+- **Фикс:** запускать миграцию внутри docker network:
+  - `docker compose -f docker-compose.prod.yml run --rm api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`
+- **Проверка:** команда миграции завершается успешно и `docker compose -f docker-compose.prod.yml up -d --build api worker` поднимает `api` в `healthy`.
+
+- **Симптом:** production `api` падает с `Cannot find module 'reflect-metadata'`, а `docker compose ... run api ... prisma` пишет `Command "prisma" not found`.
+- **Команда:** `docker compose -f docker-compose.prod.yml logs --no-color --tail=200 api`
+- **Причина:** в runner image не были скопированы `apps/api/node_modules` и `apps/worker/node_modules`; при pnpm это ломает резолв package-level зависимостей и бинарников.
+- **Фикс:** использовать Dockerfile с копированием package-level `node_modules` в runner stage и пересобрать образы:
+  - `docker compose -f docker-compose.prod.yml build --no-cache api worker`
+- **Проверка:** `api` стартует без `MODULE_NOT_FOUND`, `prisma migrate deploy` внутри `docker compose run --rm api ...` выполняется.
 
 ## Planned
 

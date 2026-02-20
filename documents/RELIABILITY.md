@@ -33,6 +33,7 @@
 - Backend build в CI выполняется только через Docker (`pnpm build:backend` → `docker compose -f docker-compose.prod.yml build api worker`).
 - Production runtime не поднимает MinIO: object storage подключается как внешний S3 endpoint (Beget S3).
 - Security этап в CI: dependency audit + Trivy filesystem scan (`HIGH,CRITICAL`).
+- Текущий baseline: CI `quality` + `security` проходит на `main` (после фикса lockfile для `fast-xml-parser@5.3.6`).
 - CD workflow (`.github/workflows/deploy.yml`) запускается только вручную (`workflow_dispatch`) и использует GitHub Environment `production`.
 - В CD есть hard gate: без подтверждения manual migration deploy job завершается ошибкой.
 - Post-deploy checks включают `/health`, `/ready`, enqueue ping и frontend `/login`.

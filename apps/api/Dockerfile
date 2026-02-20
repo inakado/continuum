@@ -42,6 +42,7 @@ FROM base AS runner
 ENV NODE_ENV=production
 
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY packages/shared/package.json ./packages/shared/package.json
 COPY --from=builder /app/apps/api/dist ./apps/api/dist

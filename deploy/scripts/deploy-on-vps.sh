@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
 : "${DEPLOY_REF:=main}"
 : "${APP_DIR:=/srv/continuum}"
@@ -22,7 +23,7 @@ git pull --ff-only origin "$DEPLOY_REF"
 pnpm install --frozen-lockfile
 
 echo "Run DB migration manually before continuing if schema changed:"
-echo "DATABASE_URL=... pnpm --filter @continuum/api exec prisma migrate deploy"
+echo "docker compose -f docker-compose.prod.yml run --rm api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'"
 
 docker compose -f docker-compose.prod.yml up -d --build postgres redis api worker
 

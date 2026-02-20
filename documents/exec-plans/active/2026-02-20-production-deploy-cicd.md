@@ -65,6 +65,9 @@
   - создан пользователь `deploy`, подготовлен каталог `/srv/continuum`;
   - сгенерирован и добавлен GitHub Deploy Key (read-only);
   - настроен SSH-доступ к GitHub под `deploy`, репозиторий склонирован в `/srv/continuum`.
+  - DNS домена `vl-physics.ru` обновлён: `A` указывает на VPS IP `82.202.128.50` (подтверждено через `@8.8.8.8` и `@1.1.1.1`).
+- CI progress:
+  - GitHub Actions `quality` и `security` проходят полностью после фикса `fast-xml-parser` до `5.3.6` (commit `be3e2c6`).
 
 ## 5. Риски и контроль
 
@@ -107,6 +110,21 @@
 - Как чинить: запускать backend docker build вне sandbox (обычный терминал/VPS/CI) или с повышенными правами.
 - Как проверить: build проходит без socket permission errors.
 
+5) **Production migration с хоста падает по `postgres:5432`**
+- Где упало: `DATABASE_URL=... pnpm --filter @continuum/api exec prisma migrate deploy` на VPS.
+- Что увидели: `P1001: Can't reach database server at postgres:5432`.
+- Почему: `postgres` — имя docker-сервиса и доступно только внутри docker network; на хосте не резолвится.
+- Как чинить: запускать миграцию внутри docker network:
+  - `docker compose -f docker-compose.prod.yml run --rm api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`
+- Как проверить: migrate deploy завершается успешно, затем `api` поднимается и проходит healthcheck.
+
+6) **Production api не стартует: `Cannot find module 'reflect-metadata'`**
+- Где упало: `docker compose -f docker-compose.prod.yml up -d --build api`.
+- Что увидели: в логах `api` — `Error: Cannot find module 'reflect-metadata'`; при `docker compose ... run api ... prisma` — `Command "prisma" not found`.
+- Почему: в runner stage Dockerfile не копировались package-level `node_modules` (`apps/api/node_modules`, `apps/worker/node_modules`), а pnpm использует их для резолва зависимостей/бинарников.
+- Как чинить: в runner stage копировать package-level `node_modules` и пересобрать образы (`api`, `worker`).
+- Как проверить: `api` в статусе healthy, migrations внутри docker выполняются, `prisma` доступен в `docker compose run --rm api`.
+
 ## 7. Критерии завершения
 
 - CI workflow стабильно проходит на PR в `main`.
@@ -126,10 +144,9 @@
 - включить manual approval для `production`.
 
 2) На VPS:
-- подготовить `/srv/continuum` и deploy user;
-- добавить GitHub Deploy Key (read-only), клонировать репозиторий;
-- заполнить `deploy/env/*.env` реальными значениями (`CHANGE_ME_*` заменить);
-- запустить manual migration: `DATABASE_URL=... pnpm --filter @continuum/api exec prisma migrate deploy`.
+- заполнить `deploy/env/*.env` реальными значениями (`CHANGE_ME_*` заменить), включая Beget S3 параметры;
+- запустить manual migration в docker network:
+  - `docker compose -f docker-compose.prod.yml run --rm api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`.
 
 3) Первый production запуск:
 - `docker compose -f docker-compose.prod.yml up -d --build`;
