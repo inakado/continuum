@@ -22,5 +22,15 @@
   },
   "devDependencies": {
     "turbo": "^2.8.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "fast-xml-parser": "5.3.6"
+    },
+    "auditConfig": {
+      "ignoreCves": [
+        "GHSA-3ppc-4f35-3m26"
+      ]
+    }
   }
 }
