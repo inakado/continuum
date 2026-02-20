@@ -1,21 +1,19 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Script from "next/script";
-import { Inter, Unbounded } from "next/font/google";
+import "@fontsource/inter/300.css";
+import "@fontsource/inter/400.css";
+import "@fontsource/inter/500.css";
+import "@fontsource/inter/600.css";
+import "@fontsource/inter/700.css";
+import "@fontsource/unbounded/300.css";
+import "@fontsource/unbounded/400.css";
+import "@fontsource/unbounded/500.css";
+import "@fontsource/unbounded/600.css";
+import "@fontsource/unbounded/700.css";
 import "./globals.css";
 import "katex/dist/katex.min.css";
 import ThemeHydration from "@/components/ThemeHydration";
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-});
-
-const unbounded = Unbounded({
-  variable: "--font-unbounded",
-  subsets: ["latin"],
-  weight: ["300"],
-});
 
 export const metadata: Metadata = {
   title: "Континуум",
@@ -29,7 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru" data-theme="light" suppressHydrationWarning>
-      <body className={`${inter.variable} ${unbounded.variable}`}>
+      <body>
         <Script id="theme-init" strategy="beforeInteractive">
           {`(() => {
   try {

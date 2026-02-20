@@ -29,15 +29,20 @@ const parsePayload = (raw: unknown): LatexCompileQueuePayload => {
     );
   }
 
-  const payload = raw as Partial<LatexCompileQueuePayload>;
+  const payload = raw as Record<string, unknown>;
+  const tex = payload.tex;
+  const requestedByUserId = payload.requestedByUserId;
+  const requestedByRole = payload.requestedByRole;
+  const ttlSec = payload.ttlSec;
+  const target = payload.target;
   if (
-    typeof payload.tex !== 'string' ||
-    !payload.tex.trim() ||
-    typeof payload.requestedByUserId !== 'string' ||
-    payload.requestedByRole !== 'teacher' ||
-    typeof payload.ttlSec !== 'number' ||
-    !Number.isInteger(payload.ttlSec) ||
-    payload.ttlSec <= 0
+    typeof tex !== 'string' ||
+    !tex.trim() ||
+    typeof requestedByUserId !== 'string' ||
+    requestedByRole !== 'teacher' ||
+    typeof ttlSec !== 'number' ||
+    !Number.isInteger(ttlSec) ||
+    ttlSec <= 0
   ) {
     throw new Error(
       JSON.stringify({
@@ -47,8 +52,9 @@ const parsePayload = (raw: unknown): LatexCompileQueuePayload => {
     );
   }
 
-  if (ensureUnitTarget(payload.target)) {
-    if (typeof payload.unitId !== 'string' || !payload.unitId) {
+  if (ensureUnitTarget(target)) {
+    const unitId = payload.unitId;
+    if (typeof unitId !== 'string' || !unitId) {
       throw new Error(
         JSON.stringify({
           code: 'LATEX_JOB_PAYLOAD_INVALID',
@@ -56,15 +62,24 @@ const parsePayload = (raw: unknown): LatexCompileQueuePayload => {
         }),
       );
     }
-    return payload as UnitLatexCompileQueuePayload;
+    return {
+      tex,
+      requestedByUserId,
+      requestedByRole,
+      ttlSec,
+      target,
+      unitId,
+    } as UnitLatexCompileQueuePayload;
   }
 
-  if (payload.target === TASK_SOLUTION_PDF_TARGET) {
+  if (target === TASK_SOLUTION_PDF_TARGET) {
+    const taskId = payload.taskId;
+    const taskRevisionId = payload.taskRevisionId;
     if (
-      typeof payload.taskId !== 'string' ||
-      !payload.taskId ||
-      typeof payload.taskRevisionId !== 'string' ||
-      !payload.taskRevisionId
+      typeof taskId !== 'string' ||
+      !taskId ||
+      typeof taskRevisionId !== 'string' ||
+      !taskRevisionId
     ) {
       throw new Error(
         JSON.stringify({
@@ -73,7 +88,15 @@ const parsePayload = (raw: unknown): LatexCompileQueuePayload => {
         }),
       );
     }
-    return payload as TaskSolutionLatexCompileQueuePayload;
+    return {
+      tex,
+      requestedByUserId,
+      requestedByRole,
+      ttlSec,
+      target,
+      taskId,
+      taskRevisionId,
+    } as TaskSolutionLatexCompileQueuePayload;
   }
 
   throw new Error(

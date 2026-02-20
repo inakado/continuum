@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/main.ts",
     "postinstall": "prisma generate",
-    "build": "tsc -p tsconfig.json",
+    "build": "node ../../scripts/ensure-docker-build.cjs && pnpm exec tsc -p tsconfig.json",
+    "typecheck": "node ../../scripts/ensure-docker-build.cjs && pnpm exec tsc -p tsconfig.json --noEmit",
+    "test": "node -e \"console.log('No tests for @continuum/api yet')\"",
     "start": "node dist/main.js"
   },
   "dependencies": {

@@ -3,7 +3,11 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/main.ts"
+    "dev": "ts-node-dev --respawn --transpile-only src/main.ts",
+    "build": "node ../../scripts/ensure-docker-build.cjs && pnpm exec tsc -p tsconfig.json",
+    "typecheck": "node ../../scripts/ensure-docker-build.cjs && pnpm exec tsc -p tsconfig.json --noEmit",
+    "test": "node -e \"console.log('No tests for @continuum/worker yet')\"",
+    "start": "node dist/main.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.988.0",

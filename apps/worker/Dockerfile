@@ -1,6 +1,7 @@
-FROM node:20-alpine
+FROM node:20-alpine AS base
 
 WORKDIR /app
+ENV BACKEND_BUILD_IN_DOCKER=1
 
 RUN corepack enable
 
@@ -14,11 +15,36 @@ RUN set -eux; \
     fc-cache -f; \
     tectonic --version
 
+FROM base AS deps
+
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/worker/package.json apps/worker/
 COPY packages/shared/package.json packages/shared/
 
 RUN pnpm install --filter @continuum/worker... --frozen-lockfile
+
+FROM deps AS builder
+
+COPY scripts ./scripts
+COPY packages/shared ./packages/shared
+COPY apps/worker ./apps/worker
+
+RUN pnpm --filter @continuum/shared build
+RUN pnpm --filter @continuum/worker build
+
+FROM base AS runner
+
+ENV NODE_ENV=production
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+COPY packages/shared/package.json ./packages/shared/package.json
+COPY --from=builder /app/apps/worker/dist ./apps/worker/dist
+COPY apps/worker/package.json ./apps/worker/package.json
+
+CMD ["node", "apps/worker/dist/main.js"]
+
+FROM deps AS dev
 
 COPY packages/shared ./packages/shared
 COPY apps/worker ./apps/worker

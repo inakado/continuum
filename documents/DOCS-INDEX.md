@@ -42,6 +42,7 @@
 - `documents/exec-plans/tech-debt-tracker.md` — трекер техдолга.
 - `documents/generated/db-schema.md` — срез текущей БД-модели.
 - `documents/references/README.md` — внешние референсы и LLM-friendly материалы.
+- `deploy/README.md` — production deploy runbook (GitHub ↔ VPS, systemd/nginx, rollback).
 
 ## Архив (история решений)
 

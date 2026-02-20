@@ -17,7 +17,9 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "pnpm exec tsc -p tsconfig.json",
+    "typecheck": "pnpm exec tsc -p tsconfig.json --noEmit",
+    "test": "node -e \"console.log('No tests for @continuum/shared yet')\""
   },
   "devDependencies": {
     "typescript": "^5.9.3"

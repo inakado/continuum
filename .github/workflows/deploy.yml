@@ -1,0 +1,97 @@
+name: Deploy Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_ref:
+        description: Git ref (branch/tag/commit) to deploy
+        required: true
+        default: main
+      migrations_confirmed:
+        description: Confirm that manual DB migration was run on VPS
+        required: true
+        type: choice
+        options:
+          - 'no'
+          - 'yes'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.deploy_ref }}
+
+      - name: Ensure migrations are confirmed
+        if: ${{ github.event.inputs.migrations_confirmed != 'yes' }}
+        run: |
+          echo "Manual DB migration is required before deploy."
+          echo "Run on VPS: DATABASE_URL=... pnpm --filter @continuum/api exec prisma migrate deploy"
+          exit 1
+
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          DEPLOY_REF: ${{ github.event.inputs.deploy_ref }}
+          APP_DIR: ${{ secrets.APP_DIR }}
+          APP_DOMAIN: ${{ secrets.APP_DOMAIN }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: DEPLOY_REF,APP_DIR,APP_DOMAIN
+          script_stop: true
+          script: |
+            set -eu
+
+            if [ -z "${APP_DIR:-}" ]; then
+              echo "APP_DIR secret is required"
+              exit 1
+            fi
+
+            cd "$APP_DIR"
+            if [ ! -f "deploy/env/api.env" ]; then
+              echo "deploy/env/api.env is required on VPS"
+              exit 1
+            fi
+
+            set -a
+            . ./deploy/env/api.env
+            set +a
+
+            git fetch --all --prune
+            git checkout "$DEPLOY_REF"
+            git pull --ff-only origin "$DEPLOY_REF"
+
+            pnpm install --frozen-lockfile
+
+            docker compose -f docker-compose.prod.yml build api worker
+            docker compose -f docker-compose.prod.yml up -d postgres redis minio api worker
+
+            NEXT_PUBLIC_API_BASE_URL=/api pnpm --filter web build
+            sudo systemctl daemon-reload
+            sudo systemctl enable continuum-web
+            sudo systemctl restart continuum-web
+
+            curl -fsS http://127.0.0.1:3000/health >/dev/null
+            curl -fsS http://127.0.0.1:3000/ready >/dev/null
+            curl -fsS -X POST http://127.0.0.1:3000/debug/enqueue-ping \
+              -H 'Content-Type: application/json' \
+              -d '{"from":"github-actions-deploy"}' >/dev/null
+            curl -fsS http://127.0.0.1:3001/login >/dev/null
+
+            if [ -n "${APP_DOMAIN:-}" ]; then
+              curl -fsS "https://${APP_DOMAIN}/api/health" >/dev/null
+              curl -fsS "https://${APP_DOMAIN}/login" >/dev/null
+            fi
