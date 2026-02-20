@@ -159,7 +159,21 @@
 - Как чинить: сначала HTTP-only bootstrap конфиг, затем `certbot --nginx -d <domain> --redirect`.
 - Как проверить: `curl -I https://<domain>/login` и `curl -I https://<domain>/api/health` дают 200.
 
-11) **После прод-запуска нельзя войти teacher/student**
+11) **`POST /teacher/units/:id/publish` возвращает 409**
+- Где упало: publish unit из UI.
+- Что увидели: `409 Conflict` на `/api/teacher/units/<id>/publish`.
+- Почему: `publishUnit` блокирует публикацию unit, если parent section в `draft` (`UNIT_PARENT_SECTION_DRAFT`).
+- Как чинить: сначала опубликовать section (и parent course при необходимости), затем unit.
+- Как проверить: publish unit = 200, статус unit = `published`.
+
+12) **Presigned S3 URL открывается с CORS ошибкой в браузере**
+- Где упало: загрузка PDF/asset по URL `*.s3.ru1.storage.beget.cloud`.
+- Что увидели: `No 'Access-Control-Allow-Origin' header`.
+- Почему: в bucket Beget S3 не настроен CORS под `https://vl-physics.ru`.
+- Как чинить: добавить CORS policy на bucket (`AllowedOrigins=https://vl-physics.ru`, methods `GET,HEAD,PUT`, headers `*`).
+- Как проверить: ответ на запрос с `Origin: https://vl-physics.ru` содержит `Access-Control-Allow-Origin`.
+
+13) **После прод-запуска нельзя войти teacher/student**
 - Где упало: ручной smoke входа через `/login`.
 - Что увидели: в базе нет ожидаемых учётных записей для первичного входа.
 - Почему: seed пользователей не был запущен после миграций.
@@ -167,7 +181,7 @@
   - `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'node apps/api/scripts/seed-users.mjs --teacher-login=teacher1 --teacher-password=Pass123! --student-login=student1 --student-password=Pass123!'`
 - Как проверить: логин teacher/student проходит, `/auth/me` возвращает корректную роль.
 
-12) **Логин-экран визуально “толще” после перехода на локальные шрифты**
+14) **Логин-экран визуально “толще” после перехода на локальные шрифты**
 - Где упало: визуальная проверка `/login`.
 - Что увидели: бренд-текст выглядит тяжелее, чем до миграции с `next/font/google`.
 - Почему: для `Unbounded` были подключены дополнительные веса (`400..700`), отличающиеся от прежнего light-акцента.

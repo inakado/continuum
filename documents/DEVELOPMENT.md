@@ -199,6 +199,18 @@ Production policy (`Implemented`):
 - **Фикс:** сначала применить HTTP-only nginx конфиг и запустить `certbot --nginx -d <domain> --redirect`; только потом использовать SSL-пути.
 - **Проверка:** `curl -I https://<domain>/login` и `curl -I https://<domain>/api/health` дают `200`.
 
+- **Симптом:** `POST /teacher/units/:id/publish` отвечает `409 Conflict`.
+- **Команда:** `POST /api/teacher/units/<unitId>/publish`
+- **Причина:** в `ContentService.publishUnit` публикация unit запрещена, если parent section в `draft` (`UNIT_PARENT_SECTION_DRAFT`).
+- **Фикс:** сначала опубликовать section (и при необходимости parent course), потом повторить publish unit.
+- **Проверка:** publish unit возвращает `200`, `unit.status = published`.
+
+- **Симптом:** браузер блокирует PDF/изображения из Beget S3 с `No 'Access-Control-Allow-Origin' header`.
+- **Команда:** загрузка presigned URL из frontend (`https://vl-physics.ru`).
+- **Причина:** на bucket не настроен CORS для origin фронтенда.
+- **Фикс:** добавить CORS policy на bucket (origin `https://vl-physics.ru`, methods `GET,HEAD,PUT`, headers `*`).
+- **Проверка:** `curl -I -H "Origin: https://vl-physics.ru" "<presigned-url>"` возвращает `Access-Control-Allow-Origin`.
+
 - **Симптом:** нельзя войти в production (нет teacher/student), хотя API живой.
 - **Команда:** попытка логина на `/login` с `teacher1`/`student1`.
 - **Причина:** seed пользователей не выполнялся после миграций.
