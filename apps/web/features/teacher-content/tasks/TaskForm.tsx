@@ -575,6 +575,7 @@ export default function TaskForm({
   return (
     <EntityEditorInline
       title={title}
+      titleClassName={styles.formTitle}
       submitLabel={submitLabel}
       onSubmit={handleSubmit}
       secondaryAction={onCancel ? { label: "Отменить", onClick: onCancel } : undefined}

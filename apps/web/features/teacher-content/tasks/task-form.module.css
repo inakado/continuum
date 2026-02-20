@@ -1,3 +1,7 @@
+.formTitle {
+  font-weight: 500;
+}
+
 .section {
   border: var(--border-width) solid var(--card-border);
   background: var(--card-bg);
@@ -14,11 +18,12 @@
 }
 
 .sectionTitle {
+  font-family: var(--font-unbounded), sans-serif;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--text-muted);
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .sectionHeader {

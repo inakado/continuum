@@ -4,6 +4,7 @@ import Button from "./ui/Button";
 
 type EntityEditorInlineProps = {
   title: string;
+  titleClassName?: string;
   description?: string;
   submitLabel: string;
   disabled?: boolean;
@@ -16,6 +17,7 @@ type EntityEditorInlineProps = {
 
 export default function EntityEditorInline({
   title,
+  titleClassName,
   description,
   submitLabel,
   disabled,
@@ -33,7 +35,7 @@ export default function EntityEditorInline({
   return (
     <form className={styles.form} onSubmit={handleSubmit}>
       <div className={styles.header}>
-        <h3 className={styles.title}>{title}</h3>
+        <h3 className={titleClassName ? `${styles.title} ${titleClassName}` : styles.title}>{title}</h3>
         {description ? <p className={styles.description}>{description}</p> : null}
       </div>
       <div className={styles.fields}>{children}</div>

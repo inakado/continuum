@@ -171,7 +171,9 @@
 - Что увидели: `No 'Access-Control-Allow-Origin' header`.
 - Почему: в bucket Beget S3 не настроен CORS под `https://vl-physics.ru`.
 - Как чинить: добавить CORS policy на bucket (`AllowedOrigins=https://vl-physics.ru`, methods `GET,HEAD,PUT`, headers `*`).
-- Как проверить: ответ на запрос с `Origin: https://vl-physics.ru` содержит `Access-Control-Allow-Origin`.
+- Как проверить: 
+  - `curl -I -H "Origin: https://vl-physics.ru" "<presigned-url>"` содержит `Access-Control-Allow-Origin`;
+  - `grep -E '^(S3_|ASSETS_)' deploy/env/api.env` показывает production значения Beget S3.
 
 13) **После прод-запуска нельзя войти teacher/student**
 - Где упало: ручной smoke входа через `/login`.
@@ -184,8 +186,8 @@
 14) **Логин-экран визуально “толще” после перехода на локальные шрифты**
 - Где упало: визуальная проверка `/login`.
 - Что увидели: бренд-текст выглядит тяжелее, чем до миграции с `next/font/google`.
-- Почему: для `Unbounded` были подключены дополнительные веса (`400..700`), отличающиеся от прежнего light-акцента.
-- Как чинить: оставить `@fontsource/unbounded/300.css` и `font-weight: 300` для бренда.
+- Почему: нужно одновременно сохранить легкий бренд на `/login` и избежать weight-fallback на других экранах с `font-weight: 500/600/700`.
+- Как чинить: оставить `font-weight: 300` для бренда, но подключать `Unbounded` в весах `300/400/500/600/700`.
 - Как проверить: `/login` визуально соответствует прежнему стилю.
 
 ## 7. Критерии завершения

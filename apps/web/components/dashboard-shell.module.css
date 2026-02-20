@@ -223,6 +223,8 @@
 }
 
 .kicker {
+  font-family: var(--font-unbounded), sans-serif;
+  font-weight: 300;
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;

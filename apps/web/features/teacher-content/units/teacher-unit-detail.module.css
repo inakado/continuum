@@ -54,6 +54,8 @@
 
 .breadcrumbLink,
 .breadcrumbCurrent {
+  font-family: var(--font-unbounded), sans-serif;
+  font-weight: 300;
   border: none;
   background: transparent;
   color: inherit;
@@ -71,7 +73,7 @@
 }
 
 .breadcrumbCurrent {
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -739,7 +741,7 @@
 
 .taskNumber {
   font-family: var(--font-unbounded), sans-serif;
-  font-weight: 700;
+  font-weight: 500;
   font-size: 14px;
 }
 
@@ -849,11 +851,12 @@
 }
 
 .taskStatementImageTitle {
+  font-family: var(--font-unbounded), sans-serif;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--text-muted);
-  font-weight: 700;
+  font-weight: 500;
   min-width: 0;
 }
 
@@ -929,11 +932,12 @@
 }
 
 .taskSolutionTitle {
+  font-family: var(--font-unbounded), sans-serif;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--text-muted);
-  font-weight: 700;
+  font-weight: 500;
   min-width: 0;
 }
 

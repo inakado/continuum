@@ -33,11 +33,12 @@
 }
 
 .cardTitle {
+  font-family: var(--font-unbounded), sans-serif;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--text-muted);
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .grid2,
@@ -133,9 +134,10 @@
 }
 
 .teacherName {
+  font-family: var(--font-unbounded), sans-serif;
+  font-weight: 500;
   font-size: 14px;
   color: var(--text-primary);
-  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

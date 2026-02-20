@@ -74,6 +74,19 @@ Mandatory:
   - allow methods: `GET`, `HEAD`, `PUT`
   - allow headers: `*`
 
+Quick verification (на VPS, после заполнения `deploy/env/api.env`):
+
+```bash
+grep -E '^(S3_|ASSETS_)' deploy/env/api.env
+docker compose -f docker-compose.prod.yml config | sed -n '/api:/,/^[^ ]/p' | rg -n 'S3_|ASSETS_' || true
+```
+
+Проверка CORS на presigned URL (ожидается `Access-Control-Allow-Origin`):
+
+```bash
+curl -I -H "Origin: https://app.example.com" "<presigned-url>"
+```
+
 Production policy:
 - use external S3 provider (Beget S3) in production;
 - MinIO используется только в local/dev и не входит в `docker-compose.prod.yml`.

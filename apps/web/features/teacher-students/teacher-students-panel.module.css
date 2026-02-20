@@ -77,6 +77,8 @@
 }
 
 .passwordTitle {
+  font-family: var(--font-unbounded), sans-serif;
+  font-weight: 500;
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -184,7 +186,8 @@
 }
 
 .studentName {
-  font-weight: 700;
+  font-family: var(--font-unbounded), sans-serif;
+  font-weight: 500;
   font-size: 17px;
 }
 

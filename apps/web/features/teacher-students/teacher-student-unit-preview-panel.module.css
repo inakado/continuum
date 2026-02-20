@@ -8,7 +8,8 @@
 }
 
 .unitTitle {
-  font-weight: 700;
+  font-family: var(--font-unbounded), sans-serif;
+  font-weight: 500;
 }
 
 .tabs {
@@ -50,7 +51,8 @@
 }
 
 .taskTitle {
-  font-weight: 700;
+  font-family: var(--font-unbounded), sans-serif;
+  font-weight: 500;
 }
 
 .taskMeta {
@@ -155,10 +157,12 @@
 }
 
 .photoStatusTitle {
+  font-family: var(--font-unbounded), sans-serif;
   font-size: 11px;
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--text-muted);
+  font-weight: 500;
 }
 
 .photoStatusText {
