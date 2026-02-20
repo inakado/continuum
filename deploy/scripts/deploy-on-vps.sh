@@ -24,7 +24,7 @@ pnpm install --frozen-lockfile
 echo "Run DB migration manually before continuing if schema changed:"
 echo "DATABASE_URL=... pnpm --filter @continuum/api exec prisma migrate deploy"
 
-docker compose -f docker-compose.prod.yml up -d --build postgres redis minio api worker
+docker compose -f docker-compose.prod.yml up -d --build postgres redis api worker
 
 NEXT_PUBLIC_API_BASE_URL=/api pnpm --filter web build
 sudo systemctl restart continuum-web

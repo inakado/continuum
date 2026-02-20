@@ -20,7 +20,6 @@
 - Обновление SoR-доков (`documents/DEVELOPMENT.md`, `documents/RELIABILITY.md`, `documents/DOCS-INDEX.md`).
 
 ### Out of scope
-- Реальное подключение к конкретному GitHub репозиторию (нужен URL/доступ).
 - Выполнение deploy на конкретном VPS (нужны SSH доступ и домен).
 - Настройка branch protection в GitHub UI.
 
@@ -28,7 +27,7 @@
 
 1) Backend deploy: build на VPS из исходников (не GHCR).
 2) Frontend runtime: `systemd + nginx`, без Docker.
-3) Data services: Postgres/Redis/MinIO на том же VPS.
+3) Data services: Postgres/Redis на VPS, object storage — внешний S3 (Beget S3) в production.
 4) Release trigger: manual (`workflow_dispatch` + production environment).
 5) DB migrations: manual до deploy.
 6) GitHub↔VPS auth: SSH Deploy Key read-only.
@@ -47,7 +46,25 @@
 - [x] Добавить `deploy/README.md`, `deploy/nginx/continuum.conf`, `deploy/systemd/continuum-web.service`, helper scripts.
 - [x] Обновить SoR документы и индекс документации.
 - [x] Перевести web-шрифты на локальные пакеты (`@fontsource/inter`, `@fontsource/unbounded`) для независимости от Google Fonts.
+- [x] Привязать `origin` к GitHub репозиторию и выполнить первый push в `main`.
 - [ ] Выполнить end-to-end deploy на реальном VPS и зафиксировать фактический smoke из production.
+
+## 4.1) Progress update (2026-02-20)
+
+- GitHub repository linked: `https://github.com/inakado/continuum`.
+- Branch `main` pushed to `origin`.
+- Release commit: `0fef536` (`chore: production deploy foundation (docker-only backend build, CI/CD, VPS runbook)`).
+- Локальные проверки успешны:
+  - `pnpm build:backend`
+  - `pnpm build:web`
+  - `pnpm typecheck`
+  - dev runtime: `pnpm dev:infra`, `pnpm dev:backend`, `pnpm dev:web`, `/login` = 200
+- VPS progress:
+  - создан VPS (Ubuntu 24.04), подтверждён SSH-доступ с локальной машины;
+  - установлены базовые зависимости (`docker`, `node`, `pnpm`, `nginx`, `certbot`);
+  - создан пользователь `deploy`, подготовлен каталог `/srv/continuum`;
+  - сгенерирован и добавлен GitHub Deploy Key (read-only);
+  - настроен SSH-доступ к GitHub под `deploy`, репозиторий склонирован в `/srv/continuum`.
 
 ## 5. Риски и контроль
 
@@ -100,3 +117,29 @@
   - enqueue ping = 201,
   - `/login` = 200,
   - rollback сценарий выполняется по runbook.
+
+## 8. Следующий этап (операционный чеклист)
+
+1) На GitHub:
+- создать Environment `production`;
+- добавить secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `APP_DIR`, `APP_DOMAIN`;
+- включить manual approval для `production`.
+
+2) На VPS:
+- подготовить `/srv/continuum` и deploy user;
+- добавить GitHub Deploy Key (read-only), клонировать репозиторий;
+- заполнить `deploy/env/*.env` реальными значениями (`CHANGE_ME_*` заменить);
+- запустить manual migration: `DATABASE_URL=... pnpm --filter @continuum/api exec prisma migrate deploy`.
+
+3) Первый production запуск:
+- `docker compose -f docker-compose.prod.yml up -d --build`;
+- `NEXT_PUBLIC_API_BASE_URL=/api pnpm --filter web build`;
+- `systemctl restart continuum-web`;
+- настроить `nginx` + `certbot`.
+
+4) Верификация и фиксация:
+- `GET /api/health` = 200;
+- `GET /api/ready` = 200;
+- `POST /api/debug/enqueue-ping` = 201;
+- `GET /login` = 200;
+- задокументировать фактический smoke и перенести план в `documents/exec-plans/completed/`.

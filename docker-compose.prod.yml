@@ -14,8 +14,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      minio:
-        condition: service_started
     ports:
       - "127.0.0.1:3000:3000"
     healthcheck:
@@ -36,8 +34,6 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      minio:
-        condition: service_started
       api:
         condition: service_healthy
 
@@ -68,19 +64,6 @@ services:
       timeout: 3s
       retries: 10
 
-  minio:
-    image: minio/minio:RELEASE.2025-01-20T14-49-07Z
-    env_file:
-      - ./deploy/env/minio.env
-    restart: unless-stopped
-    command: server /data --console-address ":9001"
-    volumes:
-      - continuum_prod_minio_data:/data
-    ports:
-      - "127.0.0.1:9000:9000"
-      - "127.0.0.1:9001:9001"
-
 volumes:
   continuum_prod_postgres_data:
   continuum_prod_redis_data:
-  continuum_prod_minio_data:

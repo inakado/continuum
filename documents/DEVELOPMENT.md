@@ -95,10 +95,14 @@
 
 ## Production deploy артефакты
 - `docker-compose.prod.yml` — production compose без bind-монтажей исходников.
-- `deploy/env/*.env` — service-specific env files (`api`, `worker`, `postgres`, `redis`, `minio`).
+- `deploy/env/*.env` — service-specific env files (`api`, `worker`, `postgres`, `redis`).
 - `deploy/systemd/continuum-web.service` — systemd unit для Next.js frontend.
 - `deploy/nginx/continuum.conf` — reverse proxy `/` и `/api/` + TLS контур.
 - `deploy/README.md` — пошаговый runbook (GitHub, VPS, migrations, rollback).
+
+Production policy (`Implemented`):
+- object storage в production — внешний S3-провайдер (Beget S3);
+- MinIO используется только в dev-окружении (`docker compose` без `-f docker-compose.prod.yml`).
 
 ## Lockfile / зависимости (Docker)
 1) Docker сборки используют `--frozen-lockfile`, поэтому lockfile должен быть актуальным.

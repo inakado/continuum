@@ -61,14 +61,18 @@ In `/srv/continuum/deploy/env/`, edit:
 - `worker.env`
 - `postgres.env`
 - `redis.env`
-- `minio.env`
 
 Mandatory:
 - strong `JWT_SECRET`
 - secure `WORKER_INTERNAL_TOKEN`
-- consistent DB and MinIO passwords across all files
+- consistent DB settings across all files
 - real production value for `WEB_ORIGIN` and `CORS_ORIGIN`
+- Beget S3 credentials and endpoint (`S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`)
 - externally reachable HTTPS for `S3_PUBLIC_BASE_URL`
+
+Production policy:
+- use external S3 provider (Beget S3) in production;
+- MinIO используется только в local/dev и не входит в `docker-compose.prod.yml`.
 
 ## 5) Start production backend stack
 

@@ -77,7 +77,7 @@ jobs:
             pnpm install --frozen-lockfile
 
             docker compose -f docker-compose.prod.yml build api worker
-            docker compose -f docker-compose.prod.yml up -d postgres redis minio api worker
+            docker compose -f docker-compose.prod.yml up -d postgres redis api worker
 
             NEXT_PUBLIC_API_BASE_URL=/api pnpm --filter web build
             sudo systemctl daemon-reload
