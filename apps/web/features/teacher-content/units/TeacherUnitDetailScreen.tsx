@@ -327,7 +327,7 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
 
   const navItems = useMemo(
     () => [
-      { label: "Создание и редактирование", href: "/teacher", active: true },
+      { label: "Курсы", href: "/teacher", active: true },
       { label: "Ученики", href: "/teacher/students" },
       { label: "Проверка фото", href: "/teacher/review" },
       { label: "Аналитика", href: "/teacher/analytics" },

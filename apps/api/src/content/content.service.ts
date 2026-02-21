@@ -46,6 +46,7 @@ type GraphNode = {
   unitId: string;
   title: string;
   status: ContentStatus;
+  createdAt: Date;
   position: { x: number; y: number };
 };
 
@@ -316,6 +317,7 @@ export class ContentService {
       data: {
         courseId: dto.courseId,
         title: dto.title,
+        description: dto.description ?? null,
         sortOrder: dto.sortOrder ?? 0,
       },
     });
@@ -325,8 +327,9 @@ export class ContentService {
     const exists = await this.prisma.section.findUnique({ where: { id } });
     if (!exists) throw new NotFoundException('Section not found');
 
-    const data: { title?: string; sortOrder?: number } = {};
+    const data: { title?: string; description?: string | null; sortOrder?: number } = {};
     if (dto.title !== undefined) data.title = dto.title;
+    if (dto.description !== undefined) data.description = dto.description;
     if (dto.sortOrder !== undefined) data.sortOrder = dto.sortOrder;
 
     return this.prisma.section.update({ where: { id }, data });
@@ -1500,7 +1503,7 @@ export class ContentService {
 
   private async buildSectionGraph(
     sectionId: string,
-    units: { id: string; title: string; status: ContentStatus; sortOrder: number }[],
+    units: { id: string; title: string; status: ContentStatus; sortOrder: number; createdAt: Date }[],
   ): Promise<{ sectionId: string; nodes: GraphNode[]; edges: GraphEdge[] }> {
     const unitIds = units.map((unit) => unit.id);
 
@@ -1528,6 +1531,7 @@ export class ContentService {
         unitId: unit.id,
         title: unit.title,
         status: unit.status,
+        createdAt: unit.createdAt,
         position: { x: layout?.x ?? fallback.x, y: layout?.y ?? fallback.y },
       };
     });

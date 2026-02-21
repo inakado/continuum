@@ -16,24 +16,6 @@
   initial-value: 14px;
 }
 
-@property --sidebar-squeeze {
-  syntax: "<number>";
-  inherits: true;
-  initial-value: 1;
-}
-
-@property --sidebar-shell-squeeze {
-  syntax: "<number>";
-  inherits: true;
-  initial-value: 1;
-}
-
-@property --main-shell-squeeze {
-  syntax: "<number>";
-  inherits: true;
-  initial-value: 1;
-}
-
 .page {
   min-height: 100vh;
   background:
@@ -97,9 +79,6 @@
   --sidebar-motion-duration: 0.6s;
   --sidebar-motion-delay: 0s;
   --sidebar-motion-ease: cubic-bezier(0.16, 1, 0.3, 1);
-  --sidebar-squeeze: 0.96;
-  --sidebar-shell-squeeze: 0.985;
-  --main-shell-squeeze: 0.992;
   --theme-toggle-compact: 34px;
   --theme-toggle-icon: 20px;
   --theme-toggle-radius: var(--control-radius);
@@ -113,14 +92,17 @@
   transition:
     --sidebar-width var(--sidebar-motion-duration) var(--sidebar-motion-ease),
     --sidebar-pad-x var(--sidebar-motion-duration) var(--sidebar-motion-ease),
-    --sidebar-pad-y var(--sidebar-motion-duration) var(--sidebar-motion-ease),
-    --sidebar-squeeze var(--sidebar-motion-duration) var(--sidebar-motion-ease),
-    --sidebar-shell-squeeze var(--sidebar-motion-duration) var(--sidebar-motion-ease),
-    --main-shell-squeeze var(--sidebar-motion-duration) var(--sidebar-motion-ease);
+    --sidebar-pad-y var(--sidebar-motion-duration) var(--sidebar-motion-ease);
 }
 
 .shellWithSettings {
-  --sidebar-icon-slot: 66px;
+  --sidebar-icon-slot: 44px;
+}
+
+.shellWithSettings .sidebarHeaderActions {
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
 }
 
 .sidebar {
@@ -145,9 +127,6 @@
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   overflow: hidden;
-  transform: scaleX(var(--sidebar-shell-squeeze));
-  transform-origin: right center;
-  will-change: transform;
 }
 
 .sidebarInner {
@@ -160,8 +139,6 @@
   min-height: 100%;
   height: auto;
   width: 100%;
-  transform: scaleX(var(--sidebar-squeeze));
-  transform-origin: left center;
 }
 
 .sidebarHeader {
@@ -342,9 +319,6 @@
   overflow: visible;
   height: auto;
   max-height: none;
-  transform: scaleX(var(--main-shell-squeeze));
-  transform-origin: left center;
-  will-change: transform;
 }
 
 .shell[data-sidebar-open="false"] .sidebarHeaderText {
@@ -357,23 +331,14 @@
 }
 
 .shell[data-sidebar-open="false"] .sidebarHeader {
-  padding-left: calc((var(--sidebar-width) - var(--sidebar-icon-slot)) / 2);
-  padding-right: calc((var(--sidebar-width) - var(--sidebar-icon-slot)) / 2);
+  padding-left: calc(
+    (var(--sidebar-width) - (var(--sidebar-pad-x) * 2) - var(--sidebar-icon-slot)) / 2
+  );
+  padding-right: calc(
+    (var(--sidebar-width) - (var(--sidebar-pad-x) * 2) - var(--sidebar-icon-slot)) / 2
+  );
   gap: 0;
   justify-content: center;
-}
-
-.shellWithSettings[data-sidebar-open="false"] {
-  --theme-toggle-compact: 30px;
-  --theme-toggle-icon: 18px;
-  --theme-toggle-radius: 10px;
-  --sidebar-icon-slot: 44px;
-}
-
-.shellWithSettings[data-sidebar-open="false"] .sidebarHeaderActions {
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
 }
 
 .shell[data-sidebar-open="false"] .sidebarInner {
@@ -417,6 +382,13 @@
 }
 
 @media (min-width: 1600px) {
+  .sidebarTitle {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-wrap: normal;
+  }
+
   .shell {
     --sidebar-expanded: 320px;
   }

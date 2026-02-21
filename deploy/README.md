@@ -67,6 +67,7 @@ Mandatory:
 - secure `WORKER_INTERNAL_TOKEN`
 - consistent DB settings across all files
 - real production value for `WEB_ORIGIN` and `CORS_ORIGIN`
+- `AUTH_REFRESH_COOKIE_PATH` должен соответствовать API-префиксу (для `NEXT_PUBLIC_API_BASE_URL=/api` используйте `/api/auth`)
 - Beget S3 credentials and endpoint (`S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`)
 - externally reachable HTTPS for `S3_PUBLIC_BASE_URL`
 - Beget S3 bucket CORS policy for browser access from `https://app.example.com`:

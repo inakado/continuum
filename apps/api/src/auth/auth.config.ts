@@ -91,7 +91,7 @@ const resolveAccessCookieSecure = () => resolveBoolean(process.env.AUTH_COOKIE_S
 const resolveRefreshCookieSecure = () =>
   resolveBoolean(process.env.AUTH_REFRESH_COOKIE_SECURE, process.env.AUTH_COOKIE_SECURE);
 
-const resolveRefreshCookiePath = () => process.env.AUTH_REFRESH_COOKIE_PATH || '/auth';
+const resolveRefreshCookiePath = () => process.env.AUTH_REFRESH_COOKIE_PATH || '/';
 
 export const resolveAuthCookieOptions = () => ({
   httpOnly: true,

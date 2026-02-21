@@ -35,9 +35,16 @@ type Props = {
 type UnitNodeData = {
   title: string;
   status: "draft" | "published";
+  createdAt: string;
 };
 
 const UnitNode = ({ data }: NodeProps<UnitNodeData>) => {
+  const createdAtLabel = new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(data.createdAt));
+
   return (
     <div className={styles.node}>
       <Handle
@@ -47,6 +54,8 @@ const UnitNode = ({ data }: NodeProps<UnitNodeData>) => {
       />
       <div className={styles.nodeTitle}>{data.title}</div>
       <div className={styles.nodeStatus}>{getContentStatusLabel(data.status)}</div>
+      <div className={styles.nodeMeta}>Создан: {createdAtLabel}</div>
+      <div className={styles.nodeConnectHint}>Потяните связь отсюда</div>
       <Handle
         type="source"
         position={Position.Bottom}
@@ -70,7 +79,7 @@ const buildFlowNodes = (nodes: GraphNode[]): Node<UnitNodeData>[] =>
     type: "unit",
     position: node.position,
     style: { border: "none", background: "transparent", padding: 0 },
-    data: { title: node.title, status: node.status },
+    data: { title: node.title, status: node.status, createdAt: node.createdAt },
   }));
 
 const buildFlowEdges = (edges: GraphEdge[]): Edge[] =>
@@ -291,7 +300,7 @@ export default function TeacherSectionGraphPanel({ sectionId, courseTitle, secti
           type: "unit",
           position,
           style: { border: "none", background: "transparent", padding: 0 },
-          data: { title: unit.title, status: unit.status },
+          data: { title: unit.title, status: unit.status, createdAt: unit.createdAt },
         }),
       );
       setNewUnitTitle("");

@@ -23,6 +23,7 @@ export type Section = {
   id: string;
   courseId: string;
   title: string;
+  description: string | null;
   status: ContentStatus;
   sortOrder: number;
   createdAt: string;
@@ -235,6 +236,7 @@ export type GraphNode = {
   unitId: string;
   title: string;
   status: ContentStatus;
+  createdAt: string;
   position: { x: number; y: number };
 };
 
@@ -578,11 +580,11 @@ export const teacherApi = {
     });
   },
 
-  createSection(data: { courseId: string; title: string; sortOrder?: number }) {
+  createSection(data: { courseId: string; title: string; description?: string | null; sortOrder?: number }) {
     return apiRequest<Section>("/teacher/sections", { method: "POST", body: data });
   },
 
-  updateSection(id: string, data: { title?: string; sortOrder?: number }) {
+  updateSection(id: string, data: { title?: string; description?: string | null; sortOrder?: number }) {
     return apiRequest<Section>(`/teacher/sections/${id}`, { method: "PATCH", body: data });
   },
 

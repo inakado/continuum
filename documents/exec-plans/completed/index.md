@@ -17,3 +17,7 @@
 - `VERTICAL-SLICE-VS-06.md`
 - `VERTICAL-SLICE-VS-07.md`
 - `VERTICAL-SLICE-VS-09.md`
+
+## Native exec-plans
+
+- `2026-02-21-teacher-dashboard-editing-ux.md`

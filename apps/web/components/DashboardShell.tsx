@@ -37,22 +37,12 @@ const SIDEBAR_DIMENSIONS = {
 
 const OPEN_DURATION = 0.6;
 const CLOSE_DURATION = 0.6;
+const OPEN_DELAY_MS = 80;
+const CLOSE_DELAY_MS = 140;
 const OPEN_EASING: [number, number, number, number] = [0.16, 1, 0.3, 1];
 const CLOSE_EASING: [number, number, number, number] = [0.33, 0, 0.67, 1];
 const OPEN_EASING_BEZIER = "cubic-bezier(0.16, 1, 0.3, 1)";
 const CLOSE_EASING_BEZIER = "cubic-bezier(0.33, 0, 0.67, 1)";
-const SIDEBAR_SQUEEZE = {
-  collapsed: 0.96,
-  expanded: 1,
-};
-const SIDEBAR_SHELL_SQUEEZE = {
-  collapsed: 0.985,
-  expanded: 1,
-};
-const MAIN_SHELL_SQUEEZE = {
-  collapsed: 1,
-  expanded: 1,
-};
 
 const resolveNavIcon = (label: string, href: string) => {
   const normalized = label.toLowerCase();
@@ -132,7 +122,7 @@ export default function DashboardShell({
     openTimer.current = window.setTimeout(() => {
       if (!hoverRef.current && !focusRef.current) return;
       setIsSidebarOpen(true);
-    }, 90);
+    }, OPEN_DELAY_MS);
   }, [isSidebarOpen]);
 
   const scheduleClose = useCallback(() => {
@@ -146,7 +136,7 @@ export default function DashboardShell({
     closeTimer.current = window.setTimeout(() => {
       if (hoverRef.current || focusRef.current) return;
       setIsSidebarOpen(false);
-    }, 0);
+    }, CLOSE_DELAY_MS);
   }, []);
 
   const closeSidebar = useCallback(() => {
@@ -175,6 +165,19 @@ export default function DashboardShell({
     return () => media.removeListener(update);
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (openTimer.current) {
+        window.clearTimeout(openTimer.current);
+        openTimer.current = null;
+      }
+      if (closeTimer.current) {
+        window.clearTimeout(closeTimer.current);
+        closeTimer.current = null;
+      }
+    };
+  }, []);
+
   useLayoutEffect(() => {
     if (!shellRef.current) return;
     const element = shellRef.current;
@@ -183,9 +186,6 @@ export default function DashboardShell({
     element.style.setProperty("--sidebar-width", `${width}px`);
     element.style.setProperty("--sidebar-pad-x", `${padX}px`);
     element.style.setProperty("--sidebar-pad-y", `${padY}px`);
-    element.style.setProperty("--sidebar-squeeze", `${SIDEBAR_SQUEEZE.collapsed}`);
-    element.style.setProperty("--sidebar-shell-squeeze", `${SIDEBAR_SHELL_SQUEEZE.collapsed}`);
-    element.style.setProperty("--main-shell-squeeze", `${MAIN_SHELL_SQUEEZE.collapsed}`);
     element.style.setProperty("--sidebar-motion-ease", CLOSE_EASING_BEZIER);
   }, []);
 
@@ -202,13 +202,6 @@ export default function DashboardShell({
     const targetWidth = `${target.width}px`;
     const targetPadX = `${target.padX}px`;
     const targetPadY = `${target.padY}px`;
-    const targetSqueeze = `${isSidebarOpen ? SIDEBAR_SQUEEZE.expanded : SIDEBAR_SQUEEZE.collapsed}`;
-    const targetSidebarShellSqueeze = `${
-      isSidebarOpen ? SIDEBAR_SHELL_SQUEEZE.expanded : SIDEBAR_SHELL_SQUEEZE.collapsed
-    }`;
-    const targetMainShellSqueeze = `${
-      isSidebarOpen ? MAIN_SHELL_SQUEEZE.expanded : MAIN_SHELL_SQUEEZE.collapsed
-    }`;
 
     element.style.setProperty("--sidebar-motion-duration", `${duration}s`);
     element.style.setProperty(
@@ -218,9 +211,6 @@ export default function DashboardShell({
     element.style.setProperty("--sidebar-width", targetWidth);
     element.style.setProperty("--sidebar-pad-x", targetPadX);
     element.style.setProperty("--sidebar-pad-y", targetPadY);
-    element.style.setProperty("--sidebar-squeeze", targetSqueeze);
-    element.style.setProperty("--sidebar-shell-squeeze", targetSidebarShellSqueeze);
-    element.style.setProperty("--main-shell-squeeze", targetMainShellSqueeze);
   }, [isSidebarOpen]);
 
   return (

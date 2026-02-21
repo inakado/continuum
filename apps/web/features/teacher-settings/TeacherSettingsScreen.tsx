@@ -28,7 +28,7 @@ const getTeacherDisplayName = (
 };
 
 const teacherNavItems = [
-  { label: "Создание и редактирование", href: "/teacher" },
+  { label: "Курсы", href: "/teacher" },
   { label: "Ученики", href: "/teacher/students" },
   { label: "Проверка фото", href: "/teacher/review" },
   { label: "Аналитика", href: "/teacher/analytics" },

@@ -32,7 +32,7 @@
 ### Content
 
 - `Course` (`courses`): `status`, `lock_duration_minutes`.
-- `Section` (`sections`): `status`, `sort_order`, `course_id`.
+- `Section` (`sections`): `status`, `description`, `sort_order`, `course_id`.
 - `Unit` (`units`): `status`, `sort_order`, `min_optional_counted_tasks_to_complete`, контент (`theory_rich_latex`, `method_rich_latex`), asset keys (`theory_pdf_asset_key`, `method_pdf_asset_key`), media json.
 - `UnitGraphEdge` (`unit_graph_edges`): directed prereq edges внутри section.
 - `UnitGraphLayout` (`unit_graph_layout`): позиции узлов графа (x/y) для UI.

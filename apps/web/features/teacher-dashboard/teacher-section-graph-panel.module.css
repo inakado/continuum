@@ -220,9 +220,34 @@
   color: var(--text-muted);
 }
 
+.nodeMeta {
+  margin-top: 4px;
+  font-size: 11px;
+  color: color-mix(in srgb, var(--text-muted) 82%, transparent);
+}
+
+.nodeConnectHint {
+  margin-top: 8px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: transparent;
+  background: transparent;
+  border-radius: var(--control-radius);
+  padding: 4px 8px;
+  text-align: center;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.node:hover .nodeConnectHint,
+.node:focus-within .nodeConnectHint {
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+
 .handle {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   border-radius: 0;
   border: 0;
   background: transparent;
@@ -234,7 +259,23 @@
 }
 
 .handleBottom {
-  bottom: -8px;
+  width: calc(100% - 20px);
+  height: 18px;
+  left: 10px;
+  right: 10px;
+  transform: none;
+  bottom: -10px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px dashed transparent;
+  opacity: 1;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.node:hover .handleBottom,
+.node:focus-within .handleBottom {
+  background: color-mix(in srgb, var(--surface-2) 80%, transparent);
+  border-color: color-mix(in srgb, var(--border-primary) 55%, transparent);
 }
 
 @media (max-width: 960px) {

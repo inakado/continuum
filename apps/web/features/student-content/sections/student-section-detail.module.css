@@ -1,0 +1,62 @@
+.topActions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  border: 2px solid var(--border-primary);
+  padding: 12px;
+  background: var(--bg-primary);
+}
+
+.error {
+  border: 2px solid var(--border-primary);
+  padding: 8px;
+  background: var(--bg-accent);
+  color: var(--text-accent);
+  font-size: 13px;
+}
+
+.graphPanel {
+  border: 2px solid var(--border-primary);
+  background: var(--bg-primary);
+  min-height: 60vh;
+}
+
+.loading {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.empty {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: 14px;
+  padding: 16px;
+  text-align: center;
+}
+
+.node {
+  border: 2px solid var(--border-primary);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  padding: 10px 12px;
+  min-width: 160px;
+  text-align: left;
+}
+
+.nodeTitle {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.nodeStatus {
+  margin-top: 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}

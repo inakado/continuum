@@ -213,6 +213,12 @@ Production policy (`Implemented`):
 - **Фикс:** добавить CORS policy на bucket (origin `https://vl-physics.ru`, methods `GET,HEAD,PUT`, headers `*`).
 - **Проверка:** `curl -I -H "Origin: https://vl-physics.ru" "<presigned-url>"` возвращает `Access-Control-Allow-Origin`.
 
+- **Симптом:** через ~время жизни access token интерфейс показывает `Перелогиньтесь`, а после reload — `Нужна авторизация / Сессия не найдена`.
+- **Команда:** `POST /api/auth/refresh` возвращает `401` при наличии активной сессии в БД.
+- **Причина:** несовпадение path refresh-cookie и API-префикса (например, `AUTH_REFRESH_COOKIE_PATH=/auth` при фронте на `NEXT_PUBLIC_API_BASE_URL=/api`).
+- **Фикс:** выставить совместимый path (`AUTH_REFRESH_COOKIE_PATH=/api/auth`) или использовать дефолтный `path=/` в API конфиге.
+- **Проверка:** после истечения access cookie `POST /api/auth/refresh` возвращает `200`, пользователь остаётся авторизован.
+
 - **Симптом:** нельзя войти в production (нет teacher/student), хотя API живой.
 - **Команда:** попытка логина на `/login` с `teacher1`/`student1`.
 - **Причина:** seed пользователей не выполнялся после миграций.

@@ -26,7 +26,7 @@
 ## Content entities (`Implemented`)
 
 - `Course`: содержит `lockDurationMinutes` (используется в Learning для таймера блокировки 3+3).
-- `Section`: внутри course, хранит сортировку и unit graph.
+- `Section`: внутри course, хранит `description`, сортировку и unit graph.
 - `Unit`:
   - контент: `theoryRichLatex`, `methodRichLatex`, `videosJson`, `attachmentsJson`
   - PDF keys: `theoryPdfAssetKey`, `methodPdfAssetKey`
@@ -42,6 +42,7 @@
 
 - Directed edges: `UnitGraphEdge` (A → B означает “A prerequisite для B”).
 - Layout: `UnitGraphLayout` (x/y для UI).
+- В teacher graph node payload приходит `createdAt` (используется UI для меты узла).
 - Валидации на update:
   - self-loop запрещён
   - duplicate edges запрещены

@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Pencil, Trash2 } from "lucide-react";
 import DashboardShell from "@/components/DashboardShell";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import Textarea from "@/components/ui/Textarea";
 import { teacherApi, Course, CourseWithSections, Section } from "@/lib/api/teacher";
 import { getContentStatusLabel } from "@/lib/status-labels";
 import { getApiErrorMessage } from "@/features/teacher-content/shared/api-errors";
@@ -34,6 +35,16 @@ type ContentConfig = {
 type TeacherEditModeProps = {
   initialSectionId?: string;
 };
+
+type EditDialogState =
+  | {
+      kind: "course";
+      id: string;
+    }
+  | {
+      kind: "section";
+      id: string;
+    };
 
 const CONTENT_BY_SECTION: Record<ActiveSection, ContentConfig> = {
   edit: {
@@ -66,7 +77,7 @@ const TeacherSectionGraphPanel = dynamic(() => import("./TeacherSectionGraphPane
 
 const getNavItems = (active: ActiveSection) => [
   {
-    label: "Создание и редактирование",
+    label: "Курсы",
     href: "/teacher",
     active: active === "edit",
   },
@@ -118,15 +129,37 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
   const [loadingSections, setLoadingSections] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [courseTitle, setCourseTitle] = useState("");
+  const [courseDescription, setCourseDescription] = useState("");
   const [sectionTitle, setSectionTitle] = useState("");
+  const [sectionDescription, setSectionDescription] = useState("");
   const [courseFormError, setCourseFormError] = useState<string | null>(null);
   const [sectionFormError, setSectionFormError] = useState<string | null>(null);
   const [creatingCourse, setCreatingCourse] = useState(false);
   const [creatingSection, setCreatingSection] = useState(false);
   const [showCourseForm, setShowCourseForm] = useState(false);
   const [showSectionForm, setShowSectionForm] = useState(false);
+  const [editDialog, setEditDialog] = useState<EditDialogState | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
   const coursesRequestIdRef = useRef(0);
   const sectionsRequestIdRef = useRef(0);
+
+  const formatCreatedAt = useCallback(
+    (value: string) =>
+      new Intl.DateTimeFormat("ru-RU", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).format(new Date(value)),
+    [],
+  );
+
+  const normalizeDescription = (value: string) => {
+    const normalized = value.trim();
+    return normalized.length > 0 ? normalized : null;
+  };
 
   const sortedSections = useMemo(() => {
     if (!selectedCourse) return [];
@@ -157,6 +190,7 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
     setSelectedCourse(null);
     setLoadingSections(true);
     setSectionTitle("");
+    setSectionDescription("");
     setShowSectionForm(false);
     setSectionFormError(null);
     try {
@@ -190,9 +224,10 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
     try {
       const created = await teacherApi.createCourse({
         title: courseTitle.trim(),
-        description: null,
+        description: normalizeDescription(courseDescription),
       });
       setCourseTitle("");
+      setCourseDescription("");
       setShowCourseForm(false);
       await fetchCourses();
       await selectCourse(created.id);
@@ -211,9 +246,11 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
       await teacherApi.createSection({
         courseId: selectedCourse.id,
         title: sectionTitle.trim(),
+        description: normalizeDescription(sectionDescription),
         sortOrder: 0,
       });
       setSectionTitle("");
+      setSectionDescription("");
       setShowSectionForm(false);
       await selectCourse(selectedCourse.id);
     } catch (err) {
@@ -286,6 +323,54 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
     setSelectedSectionTitle(section.title);
   };
 
+  const handleStartEditCourse = (course: Course) => {
+    setEditDialog({ kind: "course", id: course.id });
+    setEditTitle(course.title);
+    setEditDescription(course.description ?? "");
+    setEditError(null);
+  };
+
+  const handleStartEditSection = (section: Section) => {
+    setEditDialog({ kind: "section", id: section.id });
+    setEditTitle(section.title);
+    setEditDescription(section.description ?? "");
+    setEditError(null);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editDialog) return;
+    const title = editTitle.trim();
+    if (!title || savingEdit) return;
+    setEditError(null);
+    setSavingEdit(true);
+    try {
+      if (editDialog.kind === "course") {
+        await teacherApi.updateCourse(editDialog.id, {
+          title,
+          description: normalizeDescription(editDescription),
+        });
+        await fetchCourses();
+        if (selectedCourseId === editDialog.id) {
+          await selectCourse(editDialog.id);
+        }
+      } else if (selectedCourse) {
+        const updated = await teacherApi.updateSection(editDialog.id, {
+          title,
+          description: normalizeDescription(editDescription),
+        });
+        if (selectedSectionId === updated.id) {
+          setSelectedSectionTitle(updated.title);
+        }
+        await selectCourse(selectedCourse.id);
+      }
+      setEditDialog(null);
+    } catch (err) {
+      setEditError(getApiErrorMessage(err));
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   const handleBackToList = () => {
     if (initialSectionId) {
       router.push("/teacher");
@@ -324,6 +409,7 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
                       setSelectedCourseId(null);
                       setShowSectionForm(false);
                       setSectionTitle("");
+                      setSectionDescription("");
                     }}
                   >
                     Курсы
@@ -341,6 +427,7 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
                   onClick={() => {
                     setShowSectionForm((prev) => !prev);
                     setSectionFormError(null);
+                    setSectionDescription("");
                   }}
                 >
                   Новый раздел
@@ -350,6 +437,7 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
                   onClick={() => {
                     setShowCourseForm((prev) => !prev);
                     setCourseFormError(null);
+                    setCourseDescription("");
                   }}
                 >
                   Создать курс
@@ -371,6 +459,16 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
                         name="sectionTitle"
                         autoComplete="off"
                         placeholder="Например, Дроби и проценты…"
+                      />
+                    </label>
+                    <label className={styles.label}>
+                      Описание раздела
+                      <Textarea
+                        value={sectionDescription}
+                        onChange={(event) => setSectionDescription(event.target.value)}
+                        name="sectionDescription"
+                        rows={3}
+                        placeholder="Коротко опишите, что изучают в этом разделе..."
                       />
                     </label>
                     {sectionFormError ? (
@@ -399,6 +497,12 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
                           <div className={styles.cardTitleRow}>
                             <div className={styles.cardTitle}>{section.title}</div>
                           </div>
+                          <div className={styles.cardMetaGroup}>
+                            <div className={styles.cardMeta}>
+                              {section.description ? section.description : "Без описания"}
+                            </div>
+                            <div className={styles.cardMetaMuted}>Создан: {formatCreatedAt(section.createdAt)}</div>
+                          </div>
                         </button>
                         <div className={styles.cardControls}>
                           <span className={styles.status} data-status={section.status}>
@@ -421,6 +525,15 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
                               ) : (
                                 <Eye size={16} aria-hidden="true" />
                               )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              className={styles.cardIconAction}
+                              title="Редактировать раздел"
+                              aria-label="Редактировать раздел"
+                              onClick={() => handleStartEditSection(section)}
+                            >
+                              <Pencil size={16} aria-hidden="true" />
                             </Button>
                             <Button
                               variant="ghost"
@@ -450,6 +563,16 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
                         name="courseTitle"
                         autoComplete="off"
                         placeholder="Например, Математика 7 класс…"
+                      />
+                    </label>
+                    <label className={styles.label}>
+                      Описание курса
+                      <Textarea
+                        value={courseDescription}
+                        onChange={(event) => setCourseDescription(event.target.value)}
+                        name="courseDescription"
+                        rows={3}
+                        placeholder="Коротко опишите курс..."
                       />
                     </label>
                     {courseFormError ? <div className={styles.formError}>{courseFormError}</div> : null}
@@ -488,7 +611,12 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
                           <div className={styles.cardTitleRow}>
                             <div className={styles.cardTitle}>{course.title}</div>
                           </div>
-                          <div className={styles.cardMeta}>{course.description ? course.description : "Без описания"}</div>
+                          <div className={styles.cardMetaGroup}>
+                            <div className={styles.cardMeta}>
+                              {course.description ? course.description : "Без описания"}
+                            </div>
+                            <div className={styles.cardMetaMuted}>Создан: {formatCreatedAt(course.createdAt)}</div>
+                          </div>
                         </button>
                         <div className={styles.cardControls}>
                           <span className={styles.status} data-status={course.status}>
@@ -513,6 +641,15 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
                             <Button
                               variant="ghost"
                               className={styles.cardIconAction}
+                              title="Редактировать курс"
+                              aria-label="Редактировать курс"
+                              onClick={() => handleStartEditCourse(course)}
+                            >
+                              <Pencil size={16} aria-hidden="true" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              className={styles.cardIconAction}
                               title="Удалить курс"
                               aria-label="Удалить курс"
                               onClick={() => void handleDeleteCourse(course)}
@@ -530,6 +667,40 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
           </div>
         </section>
       )}
+
+      {editDialog ? (
+        <div className={styles.inlineForm} role="dialog" aria-label="Редактирование">
+          <label className={styles.label}>
+            Название
+            <Input
+              value={editTitle}
+              onChange={(event) => setEditTitle(event.target.value)}
+              name="editTitle"
+              autoComplete="off"
+              placeholder="Введите название..."
+            />
+          </label>
+          <label className={styles.label}>
+            Описание
+            <Textarea
+              value={editDescription}
+              onChange={(event) => setEditDescription(event.target.value)}
+              name="editDescription"
+              rows={3}
+              placeholder="Введите описание..."
+            />
+          </label>
+          {editError ? <div className={styles.formError}>{editError}</div> : null}
+          <div className={styles.actions}>
+            <Button onClick={handleSaveEdit} disabled={!editTitle.trim() || savingEdit}>
+              {savingEdit ? "Сохранение..." : "Сохранить изменения"}
+            </Button>
+            <Button variant="ghost" onClick={() => setEditDialog(null)}>
+              Отмена
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

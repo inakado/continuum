@@ -52,6 +52,11 @@
 - На `401` клиент пытается сделать `POST /auth/refresh` и повторить исходный запрос (кроме `/auth/login|/auth/refresh|/auth/logout`).
 - Базовый URL: `NEXT_PUBLIC_API_BASE_URL` (default `http://localhost:3000`).
 
+## Dashboard shell UX (`Implemented`)
+
+- Sidebar в `DashboardShell` использует hover/focus intent с задержками открытия/закрытия.
+- Анимация раскрытия выполняется через width/padding custom properties (без `scaleX`), чтобы снизить visual jitter на тексте и иконках.
+
 ## Planned / TODO
 
 - UI state patterns (loading/empty/error), retry/backoff для list screens.
