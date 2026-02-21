@@ -93,7 +93,7 @@
    - `docker compose exec -T api sh -lc "DATABASE_URL=postgresql://continuum:continuum@postgres:5432/continuum pnpm --filter @continuum/api exec prisma generate"`
 3) Prisma v7 читает env из `apps/api/prisma.config.ts`. Для локального запуска обязательно доступны `DATABASE_URL` или `POSTGRES_*`.
 4) Production manual migration (до deploy):
-   - `docker compose -f docker-compose.prod.yml run --rm api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`
+   - `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`
 
 ## Production deploy артефакты
 - `docker-compose.prod.yml` — production compose без bind-монтажей исходников.
@@ -167,8 +167,18 @@ Production policy (`Implemented`):
 - **Команда:** `DATABASE_URL=postgresql://...@postgres:5432/... pnpm --filter @continuum/api exec prisma migrate deploy`
 - **Причина:** команда запущена на хосте VPS, где `postgres` (docker service name) не резолвится.
 - **Фикс:** запускать миграцию внутри docker network:
-  - `docker compose -f docker-compose.prod.yml run --rm api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`
+  - `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`
 - **Проверка:** команда миграции завершается успешно и `docker compose -f docker-compose.prod.yml up -d --build api worker` поднимает `api` в `healthy`.
+
+- **Симптом:** после `git pull` API отвечает `500`, в логах Prisma `P2022` и Postgres `column sections.description does not exist`.
+- **Команда:** `docker compose -f docker-compose.prod.yml logs --no-color --tail=200 api`
+- **Причина:** migration-файлы уже в репозитории, но миграция не применена (часто запуск `migrate deploy` делали без пересборки образа и использовали устаревший image).
+- **Фикс:**
+  - `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`
+  - `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'pnpm --filter @continuum/api exec prisma migrate status'`
+  - при необходимости проверить колонку напрямую:
+    - `docker compose -f docker-compose.prod.yml exec -T postgres psql -U continuum -d continuum -c "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='sections' AND column_name='description';"`
+- **Проверка:** запрос к `information_schema` возвращает `description`, а в логах API исчезают ошибки `P2022`/`42703`.
 
 - **Симптом:** production `api` падает с `Cannot find module 'reflect-metadata'`, а `docker compose ... run api ... prisma` пишет `Command "prisma" not found`.
 - **Команда:** `docker compose -f docker-compose.prod.yml logs --no-color --tail=200 api`

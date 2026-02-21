@@ -109,7 +109,7 @@ Policy: backend build выполняется только в Docker.
 
 ```bash
 cd /srv/continuum
-docker compose -f docker-compose.prod.yml run --rm api \
+docker compose -f docker-compose.prod.yml run --rm --build api \
   sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'
 ```
 
@@ -275,7 +275,7 @@ curl -fsS http://127.0.0.1:3001/login >/dev/null
    - Node 20 + pnpm,
    - `systemd`, `nginx`, `certbot`.
 6. Ручной запуск миграций перед первым deploy:
-   - `docker compose -f docker-compose.prod.yml run --rm api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`
+   - `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`
 7. Настроенный GitHub Environment `production` c manual approval и secrets:
    - `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `APP_DIR`, `APP_DOMAIN`.
 
@@ -296,3 +296,9 @@ curl -fsS http://127.0.0.1:3001/login >/dev/null
 - `sudo` под `deploy` просит пароль:
   - без отдельного sudoers-правила это ожидаемо;
   - минимально для deploy-пайплайна: NOPASSWD на `systemctl restart continuum-web`.
+
+- API 500 с Prisma `P2022` / `column sections.description does not exist` после `git pull`:
+  - причина: код уже использует новую колонку, но миграция не была применена в текущий контейнерный образ;
+  - запускать миграции через rebuild: `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`;
+  - дополнительно проверить статус: `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'pnpm --filter @continuum/api exec prisma migrate status'`;
+  - если колонка всё ещё отсутствует, проверить БД напрямую: `docker compose -f docker-compose.prod.yml exec -T postgres psql -U continuum -d continuum -c "SELECT column_name FROM information_schema.columns WHERE table_schema='\''public'\'' AND table_name='\''sections'\'' AND column_name='\''description'\'';"`.
