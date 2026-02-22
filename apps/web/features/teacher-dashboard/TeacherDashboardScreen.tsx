@@ -46,6 +46,21 @@ type EditDialogState =
       id: string;
     };
 
+type HistoryUpdateMode = "push" | "replace" | "none";
+
+type TeacherEditHistoryState = {
+  __continuumTeacherEditNav: true;
+  courseId: string | null;
+  sectionId: string | null;
+  sectionTitle: string | null;
+};
+
+const isTeacherEditHistoryState = (value: unknown): value is TeacherEditHistoryState => {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<TeacherEditHistoryState>;
+  return candidate.__continuumTeacherEditNav === true;
+};
+
 const CONTENT_BY_SECTION: Record<ActiveSection, ContentConfig> = {
   edit: {
     title: "Создание и редактирование",
@@ -143,8 +158,25 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
   const [editDescription, setEditDescription] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [historyReady, setHistoryReady] = useState(Boolean(initialSectionId));
   const coursesRequestIdRef = useRef(0);
   const sectionsRequestIdRef = useRef(0);
+
+  const writeHistoryState = useCallback(
+    (next: Omit<TeacherEditHistoryState, "__continuumTeacherEditNav">, mode: "push" | "replace" = "push") => {
+      if (initialSectionId || typeof window === "undefined") return;
+      const fullState: TeacherEditHistoryState = {
+        __continuumTeacherEditNav: true,
+        ...next,
+      };
+      if (mode === "replace") {
+        window.history.replaceState(fullState, "", window.location.href);
+      } else {
+        window.history.pushState(fullState, "", window.location.href);
+      }
+    },
+    [initialSectionId],
+  );
 
   const formatCreatedAt = useCallback(
     (value: string) =>
@@ -207,6 +239,19 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
     }
   }, []);
 
+  const handleOpenCourse = useCallback(
+    async (courseId: string, mode: HistoryUpdateMode = "push") => {
+      setShowCourseForm(false);
+      setCourseTitle("");
+      setCourseFormError(null);
+      await selectCourse(courseId);
+      if (mode !== "none") {
+        writeHistoryState({ courseId, sectionId: null, sectionTitle: null }, mode);
+      }
+    },
+    [selectCourse, writeHistoryState],
+  );
+
   useEffect(() => {
     void fetchCourses();
   }, [fetchCourses]);
@@ -216,6 +261,64 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
       setSelectedSectionId(initialSectionId);
     }
   }, [initialSectionId]);
+
+  useEffect(() => {
+    if (initialSectionId || typeof window === "undefined") return;
+    const currentState = window.history.state;
+    if (!isTeacherEditHistoryState(currentState)) {
+      writeHistoryState(
+        {
+          courseId: null,
+          sectionId: null,
+          sectionTitle: null,
+        },
+        "replace",
+      );
+      setHistoryReady(true);
+      return;
+    }
+
+    if (!currentState.courseId) {
+      setSelectedCourseId(null);
+      setSelectedCourse(null);
+      setSelectedSectionId(null);
+      setSelectedSectionTitle(null);
+      setHistoryReady(true);
+      return;
+    }
+
+    const { courseId, sectionId, sectionTitle } = currentState;
+    setSelectedSectionId(sectionId);
+    setSelectedSectionTitle(sectionTitle);
+    setHistoryReady(true);
+    void handleOpenCourse(courseId, "none");
+  }, [handleOpenCourse, initialSectionId, writeHistoryState]);
+
+  useEffect(() => {
+    if (initialSectionId || typeof window === "undefined") return;
+
+    const onPopState = (event: PopStateEvent) => {
+      if (!isTeacherEditHistoryState(event.state)) return;
+
+      const next = event.state;
+      if (!next.courseId) {
+        setSelectedCourseId(null);
+        setSelectedCourse(null);
+        setSelectedSectionId(null);
+        setSelectedSectionTitle(null);
+        return;
+      }
+
+      setSelectedSectionId(next.sectionId);
+      setSelectedSectionTitle(next.sectionTitle);
+      void handleOpenCourse(next.courseId, "none");
+    };
+
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+    };
+  }, [handleOpenCourse, initialSectionId]);
 
   const handleCreateCourse = async () => {
     if (!courseTitle.trim() || creatingCourse) return;
@@ -283,6 +386,9 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
       if (selectedCourseId === course.id) {
         setSelectedCourse(null);
         setSelectedCourseId(null);
+        setSelectedSectionId(null);
+        setSelectedSectionTitle(null);
+        writeHistoryState({ courseId: null, sectionId: null, sectionTitle: null }, "replace");
       }
       await fetchCourses();
     } catch (err) {
@@ -321,6 +427,14 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
   const handleSectionClick = (section: Section) => {
     setSelectedSectionId(section.id);
     setSelectedSectionTitle(section.title);
+    writeHistoryState(
+      {
+        courseId: selectedCourse?.id ?? selectedCourseId,
+        sectionId: section.id,
+        sectionTitle: section.title,
+      },
+      "push",
+    );
   };
 
   const handleStartEditCourse = (course: Course) => {
@@ -378,6 +492,25 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
     }
     setSelectedSectionId(null);
     setSelectedSectionTitle(null);
+    writeHistoryState(
+      {
+        courseId: selectedCourse?.id ?? selectedCourseId,
+        sectionId: null,
+        sectionTitle: null,
+      },
+      "push",
+    );
+  };
+
+  const handleBackToCoursesRoot = () => {
+    setSelectedCourse(null);
+    setSelectedCourseId(null);
+    setShowSectionForm(false);
+    setSectionTitle("");
+    setSectionDescription("");
+    setSelectedSectionId(null);
+    setSelectedSectionTitle(null);
+    writeHistoryState({ courseId: null, sectionId: null, sectionTitle: null }, "push");
   };
 
   return (
@@ -388,7 +521,11 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
         </div>
       ) : null}
 
-      {selectedSectionId ? (
+      {!historyReady ? (
+        <section className={styles.panel}>
+          <div className={styles.empty}>Загрузка…</div>
+        </section>
+      ) : selectedSectionId ? (
         <TeacherSectionGraphPanel
           sectionId={selectedSectionId}
           sectionTitle={selectedSectionTitle}
@@ -404,13 +541,7 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
                   <button
                     type="button"
                     className={styles.breadcrumbLink}
-                    onClick={() => {
-                      setSelectedCourse(null);
-                      setSelectedCourseId(null);
-                      setShowSectionForm(false);
-                      setSectionTitle("");
-                      setSectionDescription("");
-                    }}
+                    onClick={handleBackToCoursesRoot}
                   >
                     Курсы
                   </button>
@@ -601,12 +732,7 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
                         <button
                           type="button"
                           className={styles.cardMain}
-                          onClick={() => {
-                            setShowCourseForm(false);
-                            setCourseTitle("");
-                            setCourseFormError(null);
-                            void selectCourse(course.id);
-                          }}
+                          onClick={() => void handleOpenCourse(course.id, "push")}
                         >
                           <div className={styles.cardTitleRow}>
                             <div className={styles.cardTitle}>{course.title}</div>

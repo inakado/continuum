@@ -76,6 +76,7 @@
   height: 60vh;
   min-height: 420px;
   position: relative;
+  z-index: 1;
   overflow: hidden;
   border-radius: var(--panel-radius);
   box-shadow: var(--panel-shadow);
@@ -88,14 +89,35 @@
   inset: 0;
 }
 
+.graphPanel :global(.react-flow__controls) {
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--surface-1);
+  overflow: hidden;
+}
+
+.graphPanel :global(.react-flow__controls-button) {
+  border-radius: 0;
+  border-bottom: var(--border-width-thin) solid var(--glass-border);
+  background: transparent;
+  box-shadow: none;
+}
+
+.graphPanel :global(.react-flow__controls-button:last-child) {
+  border-bottom: 0;
+}
+
 .graphToolbar {
   position: absolute;
   top: 12px;
-  left: 12px;
-  z-index: 6;
+  right: 12px;
+  left: auto;
+  z-index: 2;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
 }
 
@@ -112,8 +134,9 @@
 .createPopup {
   position: absolute;
   top: 62px;
-  left: 12px;
-  z-index: 7;
+  right: 12px;
+  left: auto;
+  z-index: 3;
   width: min(360px, calc(100% - 24px));
   border: var(--border-width) solid var(--panel-border);
   border-radius: var(--card-radius);
@@ -155,7 +178,7 @@
   position: absolute;
   right: 12px;
   top: 12px;
-  z-index: 6;
+  z-index: 2;
   border: var(--border-width-thin) solid var(--glass-border);
   border-radius: var(--control-radius);
   background: var(--surface-1);
@@ -280,10 +303,13 @@
 
 @media (max-width: 960px) {
   .graphToolbar {
+    left: 12px;
     right: 12px;
+    justify-content: flex-start;
   }
 
   .createPopup {
+    left: 12px;
     right: 12px;
   }
 
@@ -307,6 +333,7 @@
   .graphToolbar {
     left: 8px;
     right: 8px;
+    justify-content: flex-start;
     gap: 6px;
   }
 
@@ -318,6 +345,7 @@
 
   .createPopup {
     left: 8px;
+    right: 8px;
     right: 8px;
     width: auto;
   }

@@ -57,6 +57,11 @@
 - Sidebar в `DashboardShell` использует hover/focus intent с задержками открытия/закрытия.
 - Анимация раскрытия выполняется через width/padding custom properties (без `scaleX`), чтобы снизить visual jitter на тексте и иконках.
 
+## Dashboard navigation history (`Implemented`)
+
+- В teacher edit flow (`/teacher`) переходы `курсы → разделы → граф` синхронизированы с `window.history.state`, поэтому браузерный `Back/Forward` возвращает предыдущий UI-шаг в рамках dashboard.
+- В student dashboard (`/student`) переходы `курсы → разделы → граф` также пишут/читают `history.state`; кнопка браузера “Назад” теперь возвращает к предыдущему экрану dashboard, а не перескакивает на логин при внутридашбордной навигации.
+
 ## Planned / TODO
 
 - UI state patterns (loading/empty/error), retry/backoff для list screens.

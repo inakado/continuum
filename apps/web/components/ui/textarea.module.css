@@ -17,6 +17,7 @@
 }
 
 .textarea:focus-visible {
-  outline: var(--focus-ring-width) solid var(--border-primary);
-  outline-offset: var(--focus-ring-offset);
+  outline: none;
+  border-color: color-mix(in srgb, var(--border-primary) 58%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--border-primary) 32%, transparent);
 }
