@@ -5,13 +5,17 @@ import { join } from 'node:path';
 import { LATEX_MAX_SOURCE_LENGTH } from './latex-queue.contract';
 
 const DEFAULT_TIMEOUT_MS = 120_000;
+const DEFAULT_OUTPUT_FULL_LOG_LIMIT = 256_000;
+const MAX_OUTPUT_FULL_LOG_LIMIT = 256_000;
 const OUTPUT_SNIPPET_LIMIT = 12_000;
-const OUTPUT_CAPTURE_LIMIT = 48_000;
 
 type CompileAttempt = {
   code: number | null;
   timedOut: boolean;
+  log?: string;
   logSnippet?: string;
+  logTruncated: boolean;
+  logLimitBytes: number;
 };
 
 export type LatexCompileResult = {
@@ -29,7 +33,10 @@ export class LatexCompileError extends Error {
       | 'LATEX_RUNTIME_MISSING'
       | 'LATEX_COMPILE_CRASHED',
     message: string,
+    readonly log?: string,
     readonly logSnippet?: string,
+    readonly logTruncated: boolean = false,
+    readonly logLimitBytes?: number,
   ) {
     super(message);
   }
@@ -38,6 +45,7 @@ export class LatexCompileError extends Error {
 export const compileLatexToPdf = async (texSource: string): Promise<LatexCompileResult> => {
   const tex = normalizeTex(texSource);
   const timeoutMs = resolveTimeoutMs();
+  const logTailLimitBytes = resolveLogTailLimitBytes();
   const tempDir = await fs.mkdtemp(join(tmpdir(), 'continuum-tex-worker-'));
   const texFilePath = join(tempDir, 'main.tex');
   const pdfPath = join(tempDir, 'main.pdf');
@@ -46,24 +54,36 @@ export const compileLatexToPdf = async (texSource: string): Promise<LatexCompile
     let workingTex = tex;
     await fs.writeFile(texFilePath, workingTex, 'utf8');
 
-    let attempt = await executeCompileAttempt({ cwd: tempDir, timeoutMs });
-    if (!attempt.timedOut && attempt.code !== 0 && isT2AMetricError(attempt.logSnippet)) {
+    let attempt = await executeCompileAttempt({
+      cwd: tempDir,
+      timeoutMs,
+      logTailLimitBytes,
+    });
+    if (!attempt.timedOut && attempt.code !== 0 && isT2AMetricError(attempt.log)) {
       const fallbackTex = buildUnicodeCyrillicFallback(workingTex);
       if (fallbackTex !== workingTex) {
         console.warn('[worker][latex] T2A metric font error detected; retrying with Unicode fallback');
         workingTex = fallbackTex;
         await fs.writeFile(texFilePath, workingTex, 'utf8');
-        attempt = await executeCompileAttempt({ cwd: tempDir, timeoutMs });
+        attempt = await executeCompileAttempt({
+          cwd: tempDir,
+          timeoutMs,
+          logTailLimitBytes,
+        });
       }
     }
 
-    if (!attempt.timedOut && attempt.code !== 0 && isUnknownTikzColorError(attempt.logSnippet)) {
+    if (!attempt.timedOut && attempt.code !== 0 && isUnknownTikzColorError(attempt.log)) {
       const fallbackTex = buildXcolorNamesFallback(workingTex);
       if (fallbackTex !== workingTex) {
         console.warn('[worker][latex] Unknown TikZ color detected; retrying with xcolor fallback');
         workingTex = fallbackTex;
         await fs.writeFile(texFilePath, workingTex, 'utf8');
-        attempt = await executeCompileAttempt({ cwd: tempDir, timeoutMs });
+        attempt = await executeCompileAttempt({
+          cwd: tempDir,
+          timeoutMs,
+          logTailLimitBytes,
+        });
       }
     }
 
@@ -71,12 +91,22 @@ export const compileLatexToPdf = async (texSource: string): Promise<LatexCompile
       throw new LatexCompileError(
         'LATEX_COMPILE_TIMEOUT',
         `LaTeX compilation exceeded ${timeoutMs}ms`,
+        attempt.log,
         attempt.logSnippet,
+        attempt.logTruncated,
+        attempt.logLimitBytes,
       );
     }
 
     if (attempt.code !== 0) {
-      throw new LatexCompileError('LATEX_COMPILE_FAILED', 'LaTeX compilation failed', attempt.logSnippet);
+      throw new LatexCompileError(
+        'LATEX_COMPILE_FAILED',
+        'LaTeX compilation failed',
+        attempt.log,
+        attempt.logSnippet,
+        attempt.logTruncated,
+        attempt.logLimitBytes,
+      );
     }
 
     const pdfBytes = await fs.readFile(pdfPath);
@@ -130,29 +160,93 @@ const resolveTimeoutMs = (): number => {
   return Math.floor(parsed);
 };
 
-const buildLogSnippet = (output: string): string | undefined => {
+const resolveLogTailLimitBytes = (): number => {
+  const raw = process.env.LATEX_COMPILE_LOG_TAIL_BYTES;
+  if (!raw) return DEFAULT_OUTPUT_FULL_LOG_LIMIT;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_OUTPUT_FULL_LOG_LIMIT;
+  return Math.min(Math.floor(parsed), MAX_OUTPUT_FULL_LOG_LIMIT);
+};
+
+type RunTectonicResult = {
+  code: number | null;
+  combinedOutput: string;
+  outputTruncated: boolean;
+  timedOut: boolean;
+};
+
+type CompileLog = {
+  log?: string;
+  logSnippet?: string;
+  logTruncated: boolean;
+  logLimitBytes: number;
+};
+
+const buildCompileLog = ({
+  output,
+  outputTruncated,
+  logTailLimitBytes,
+}: {
+  output: string;
+  outputTruncated: boolean;
+  logTailLimitBytes: number;
+}): CompileLog => {
   const normalized = output.replace(/\u001b\[[0-9;]*m/g, '').trim();
-  if (!normalized) return undefined;
-  if (normalized.length <= OUTPUT_SNIPPET_LIMIT) return normalized;
-  return `...${normalized.slice(-OUTPUT_SNIPPET_LIMIT)}`;
+  if (!normalized) {
+    return {
+      logTruncated: outputTruncated,
+      logLimitBytes: logTailLimitBytes,
+    };
+  }
+
+  const fullLog =
+    normalized.length > logTailLimitBytes
+      ? normalized.slice(-logTailLimitBytes)
+      : normalized;
+  const snippetLimit = Math.min(OUTPUT_SNIPPET_LIMIT, logTailLimitBytes);
+  const logSnippet =
+    fullLog.length <= snippetLimit
+      ? fullLog
+      : `...${fullLog.slice(-snippetLimit)}`;
+
+  return {
+    log: fullLog,
+    logSnippet,
+    logTruncated: outputTruncated || normalized.length > logTailLimitBytes,
+    logLimitBytes: logTailLimitBytes,
+  };
 };
 
 const executeCompileAttempt = async (params: {
   cwd: string;
   timeoutMs: number;
+  logTailLimitBytes: number;
 }): Promise<CompileAttempt> => {
-  const raw = await runTectonic(params);
+  const raw = await runTectonic({
+    cwd: params.cwd,
+    timeoutMs: params.timeoutMs,
+    outputCaptureLimit: params.logTailLimitBytes,
+  });
+  const compileLog = buildCompileLog({
+    output: raw.combinedOutput,
+    outputTruncated: raw.outputTruncated,
+    logTailLimitBytes: params.logTailLimitBytes,
+  });
   return {
     code: raw.code,
     timedOut: raw.timedOut,
-    logSnippet: buildLogSnippet(raw.combinedOutput),
+    log: compileLog.log,
+    logSnippet: compileLog.logSnippet,
+    logTruncated: compileLog.logTruncated,
+    logLimitBytes: compileLog.logLimitBytes,
   };
 };
 
 const runTectonic = (params: {
   cwd: string;
   timeoutMs: number;
-}): Promise<{ code: number | null; combinedOutput: string; timedOut: boolean }> =>
+  outputCaptureLimit: number;
+}): Promise<RunTectonicResult> =>
   new Promise((resolve, reject) => {
     const child = spawn('tectonic', ['--outdir', params.cwd, '--keep-logs', '--keep-intermediates', 'main.tex'], {
       cwd: params.cwd,
@@ -160,10 +254,12 @@ const runTectonic = (params: {
     });
 
     let combinedOutput = '';
+    let outputTruncated = false;
     const appendOutput = (chunk: Buffer | string) => {
       combinedOutput += chunk.toString();
-      if (combinedOutput.length > OUTPUT_CAPTURE_LIMIT) {
-        combinedOutput = combinedOutput.slice(-OUTPUT_CAPTURE_LIMIT);
+      if (combinedOutput.length > params.outputCaptureLimit) {
+        combinedOutput = combinedOutput.slice(-params.outputCaptureLimit);
+        outputTruncated = true;
       }
     };
 
@@ -183,24 +279,24 @@ const runTectonic = (params: {
 
     child.on('close', (code) => {
       clearTimeout(timeoutId);
-      resolve({ code, combinedOutput, timedOut });
+      resolve({ code, combinedOutput, outputTruncated, timedOut });
     });
   });
 
-const isT2AMetricError = (logSnippet?: string): boolean => {
-  if (!logSnippet) return false;
+const isT2AMetricError = (log?: string): boolean => {
+  if (!log) return false;
   return (
-    /Font\s+T2A\/.+not loadable/i.test(logSnippet) ||
-    /Metric\s+\(TFM\)\s+file\s+or\s+installed\s+font\s+not\s+found/i.test(logSnippet) ||
-    /larm\d+\s+at\s+\d+(\.\d+)?pt\s+not\s+loadable/i.test(logSnippet)
+    /Font\s+T2A\/.+not loadable/i.test(log) ||
+    /Metric\s+\(TFM\)\s+file\s+or\s+installed\s+font\s+not\s+found/i.test(log) ||
+    /larm\d+\s+at\s+\d+(\.\d+)?pt\s+not\s+loadable/i.test(log)
   );
 };
 
-const isUnknownTikzColorError = (logSnippet?: string): boolean => {
-  if (!logSnippet) return false;
+const isUnknownTikzColorError = (log?: string): boolean => {
+  if (!log) return false;
   return (
-    /Package\s+pgfkeys\s+Error:\s+I\s+do\s+not\s+know\s+the\s+key\s+'\/tikz\/[^']+'/i.test(logSnippet) ||
-    /Package\s+xcolor\s+Error:\s+Undefined\s+color/i.test(logSnippet)
+    /Package\s+pgfkeys\s+Error:\s+I\s+do\s+not\s+know\s+the\s+key\s+'\/tikz\/[^']+'/i.test(log) ||
+    /Package\s+xcolor\s+Error:\s+Undefined\s+color/i.test(log)
   );
 };
 

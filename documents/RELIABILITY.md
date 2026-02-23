@@ -19,6 +19,7 @@
 ### Timeouts / retries
 
 - LaTeX compile timeout: `LATEX_COMPILE_TIMEOUT_MS` (default `120000`).
+- LaTeX compile log tail limit: `LATEX_COMPILE_LOG_TAIL_BYTES` (default `256000`, max `256000`).
 - Internal apply retry в worker: до 8 повторов (условный retry на `409` с `code=LATEX_JOB_RESULT_INVALID`).
 - HTTP keep-alive в API: `keepAliveTimeout = 65s` (уменьшает лишние disconnects за прокси).
 

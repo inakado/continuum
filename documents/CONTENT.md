@@ -66,6 +66,12 @@
 
 - `GET /teacher/latex/jobs/:jobId`:
   - если `succeeded`, возвращает presigned URL на PDF.
+  - если `failed`, возвращает `error` с полями:
+    - `code`, `message` (`Implemented`)
+    - `log` (tail compile log, лимит задаётся `LATEX_COMPILE_LOG_TAIL_BYTES`, default 256KB) (`Implemented`)
+    - `logTruncated` (признак, что лог обрезан до tail) (`Implemented`)
+    - `logLimitBytes` (фактический server-side лимит tail-лога) (`Implemented`)
+    - `logSnippet` (legacy-совместимость) (`Implemented`)
 - `POST /teacher/latex/jobs/:jobId/apply`:
   - для unit → пишет `Unit.theoryPdfAssetKey|methodPdfAssetKey`
   - для task solution → пишет `TaskRevision.solutionPdfAssetKey`

@@ -37,6 +37,15 @@ export type LatexCompileQueuePayload =
   | UnitLatexCompileQueuePayload
   | TaskSolutionLatexCompileQueuePayload;
 
+export type LatexCompileJobError = {
+  code: string;
+  message: string;
+  log?: string;
+  logTruncated?: boolean;
+  logLimitBytes?: number;
+  logSnippet?: string;
+};
+
 type LatexCompileJobResultBase = {
   target: LatexCompileTarget;
   assetKey: string;

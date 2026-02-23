@@ -19,7 +19,7 @@ import Button from "@/components/ui/Button";
 import Checkbox from "@/components/ui/Checkbox";
 import Input from "@/components/ui/Input";
 import Tabs from "@/components/ui/Tabs";
-import type { Task, UnitVideo, UnitWithTasks } from "@/lib/api/teacher";
+import type { LatexCompileJobStatusResponse, Task, UnitVideo, UnitWithTasks } from "@/lib/api/teacher";
 import { teacherApi } from "@/lib/api/teacher";
 import { getContentStatusLabel } from "@/lib/status-labels";
 import { getApiErrorMessage } from "../shared/api-errors";
@@ -89,10 +89,23 @@ type TaskSolutionCompileState = {
   status: TaskSolutionCompileStatus;
   loading: boolean;
   error: string | null;
-  logSnippet: string | null;
   updatedAt: number | null;
   key: string | null;
   previewUrl: string | null;
+};
+
+type CompileErrorModalTarget = "theory" | "method" | "task_solution";
+
+type CompileErrorModalState = {
+  target: CompileErrorModalTarget;
+  jobId: string;
+  code: string;
+  message: string;
+  log: string | null;
+  logSnippet: string | null;
+  logTruncated: boolean;
+  logLimitBytes: number | null;
+  openedAt: number;
 };
 
 type TaskStatementImageState = {
@@ -257,7 +270,6 @@ const createInitialTaskSolutionState = (task?: Task | null): TaskSolutionCompile
   status: "idle",
   loading: false,
   error: null,
-  logSnippet: null,
   updatedAt: null,
   key: task?.solutionPdfAssetKey ?? null,
   previewUrl: null,
@@ -273,8 +285,25 @@ const createInitialTaskStatementImageState = (task?: Task | null): TaskStatement
 
 const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
+const compileTargetLabels: Record<CompileErrorModalTarget, string> = {
+  theory: "Теория",
+  method: "Методика",
+  task_solution: "Решение",
+};
+
+const formatLogTailLimit = (bytes: number): string => {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "250KB";
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+  }
+  const kb = Math.max(1, Math.round(bytes / 1024));
+  return `${kb}KB`;
+};
+
 export default function TeacherUnitDetailScreen({ unitId }: Props) {
   const tabsId = useId();
+  const compileErrorDialogTitleId = useId();
+  const compileErrorDialogBodyId = useId();
   const router = useRouter();
   const handleLogout = useTeacherLogout();
   const identity = useTeacherIdentity();
@@ -318,12 +347,19 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
   const [taskStatementImageState, setTaskStatementImageState] = useState<TaskStatementImageState>(
     createInitialTaskStatementImageState(),
   );
+  const [compileErrorModalState, setCompileErrorModalState] = useState<CompileErrorModalState | null>(null);
+  const [isCompileErrorModalOpen, setIsCompileErrorModalOpen] = useState(false);
+  const [compileErrorCopyState, setCompileErrorCopyState] = useState<"idle" | "copied" | "failed">(
+    "idle",
+  );
 
   const snapshotRef = useRef<ReturnType<typeof buildSnapshot> | null>(null);
   const timerRef = useRef<number | null>(null);
   const inflightRef = useRef(0);
   const editorGridRef = useRef<HTMLDivElement | null>(null);
   const taskStatementImageInputRef = useRef<HTMLInputElement | null>(null);
+  const compileErrorDialogRef = useRef<HTMLDivElement | null>(null);
+  const compileErrorReturnFocusRef = useRef<HTMLElement | null>(null);
 
   const navItems = useMemo(
     () => [
@@ -940,6 +976,110 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
     };
   }, [isResizingLayout, updateLayoutRatioFromPointer]);
 
+  const openCompileErrorModal = useCallback(
+    ({
+      target,
+      jobId,
+      errorDetails,
+    }: {
+      target: CompileErrorModalTarget;
+      jobId: string;
+      errorDetails?: LatexCompileJobStatusResponse["error"];
+    }) => {
+      const log = errorDetails?.log ?? errorDetails?.logSnippet ?? null;
+      const logSnippet =
+        errorDetails?.logSnippet ??
+        (typeof errorDetails?.log === "string" && errorDetails.log
+          ? errorDetails.log.length <= 1200
+            ? errorDetails.log
+            : `...${errorDetails.log.slice(-1200)}`
+          : null);
+      setCompileErrorModalState({
+        target,
+        jobId,
+        code: errorDetails?.code ?? "LATEX_COMPILE_FAILED",
+        message: errorDetails?.message ?? "LaTeX compilation failed",
+        log,
+        logSnippet,
+        logTruncated: errorDetails?.logTruncated === true,
+        logLimitBytes:
+          typeof errorDetails?.logLimitBytes === "number" && errorDetails.logLimitBytes > 0
+            ? Math.floor(errorDetails.logLimitBytes)
+            : null,
+        openedAt: Date.now(),
+      });
+      setCompileErrorCopyState("idle");
+      setIsCompileErrorModalOpen(true);
+    },
+    [],
+  );
+
+  const closeCompileErrorModal = useCallback(() => {
+    setIsCompileErrorModalOpen(false);
+    setCompileErrorCopyState("idle");
+  }, []);
+
+  const reopenCompileErrorModal = useCallback(
+    (target: CompileErrorModalTarget) => {
+      if (!compileErrorModalState || compileErrorModalState.target !== target) return;
+      setCompileErrorCopyState("idle");
+      setIsCompileErrorModalOpen(true);
+    },
+    [compileErrorModalState],
+  );
+
+  const copyCompileErrorLog = useCallback(async () => {
+    if (!compileErrorModalState) return;
+    const header = [
+      `Target: ${compileTargetLabels[compileErrorModalState.target]}`,
+      `Job: ${compileErrorModalState.jobId}`,
+      `Code: ${compileErrorModalState.code}`,
+      `Message: ${compileErrorModalState.message}`,
+      `Opened: ${new Date(compileErrorModalState.openedAt).toLocaleString("ru-RU")}`,
+    ];
+    const body = compileErrorModalState.log ?? compileErrorModalState.logSnippet ?? "";
+    const text = body ? `${header.join("\n")}\n\n${body}` : header.join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      setCompileErrorCopyState("copied");
+    } catch {
+      setCompileErrorCopyState("failed");
+    }
+  }, [compileErrorModalState]);
+
+  useEffect(() => {
+    if (compileErrorCopyState !== "copied") return;
+    const timerId = window.setTimeout(() => {
+      setCompileErrorCopyState("idle");
+    }, 1800);
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [compileErrorCopyState]);
+
+  useEffect(() => {
+    if (!isCompileErrorModalOpen) return;
+    compileErrorReturnFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    compileErrorDialogRef.current?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeCompileErrorModal();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      const previous = compileErrorReturnFocusRef.current;
+      if (previous && document.contains(previous)) {
+        previous.focus();
+      }
+      compileErrorReturnFocusRef.current = null;
+    };
+  }, [closeCompileErrorModal, isCompileErrorModalOpen]);
+
   const runCompile = useCallback(
     async (target: "theory" | "method") => {
       if (!unit) return;
@@ -978,9 +1118,20 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
         }
 
         if (finalStatus.status === "failed") {
-          const code = finalStatus.error?.code ? ` (${finalStatus.error.code})` : "";
-          const snippet = finalStatus.error?.logSnippet ? `\n${finalStatus.error.logSnippet}` : "";
-          throw new Error(`${finalStatus.error?.message ?? "LaTeX compilation failed"}${code}${snippet}`);
+          openCompileErrorModal({
+            target,
+            jobId: queued.jobId,
+            errorDetails: finalStatus.error,
+          });
+          setCompileState((prev) => ({
+            ...prev,
+            [target]: {
+              ...prev[target],
+              loading: false,
+              error: "Компиляция не удалась. Откройте лог.",
+            },
+          }));
+          return;
         }
 
         if (finalStatus.status !== "succeeded" || !finalStatus.assetKey) {
@@ -1029,7 +1180,7 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
         }));
       }
     },
-    [methodText, theoryText, unit],
+    [methodText, openCompileErrorModal, theoryText, unit],
   );
 
   const runTaskSolutionCompile = useCallback(async () => {
@@ -1042,7 +1193,6 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
         status: "failed",
         loading: false,
         error: "Введите LaTeX перед компиляцией.",
-        logSnippet: null,
       }));
       return;
     }
@@ -1052,7 +1202,6 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
       status: "queued",
       loading: true,
       error: null,
-      logSnippet: null,
     }));
 
     try {
@@ -1074,16 +1223,16 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
       }
 
       if (finalStatus.status === "failed") {
-        const reason = finalStatus.error?.message ?? "LaTeX compilation failed";
-        const snippet = finalStatus.error?.logSnippet
-          ? finalStatus.error.logSnippet.slice(0, 1200)
-          : null;
+        openCompileErrorModal({
+          target: "task_solution",
+          jobId: queued.jobId,
+          errorDetails: finalStatus.error,
+        });
         setTaskSolutionCompileState((prev) => ({
           ...prev,
           status: "failed",
           loading: false,
-          error: reason,
-          logSnippet: snippet,
+          error: "Компиляция не удалась. Откройте лог.",
         }));
         return;
       }
@@ -1134,7 +1283,6 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
         status: "succeeded",
         loading: false,
         error: refreshedTask?.solutionPdfAssetKey ? null : "PDF ещё применяем… обновите через секунду.",
-        logSnippet: null,
         updatedAt: Date.now(),
         key: resolvedAssetKey,
         previewUrl,
@@ -1147,10 +1295,9 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
         status: "failed",
         loading: false,
         error: compileErrorMessage,
-        logSnippet: null,
       }));
     }
-  }, [editingTask, fetchUnit, taskSolutionLatex]);
+  }, [editingTask, fetchUnit, openCompileErrorModal, taskSolutionLatex]);
 
   const handleTaskStatementImageSelected = useCallback(
     async (event: ChangeEvent<HTMLInputElement>) => {
@@ -1396,7 +1543,17 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
                 </div>
                 {compileState.theory.error ? (
                   <div className={styles.compileError} role="status" aria-live="polite">
-                    {compileState.theory.error}
+                    <span>{compileState.theory.error}</span>
+                    {compileState.theory.error === "Компиляция не удалась. Откройте лог." &&
+                    compileErrorModalState?.target === "theory" ? (
+                      <button
+                        type="button"
+                        className={styles.compileErrorAction}
+                        onClick={() => reopenCompileErrorModal("theory")}
+                      >
+                        Открыть лог
+                      </button>
+                    ) : null}
                   </div>
                 ) : null}
                 {compileState.theory.updatedAt ? (
@@ -1460,7 +1617,17 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
                 </div>
                 {compileState.method.error ? (
                   <div className={styles.compileError} role="status" aria-live="polite">
-                    {compileState.method.error}
+                    <span>{compileState.method.error}</span>
+                    {compileState.method.error === "Компиляция не удалась. Откройте лог." &&
+                    compileErrorModalState?.target === "method" ? (
+                      <button
+                        type="button"
+                        className={styles.compileErrorAction}
+                        onClick={() => reopenCompileErrorModal("method")}
+                      >
+                        Открыть лог
+                      </button>
+                    ) : null}
                   </div>
                 ) : null}
                 {compileState.method.updatedAt ? (
@@ -1849,11 +2016,17 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
                             <div className={styles.taskSolutionRight}>
                               {taskSolutionCompileState.error ? (
                                 <div className={styles.compileError} role="status" aria-live="polite">
-                                  {taskSolutionCompileState.error}
-                                  {taskSolutionCompileState.logSnippet ? (
-                                    <pre className={styles.taskSolutionLogSnippet}>
-                                      {taskSolutionCompileState.logSnippet}
-                                    </pre>
+                                  <span>{taskSolutionCompileState.error}</span>
+                                  {taskSolutionCompileState.error ===
+                                    "Компиляция не удалась. Откройте лог." &&
+                                  compileErrorModalState?.target === "task_solution" ? (
+                                    <button
+                                      type="button"
+                                      className={styles.compileErrorAction}
+                                      onClick={() => reopenCompileErrorModal("task_solution")}
+                                    >
+                                      Открыть лог
+                                    </button>
                                   ) : null}
                                 </div>
                               ) : null}
@@ -1896,6 +2069,69 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
           )}
         </div>
       </div>
+      {compileErrorModalState && isCompileErrorModalOpen ? (
+        <div
+          className={styles.compileErrorModalBackdrop}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closeCompileErrorModal();
+            }
+          }}
+        >
+          <div
+            ref={compileErrorDialogRef}
+            className={styles.compileErrorModal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={compileErrorDialogTitleId}
+            aria-describedby={compileErrorDialogBodyId}
+            tabIndex={-1}
+          >
+            <div className={styles.compileErrorModalHeader}>
+              <div>
+                <div id={compileErrorDialogTitleId} className={styles.compileErrorModalTitle}>
+                  Ошибка компиляции LaTeX
+                </div>
+                <div className={styles.compileErrorModalMeta}>
+                  <span>{compileTargetLabels[compileErrorModalState.target]}</span>
+                  <span className={styles.compileErrorModalDot}>•</span>
+                  <span>job {compileErrorModalState.jobId}</span>
+                </div>
+              </div>
+              <span className={styles.compileErrorCodeBadge}>{compileErrorModalState.code}</span>
+            </div>
+
+            <p id={compileErrorDialogBodyId} className={styles.compileErrorModalMessage}>
+              {compileErrorModalState.message}
+            </p>
+
+            {compileErrorModalState.logTruncated ? (
+              <div className={styles.compileErrorModalHint}>
+                Лог обрезан до последних {formatLogTailLimit(compileErrorModalState.logLimitBytes ?? 256_000)}.
+              </div>
+            ) : null}
+
+            <pre className={styles.compileErrorModalLog}>
+              {compileErrorModalState.log ??
+                compileErrorModalState.logSnippet ??
+                "Сервер не вернул текст лога."}
+            </pre>
+
+            <div className={styles.compileErrorModalActions}>
+              <Button type="button" onClick={() => void copyCompileErrorLog()}>
+                {compileErrorCopyState === "copied"
+                  ? "Скопировано"
+                  : compileErrorCopyState === "failed"
+                    ? "Не удалось скопировать"
+                    : "Копировать лог"}
+              </Button>
+              <Button type="button" variant="ghost" onClick={closeCompileErrorModal}>
+                Закрыть
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </DashboardShell>
   );
 }

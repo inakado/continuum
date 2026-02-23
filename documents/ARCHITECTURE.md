@@ -73,6 +73,7 @@
 **Инварианты:**
 - компиляция Tectonic выполняется worker’ом (BullMQ queue `latex.compile`)
 - API защищается от stale-результатов при apply (сравнение assetKey и active revision)
+- при `failed` статусе job API отдаёт структурированную ошибку компиляции: `code/message + log tail (+logTruncated)`; `logSnippet` сохранён для backward compatibility (`Implemented`)
 
 ### BC7 — Search (Concepts & Content Search)
 **Статус:** `Planned` (в коде сейчас нет моделей `concepts`/индекса).

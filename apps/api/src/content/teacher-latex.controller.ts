@@ -25,6 +25,7 @@ import { ContentService } from './content.service';
 import { LatexCompileQueueService } from './latex-compile-queue.service';
 import {
   LATEX_MAX_SOURCE_LENGTH,
+  LatexCompileJobError,
   LatexCompileJobResult,
   LatexCompileQueuePayload,
   TaskSolutionLatexCompileJobResult,
@@ -526,17 +527,34 @@ export class TeacherLatexController {
     });
   }
 
-  private parseFailedReason(raw: unknown): { code: string; message: string; logSnippet?: string } {
+  private parseFailedReason(raw: unknown): LatexCompileJobError {
     if (typeof raw === 'string' && raw.trim()) {
       try {
-        const parsed = JSON.parse(raw) as { code?: unknown; message?: unknown; logSnippet?: unknown };
+        const parsed = JSON.parse(raw) as {
+          code?: unknown;
+          message?: unknown;
+          log?: unknown;
+          logTruncated?: unknown;
+          logLimitBytes?: unknown;
+          logSnippet?: unknown;
+        };
         if (typeof parsed.code === 'string' && typeof parsed.message === 'string') {
+          const log = typeof parsed.log === 'string' && parsed.log ? parsed.log : undefined;
+          const logSnippet =
+            typeof parsed.logSnippet === 'string' && parsed.logSnippet
+              ? parsed.logSnippet
+              : log;
           return {
             code: parsed.code,
             message: parsed.message,
-            ...(typeof parsed.logSnippet === 'string' && parsed.logSnippet
-              ? { logSnippet: parsed.logSnippet }
+            ...(log ? { log } : null),
+            ...(parsed.logTruncated === true ? { logTruncated: true } : null),
+            ...(typeof parsed.logLimitBytes === 'number' &&
+            Number.isFinite(parsed.logLimitBytes) &&
+            parsed.logLimitBytes > 0
+              ? { logLimitBytes: Math.floor(parsed.logLimitBytes) }
               : null),
+            ...(logSnippet ? { logSnippet } : null),
           };
         }
       } catch {

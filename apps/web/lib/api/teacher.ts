@@ -273,6 +273,9 @@ export type LatexCompileJobStatusResponse = {
   error?: {
     code: string;
     message: string;
+    log?: string;
+    logTruncated?: boolean;
+    logLimitBytes?: number;
     logSnippet?: string;
   };
 };

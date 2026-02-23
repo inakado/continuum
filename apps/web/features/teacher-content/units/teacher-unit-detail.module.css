@@ -425,6 +425,34 @@
   color: var(--text-primary);
   padding: 8px 10px;
   font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.compileErrorAction {
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-2) 78%, transparent);
+  color: var(--text-primary);
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.compileErrorAction:hover {
+  border-color: var(--border-primary);
+  background: color-mix(in srgb, var(--surface-2) 95%, transparent);
+}
+
+.compileErrorAction:focus-visible {
+  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .compileMeta {
@@ -996,22 +1024,6 @@
   pointer-events: none;
 }
 
-.taskSolutionLogSnippet {
-  margin: 8px 0 0;
-  max-height: 120px;
-  overflow: auto;
-  border: var(--border-width-thin) solid var(--glass-border);
-  border-radius: var(--control-radius);
-  padding: 8px;
-  background: color-mix(in srgb, var(--surface-2) 72%, transparent);
-  font-family: var(--font-jetbrains-mono), "JetBrains Mono", monospace;
-  font-size: 11px;
-  line-height: 1.35;
-  white-space: pre-wrap;
-  text-transform: none;
-  letter-spacing: 0;
-}
-
 .taskSolutionViewport {
   border: var(--border-width-thin) solid var(--glass-border);
   border-radius: var(--control-radius);
@@ -1035,6 +1047,113 @@
   color: var(--text-muted);
   padding: 10px;
   font-size: 12px;
+}
+
+.compileErrorModalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: color-mix(in srgb, #0f172a 46%, transparent);
+  backdrop-filter: blur(4px) saturate(120%);
+  -webkit-backdrop-filter: blur(4px) saturate(120%);
+}
+
+.compileErrorModal {
+  width: min(100%, 980px);
+  max-height: min(85dvh, 860px);
+  border: var(--border-width) solid var(--panel-border);
+  border-radius: var(--panel-radius);
+  background: var(--panel-bg);
+  box-shadow: var(--panel-shadow);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.compileErrorModal:focus-visible {
+  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.compileErrorModalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.compileErrorModalTitle {
+  font-family: var(--font-unbounded), sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.compileErrorModalMeta {
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.compileErrorModalDot {
+  opacity: 0.7;
+}
+
+.compileErrorCodeBadge {
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: color-mix(in srgb, var(--surface-2) 85%, transparent);
+  font-family: var(--font-jetbrains-mono), "JetBrains Mono", monospace;
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.compileErrorModalMessage {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.compileErrorModalHint {
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: var(--control-radius);
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--surface-2) 72%, transparent);
+}
+
+.compileErrorModalLog {
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: var(--control-radius);
+  background: color-mix(in srgb, #0b1020 92%, var(--surface-2));
+  color: #e2e8f0;
+  padding: 12px;
+  min-height: 220px;
+  max-height: min(52dvh, 560px);
+  overflow: auto;
+  font-family: var(--font-jetbrains-mono), "JetBrains Mono", monospace;
+  font-size: 12px;
+  line-height: 1.42;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.compileErrorModalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 1100px) {
@@ -1147,6 +1266,36 @@
 
   .taskSolutionRight {
     padding-right: 0;
+  }
+
+  .compileError {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .compileErrorModalBackdrop {
+    padding: 10px;
+  }
+
+  .compileErrorModal {
+    max-height: 92dvh;
+    padding: 14px;
+  }
+
+  .compileErrorModalHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .compileErrorModalActions {
+    width: 100%;
+    justify-content: stretch;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .compileErrorModalActions button {
+    width: 100%;
   }
 
   .progressSummary {

@@ -124,7 +124,12 @@ const formatError = (error: unknown): Error => {
       JSON.stringify({
         code: error.code,
         message: error.message,
+        ...(error.log ? { log: error.log } : null),
         ...(error.logSnippet ? { logSnippet: error.logSnippet } : null),
+        ...(error.logTruncated ? { logTruncated: true } : null),
+        ...(typeof error.logLimitBytes === 'number' && error.logLimitBytes > 0
+          ? { logLimitBytes: error.logLimitBytes }
+          : null),
       }),
     );
   }
