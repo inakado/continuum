@@ -21,3 +21,4 @@
 ## Native exec-plans
 
 - `2026-02-21-teacher-dashboard-editing-ux.md`
+- `2026-02-23-docs-realignment.md`

@@ -23,6 +23,13 @@
   - нельзя publish `Task`, если `Unit` draft
 - Unpublish переводит сущность в `draft`. История attempts/events сохраняется.
 
+### Publishing troubleshooting (`Implemented`)
+
+- **Симптом:** `POST /api/teacher/units/<unitId>/publish` отвечает `409 Conflict`.
+- **Причина:** в `ContentService.publishUnit` срабатывает parent-gate — unit нельзя publish, пока parent section в `draft` (`UNIT_PARENT_SECTION_DRAFT`).
+- **Фикс:** сначала publish для parent section (и parent course при необходимости), затем повторить publish unit.
+- **Проверка:** publish unit возвращает `200`, `unit.status = published`.
+
 ## Content entities (`Implemented`)
 
 - `Course`: содержит `lockDurationMinutes` (используется в Learning для таймера блокировки 3+3).

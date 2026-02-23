@@ -177,7 +177,7 @@
 
 См. `FRONTEND.md` (SoR для UI).
 
-## 8) Документы, связанные с архитектурой
+## 9) Документы, связанные с архитектурой
 - `CONTENT.md` — content/publishing/graph/LaTeX pipeline (SoR)
 - `LEARNING.md` — attempts/progress/availability/3+3 (SoR)
 - `FRONTEND.md` — frontend SoR

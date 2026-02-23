@@ -26,6 +26,12 @@
 - Refresh reuse detection: повторное использование refresh token → revoke всей session family.
 - Server-side sessions: refresh tokens привязаны к `auth_sessions`/`auth_refresh_tokens` в БД; доступ валидируется по `sid` (session id) в JWT payload.
 
+Operational pitfall (`Implemented`):
+- **Симптом:** через время жизни access token UI уходит в `401`, а refresh не восстанавливает сессию.
+- **Причина:** несовпадение `AUTH_REFRESH_COOKIE_PATH` и API-префикса (например, `AUTH_REFRESH_COOKIE_PATH=/auth` при frontend `NEXT_PUBLIC_API_BASE_URL=/api`).
+- **Фикс:** выставить совместимый path (`AUTH_REFRESH_COOKIE_PATH=/api/auth`) или использовать дефолтный `path=/`.
+- **Проверка:** после истечения access-cookie `POST /api/auth/refresh` возвращает `200`.
+
 ### CORS + origin checks
 
 - CORS включает `credentials: true`; разрешённые origins берутся из `CORS_ORIGIN`/`WEB_ORIGIN` (comma-separated).
@@ -47,6 +53,12 @@
 
 - Файлы в S3/MinIO доступны через presigned URLs, которые выдаёт backend.
 - Asset keys сейчас хранятся прямо в доменных сущностях (например `Unit.theoryPdfAssetKey`, `TaskRevision.solutionPdfAssetKey`, `PhotoTaskSubmission.assetKeysJson`), универсальной таблицы “entity_assets” нет.
+
+Operational pitfall (`Implemented`):
+- **Симптом:** браузер блокирует PDF/изображения из S3 с `No 'Access-Control-Allow-Origin' header`.
+- **Причина:** на bucket не настроен CORS под origin frontend.
+- **Фикс:** добавить CORS policy на bucket (origin frontend, methods `GET/HEAD/PUT`, headers `*`).
+- **Проверка:** `curl -I -H "Origin: https://<frontend-domain>" "<presigned-url>"` возвращает `Access-Control-Allow-Origin`.
 
 ## Source links
 

@@ -117,6 +117,11 @@ Production policy (`Implemented`):
 
 ## Troubleshooting (накопление граблей)
 
+Границы раздела:
+- Здесь фиксируем только run/deploy проблемы окружения (dev/prod контур, build, миграции, сервисы).
+- Доменные инварианты публикации вынесены в `documents/CONTENT.md`.
+- Auth/storage edge-cases вынесены в `documents/SECURITY.md` и `deploy/README.md`.
+
 - **Симптом:** `pnpm smoke` возвращает `TypeError: fetch failed` для всех endpoint checks.
 - **Команда:** `pnpm smoke`
 - **Причина:** sandbox-сеть блокирует доступ к локальным портам в текущей среде запуска.
@@ -211,36 +216,12 @@ Production policy (`Implemented`):
 - **Фикс:** сначала применить HTTP-only nginx конфиг и запустить `certbot --nginx -d <domain> --redirect`; только потом использовать SSL-пути.
 - **Проверка:** `curl -I https://<domain>/login` и `curl -I https://<domain>/api/health` дают `200`.
 
-- **Симптом:** `POST /teacher/units/:id/publish` отвечает `409 Conflict`.
-- **Команда:** `POST /api/teacher/units/<unitId>/publish`
-- **Причина:** в `ContentService.publishUnit` публикация unit запрещена, если parent section в `draft` (`UNIT_PARENT_SECTION_DRAFT`).
-- **Фикс:** сначала опубликовать section (и при необходимости parent course), потом повторить publish unit.
-- **Проверка:** publish unit возвращает `200`, `unit.status = published`.
-
-- **Симптом:** браузер блокирует PDF/изображения из Beget S3 с `No 'Access-Control-Allow-Origin' header`.
-- **Команда:** загрузка presigned URL из frontend (`https://vl-physics.ru`).
-- **Причина:** на bucket не настроен CORS для origin фронтенда.
-- **Фикс:** добавить CORS policy на bucket (origin `https://vl-physics.ru`, methods `GET,HEAD,PUT`, headers `*`).
-- **Проверка:** `curl -I -H "Origin: https://vl-physics.ru" "<presigned-url>"` возвращает `Access-Control-Allow-Origin`.
-
-- **Симптом:** через ~время жизни access token интерфейс показывает `Перелогиньтесь`, а после reload — `Нужна авторизация / Сессия не найдена`.
-- **Команда:** `POST /api/auth/refresh` возвращает `401` при наличии активной сессии в БД.
-- **Причина:** несовпадение path refresh-cookie и API-префикса (например, `AUTH_REFRESH_COOKIE_PATH=/auth` при фронте на `NEXT_PUBLIC_API_BASE_URL=/api`).
-- **Фикс:** выставить совместимый path (`AUTH_REFRESH_COOKIE_PATH=/api/auth`) или использовать дефолтный `path=/` в API конфиге.
-- **Проверка:** после истечения access cookie `POST /api/auth/refresh` возвращает `200`, пользователь остаётся авторизован.
-
 - **Симптом:** нельзя войти в production (нет teacher/student), хотя API живой.
 - **Команда:** попытка логина на `/login` с `teacher1`/`student1`.
 - **Причина:** seed пользователей не выполнялся после миграций.
 - **Фикс:** создать пользователей через контейнер API:
   - `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'node apps/api/scripts/seed-users.mjs --teacher-login=teacher1 --teacher-password=Pass123! --student-login=student1 --student-password=Pass123!'`
 - **Проверка:** логин teacher/student проходит, `/auth/me` возвращает пользователя.
-
-- **Симптом:** логотип/бренд на экране логина визуально “толще”, чем до перехода с `next/font/google`.
-- **Команда:** визуальная проверка `/login` после перехода на локальные шрифты.
-- **Причина:** после миграции локальных шрифтов увеличился вес бренда; одновременно на других экранах нужны `500/600/700` для заголовков.
-- **Фикс:** оставить `.brand { font-weight: 300; }`, но подключать `Unbounded` в весах `300/400/500/600/700`, чтобы не было weight-fallback на остальных страницах.
-- **Проверка:** `/login` визуально соответствует прежнему виду (более легкий бренд-текст).
 
 ## Planned
 
