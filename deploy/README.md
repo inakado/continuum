@@ -91,6 +91,29 @@ curl -I -H "Origin: https://app.example.com" "<presigned-url>"
 Production policy:
 - use external S3 provider (Beget S3) in production;
 - MinIO используется только в local/dev и не входит в `docker-compose.prod.yml`.
+- На production VPS команды `docker compose up -d`/`docker compose down` без `-f docker-compose.prod.yml` не используем: это dev-контур (`docker-compose.yml`) с MinIO и bind-монтажами.
+- Runtime-файлы `deploy/env/*.env` на VPS считаются локальной конфигурацией окружения; в git хранятся только `deploy/env/*.env.example`.
+
+### One-time migration on VPS (если раньше `deploy/env/*.env` были tracked в git)
+
+```bash
+cd /srv/continuum
+mkdir -p .env-backup
+cp deploy/env/*.env .env-backup/
+
+git stash push -m "server-env-before-untrack" -- deploy/env/api.env deploy/env/postgres.env deploy/env/worker.env deploy/env/redis.env
+git pull --ff-only
+
+for f in api worker postgres redis; do
+  [ -f "deploy/env/$f.env" ] || cp "deploy/env/$f.env.example" "deploy/env/$f.env"
+done
+cp .env-backup/*.env deploy/env/
+rm -rf .env-backup
+```
+
+Validation:
+- `git status --short` — пусто.
+- `ls deploy/env` содержит пары `*.env` и `*.env.example`.
 
 ## 5) Start production backend stack
 
@@ -280,6 +303,17 @@ curl -fsS http://127.0.0.1:3001/login >/dev/null
    - `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `APP_DIR`, `APP_DOMAIN`.
 
 ## 14) Troubleshooting (production-first)
+
+- После `docker compose up -d` на production поднялись `minio`/dev-сервисы и/или `api` упал с `Bind for 127.0.0.1:3000 failed: port is already allocated`:
+  - причина: был запущен dev compose (`docker-compose.yml`) вместо production compose;
+  - исправление:
+    - `docker compose down --remove-orphans`
+    - (опционально, если нужно очистить dev-тома) `docker compose down --remove-orphans -v`
+    - `docker compose -f docker-compose.prod.yml up -d postgres redis`
+    - `docker compose -f docker-compose.prod.yml up -d --build api worker`
+  - проверка:
+    - `docker compose -f docker-compose.prod.yml ps`
+    - `curl -fsS http://127.0.0.1:3000/health`
 
 - `JWT_SECRET must be set in production` при старте `api`:
   - заполнить `JWT_SECRET` в `deploy/env/api.env`;

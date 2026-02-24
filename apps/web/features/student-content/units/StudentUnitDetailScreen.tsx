@@ -497,28 +497,19 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
     [],
   );
 
-  const maxUnlockedIndex = useMemo(() => {
-    if (!orderedTasks.length) return 0;
-    const firstNotCredited = orderedTasks.findIndex(
-      (task) => !isCreditedStatus(task.state?.status ?? "not_started"),
-    );
-    return firstNotCredited === -1 ? orderedTasks.length - 1 : firstNotCredited;
-  }, [isCreditedStatus, orderedTasks]);
-
   useEffect(() => {
     if (!orderedTasks.length) {
       setActiveTaskId(null);
       return;
     }
     setActiveTaskId((prev) => {
-      const fallbackId = orderedTasks[Math.min(maxUnlockedIndex, orderedTasks.length - 1)].id;
+      const fallbackId = orderedTasks[0].id;
       if (!prev) return fallbackId;
       const index = orderedTasks.findIndex((task) => task.id === prev);
       if (index === -1) return fallbackId;
-      if (index > maxUnlockedIndex) return fallbackId;
       return prev;
     });
-  }, [maxUnlockedIndex, orderedTasks]);
+  }, [orderedTasks]);
 
   const activeTaskIndex = useMemo(() => {
     if (!orderedTasks.length) return 0;
@@ -1059,7 +1050,6 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
                   <div className={styles.taskTabs}>
                     {orderedTasks.map((task, index) => {
                       const isActive = index === activeTaskIndex;
-                      const isEnabled = index <= maxUnlockedIndex;
                       const isCorrect = task.state?.status === "correct";
                       return (
                         <button
@@ -1068,11 +1058,7 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
                           className={`${styles.taskTab} ${
                             isActive ? styles.taskTabActive : ""
                           } ${isCorrect ? styles.taskTabDone : ""}`}
-                          disabled={!isEnabled}
-                          onClick={() => {
-                            if (!isEnabled) return;
-                            setActiveTaskId(task.id);
-                          }}
+                          onClick={() => setActiveTaskId(task.id)}
                         >
                           <span>{index + 1}</span>
                         </button>

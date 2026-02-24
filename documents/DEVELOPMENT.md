@@ -134,6 +134,25 @@ Production policy (`Implemented`):
 - **Фикс:** запускать команды вне sandbox/с повышенными правами (или напрямую в обычном терминале пользователя).
 - **Проверка:** `docker compose -f docker-compose.prod.yml build api worker` завершается без ошибки доступа к socket.
 
+- **Симптом:** на production после `docker compose up -d` неожиданно запускается `minio`, а `api` падает с `Bind for 127.0.0.1:3000 failed: port is already allocated`.
+- **Команда:** `docker compose up -d`
+- **Причина:** запущен dev compose (`docker-compose.yml`) вместо production compose (`docker-compose.prod.yml`).
+- **Фикс:**
+  - остановить dev-контур: `docker compose down --remove-orphans`
+  - (опционально) удалить dev volumes: `docker compose down --remove-orphans -v`
+  - поднять production-контур: `docker compose -f docker-compose.prod.yml up -d postgres redis && docker compose -f docker-compose.prod.yml up -d --build api worker`
+- **Проверка:** `docker compose -f docker-compose.prod.yml ps` и `curl -fsS http://127.0.0.1:3000/health`.
+
+- **Симптом:** `git pull --ff-only` блокируется на `deploy/env/*.env` (`would be overwritten by merge`) после перехода на `.env.example`.
+- **Команда:** `git pull --ff-only`
+- **Причина:** на сервере остались локальные правки в старых tracked `.env`, а в репозитории файлы уже переименованы в `*.env.example`.
+- **Фикс:**
+  - сделать backup: `mkdir -p .env-backup && cp deploy/env/*.env .env-backup/`
+  - временно убрать tracked-изменения: `git stash push -m "server-env-before-untrack" -- deploy/env/api.env deploy/env/postgres.env deploy/env/worker.env deploy/env/redis.env`
+  - выполнить `git pull --ff-only`
+  - восстановить runtime env: `for f in api worker postgres redis; do [ -f "deploy/env/$f.env" ] || cp "deploy/env/$f.env.example" "deploy/env/$f.env"; done && cp .env-backup/*.env deploy/env/ && rm -rf .env-backup`
+- **Проверка:** `git status --short` пустой, а последующие `git pull --ff-only` проходят без конфликтов по `deploy/env/*.env`.
+
 - **Симптом:** `pnpm install` падает с `ENOTFOUND registry.npmjs.org`.
 - **Команда:** `CI=true pnpm install`
 - **Причина:** отсутствует DNS/egress доступ к npm registry в текущем окружении.

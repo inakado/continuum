@@ -36,6 +36,11 @@
 - `StudentTaskState.activeRevisionId` должен следовать за `Task.activeRevisionId` для “не засчитанных” задач.
 - Если active revision изменилась, а задача ещё не в credited статусе, state сбрасывается в `not_started` и счётчики обнуляются.
 
+### Task navigation inside unit
+
+- Внутри открытого student unit задачи доступны для выбора в любом порядке (нет последовательного UI-lock по индексу задачи).
+- Ограничения остаются только доменные: unit-level availability (`locked/available/in_progress/completed`) и per-task блокировки по 3+3 (`locked_until`).
+
 ## Progress & availability (`Implemented`)
 
 ### Snapshots model
