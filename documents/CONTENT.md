@@ -82,6 +82,11 @@
 
 - Apply защищается от “stale” ключей (`shouldApplyIncomingPdfKey`): старый результат не должен перезатереть новый.
 
+### Presigned PDF preview (web) (`Implemented`)
+
+- Presigned URL из `GET /teacher/latex/jobs/:jobId` и `.../pdf-presign` рендерятся во фронтенде через `PdfCanvasPreview`.
+- Загрузка PDF по storage URL выполняется без credentials (`withCredentials = false`), чтобы не требовать `Access-Control-Allow-Credentials: true` на S3/MinIO origin.
+
 ## Planned / TODO
 
 - Унификация assets model (сейчас ключи в доменных сущностях; “entity_assets” пока planned).

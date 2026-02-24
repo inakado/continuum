@@ -48,9 +48,15 @@
 
 ## API client (`Implemented`)
 
-- Все запросы идут с `credentials: "include"` (cookie auth).
+- Все запросы к backend API (`NEXT_PUBLIC_API_BASE_URL`) идут с `credentials: "include"` (cookie auth).
 - На `401` клиент пытается сделать `POST /auth/refresh` и повторить исходный запрос (кроме `/auth/login|/auth/refresh|/auth/logout`).
 - Базовый URL: `NEXT_PUBLIC_API_BASE_URL` (default `http://localhost:3000`).
+
+## Presigned assets (CORS) (`Implemented`)
+
+- Для загрузки PDF по presigned object-storage URL (`PdfCanvasPreview`) используется `withCredentials = false` по умолчанию.
+- Это исключает отправку cookie/credentials на внешний storage origin и предотвращает CORS-блокировку вида:
+  `Access-Control-Allow-Credentials must be 'true' when request credentials mode is 'include'`.
 
 ## Dashboard shell UX (`Implemented`)
 

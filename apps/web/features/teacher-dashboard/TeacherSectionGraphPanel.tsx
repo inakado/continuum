@@ -29,7 +29,8 @@ type Props = {
   sectionId: string;
   courseTitle?: string | null;
   sectionTitle?: string | null;
-  onBack?: () => void;
+  onBackToSections?: () => void;
+  onBackToCourses?: () => void;
 };
 
 type UnitNodeData = {
@@ -143,7 +144,13 @@ const GraphCanvas = memo(function GraphCanvas({
   );
 });
 
-export default function TeacherSectionGraphPanel({ sectionId, courseTitle, sectionTitle, onBack }: Props) {
+export default function TeacherSectionGraphPanel({
+  sectionId,
+  courseTitle,
+  sectionTitle,
+  onBackToSections,
+  onBackToCourses,
+}: Props) {
   const router = useRouter();
   const [nodes, setNodes, onNodesChange] = useNodesState<UnitNodeData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -331,13 +338,21 @@ export default function TeacherSectionGraphPanel({ sectionId, courseTitle, secti
     [router],
   );
 
-  const handleBackToStructure = useCallback(() => {
-    if (onBack) {
-      onBack();
+  const handleBackToSections = useCallback(() => {
+    if (onBackToSections) {
+      onBackToSections();
       return;
     }
     router.push("/teacher");
-  }, [onBack, router]);
+  }, [onBackToSections, router]);
+
+  const handleBackToCourses = useCallback(() => {
+    if (onBackToCourses) {
+      onBackToCourses();
+      return;
+    }
+    router.push("/teacher");
+  }, [onBackToCourses, router]);
 
   if (authRequired) {
     return <AuthRequired />;
@@ -346,11 +361,11 @@ export default function TeacherSectionGraphPanel({ sectionId, courseTitle, secti
   return (
     <div className={styles.wrapper}>
       <div className={styles.breadcrumbs}>
-        <button type="button" className={styles.breadcrumbLink} onClick={handleBackToStructure}>
+        <button type="button" className={styles.breadcrumbLink} onClick={handleBackToCourses}>
           Курсы
         </button>
         <span className={styles.breadcrumbDivider}>/</span>
-        <button type="button" className={styles.breadcrumbLink} onClick={handleBackToStructure}>
+        <button type="button" className={styles.breadcrumbLink} onClick={handleBackToSections}>
           {resolvedCourseTitle ?? "Курс"}
         </button>
         <span className={styles.breadcrumbDivider}>/</span>

@@ -530,7 +530,8 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
           sectionId={selectedSectionId}
           sectionTitle={selectedSectionTitle}
           courseTitle={selectedCourse?.title ?? null}
-          onBack={handleBackToList}
+          onBackToSections={handleBackToList}
+          onBackToCourses={handleBackToCoursesRoot}
         />
       ) : (
         <section className={styles.panel}>

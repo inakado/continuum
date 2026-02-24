@@ -1067,10 +1067,10 @@
   max-height: min(85dvh, 860px);
   border: var(--border-width) solid var(--panel-border);
   border-radius: var(--panel-radius);
-  background: var(--panel-bg);
+  background: var(--bg-field);
   box-shadow: var(--panel-shadow);
-  backdrop-filter: var(--glass-filter);
-  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   padding: 18px;
   display: grid;
   gap: 12px;

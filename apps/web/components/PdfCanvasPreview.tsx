@@ -49,7 +49,7 @@ const INERTIA_STOP_EPSILON = 0.08;
 export default function PdfCanvasPreview({
   url,
   className,
-  withCredentials = true,
+  withCredentials = false,
   zoom = 1,
   scrollFeel = "native",
   freezeWidth = false,
