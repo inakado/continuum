@@ -180,6 +180,9 @@ Glass‑стиль — основа для **teacher dashboards** и **student d
 - Плавные ease‑in/out переходы
 - Движения без рывков, без двойных анимаций
 - Базовые переходы: 200–520ms
+- Для React-компонентов с поэлементной анимацией используем `framer-motion`; для layout/geometric переходов (ширина, паддинги, сетка) приоритет у CSS custom properties и transitions.
+- В часто повторяющихся UI-сценариях (например, hover sidebar) не используем blur-фильтры в motion-цепочках; базовые эффекты: `opacity/translate`.
+- Motion обязан учитывать `prefers-reduced-motion` (сокращение/отключение анимации).
 
 ---
 

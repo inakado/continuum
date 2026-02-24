@@ -2,7 +2,16 @@
 
 import Link from "next/link";
 import { BarChart3, BookOpen, ClipboardCheck, FileText, LogOut, Settings, Users } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FocusEvent as ReactFocusEvent,
+  type ReactNode,
+} from "react";
+import { AnimatePresence, LazyMotion, domAnimation, m, useReducedMotion } from "framer-motion";
 import ThemeToggle from "@/components/ThemeToggle";
 import styles from "./dashboard-shell.module.css";
 
@@ -22,27 +31,27 @@ type DashboardShellProps = {
   settingsHref?: string;
 };
 
-const SIDEBAR_DIMENSIONS = {
-  collapsed: {
-    width: 72,
-    padX: 12,
-    padY: 14,
-  },
-  expanded: {
-    width: 288,
-    padX: 28,
-    padY: 26,
-  },
+type SidebarInnerProps = {
+  title: string;
+  subtitle?: string;
+  navItems: DashboardNavItem[];
+  onLogout?: () => void;
+  settingsHref?: string;
+  isSidebarOpen: boolean;
+  onSidebarPointerEnter: () => void;
+  onSidebarPointerLeave: () => void;
+  onSidebarFocus: (event: ReactFocusEvent<HTMLElement>) => void;
+  onSidebarBlur: (event: ReactFocusEvent<HTMLElement>) => void;
+  onClose: () => void;
 };
 
-const OPEN_DURATION = 0.6;
-const CLOSE_DURATION = 0.6;
+type ShellMainProps = {
+  children: ReactNode;
+};
+
 const OPEN_DELAY_MS = 80;
 const CLOSE_DELAY_MS = 140;
-const OPEN_EASING: [number, number, number, number] = [0.16, 1, 0.3, 1];
-const CLOSE_EASING: [number, number, number, number] = [0.33, 0, 0.67, 1];
-const OPEN_EASING_BEZIER = "cubic-bezier(0.16, 1, 0.3, 1)";
-const CLOSE_EASING_BEZIER = "cubic-bezier(0.33, 0, 0.67, 1)";
+const LABEL_EASING: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
 const resolveNavIcon = (label: string, href: string) => {
   const normalized = label.toLowerCase();
@@ -61,6 +70,135 @@ const resolveNavIcon = (label: string, href: string) => {
   return <FileText className={styles.navIcon} aria-hidden="true" strokeWidth={1.7} />;
 };
 
+const ShellMain = memo(function ShellMain({ children }: ShellMainProps) {
+  return (
+    <main id="dashboard-main" className={styles.main}>
+      {children}
+    </main>
+  );
+});
+
+function SidebarInner({
+  title,
+  subtitle,
+  navItems,
+  onLogout,
+  settingsHref,
+  isSidebarOpen,
+  onSidebarPointerEnter,
+  onSidebarPointerLeave,
+  onSidebarFocus,
+  onSidebarBlur,
+  onClose,
+}: SidebarInnerProps) {
+  const prefersReducedMotion = useReducedMotion();
+
+  const enterFromX = prefersReducedMotion ? 0 : -8;
+  const exitToX = prefersReducedMotion ? 0 : -6;
+
+  const getEnterTransition = (index: number) =>
+    prefersReducedMotion
+      ? { duration: 0 }
+      : { delay: index * 0.035, duration: 0.28, ease: LABEL_EASING };
+
+  const getExitTransition = () =>
+    prefersReducedMotion ? { duration: 0 } : { duration: 0.16, ease: LABEL_EASING };
+
+  return (
+    <aside
+      className={styles.sidebar}
+      onPointerEnter={onSidebarPointerEnter}
+      onPointerLeave={onSidebarPointerLeave}
+      onFocus={onSidebarFocus}
+      onBlur={onSidebarBlur}
+      aria-expanded={isSidebarOpen}
+    >
+      <div className={styles.sidebarInner}>
+        <div className={styles.sidebarHeader}>
+          <div className={styles.sidebarHeaderText}>
+            <div className={styles.kicker}>Континуум</div>
+            <div className={styles.sidebarTitle}>{title}</div>
+          </div>
+          <div className={styles.sidebarHeaderActions}>
+            {settingsHref ? (
+              <Link
+                href={settingsHref}
+                className={styles.sidebarIconAction}
+                aria-label="Настройки преподавателя"
+                title="Настройки преподавателя"
+              >
+                <Settings className={styles.navIcon} aria-hidden="true" strokeWidth={1.7} />
+              </Link>
+            ) : null}
+            <ThemeToggle compact />
+          </div>
+        </div>
+
+        {subtitle ? <div className={styles.sidebarSubtitle}>{subtitle}</div> : null}
+
+        <LazyMotion features={domAnimation}>
+          <nav className={styles.nav} aria-label="Разделы">
+            {navItems.map((item, index) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`${styles.navLink} ${item.active ? styles.navLinkActive : ""}`}
+                aria-current={item.active ? "page" : undefined}
+                onClick={onClose}
+                title={item.label}
+              >
+                <div className={styles.navIconWrapper}>{resolveNavIcon(item.label, item.href)}</div>
+                <AnimatePresence initial={false}>
+                  {isSidebarOpen ? (
+                    <m.span
+                      className={styles.navLabelMotion}
+                      initial={{ opacity: 0, x: enterFromX }}
+                      animate={{
+                        opacity: 1,
+                        x: 0,
+                        transition: getEnterTransition(index),
+                      }}
+                      exit={{ opacity: 0, x: exitToX, transition: getExitTransition() }}
+                    >
+                      {item.label}
+                    </m.span>
+                  ) : null}
+                </AnimatePresence>
+              </Link>
+            ))}
+          </nav>
+
+          {onLogout ? (
+            <div className={styles.sidebarFooter}>
+              <button type="button" className={styles.navLink} onClick={onLogout} aria-label="Выйти">
+                <div className={styles.navIconWrapper}>
+                  <LogOut className={styles.navIcon} aria-hidden="true" strokeWidth={1.7} />
+                </div>
+                <AnimatePresence initial={false}>
+                  {isSidebarOpen ? (
+                    <m.span
+                      className={styles.navLabelMotion}
+                      initial={{ opacity: 0, x: enterFromX }}
+                      animate={{
+                        opacity: 1,
+                        x: 0,
+                        transition: getEnterTransition(navItems.length),
+                      }}
+                      exit={{ opacity: 0, x: exitToX, transition: getExitTransition() }}
+                    >
+                      Выйти
+                    </m.span>
+                  ) : null}
+                </AnimatePresence>
+              </button>
+            </div>
+          ) : null}
+        </LazyMotion>
+      </div>
+    </aside>
+  );
+}
+
 export default function DashboardShell({
   title,
   subtitle,
@@ -71,47 +209,31 @@ export default function DashboardShell({
   settingsHref,
 }: DashboardShellProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isHoverCapable, setIsHoverCapable] = useState(true);
   const closeTimer = useRef<number | null>(null);
   const openTimer = useRef<number | null>(null);
   const hoverRef = useRef(false);
   const focusRef = useRef(false);
-  const shellRef = useRef<HTMLDivElement | null>(null);
-  const prefersReducedMotion = useRef(false);
 
-  const readShellNumber = (element: HTMLElement, name: string, fallback: number) => {
-    const raw = getComputedStyle(element).getPropertyValue(name).trim();
-    if (!raw) return fallback;
-    const value = Number.parseFloat(raw);
-    return Number.isFinite(value) ? value : fallback;
-  };
-
-  const getSidebarDimensions = (element: HTMLElement) => ({
-    collapsed: {
-      width: readShellNumber(element, "--sidebar-collapsed", SIDEBAR_DIMENSIONS.collapsed.width),
-      padX: readShellNumber(element, "--sidebar-pad-x-collapsed", SIDEBAR_DIMENSIONS.collapsed.padX),
-      padY: readShellNumber(element, "--sidebar-pad-y-collapsed", SIDEBAR_DIMENSIONS.collapsed.padY),
-    },
-    expanded: {
-      width: readShellNumber(element, "--sidebar-expanded", SIDEBAR_DIMENSIONS.expanded.width),
-      padX: readShellNumber(element, "--sidebar-pad-x-expanded", SIDEBAR_DIMENSIONS.expanded.padX),
-      padY: readShellNumber(element, "--sidebar-pad-y-expanded", SIDEBAR_DIMENSIONS.expanded.padY),
-    },
-  });
-
-  const openSidebar = useCallback(() => {
-    if (closeTimer.current) {
-      window.clearTimeout(closeTimer.current);
-      closeTimer.current = null;
-    }
+  const clearTimers = useCallback(() => {
     if (openTimer.current) {
       window.clearTimeout(openTimer.current);
       openTimer.current = null;
     }
-    setIsSidebarOpen(true);
+    if (closeTimer.current) {
+      window.clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
   }, []);
 
+  const openSidebar = useCallback(() => {
+    if (!isHoverCapable) return;
+    clearTimers();
+    setIsSidebarOpen(true);
+  }, [clearTimers, isHoverCapable]);
+
   const scheduleOpen = useCallback(() => {
-    if (isSidebarOpen) return;
+    if (!isHoverCapable || isSidebarOpen) return;
     if (closeTimer.current) {
       window.clearTimeout(closeTimer.current);
       closeTimer.current = null;
@@ -123,9 +245,10 @@ export default function DashboardShell({
       if (!hoverRef.current && !focusRef.current) return;
       setIsSidebarOpen(true);
     }, OPEN_DELAY_MS);
-  }, [isSidebarOpen]);
+  }, [isHoverCapable, isSidebarOpen]);
 
   const scheduleClose = useCallback(() => {
+    if (!isHoverCapable) return;
     if (openTimer.current) {
       window.clearTimeout(openTimer.current);
       openTimer.current = null;
@@ -137,24 +260,18 @@ export default function DashboardShell({
       if (hoverRef.current || focusRef.current) return;
       setIsSidebarOpen(false);
     }, CLOSE_DELAY_MS);
-  }, []);
+  }, [isHoverCapable]);
 
   const closeSidebar = useCallback(() => {
-    if (closeTimer.current) {
-      window.clearTimeout(closeTimer.current);
-      closeTimer.current = null;
-    }
-    if (openTimer.current) {
-      window.clearTimeout(openTimer.current);
-      openTimer.current = null;
-    }
+    if (!isHoverCapable) return;
+    clearTimers();
     setIsSidebarOpen(false);
-  }, []);
+  }, [clearTimers, isHoverCapable]);
 
   useEffect(() => {
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const media = window.matchMedia("(hover: hover) and (pointer: fine)");
     const update = () => {
-      prefersReducedMotion.current = media.matches;
+      setIsHoverCapable(media.matches);
     };
     update();
     if (media.addEventListener) {
@@ -166,52 +283,51 @@ export default function DashboardShell({
   }, []);
 
   useEffect(() => {
-    return () => {
-      if (openTimer.current) {
-        window.clearTimeout(openTimer.current);
-        openTimer.current = null;
-      }
-      if (closeTimer.current) {
-        window.clearTimeout(closeTimer.current);
-        closeTimer.current = null;
-      }
-    };
-  }, []);
-
-  useLayoutEffect(() => {
-    if (!shellRef.current) return;
-    const element = shellRef.current;
-    const dimensions = getSidebarDimensions(element);
-    const { width, padX, padY } = dimensions.collapsed;
-    element.style.setProperty("--sidebar-width", `${width}px`);
-    element.style.setProperty("--sidebar-pad-x", `${padX}px`);
-    element.style.setProperty("--sidebar-pad-y", `${padY}px`);
-    element.style.setProperty("--sidebar-motion-ease", CLOSE_EASING_BEZIER);
-  }, []);
+    return clearTimers;
+  }, [clearTimers]);
 
   useEffect(() => {
-    if (!shellRef.current) return;
-    const element = shellRef.current;
-    const duration = prefersReducedMotion.current
-      ? 0
-      : isSidebarOpen
-        ? OPEN_DURATION
-        : CLOSE_DURATION;
-    const dimensions = getSidebarDimensions(element);
-    const target = isSidebarOpen ? dimensions.expanded : dimensions.collapsed;
-    const targetWidth = `${target.width}px`;
-    const targetPadX = `${target.padX}px`;
-    const targetPadY = `${target.padY}px`;
+    if (isHoverCapable) return;
+    hoverRef.current = false;
+    focusRef.current = false;
+    clearTimers();
+    setIsSidebarOpen(false);
+  }, [clearTimers, isHoverCapable]);
 
-    element.style.setProperty("--sidebar-motion-duration", `${duration}s`);
-    element.style.setProperty(
-      "--sidebar-motion-ease",
-      isSidebarOpen ? OPEN_EASING_BEZIER : CLOSE_EASING_BEZIER,
-    );
-    element.style.setProperty("--sidebar-width", targetWidth);
-    element.style.setProperty("--sidebar-pad-x", targetPadX);
-    element.style.setProperty("--sidebar-pad-y", targetPadY);
-  }, [isSidebarOpen]);
+  const handleSidebarPointerEnter = useCallback(() => {
+    if (!isHoverCapable) return;
+    hoverRef.current = true;
+    scheduleOpen();
+  }, [isHoverCapable, scheduleOpen]);
+
+  const handleSidebarPointerLeave = useCallback(() => {
+    if (!isHoverCapable) return;
+    hoverRef.current = false;
+    scheduleClose();
+  }, [isHoverCapable, scheduleClose]);
+
+  const handleSidebarFocus = useCallback((event: ReactFocusEvent<HTMLElement>) => {
+    if (!isHoverCapable) return;
+    const target = event.target as HTMLElement | null;
+    const keyboardFocus = target?.matches?.(":focus-visible") ?? false;
+    focusRef.current = keyboardFocus;
+    if (keyboardFocus) {
+      openSidebar();
+    }
+  }, [isHoverCapable, openSidebar]);
+
+  const handleSidebarBlur = useCallback(
+    (event: ReactFocusEvent<HTMLElement>) => {
+      if (!isHoverCapable) return;
+      const nextTarget = event.relatedTarget as Node | null;
+      if (nextTarget && event.currentTarget.contains(nextTarget)) return;
+      focusRef.current = false;
+      scheduleClose();
+    },
+    [isHoverCapable, scheduleClose],
+  );
+
+  const isSidebarExpanded = isHoverCapable ? isSidebarOpen : true;
 
   return (
     <div className={`${styles.page} ${appearance === "glass" ? "glass-scope" : ""}`}>
@@ -221,86 +337,22 @@ export default function DashboardShell({
         </a>
         <div
           className={`${styles.shell} ${settingsHref ? styles.shellWithSettings : ""}`}
-          data-sidebar-open={isSidebarOpen ? "true" : "false"}
-          ref={shellRef}
+          data-sidebar-open={isSidebarExpanded ? "true" : "false"}
         >
-          <aside
-            className={styles.sidebar}
-            onPointerEnter={() => {
-              hoverRef.current = true;
-              scheduleOpen();
-            }}
-            onPointerLeave={() => {
-              hoverRef.current = false;
-              scheduleClose();
-            }}
-            onFocus={() => {
-              focusRef.current = true;
-              openSidebar();
-            }}
-            onBlur={(event) => {
-              const nextTarget = event.relatedTarget as Node | null;
-              if (nextTarget && event.currentTarget.contains(nextTarget)) return;
-              focusRef.current = false;
-              scheduleClose();
-            }}
-            aria-expanded={isSidebarOpen}
-          >
-            <div className={styles.sidebarInner}>
-              <div className={styles.sidebarHeader}>
-                <div className={styles.sidebarHeaderText}>
-                  <div className={styles.kicker}>Континуум</div>
-                  <div className={styles.sidebarTitle}>{title}</div>
-                </div>
-                <div className={styles.sidebarHeaderActions}>
-                  {settingsHref ? (
-                    <Link
-                      href={settingsHref}
-                      className={styles.sidebarIconAction}
-                      aria-label="Настройки преподавателя"
-                      title="Настройки преподавателя"
-                    >
-                      <Settings className={styles.navIcon} aria-hidden="true" strokeWidth={1.7} />
-                    </Link>
-                  ) : null}
-                  <ThemeToggle compact />
-                </div>
-              </div>
-              {subtitle ? <div className={styles.sidebarSubtitle}>{subtitle}</div> : null}
-              <nav className={styles.nav} aria-label="Разделы">
-                {navItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`${styles.navLink} ${item.active ? styles.navLinkActive : ""}`}
-                    aria-current={item.active ? "page" : undefined}
-                    onClick={closeSidebar}
-                    onFocus={openSidebar}
-                    title={item.label}
-                  >
-                    {resolveNavIcon(item.label, item.href)}
-                    <span className={styles.navLabel}>{item.label}</span>
-                  </Link>
-                ))}
-              </nav>
-              {onLogout ? (
-                <div className={styles.sidebarFooter}>
-                  <button
-                    type="button"
-                    className={styles.navLink}
-                    onClick={onLogout}
-                    aria-label="Выйти"
-                  >
-                    <LogOut className={styles.navIcon} aria-hidden="true" strokeWidth={1.7} />
-                    <span className={styles.navLabel}>Выйти</span>
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          </aside>
-          <main id="dashboard-main" className={styles.main}>
-            {children}
-          </main>
+          <SidebarInner
+            title={title}
+            subtitle={subtitle}
+            navItems={navItems}
+            onLogout={onLogout}
+            settingsHref={settingsHref}
+            isSidebarOpen={isSidebarExpanded}
+            onSidebarPointerEnter={handleSidebarPointerEnter}
+            onSidebarPointerLeave={handleSidebarPointerLeave}
+            onSidebarFocus={handleSidebarFocus}
+            onSidebarBlur={handleSidebarBlur}
+            onClose={closeSidebar}
+          />
+          <ShellMain>{children}</ShellMain>
         </div>
       </div>
     </div>

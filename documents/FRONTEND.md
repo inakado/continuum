@@ -60,8 +60,15 @@
 
 ## Dashboard shell UX (`Implemented`)
 
-- Sidebar в `DashboardShell` использует hover/focus intent с задержками открытия/закрытия.
-- Анимация раскрытия выполняется через width/padding custom properties (без `scaleX`), чтобы снизить visual jitter на тексте и иконках.
+- Sidebar в `DashboardShell` использует hover intent и keyboard-focus intent с задержками открытия/закрытия `80/140ms`.
+- Переключение `--sidebar-width/--sidebar-pad-*` выполняется декларативно через `data-sidebar-open` и CSS custom properties (без `style.setProperty` в JS).
+- Текстовые лейблы в меню анимируются через `framer-motion` (`opacity/x/stagger`, без blur); для non-hover устройств sidebar фиксируется в раскрытом состоянии, чтобы не ломать mobile/touch UX.
+
+## Animation stack (`Implemented`)
+
+- Для React UI-анимаций используется `framer-motion` (см. `apps/web/package.json`).
+- `framer-motion` применяется точечно для микровзаимодействий/поэлементных входов (пример: labels в `DashboardShell`), тогда как layout-size анимации остаются на CSS custom properties.
+- Приоритет производительности: избегаем `filter: blur(...)` в часто триггерящихся sidebar-анимациях и уважаем `prefers-reduced-motion`.
 
 ## Dashboard navigation history (`Implemented`)
 
