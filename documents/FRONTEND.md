@@ -50,6 +50,7 @@
 
 - Все запросы к backend API (`NEXT_PUBLIC_API_BASE_URL`) идут с `credentials: "include"` (cookie auth).
 - На `401` клиент пытается сделать `POST /auth/refresh` и повторить исходный запрос (кроме `/auth/login|/auth/refresh|/auth/logout`).
+- Если refresh вернул `REFRESH_TOKEN_STALE`, клиент делает короткую паузу и повторяет исходный запрос с текущими cookie (race-tolerant сценарий).
 - Базовый URL: `NEXT_PUBLIC_API_BASE_URL` (default `http://localhost:3000`).
 
 ## Presigned assets (CORS) (`Implemented`)

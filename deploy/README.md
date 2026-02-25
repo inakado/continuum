@@ -68,6 +68,8 @@ Mandatory:
 - consistent DB settings across all files
 - real production value for `WEB_ORIGIN` and `CORS_ORIGIN`
 - `AUTH_REFRESH_COOKIE_PATH` должен соответствовать API-префиксу (для `NEXT_PUBLIC_API_BASE_URL=/api` используйте `/api/auth`)
+- `AUTH_REFRESH_COOKIE_LEGACY_PATHS` должен включать path из старых релизов (например, `/,/auth`), чтобы backend мог чистить дубли refresh-cookie
+- при частых ложных reuse можно использовать `AUTH_REFRESH_REUSE_GRACE_SECONDS` (default `20`)
 - Beget S3 credentials and endpoint (`S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`)
 - externally reachable HTTPS for `S3_PUBLIC_BASE_URL`
 - Beget S3 bucket CORS policy for browser access from `https://app.example.com`:

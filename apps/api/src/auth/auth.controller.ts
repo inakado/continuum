@@ -2,6 +2,7 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  Logger,
   Post,
   Req,
   Res,
@@ -15,7 +16,10 @@ import { AuthRequest } from './auth.request';
 import {
   resolveAuthCookieName,
   resolveAuthCookieOptions,
+  resolveRefreshCookieCleanupPaths,
+  resolveRefreshCookieLegacyCleanupPaths,
   resolveRefreshCookieName,
+  resolveRefreshCookiePath,
   resolveRefreshCookieOptions,
 } from './auth.config';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -24,10 +28,32 @@ import { PrismaService } from '../prisma/prisma.service';
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly authService: AuthService,
     private readonly prisma: PrismaService,
   ) {}
+
+  private resolveErrorCode(error: unknown) {
+    if (!(error instanceof UnauthorizedException || error instanceof ForbiddenException)) {
+      return null;
+    }
+    const response = error.getResponse();
+    if (!response || typeof response !== 'object') {
+      return null;
+    }
+    const code = (response as { code?: unknown }).code;
+    return typeof code === 'string' ? code : null;
+  }
+
+  private formatRequestMeta(req: Request) {
+    const ip = req.ip || req.socket?.remoteAddress || '-';
+    const origin = this.resolveRequestOrigin(req) || '-';
+    const rawUserAgent = req.get('user-agent') || '-';
+    const userAgent = rawUserAgent.length > 180 ? `${rawUserAgent.slice(0, 180)}...` : rawUserAgent;
+    return `ip=${ip} origin=${origin} ua="${userAgent}"`;
+  }
 
   private resolveRequestContext(req: Request) {
     const ip = (req.ip || req.socket?.remoteAddress || null) as string | null;
@@ -80,6 +106,9 @@ export class AuthController {
     }
 
     if (!allowedOrigins.includes(requestOrigin)) {
+      this.logger.warn(
+        `[auth-origin] denied origin=${requestOrigin} allowed=${allowedOrigins.join(',') || '-'}`,
+      );
       throw new ForbiddenException({
         code: 'AUTH_ORIGIN_DENIED',
         message: 'Origin is not allowed for this auth operation.',
@@ -87,14 +116,32 @@ export class AuthController {
     }
   }
 
+  private clearRefreshCookiesByPaths(res: Response, paths: string[]) {
+    const cookieName = resolveRefreshCookieName();
+    const cookieOptions = resolveRefreshCookieOptions();
+    for (const path of paths) {
+      res.clearCookie(cookieName, { ...cookieOptions, path, maxAge: 0 });
+    }
+  }
+
+  private clearLegacyRefreshCookies(res: Response) {
+    this.clearRefreshCookiesByPaths(res, resolveRefreshCookieLegacyCleanupPaths());
+  }
+
+  private clearAllRefreshCookies(res: Response) {
+    this.clearRefreshCookiesByPaths(res, resolveRefreshCookieCleanupPaths());
+  }
+
   private setAuthCookies(res: Response, accessToken: string, refreshToken: string) {
+    // Prevent duplicate cookies with the same name when refresh path changed between releases.
+    this.clearLegacyRefreshCookies(res);
     res.cookie(resolveAuthCookieName(), accessToken, resolveAuthCookieOptions());
     res.cookie(resolveRefreshCookieName(), refreshToken, resolveRefreshCookieOptions());
   }
 
   private clearAuthCookies(res: Response) {
     res.clearCookie(resolveAuthCookieName(), { ...resolveAuthCookieOptions(), maxAge: 0 });
-    res.clearCookie(resolveRefreshCookieName(), { ...resolveRefreshCookieOptions(), maxAge: 0 });
+    this.clearAllRefreshCookies(res);
   }
 
   @UseGuards(LocalAuthGuard)
@@ -111,6 +158,9 @@ export class AuthController {
     const refreshToken = this.resolveRefreshToken(req);
     if (!refreshToken) {
       this.clearAuthCookies(res);
+      this.logger.warn(
+        `[auth-refresh] missing refresh cookie name=${resolveRefreshCookieName()} path=${resolveRefreshCookiePath()} ${this.formatRequestMeta(req)}`,
+      );
       throw new UnauthorizedException({
         code: 'REFRESH_TOKEN_INVALID',
         message: 'Refresh token is missing.',
@@ -122,7 +172,16 @@ export class AuthController {
       this.setAuthCookies(res, result.accessToken, result.refreshToken);
       return { user: result.user };
     } catch (error) {
-      this.clearAuthCookies(res);
+      const code = this.resolveErrorCode(error);
+      if (code === 'REFRESH_TOKEN_STALE') {
+        // Keep current session cookies; stale token may come from old cookie-path race.
+        this.clearLegacyRefreshCookies(res);
+      } else {
+        this.clearAuthCookies(res);
+      }
+      this.logger.warn(
+        `[auth-refresh] failed code=${code || 'unknown'} ${this.formatRequestMeta(req)}`,
+      );
       throw error;
     }
   }

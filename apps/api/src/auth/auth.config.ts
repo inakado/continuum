@@ -10,6 +10,20 @@ const parsePositiveInt = (raw?: string) => {
   return Math.floor(parsed);
 };
 
+const normalizeCookiePath = (raw: string) => {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+};
+
+const parseCookiePaths = (raw?: string) => {
+  if (!raw) return [];
+  return raw
+    .split(',')
+    .map((path) => normalizeCookiePath(path))
+    .filter((path): path is string => Boolean(path));
+};
+
 const parseJwtDurationToMs = (value: number | string) => {
   if (typeof value === 'number') {
     if (!Number.isFinite(value) || value <= 0) return null;
@@ -74,6 +88,12 @@ export const resolveRefreshExpiresInDays = () => {
   return 14;
 };
 
+export const resolveRefreshReuseGraceSeconds = () => {
+  const parsed = parsePositiveInt(process.env.AUTH_REFRESH_REUSE_GRACE_SECONDS);
+  if (parsed) return parsed;
+  return 20;
+};
+
 const resolveAccessCookieMaxAgeMs = () => {
   const rawMs = process.env.AUTH_ACCESS_COOKIE_MAX_AGE_MS || process.env.AUTH_COOKIE_MAX_AGE_MS;
   if (rawMs) {
@@ -91,7 +111,32 @@ const resolveAccessCookieSecure = () => resolveBoolean(process.env.AUTH_COOKIE_S
 const resolveRefreshCookieSecure = () =>
   resolveBoolean(process.env.AUTH_REFRESH_COOKIE_SECURE, process.env.AUTH_COOKIE_SECURE);
 
-const resolveRefreshCookiePath = () => process.env.AUTH_REFRESH_COOKIE_PATH || '/';
+export const resolveRefreshCookiePath = () =>
+  normalizeCookiePath(process.env.AUTH_REFRESH_COOKIE_PATH || '/') || '/';
+
+const resolveRefreshCookieLegacyPaths = () => {
+  const configured = parseCookiePaths(process.env.AUTH_REFRESH_COOKIE_LEGACY_PATHS);
+  const fallback = ['/auth', '/api/auth', '/'];
+  return [...configured, ...fallback];
+};
+
+export const resolveRefreshCookieCleanupPaths = () => {
+  const current = resolveRefreshCookiePath();
+  const dedup = new Set<string>();
+
+  for (const path of [current, ...resolveRefreshCookieLegacyPaths()]) {
+    const normalized = normalizeCookiePath(path);
+    if (!normalized) continue;
+    dedup.add(normalized);
+  }
+
+  return [...dedup];
+};
+
+export const resolveRefreshCookieLegacyCleanupPaths = () => {
+  const current = resolveRefreshCookiePath();
+  return resolveRefreshCookieCleanupPaths().filter((path) => path !== current);
+};
 
 export const resolveAuthCookieOptions = () => ({
   httpOnly: true,

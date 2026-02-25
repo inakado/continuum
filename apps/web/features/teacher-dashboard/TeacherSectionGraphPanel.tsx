@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useRouter } from "next/navigation";
 import ReactFlow, {
   addEdge,
@@ -11,6 +11,7 @@ import ReactFlow, {
   Position,
   type Connection,
   type Edge,
+  type EdgeTypes,
   type Node,
   type NodeProps,
   useEdgesState,
@@ -67,8 +68,6 @@ const UnitNode = ({ data }: NodeProps<UnitNodeData>) => {
   );
 };
 
-const NODE_TYPES = { unit: UnitNode };
-
 const DEFAULT_EDGE_OPTIONS: Partial<Edge> = {
   type: "smoothstep",
   markerEnd: { type: MarkerType.ArrowClosed, color: "var(--border-primary)" },
@@ -122,8 +121,16 @@ const GraphCanvas = memo(function GraphCanvas({
   onNodeClick,
   onSelectionChange,
 }: GraphCanvasProps) {
-  const nodeTypesRef = useRef(NODE_TYPES);
-  const defaultEdgeOptionsRef = useRef(DEFAULT_EDGE_OPTIONS);
+  const nodeTypes = useMemo(() => ({ unit: UnitNode }), []);
+  const edgeTypes = useMemo<EdgeTypes>(() => ({}), []);
+  const handleFlowError = useCallback((code: string, message: string) => {
+    // React Flow #002 can be noisy in dev strict/dynamic render paths.
+    if (process.env.NODE_ENV === "development" && code === "002") {
+      return;
+    }
+    // Keep other warnings visible.
+    console.warn(`[React Flow]: ${message}`);
+  }, []);
 
   return (
     <ReactFlow
@@ -135,9 +142,11 @@ const GraphCanvas = memo(function GraphCanvas({
       onNodeClick={onNodeClick}
       onSelectionChange={onSelectionChange}
       proOptions={{ hideAttribution: true }}
-      nodeTypes={nodeTypesRef.current}
+      nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
       fitView
-      defaultEdgeOptions={defaultEdgeOptionsRef.current}
+      defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
+      onError={handleFlowError}
     >
       <Background gap={22} size={1} color="color-mix(in srgb, var(--text-muted) 30%, transparent)" />
       <Controls showInteractive={false} />
@@ -154,7 +163,7 @@ export default function TeacherSectionGraphPanel({
 }: Props) {
   const router = useRouter();
   const [nodes, setNodes, onNodesChange] = useNodesState<UnitNodeData>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -260,8 +269,8 @@ export default function TeacherSectionGraphPanel({
         style: { stroke: "var(--border-primary)" },
       };
 
-      setEdges((current) => {
-        if (current.some((edge) => edge.source === connection.source && edge.target === connection.target)) {
+      setEdges((current: Edge[]) => {
+        if (current.some((edge: Edge) => edge.source === connection.source && edge.target === connection.target)) {
           setError("GraphDuplicateEdgeNotAllowed");
           return current;
         }
@@ -302,7 +311,7 @@ export default function TeacherSectionGraphPanel({
         sortOrder: nodes.length,
       });
       const position = getNextPosition(nodes.length);
-      setNodes((current) =>
+      setNodes((current: Node<UnitNodeData>[]) =>
         current.concat({
           id: unit.id,
           type: "unit",
@@ -323,7 +332,7 @@ export default function TeacherSectionGraphPanel({
 
   const handleDeleteSelectedEdge = () => {
     if (!selectedEdgeId) return;
-    setEdges((current) => current.filter((edge) => edge.id !== selectedEdgeId));
+    setEdges((current: Edge[]) => current.filter((edge: Edge) => edge.id !== selectedEdgeId));
     setSelectedEdgeId(null);
     setStatus("Ребро удалено локально. Не забудьте сохранить граф.");
   };
@@ -333,7 +342,7 @@ export default function TeacherSectionGraphPanel({
   }, []);
 
   const handleNodeClick = useCallback(
-    (_: unknown, node: Node) => {
+    (_: ReactMouseEvent, node: Node<UnitNodeData>) => {
       router.push(`/teacher/units/${node.id}`);
     },
     [router],

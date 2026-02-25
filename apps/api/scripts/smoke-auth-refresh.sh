@@ -88,7 +88,7 @@ status=$(curl -sS -o "$BODY_FILE" -w "%{http_code}" -b "$OLD_COOKIE_JAR" -X POST
 expect_status "$status" "401" "replay old refresh token"
 
 status=$(curl -sS -o "$BODY_FILE" -w "%{http_code}" -b "$COOKIE_JAR" -X POST "$API_URL/auth/refresh")
-expect_status "$status" "401" "refresh after reuse detection"
+expect_success "$status" "refresh after stale replay (session remains active)"
 
 login
 

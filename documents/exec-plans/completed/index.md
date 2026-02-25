@@ -22,3 +22,4 @@
 
 - `2026-02-21-teacher-dashboard-editing-ux.md`
 - `2026-02-23-docs-realignment.md`
+- `2026-02-25-auth-refresh-stability.md`

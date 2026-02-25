@@ -1,11 +1,11 @@
 import { createHash, randomBytes } from 'crypto';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { Prisma, Role } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import argon2 from 'argon2';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
-import { resolveRefreshExpiresInDays } from './auth.config';
+import { resolveRefreshExpiresInDays, resolveRefreshReuseGraceSeconds } from './auth.config';
 import { AuthUser, JwtPayload } from './auth.types';
 
 const AUTH_ERRORS = {
@@ -16,6 +16,10 @@ const AUTH_ERRORS = {
   REFRESH_TOKEN_REUSED: {
     code: 'REFRESH_TOKEN_REUSED',
     message: 'Refresh token reuse detected. Session revoked.',
+  },
+  REFRESH_TOKEN_STALE: {
+    code: 'REFRESH_TOKEN_STALE',
+    message: 'Refresh token already rotated. Retry request.',
   },
   SESSION_REVOKED: {
     code: 'SESSION_REVOKED',
@@ -36,11 +40,20 @@ type AuthTokensResult = {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
   ) {}
+
+  private formatContext(context: SessionContext) {
+    const ip = context.ip || '-';
+    const rawUserAgent = context.userAgent || '-';
+    const userAgent = rawUserAgent.length > 180 ? `${rawUserAgent.slice(0, 180)}...` : rawUserAgent;
+    return `ip=${ip} ua="${userAgent}"`;
+  }
 
   private throwAuthError(error: (typeof AUTH_ERRORS)[keyof typeof AUTH_ERRORS]): never {
     throw new UnauthorizedException({ code: error.code, message: error.message });
@@ -135,6 +148,7 @@ export class AuthService {
   async refresh(refreshToken: string, context: SessionContext): Promise<AuthTokensResult> {
     const now = new Date();
     const refreshTokenHash = this.hashRefreshToken(refreshToken);
+    const reuseGraceMs = resolveRefreshReuseGraceSeconds() * 1000;
 
     const rotated = await this.prisma.$transaction(async (tx) => {
       const token = await tx.authRefreshToken.findUnique({
@@ -177,8 +191,37 @@ export class AuthService {
       }
 
       if (token.usedAt) {
+        if (token.replacedByTokenId && token.usedAt.getTime() >= now.getTime() - reuseGraceMs) {
+          const replacementToken = await tx.authRefreshToken.findUnique({
+            where: { id: token.replacedByTokenId },
+            select: {
+              id: true,
+              sessionId: true,
+              revokedAt: true,
+              expiresAt: true,
+            },
+          });
+
+          if (
+            replacementToken &&
+            replacementToken.sessionId === session.id &&
+            !replacementToken.revokedAt &&
+            replacementToken.expiresAt > now
+          ) {
+            return {
+              error: AUTH_ERRORS.REFRESH_TOKEN_STALE,
+              sessionId: session.id,
+              userId: user.id,
+            } as const;
+          }
+        }
+
         await this.revokeSessionFamily(tx, session.id, AUTH_ERRORS.REFRESH_TOKEN_REUSED.code, now);
-        return { error: AUTH_ERRORS.REFRESH_TOKEN_REUSED } as const;
+        return {
+          error: AUTH_ERRORS.REFRESH_TOKEN_REUSED,
+          sessionId: session.id,
+          userId: user.id,
+        } as const;
       }
 
       const nextRefreshToken = this.generateRefreshToken();
@@ -225,6 +268,12 @@ export class AuthService {
     });
 
     if ('error' in rotated && rotated.error) {
+      const sessionInfo =
+        'sessionId' in rotated && rotated.sessionId ? ` session=${rotated.sessionId}` : '';
+      const userInfo = 'userId' in rotated && rotated.userId ? ` user=${rotated.userId}` : '';
+      this.logger.warn(
+        `[auth-refresh] denied code=${rotated.error.code}${sessionInfo}${userInfo} ${this.formatContext(context)}`,
+      );
       this.throwAuthError(rotated.error);
     }
 

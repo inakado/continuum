@@ -17,6 +17,7 @@ type RequestOptions = {
 
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000";
 let refreshPromise: Promise<void> | null = null;
+const REFRESH_STALE_RETRY_DELAY_MS = 160;
 
 const NO_REFRESH_PATHS = new Set(["/auth/login", "/auth/refresh", "/auth/logout"]);
 
@@ -94,6 +95,8 @@ const requestRaw = async (path: string, options: RequestOptions = {}) => {
   return { res, data };
 };
 
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const refreshAccessToken = async () => {
   if (!refreshPromise) {
     refreshPromise = (async () => {
@@ -117,16 +120,32 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const { res, data } = first;
   if (!res.ok) {
     if (res.status === 401 && shouldTryRefresh(path, options)) {
+      let allowRetryWithCurrentCookies = false;
       try {
         await refreshAccessToken();
-        const second = await requestRaw(path, { ...options, skipAuthRefresh: true });
-        if (second.res.ok) {
-          return second.data as T;
+      } catch (refreshError) {
+        if (refreshError instanceof ApiError && refreshError.code === "REFRESH_TOKEN_STALE") {
+          allowRetryWithCurrentCookies = true;
+          if (typeof window !== "undefined") {
+            // Another request/tab already rotated refresh token; wait for browser cookie store to settle.
+            console.warn("[auth-refresh] stale token replay detected, retrying original request");
+          }
+          await delay(REFRESH_STALE_RETRY_DELAY_MS);
+        } else {
+          throw refreshError;
         }
-        throw buildApiError(second.res, second.data);
-      } catch {
-        throw buildApiError(res, data);
       }
+
+      const second = await requestRaw(path, { ...options, skipAuthRefresh: true });
+      if (second.res.ok) {
+        return second.data as T;
+      }
+
+      if (allowRetryWithCurrentCookies && second.res.status === 401) {
+        throw new ApiError(401, "Session refresh is out of sync. Retry again.", "REFRESH_RETRY_OUT_OF_SYNC");
+      }
+
+      throw buildApiError(second.res, second.data);
     }
     throw buildApiError(res, data);
   }

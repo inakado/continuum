@@ -199,6 +199,17 @@ Production policy (`Implemented`):
 - **Фикс (prod):** `NEXT_PUBLIC_API_BASE_URL=/api pnpm --filter web build && sudo systemctl restart continuum-web`
 - **Проверка:** `curl -fsS http://localhost:3001/login >/dev/null`.
 
+- **Симптом:** пользователя периодически разлогинивает после истечения access token, в API логе встречается `REFRESH_TOKEN_REUSED`.
+- **Команда:** `docker compose logs --no-color --tail=200 api`
+- **Причина:** race refresh-запросов и/или legacy refresh-cookie c другим `path` (одинаковое имя cookie, разные path).
+- **Фикс:**
+  - выровнять `NEXT_PUBLIC_API_BASE_URL` и `AUTH_REFRESH_COOKIE_PATH`;
+  - задать cleanup путей: `AUTH_REFRESH_COOKIE_LEGACY_PATHS=/,/auth` (или релевантный набор прошлых path);
+  - при необходимости подстроить `AUTH_REFRESH_REUSE_GRACE_SECONDS` (default `20`).
+- **Проверка:**
+  - истечь access-token и убедиться, что `POST /auth/refresh` возвращает `200/201`;
+  - в логах API отсутствуют массовые `REFRESH_TOKEN_REUSED` для активных пользователей.
+
 - **Симптом:** `prisma migrate deploy` в production падает с `P1001: Can't reach database server at postgres:5432`.
 - **Команда:** `DATABASE_URL=postgresql://...@postgres:5432/... pnpm --filter @continuum/api exec prisma migrate deploy`
 - **Причина:** команда запущена на хосте VPS, где `postgres` (docker service name) не резолвится.

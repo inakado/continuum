@@ -8,6 +8,7 @@ import ReactFlow, {
   MarkerType,
   Position,
   type Edge,
+  type EdgeTypes,
   type Node,
   type NodeProps,
 } from "reactflow";
@@ -123,6 +124,7 @@ const UnitNode = ({ data }: NodeProps<UnitNodeData>) => {
 };
 
 const NODE_TYPES = { unit: UnitNode };
+const EDGE_TYPES: EdgeTypes = {};
 
 const DEFAULT_EDGE_OPTIONS: Partial<Edge> = {
   type: "smoothstep",
@@ -208,21 +210,19 @@ const GraphCanvas = memo(function GraphCanvas({
   edges,
   onNodeClick,
 }: GraphCanvasProps) {
-  const nodeTypesRef = useRef(NODE_TYPES);
-  const defaultEdgeOptionsRef = useRef(DEFAULT_EDGE_OPTIONS);
-
   return (
     <ReactFlow
       nodes={nodes}
       edges={edges}
       proOptions={{ hideAttribution: true }}
-      nodeTypes={nodeTypesRef.current}
+      nodeTypes={NODE_TYPES}
+      edgeTypes={EDGE_TYPES}
       nodesDraggable={false}
       nodesConnectable={false}
       elementsSelectable={false}
       onNodeClick={onNodeClick}
       fitView
-      defaultEdgeOptions={defaultEdgeOptionsRef.current}
+      defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
     >
       <Background gap={24} size={1} color="color-mix(in srgb, var(--text-muted) 22%, transparent)" />
     </ReactFlow>

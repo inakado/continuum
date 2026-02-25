@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useRouter } from "next/navigation";
 import ReactFlow, { Background, Controls, MarkerType, type Edge, type Node, type NodeProps } from "reactflow";
 import "reactflow/dist/style.css";
@@ -31,6 +31,8 @@ const UnitNode = ({ data }: NodeProps<UnitNodeData>) => {
     </div>
   );
 };
+
+const NODE_TYPES = { unit: UnitNode };
 
 const buildFlowNodes = (nodes: GraphNode[]): Node<UnitNodeData>[] =>
   nodes.map((node) => ({
@@ -84,8 +86,6 @@ export default function StudentSectionDetailScreen({ sectionId }: Props) {
     fetchGraph();
   }, [fetchGraph]);
 
-  const nodeTypes = useMemo(() => ({ unit: UnitNode }), []);
-
   if (authRequired) {
     return (
       <StudentShell title="Раздел" onLogout={handleLogout}>
@@ -112,11 +112,11 @@ export default function StudentSectionDetailScreen({ sectionId }: Props) {
           <ReactFlow
             nodes={nodes}
             edges={edges}
-            nodeTypes={nodeTypes}
+            nodeTypes={NODE_TYPES}
             nodesDraggable={false}
             nodesConnectable={false}
             elementsSelectable={false}
-            onNodeClick={(_, node) => router.push(`/student/units/${node.id}`)}
+            onNodeClick={(_: ReactMouseEvent, node: Node<UnitNodeData>) => router.push(`/student/units/${node.id}`)}
             fitView
             defaultEdgeOptions={{
               type: "smoothstep",

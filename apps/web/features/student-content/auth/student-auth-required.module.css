@@ -1,4 +1,10 @@
 .wrapper {
+  --panel-bg: var(--surface-1);
+  --panel-border: var(--glass-border);
+  --panel-shadow: var(--glass-shadow);
+  --panel-radius: var(--radius-panel);
+  --control-radius: var(--radius-control);
+  --button-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
   min-height: clamp(320px, 62vh, 680px);
   display: grid;
   place-items: center;
@@ -7,7 +13,7 @@
 
 .card {
   width: min(520px, 100%);
-  border: var(--border-width) solid var(--panel-border);
+  border: var(--border-width-thin) solid var(--panel-border);
   border-radius: var(--panel-radius);
   background: var(--panel-bg);
   box-shadow: var(--panel-shadow);
@@ -19,7 +25,7 @@
 }
 
 .loginLink {
-  border: var(--border-width) solid var(--glass-border);
+  border: var(--border-width-thin) solid var(--glass-border);
   background: var(--surface-1);
   color: var(--text-primary);
   text-transform: uppercase;

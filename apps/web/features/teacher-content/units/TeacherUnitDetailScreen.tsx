@@ -32,6 +32,7 @@ import TaskForm, { type TaskFormData } from "../tasks/TaskForm";
 import styles from "./teacher-unit-detail.module.css";
 import {
   DndContext,
+  type DragEndEvent,
   PointerSensor,
   closestCenter,
   useSensor,
@@ -1825,7 +1826,7 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
                       <DndContext
                         sensors={sensors}
                         collisionDetection={closestCenter}
-                        onDragEnd={(event) => {
+                        onDragEnd={(event: DragEndEvent) => {
                           const { active, over } = event;
                           if (!over || active.id === over.id) return;
                           const previousOrder = taskOrder;

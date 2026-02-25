@@ -23,13 +23,15 @@
 
 - Access token хранится в httpOnly cookie (по умолчанию `AUTH_COOKIE_NAME=access_token`).  
 - Refresh token хранится в httpOnly cookie (по умолчанию `AUTH_REFRESH_COOKIE_NAME=refresh_token`) и ротируется на каждый refresh.
-- Refresh reuse detection: повторное использование refresh token → revoke всей session family.
+- Refresh reuse detection: повторное использование refresh token обычно ведёт к revoke всей session family; для конкурентного benign-replay есть grace-ветка (`REFRESH_TOKEN_STALE`) без немедленной ревокации.
 - Server-side sessions: refresh tokens привязаны к `auth_sessions`/`auth_refresh_tokens` в БД; доступ валидируется по `sid` (session id) в JWT payload.
+- При выдаче/очистке auth-cookie backend дополнительно чистит legacy refresh-cookie paths (чтобы убрать дубли cookie с одинаковым именем после смены `AUTH_REFRESH_COOKIE_PATH`).
+- Refresh-ошибки пишутся в structured warn logs (`code`, `ip`, `origin`, `user-agent`) на уровне API.
 
 Operational pitfall (`Implemented`):
 - **Симптом:** через время жизни access token UI уходит в `401`, а refresh не восстанавливает сессию.
-- **Причина:** несовпадение `AUTH_REFRESH_COOKIE_PATH` и API-префикса (например, `AUTH_REFRESH_COOKIE_PATH=/auth` при frontend `NEXT_PUBLIC_API_BASE_URL=/api`).
-- **Фикс:** выставить совместимый path (`AUTH_REFRESH_COOKIE_PATH=/api/auth`) или использовать дефолтный `path=/`.
+- **Причина:** несовпадение `AUTH_REFRESH_COOKIE_PATH` и API-префикса (например, `AUTH_REFRESH_COOKIE_PATH=/auth` при frontend `NEXT_PUBLIC_API_BASE_URL=/api`) и/или legacy cookie-path дубли с тем же именем.
+- **Фикс:** выставить совместимый path (`AUTH_REFRESH_COOKIE_PATH=/api/auth`) или использовать дефолтный `path=/`; дополнительно задать `AUTH_REFRESH_COOKIE_LEGACY_PATHS` для очистки старых path.
 - **Проверка:** после истечения access-cookie `POST /api/auth/refresh` возвращает `200`.
 
 ### CORS + origin checks
