@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { memo, useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useRouter } from "next/navigation";
 import ReactFlow, {
   addEdge,
@@ -74,6 +74,9 @@ const DEFAULT_EDGE_OPTIONS: Partial<Edge> = {
   style: { stroke: "var(--border-primary)" },
 };
 
+const NODE_TYPES = { unit: UnitNode };
+const EDGE_TYPES: EdgeTypes = {};
+
 const buildFlowNodes = (nodes: GraphNode[]): Node<UnitNodeData>[] =>
   nodes.map((node) => ({
     id: node.unitId,
@@ -121,8 +124,6 @@ const GraphCanvas = memo(function GraphCanvas({
   onNodeClick,
   onSelectionChange,
 }: GraphCanvasProps) {
-  const nodeTypes = useMemo(() => ({ unit: UnitNode }), []);
-  const edgeTypes = useMemo<EdgeTypes>(() => ({}), []);
   const handleFlowError = useCallback((code: string, message: string) => {
     // React Flow #002 can be noisy in dev strict/dynamic render paths.
     if (process.env.NODE_ENV === "development" && code === "002") {
@@ -142,8 +143,8 @@ const GraphCanvas = memo(function GraphCanvas({
       onNodeClick={onNodeClick}
       onSelectionChange={onSelectionChange}
       proOptions={{ hideAttribution: true }}
-      nodeTypes={nodeTypes}
-      edgeTypes={edgeTypes}
+      nodeTypes={NODE_TYPES}
+      edgeTypes={EDGE_TYPES}
       fitView
       defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
       onError={handleFlowError}
