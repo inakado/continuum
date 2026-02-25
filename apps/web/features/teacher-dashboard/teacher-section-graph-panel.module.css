@@ -263,7 +263,7 @@
   background: var(--surface-2);
 }
 
-.handle {
+.node :global(.react-flow__handle).handle {
   width: 20px;
   height: 20px;
   border-radius: 0;
@@ -272,11 +272,11 @@
   opacity: 0;
 }
 
-.handleTop {
+.node :global(.react-flow__handle).handleTop {
   top: -8px;
 }
 
-.handleBottom {
+.node :global(.react-flow__handle).handleBottom {
   width: calc(100% - 20px);
   height: 18px;
   left: 10px;
@@ -290,8 +290,8 @@
   transition: background 0.2s ease, border-color 0.2s ease;
 }
 
-.node:hover .handleBottom,
-.node:focus-within .handleBottom {
+.node:hover :global(.react-flow__handle).handleBottom,
+.node:focus-within :global(.react-flow__handle).handleBottom {
   background: color-mix(in srgb, var(--surface-2) 80%, transparent);
   border-color: color-mix(in srgb, var(--border-primary) 55%, transparent);
 }
