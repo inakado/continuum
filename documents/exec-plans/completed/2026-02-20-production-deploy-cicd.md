@@ -1,6 +1,6 @@
 # Execution Plan: Production Deploy Foundation (GitHub ↔ Beget VPS)
 
-Статус плана: `Active`
+Статус плана: `Completed`
 
 ## 1. Цель
 
@@ -124,12 +124,12 @@
   - `docker compose -f docker-compose.prod.yml run --rm api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`
 - Как проверить: migrate deploy завершается успешно, затем `api` поднимается и проходит healthcheck.
 
-6) **Production api не стартует: `Cannot find module 'reflect-metadata'`**
+6) **Production api уходит в restart-loop: `Cannot find module '.prisma/client/default'`**
 - Где упало: `docker compose -f docker-compose.prod.yml up -d --build api`.
-- Что увидели: в логах `api` — `Error: Cannot find module 'reflect-metadata'`; при `docker compose ... run api ... prisma` — `Command "prisma" not found`.
-- Почему: в runner stage Dockerfile не копировались package-level `node_modules` (`apps/api/node_modules`, `apps/worker/node_modules`), а pnpm использует их для резолва зависимостей/бинарников.
-- Как чинить: в runner stage копировать package-level `node_modules` и пересобрать образы (`api`, `worker`).
-- Как проверить: `api` в статусе healthy, migrations внутри docker выполняются, `prisma` доступен в `docker compose run --rm api`.
+- Что увидели: в логах `api` — `Error: Cannot find module '.prisma/client/default'`.
+- Почему: в runner stage `apps/api/Dockerfile` копировался `node_modules` из stage `deps`, а `prisma generate` выполнялся в `builder`; из-за этого generated Prisma client не попадал в runtime image.
+- Как чинить: в runner stage копировать `node_modules` из `builder` (`/app/node_modules` и `/app/apps/api/node_modules`) и пересобрать `api`.
+- Как проверить: `curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3000/health` возвращает `200`, в логах `api` нет `MODULE_NOT_FOUND`.
 
 7) **`prisma migrate deploy` в `api` контейнере падает: `Could not find Prisma Schema`**
 - Где упало: `docker compose -f docker-compose.prod.yml run --rm api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`.
@@ -219,4 +219,4 @@
 - `GET https://vl-physics.ru/api/health` = 200;
 - `GET https://vl-physics.ru/login` = 200;
 - smoke worker (`enqueue-ping`) = 201;
-- перенести план в `documents/exec-plans/completed/` после проверки deploy workflow.
+- план перенесён в `documents/exec-plans/completed/` после проверки deploy workflow.

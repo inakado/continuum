@@ -338,3 +338,12 @@ curl -fsS http://127.0.0.1:3001/login >/dev/null
   - запускать миграции через rebuild: `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`;
   - дополнительно проверить статус: `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'pnpm --filter @continuum/api exec prisma migrate status'`;
   - если колонка всё ещё отсутствует, проверить БД напрямую: `docker compose -f docker-compose.prod.yml exec -T postgres psql -U continuum -d continuum -c "SELECT column_name FROM information_schema.columns WHERE table_schema='\''public'\'' AND table_name='\''sections'\'' AND column_name='\''description'\'';"`.
+
+- API уходит в restart-loop с `Cannot find module '.prisma/client/default'`:
+  - причина: runner stage `apps/api/Dockerfile` использует `node_modules` из stage `deps`, а `prisma generate` выполняется в `builder`;
+  - исправление:
+    - убедиться, что в runner stage `COPY --from=builder /app/node_modules ./node_modules` и `COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules`;
+    - пересобрать и перезапустить API: `docker compose -f docker-compose.prod.yml build --no-cache api && docker compose -f docker-compose.prod.yml up -d --force-recreate api`;
+  - проверка:
+    - `curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3000/health` = `200`;
+    - `docker compose -f docker-compose.prod.yml logs --no-color --tail=120 api` не содержит `MODULE_NOT_FOUND`.

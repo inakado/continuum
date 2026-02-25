@@ -227,12 +227,13 @@ Production policy (`Implemented`):
     - `docker compose -f docker-compose.prod.yml exec -T postgres psql -U continuum -d continuum -c "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='sections' AND column_name='description';"`
 - **Проверка:** запрос к `information_schema` возвращает `description`, а в логах API исчезают ошибки `P2022`/`42703`.
 
-- **Симптом:** production `api` падает с `Cannot find module 'reflect-metadata'`, а `docker compose ... run api ... prisma` пишет `Command "prisma" not found`.
+- **Симптом:** production `api` уходит в restart-loop с `Cannot find module '.prisma/client/default'`.
 - **Команда:** `docker compose -f docker-compose.prod.yml logs --no-color --tail=200 api`
-- **Причина:** в runner image не были скопированы `apps/api/node_modules` и `apps/worker/node_modules`; при pnpm это ломает резолв package-level зависимостей и бинарников.
-- **Фикс:** использовать Dockerfile с копированием package-level `node_modules` в runner stage и пересобрать образы:
-  - `docker compose -f docker-compose.prod.yml build --no-cache api worker`
-- **Проверка:** `api` стартует без `MODULE_NOT_FOUND`, `prisma migrate deploy` внутри `docker compose run --rm api ...` выполняется.
+- **Причина:** в `apps/api/Dockerfile` runner stage копировал `node_modules` из `deps`, а `prisma generate` выполняется в `builder`; в рантайм-образ не попадал сгенерированный Prisma client.
+- **Фикс:** в runner stage копировать `node_modules` из `builder` (см. `apps/api/Dockerfile`), затем пересобрать `api`:
+  - `docker compose -f docker-compose.prod.yml build --no-cache api`
+  - `docker compose -f docker-compose.prod.yml up -d --force-recreate api`
+- **Проверка:** `curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3000/health` возвращает `200`, а в логах `api` нет `MODULE_NOT_FOUND`.
 
 - **Симптом:** `docker compose ... run api ... prisma migrate deploy` падает с `Could not find Prisma Schema`.
 - **Команда:** `docker compose -f docker-compose.prod.yml run --rm api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`
