@@ -29,10 +29,10 @@
 }
 
 .tab:hover {
-  background: var(--button-hover-bg) !important;
-  color: var(--button-hover-text) !important;
-  border-color: var(--button-hover-border) !important;
-  box-shadow: var(--button-hover-shadow) !important;
+  background: var(--button-hover-bg);
+  color: var(--button-hover-text);
+  border-color: var(--button-hover-border);
+  box-shadow: var(--button-hover-shadow);
 }
 
 .tab:focus-visible {
@@ -40,7 +40,7 @@
   outline-offset: var(--focus-ring-offset);
 }
 
-.tabActive {
+.tab[data-state="active"] {
   background: var(--button-hover-bg);
   color: var(--button-hover-text);
   border-color: var(--button-hover-border);

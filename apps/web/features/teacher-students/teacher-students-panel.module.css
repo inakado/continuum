@@ -197,7 +197,10 @@
 }
 
 .actionsMenu {
-  position: relative;
+  position: absolute;
+  top: 50%;
+  right: 28px;
+  transform: translateY(-50%);
 }
 
 .actionsMenuTrigger {
@@ -205,19 +208,27 @@
   --button-border: transparent;
   --button-border-width: 0px;
   --button-text: var(--text-muted);
-  --button-hover-bg: var(--surface-1);
+  --button-hover-bg: transparent;
   --button-hover-border: transparent;
   --button-hover-text: var(--text-primary);
   --button-hover-shadow: none;
+  border: 0;
+  border-radius: 0;
   box-shadow: none;
-  min-width: 44px;
-  width: 44px;
-  height: 44px;
-  min-height: 44px;
+  min-width: 0;
+  width: auto;
+  height: auto;
+  min-height: 0;
   padding: 0;
+  line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.actionsMenuTrigger:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 .actionsMenuIcon {
@@ -226,25 +237,22 @@
 }
 
 .actionsMenuList {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  z-index: 20;
+  --control-radius: var(--radius-control);
   min-width: 216px;
   display: grid;
   gap: 4px;
   padding: 8px;
-  border: var(--border-width) solid var(--card-border);
-  border-radius: var(--control-radius);
-  background: var(--card-bg);
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: var(--radius-control);
+  background: var(--bg-primary);
   box-shadow: var(--glass-shadow);
-  backdrop-filter: var(--glass-filter);
-  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .actionsMenuItem {
   border: var(--border-width-thin) solid transparent;
-  border-radius: calc(var(--control-radius) - 4px);
+  border-radius: calc(var(--radius-control) - 4px);
   background: transparent;
   color: var(--text-primary);
   text-align: left;
@@ -281,7 +289,7 @@
   gap: 12px;
 }
 
-.select {
+.selectTrigger {
   width: 100%;
   border: var(--border-width) solid var(--control-border, var(--border-primary));
   background: var(--control-bg, var(--surface-0));

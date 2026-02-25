@@ -92,66 +92,21 @@
 }
 
 .publishToggle {
-  border: var(--border-width) solid var(--glass-border);
-  background: var(--surface-1);
-  border-radius: var(--control-radius);
-  min-height: 48px;
-  padding: 8px 14px;
-  color: var(--text-primary);
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  cursor: pointer;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-  box-shadow: var(--button-shadow);
+  min-height: 44px;
+  padding: 6px 2px;
 }
 
-.publishToggle:hover {
-  border-color: var(--border-primary);
-  box-shadow: var(--nav-hover-shadow);
-}
-
-.publishToggle:focus-visible {
-  outline: var(--focus-ring-width) solid var(--border-primary);
-  outline-offset: var(--focus-ring-offset);
-}
-
-.publishToggleTrack {
-  width: 44px;
-  height: 26px;
-  border-radius: var(--header-chip-inner-radius);
-  border: var(--border-width-thin) solid var(--glass-border);
-  background: var(--surface-2);
-  position: relative;
-  transition: background 0.2s ease, border-color 0.2s ease;
-}
-
-.publishToggleThumb {
-  width: 18px;
-  height: 18px;
-  border-radius: calc(var(--header-chip-inner-radius) - 4px);
-  background: var(--bg-primary);
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  box-shadow: var(--button-shadow);
-  transition: transform 0.2s ease;
-}
-
-.publishToggle[aria-pressed="true"] .publishToggleTrack {
-  background: var(--bg-accent);
-  border-color: var(--bg-accent);
-}
-
-.publishToggle[aria-pressed="true"] .publishToggleThumb {
-  background: var(--text-accent);
-  transform: translateX(18px);
-}
-
-.publishToggleLabel {
+.publishToggle > span:last-child {
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.01em;
+}
+
+.publishToggle > button {
+  flex: 0 0 auto;
 }
 
 .deleteUnitButton {

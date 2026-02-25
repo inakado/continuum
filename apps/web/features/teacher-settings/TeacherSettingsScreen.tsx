@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import DashboardShell from "@/components/DashboardShell";
+import AlertDialog from "@/components/ui/AlertDialog";
 import Button from "@/components/ui/Button";
 import Checkbox from "@/components/ui/Checkbox";
 import Input from "@/components/ui/Input";
@@ -68,6 +69,7 @@ export default function TeacherSettingsScreen() {
   const [teachersLoading, setTeachersLoading] = useState(false);
   const [teachersState, setTeachersState] = useState<AsyncState>({ state: "idle" });
   const [deletingTeacherId, setDeletingTeacherId] = useState<string | null>(null);
+  const [teacherToDelete, setTeacherToDelete] = useState<TeacherSummary | null>(null);
 
   const [loadingMe, setLoadingMe] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -248,25 +250,28 @@ export default function TeacherSettingsScreen() {
       });
       return;
     }
+    setTeacherToDelete(teacher);
+  };
 
-    const confirmed = window.confirm(`Удалить преподавателя ${teacher.login}?`);
-    if (!confirmed) return;
+  const confirmDeleteTeacher = async () => {
+    if (!teacherToDelete) return;
 
-    setDeletingTeacherId(teacher.id);
+    setDeletingTeacherId(teacherToDelete.id);
     setTeachersState({ state: "saving" });
 
     try {
-      await teacherApi.deleteTeacher(teacher.id);
-      setTeachers((prev) => prev.filter((item) => item.id !== teacher.id));
+      await teacherApi.deleteTeacher(teacherToDelete.id);
+      setTeachers((prev) => prev.filter((item) => item.id !== teacherToDelete.id));
       setTeachersState({
         state: "saved",
-        message: `Преподаватель ${teacher.login} удалён.`,
+        message: `Преподаватель ${teacherToDelete.login} удалён.`,
       });
     } catch (error) {
       const payload = getApiErrorPayload(error);
       setTeachersState({ state: "error", message: payload.message });
     } finally {
       setDeletingTeacherId(null);
+      setTeacherToDelete(null);
     }
   };
 
@@ -518,6 +523,21 @@ export default function TeacherSettingsScreen() {
             {teachersStatusText}
           </div>
         </section>
+        <AlertDialog
+          open={Boolean(teacherToDelete)}
+          onOpenChange={(open) => {
+            if (!open) setTeacherToDelete(null);
+          }}
+          title={teacherToDelete ? `Удалить преподавателя ${teacherToDelete.login}?` : ""}
+          description="Действие удалит аккаунт преподавателя без возможности восстановления."
+          confirmText="Удалить преподавателя"
+          cancelText="Отмена"
+          destructive
+          confirmDisabled={Boolean(
+            teacherToDelete && deletingTeacherId && deletingTeacherId === teacherToDelete.id,
+          )}
+          onConfirm={() => void confirmDeleteTeacher()}
+        />
       </div>
     </DashboardShell>
   );

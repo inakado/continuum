@@ -132,12 +132,7 @@
 }
 
 .createPopup {
-  position: absolute;
-  top: 62px;
-  right: 12px;
-  left: auto;
-  z-index: 3;
-  width: min(360px, calc(100% - 24px));
+  width: min(420px, calc(100vw - 24px));
   border: var(--border-width) solid var(--panel-border);
   border-radius: var(--card-radius);
   background: var(--card-bg);

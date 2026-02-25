@@ -15,9 +15,12 @@ import {
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import DashboardShell from "@/components/DashboardShell";
+import AlertDialog from "@/components/ui/AlertDialog";
 import Button from "@/components/ui/Button";
 import Checkbox from "@/components/ui/Checkbox";
+import Dialog from "@/components/ui/Dialog";
 import Input from "@/components/ui/Input";
+import Switch from "@/components/ui/Switch";
 import Tabs from "@/components/ui/Tabs";
 import type { LatexCompileJobStatusResponse, Task, UnitVideo, UnitWithTasks } from "@/lib/api/teacher";
 import { teacherApi } from "@/lib/api/teacher";
@@ -107,6 +110,11 @@ type CompileErrorModalState = {
   logLimitBytes: number | null;
   openedAt: number;
 };
+
+type DeleteConfirmState =
+  | { kind: "task"; task: Task }
+  | { kind: "unit"; unitId: string; unitTitle: string; sectionId: string | null }
+  | null;
 
 type TaskStatementImageState = {
   loading: boolean;
@@ -352,14 +360,13 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
   const [compileErrorCopyState, setCompileErrorCopyState] = useState<"idle" | "copied" | "failed">(
     "idle",
   );
+  const [deleteConfirmState, setDeleteConfirmState] = useState<DeleteConfirmState>(null);
 
   const snapshotRef = useRef<ReturnType<typeof buildSnapshot> | null>(null);
   const timerRef = useRef<number | null>(null);
   const inflightRef = useRef(0);
   const editorGridRef = useRef<HTMLDivElement | null>(null);
   const taskStatementImageInputRef = useRef<HTMLInputElement | null>(null);
-  const compileErrorDialogRef = useRef<HTMLDivElement | null>(null);
-  const compileErrorReturnFocusRef = useRef<HTMLElement | null>(null);
 
   const navItems = useMemo(
     () => [
@@ -767,38 +774,50 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
   }, [unit]);
 
   const handleTaskDelete = useCallback(async (task: Task) => {
-    const confirmed = window.confirm("Удалить задачу? Действие нельзя отменить.");
-    if (!confirmed) return;
-    setError(null);
-    try {
-      await teacherApi.deleteTask(task.id);
-      await fetchUnit();
-    } catch (err) {
-      setError(getApiErrorMessage(err));
-    }
-  }, [fetchUnit]);
+    setDeleteConfirmState({ kind: "task", task });
+  }, []);
 
   const handleUnitDelete = useCallback(async () => {
     if (!unit || isDeletingUnit) return;
-    const confirmed = window.confirm(
-      `Удалить юнит «${unit.title}»? Будут удалены все задачи внутри. Действие нельзя отменить.`,
-    );
-    if (!confirmed) return;
+    setDeleteConfirmState({
+      kind: "unit",
+      unitId: unit.id,
+      unitTitle: unit.title,
+      sectionId: unit.sectionId ?? null,
+    });
+  }, [isDeletingUnit, router, unit]);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!deleteConfirmState) return;
+    if (deleteConfirmState.kind === "task") {
+      setError(null);
+      try {
+        await teacherApi.deleteTask(deleteConfirmState.task.id);
+        await fetchUnit();
+      } catch (err) {
+        setError(getApiErrorMessage(err));
+      } finally {
+        setDeleteConfirmState(null);
+      }
+      return;
+    }
+
     setError(null);
     setIsDeletingUnit(true);
     try {
-      await teacherApi.deleteUnit(unit.id);
-      if (unit.sectionId) {
-        router.push(`/teacher/sections/${unit.sectionId}`);
+      await teacherApi.deleteUnit(deleteConfirmState.unitId);
+      if (deleteConfirmState.sectionId) {
+        router.push(`/teacher/sections/${deleteConfirmState.sectionId}`);
       } else {
         router.push("/teacher");
       }
     } catch (err) {
       setError(getApiErrorMessage(err));
+      setDeleteConfirmState(null);
     } finally {
       setIsDeletingUnit(false);
     }
-  }, [isDeletingUnit, router, unit]);
+  }, [deleteConfirmState, fetchUnit, router]);
 
   const handleBackToSection = useCallback(() => {
     if (unit?.sectionId) {
@@ -1056,29 +1075,6 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
       window.clearTimeout(timerId);
     };
   }, [compileErrorCopyState]);
-
-  useEffect(() => {
-    if (!isCompileErrorModalOpen) return;
-    compileErrorReturnFocusRef.current =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    compileErrorDialogRef.current?.focus();
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeCompileErrorModal();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      const previous = compileErrorReturnFocusRef.current;
-      if (previous && document.contains(previous)) {
-        previous.focus();
-      }
-      compileErrorReturnFocusRef.current = null;
-    };
-  }, [closeCompileErrorModal, isCompileErrorModalOpen]);
 
   const runCompile = useCallback(
     async (target: "theory" | "method") => {
@@ -1453,17 +1449,12 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
             </nav>
             <div className={styles.headerActions}>
               {unit ? (
-                <button
-                  type="button"
+                <Switch
                   className={styles.publishToggle}
-                  onClick={() => void handleUnitPublishToggle()}
-                  aria-pressed={unit.status === "published"}
-                >
-                  <span className={styles.publishToggleTrack} aria-hidden="true">
-                    <span className={styles.publishToggleThumb} />
-                  </span>
-                  <span className={styles.publishToggleLabel}>Опубликовано</span>
-                </button>
+                  checked={unit.status === "published"}
+                  onCheckedChange={() => void handleUnitPublishToggle()}
+                  label="Опубликовано"
+                />
               ) : null}
               {unit ? (
                 <Button
@@ -2069,69 +2060,80 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
           )}
         </div>
       </div>
-      {compileErrorModalState && isCompileErrorModalOpen ? (
-        <div
-          className={styles.compileErrorModalBackdrop}
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              closeCompileErrorModal();
-            }
-          }}
+      {compileErrorModalState ? (
+        <Dialog
+          open={isCompileErrorModalOpen}
+          onOpenChange={setIsCompileErrorModalOpen}
+          className={styles.compileErrorModal}
+          overlayClassName={styles.compileErrorModalBackdrop}
         >
-          <div
-            ref={compileErrorDialogRef}
-            className={styles.compileErrorModal}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={compileErrorDialogTitleId}
-            aria-describedby={compileErrorDialogBodyId}
-            tabIndex={-1}
-          >
-            <div className={styles.compileErrorModalHeader}>
-              <div>
-                <div id={compileErrorDialogTitleId} className={styles.compileErrorModalTitle}>
-                  Ошибка компиляции LaTeX
-                </div>
-                <div className={styles.compileErrorModalMeta}>
-                  <span>{compileTargetLabels[compileErrorModalState.target]}</span>
-                  <span className={styles.compileErrorModalDot}>•</span>
-                  <span>job {compileErrorModalState.jobId}</span>
-                </div>
+          <div className={styles.compileErrorModalHeader}>
+            <div>
+              <div id={compileErrorDialogTitleId} className={styles.compileErrorModalTitle}>
+                Ошибка компиляции LaTeX
               </div>
-              <span className={styles.compileErrorCodeBadge}>{compileErrorModalState.code}</span>
-            </div>
-
-            <p id={compileErrorDialogBodyId} className={styles.compileErrorModalMessage}>
-              {compileErrorModalState.message}
-            </p>
-
-            {compileErrorModalState.logTruncated ? (
-              <div className={styles.compileErrorModalHint}>
-                Лог обрезан до последних {formatLogTailLimit(compileErrorModalState.logLimitBytes ?? 256_000)}.
+              <div className={styles.compileErrorModalMeta}>
+                <span>{compileTargetLabels[compileErrorModalState.target]}</span>
+                <span className={styles.compileErrorModalDot}>•</span>
+                <span>job {compileErrorModalState.jobId}</span>
               </div>
-            ) : null}
-
-            <pre className={styles.compileErrorModalLog}>
-              {compileErrorModalState.log ??
-                compileErrorModalState.logSnippet ??
-                "Сервер не вернул текст лога."}
-            </pre>
-
-            <div className={styles.compileErrorModalActions}>
-              <Button type="button" onClick={() => void copyCompileErrorLog()}>
-                {compileErrorCopyState === "copied"
-                  ? "Скопировано"
-                  : compileErrorCopyState === "failed"
-                    ? "Не удалось скопировать"
-                    : "Копировать лог"}
-              </Button>
-              <Button type="button" variant="ghost" onClick={closeCompileErrorModal}>
-                Закрыть
-              </Button>
             </div>
+            <span className={styles.compileErrorCodeBadge}>{compileErrorModalState.code}</span>
           </div>
-        </div>
+
+          <p id={compileErrorDialogBodyId} className={styles.compileErrorModalMessage}>
+            {compileErrorModalState.message}
+          </p>
+
+          {compileErrorModalState.logTruncated ? (
+            <div className={styles.compileErrorModalHint}>
+              Лог обрезан до последних {formatLogTailLimit(compileErrorModalState.logLimitBytes ?? 256_000)}.
+            </div>
+          ) : null}
+
+          <pre className={styles.compileErrorModalLog}>
+            {compileErrorModalState.log ?? compileErrorModalState.logSnippet ?? "Сервер не вернул текст лога."}
+          </pre>
+
+          <div className={styles.compileErrorModalActions}>
+            <Button type="button" onClick={() => void copyCompileErrorLog()}>
+              {compileErrorCopyState === "copied"
+                ? "Скопировано"
+                : compileErrorCopyState === "failed"
+                  ? "Не удалось скопировать"
+                  : "Копировать лог"}
+            </Button>
+            <Button type="button" variant="ghost" onClick={closeCompileErrorModal}>
+              Закрыть
+            </Button>
+          </div>
+        </Dialog>
       ) : null}
+      <AlertDialog
+        open={Boolean(deleteConfirmState)}
+        onOpenChange={(open) => {
+          if (!open) setDeleteConfirmState(null);
+        }}
+        title={
+          deleteConfirmState?.kind === "task"
+            ? "Удалить задачу? Действие нельзя отменить."
+            : deleteConfirmState?.kind === "unit"
+              ? `Удалить юнит «${deleteConfirmState.unitTitle}»?`
+              : ""
+        }
+        description={
+          deleteConfirmState?.kind === "task"
+            ? "Задача будет удалена без возможности восстановления."
+            : deleteConfirmState?.kind === "unit"
+              ? "Будут удалены все задачи внутри юнита. Действие нельзя отменить."
+              : ""
+        }
+        confirmText={deleteConfirmState?.kind === "unit" ? "Удалить юнит" : "Удалить задачу"}
+        cancelText="Отмена"
+        destructive
+        confirmDisabled={isDeletingUnit}
+        onConfirm={() => void handleConfirmDelete()}
+      />
     </DashboardShell>
   );
 }

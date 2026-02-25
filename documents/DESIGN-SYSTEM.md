@@ -136,6 +136,25 @@ Glass‑стиль — основа для **teacher dashboards** и **student d
 - Ошибка всегда читается на фоне glass
 - На логине: лёгкая плашка‑капсула (без агрессивных красных заливок)
 
+### 4.4 Headless primitives (`Implemented`)
+- Сложные interactive-компоненты собраны на Radix primitives, но визуально остаются в текущей системе токенов:
+  - `Dialog` / `AlertDialog` / `DropdownMenu` / `Select` / `Switch` / `Tabs`.
+- Контракты UI по-прежнему проходят через `apps/web/components/ui/*` (продуктовые экраны не импортируют Radix напрямую).
+- Стилизация — только через CSS Modules + `--glass-*`, `--surface-*`, `--control-*`, `--button-*`.
+- Для destructive-действий используем `AlertDialog` вместо нативного `window.confirm`, чтобы UX и a11y были консистентны в glass-контексте.
+- В `Portal`-компонентах (`Dialog/AlertDialog/DropdownMenu/Select`) явно задаём DS-токены радиусов/границ:
+  - `border-radius`: `--radius-panel` (панели/модалки) или `--radius-control` (меню/контролы),
+  - `border`: `--border-width-thin` + `--glass-border` (или токен эквивалентного контекста),
+  - не полагаемся на `:root --control-radius` для портального контента.
+- `Select.Content` и `DropdownMenu.Content` должны быть непрозрачными:
+  - запрещены полупрозрачные фоны для списков,
+  - `backdrop-filter`/`-webkit-backdrop-filter` не используются в выпадающих списках,
+  - базовый фон списка: `var(--bg-primary)` или другой непрозрачный surface-токен текущей темы.
+- Иконка-триггер “три точки” (`MoreHorizontal`) в карточках:
+  - без pill-фона/тени/рамки,
+  - без квадратного focus-outline вокруг кнопки,
+  - позиционирование и отступы задаются локально в фиче, но с сохранением читаемости и hit-area.
+
 ---
 
 ## 5) ReactFlow (графы юнитов)
@@ -201,6 +220,8 @@ Glass‑стиль — основа для **teacher dashboards** и **student d
 - синий autofill у инпутов
 - неконсистентные формы кнопок/контролов
 - использование Tailwind классов в продуктовых экранах
+- полупрозрачные выпадающие списки (`Select`/`DropdownMenu`), через которые виден задник и ухудшается читаемость
+- острые углы у модалок/меню/кнопок из-за потери токенов в `Portal`
 
 ---
 
@@ -217,6 +238,8 @@ Glass‑стиль — основа для **teacher dashboards** и **student d
 - Границы 1px/1.5px, без тяжёлых линий
 - Hover в glass‑UI — мягкий lift/подсветка
 - Инпуты без синего autofill
+- `Select`/`Dropdown` непрозрачны и не просвечивают фон
+- Портальные `Dialog/AlertDialog/Dropdown/Select` сохраняют DS-радиусы и DS-границы
 - PDF выглядит как часть страницы, без viewer UI
 - Решения показываются только после `correct` или `auto-credit`
 

@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Pencil, Trash2 } from "lucide-react";
 import DashboardShell from "@/components/DashboardShell";
+import AlertDialog from "@/components/ui/AlertDialog";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Textarea from "@/components/ui/Textarea";
@@ -45,6 +46,11 @@ type EditDialogState =
       kind: "section";
       id: string;
     };
+
+type DeleteDialogState =
+  | { kind: "course"; course: Course }
+  | { kind: "section"; section: Section }
+  | null;
 
 type HistoryUpdateMode = "push" | "replace" | "none";
 
@@ -158,6 +164,7 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
   const [editDescription, setEditDescription] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState>(null);
   const [historyReady, setHistoryReady] = useState(Boolean(initialSectionId));
   const coursesRequestIdRef = useRef(0);
   const sectionsRequestIdRef = useRef(0);
@@ -378,8 +385,10 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
   };
 
   const handleDeleteCourse = async (course: Course) => {
-    const confirmed = window.confirm("Удалить курс? Удаление возможно только если в курсе нет разделов.");
-    if (!confirmed) return;
+    setDeleteDialog({ kind: "course", course });
+  };
+
+  const confirmDeleteCourse = async (course: Course) => {
     setError(null);
     try {
       await teacherApi.deleteCourse(course.id);
@@ -413,8 +422,11 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
 
   const handleDeleteSection = async (section: Section) => {
     if (!selectedCourse) return;
-    const confirmed = window.confirm("Удалить раздел? Удаление возможно только если в разделе нет юнитов.");
-    if (!confirmed) return;
+    setDeleteDialog({ kind: "section", section });
+  };
+
+  const confirmDeleteSection = async (section: Section) => {
+    if (!selectedCourse) return;
     setError(null);
     try {
       await teacherApi.deleteSection(section.id);
@@ -422,6 +434,16 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
     } catch (err) {
       setError(getApiErrorMessage(err));
     }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteDialog) return;
+    if (deleteDialog.kind === "course") {
+      await confirmDeleteCourse(deleteDialog.course);
+    } else {
+      await confirmDeleteSection(deleteDialog.section);
+    }
+    setDeleteDialog(null);
   };
 
   const handleSectionClick = (section: Section) => {
@@ -828,6 +850,22 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
           </div>
         </div>
       ) : null}
+      <AlertDialog
+        open={Boolean(deleteDialog)}
+        onOpenChange={(open) => {
+          if (!open) setDeleteDialog(null);
+        }}
+        title={deleteDialog?.kind === "course" ? "Удалить курс?" : "Удалить раздел?"}
+        description={
+          deleteDialog?.kind === "course"
+            ? "Удаление возможно только если в курсе нет разделов."
+            : "Удаление возможно только если в разделе нет юнитов."
+        }
+        confirmText={deleteDialog?.kind === "course" ? "Удалить курс" : "Удалить раздел"}
+        cancelText="Отмена"
+        destructive
+        onConfirm={() => void handleConfirmDelete()}
+      />
     </>
   );
 }

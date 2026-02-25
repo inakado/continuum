@@ -29,6 +29,11 @@
    - как проверить (команда/критерий).  
    Куда писать: в execution plan (если специфично задаче) и/или в `documents/DEVELOPMENT.md` → Troubleshooting (если повторяемая проблема), и/или в `documents/exec-plans/tech-debt-tracker.md` (если это реальный техдолг/баг).  
 
+### Agent install policy (`Implemented`)
+
+- В агентской/sandbox-сессии агент **не запускает** команду `CI=true pnpm install --frozen-lockfile`.
+- Если нужна эта команда, агент обязан попросить пользователя выполнить её локально и прислать результат.
+
 ## 2) Где что лежит
 
 - Архитектура: `documents/ARCHITECTURE.md`

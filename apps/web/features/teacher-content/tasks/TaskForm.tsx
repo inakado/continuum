@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import EntityEditorInline from "@/components/EntityEditorInline";
 import Input from "@/components/ui/Input";
+import Select from "@/components/ui/Select";
 import Textarea from "@/components/ui/Textarea";
 import Checkbox from "@/components/ui/Checkbox";
 import LiteTex from "@/components/LiteTex";
@@ -163,16 +164,18 @@ function BaseSettingsSection({
       <div className={styles.fieldGrid}>
         <label className={styles.label}>
           Тип задачи
-          <select
-            className={styles.select}
+          <Select
+            triggerClassName={styles.select}
             value={answerType}
-            onChange={(event) => onAnswerTypeChange(event.target.value as AnswerType)}
-          >
-            <option value="numeric">Числовая</option>
-            <option value="single_choice">Один вариант</option>
-            <option value="multi_choice">Несколько вариантов</option>
-            <option value="photo">Фото-ответ</option>
-          </select>
+            onValueChange={(value) => onAnswerTypeChange(value as AnswerType)}
+            options={[
+              { value: "numeric", label: "Числовая" },
+              { value: "single_choice", label: "Один вариант" },
+              { value: "multi_choice", label: "Несколько вариантов" },
+              { value: "photo", label: "Фото-ответ" },
+            ]}
+            placeholder="Тип задачи"
+          />
         </label>
         <Checkbox
           label="Обязательная"

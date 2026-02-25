@@ -1,6 +1,6 @@
 "use client";
 
-import type React from "react";
+import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { useId } from "react";
 import styles from "./tabs.module.css";
 
@@ -29,55 +29,25 @@ export default function Tabs<T extends string>({
   const generatedId = useId();
   const baseId = idBase ?? generatedId;
 
-  const activeIndex = Math.max(
-    0,
-    tabs.findIndex((t) => t.key === active),
-  );
-
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (tabs.length === 0) return;
-
-    const key = event.key;
-    const isPrev = key === "ArrowLeft";
-    const isNext = key === "ArrowRight";
-    if (!isPrev && !isNext) return;
-
-    event.preventDefault();
-
-    const nextIndex = isPrev
-      ? (activeIndex - 1 + tabs.length) % tabs.length
-      : (activeIndex + 1) % tabs.length;
-
-    onChange(tabs[nextIndex].key);
-  };
-
   return (
-    <div
-      className={`${styles.tabs} ${className}`}
-      role="tablist"
-      aria-label={ariaLabel}
-      onKeyDown={handleKeyDown}
-    >
-      {tabs.map((tab) => {
-        const selected = tab.key === active;
-        const id = `${baseId}-${tab.key}`;
-        const panelId = `${id}-panel`;
-        return (
-          <button
-            key={tab.key}
-            id={id}
-            type="button"
-            role="tab"
-            aria-selected={selected}
-            aria-controls={panelId}
-            tabIndex={selected ? 0 : -1}
-            className={`${styles.tab} ${selected ? styles.tabActive : ""}`}
-            onClick={() => onChange(tab.key)}
-          >
-            {tab.label}
-          </button>
-        );
-      })}
-    </div>
+    <TabsPrimitive.Root value={active} onValueChange={(value: string) => onChange(value as T)}>
+      <TabsPrimitive.List className={`${styles.tabs} ${className}`} aria-label={ariaLabel}>
+        {tabs.map((tab) => {
+          const id = `${baseId}-${tab.key}`;
+          const panelId = `${id}-panel`;
+          return (
+            <TabsPrimitive.Trigger
+              key={tab.key}
+              id={id}
+              value={tab.key}
+              aria-controls={panelId}
+              className={styles.tab}
+            >
+              {tab.label}
+            </TabsPrimitive.Trigger>
+          );
+        })}
+      </TabsPrimitive.List>
+    </TabsPrimitive.Root>
   );
 }

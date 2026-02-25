@@ -1,0 +1,79 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--bg-primary) 36%, transparent);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  z-index: 130;
+}
+
+.content {
+  --control-radius: var(--radius-control);
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(520px, calc(100vw - 24px));
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: var(--radius-panel);
+  background: var(--surface-1);
+  box-shadow: var(--glass-shadow);
+  z-index: 131;
+  padding: 18px;
+  outline: none;
+  display: grid;
+  gap: 12px;
+}
+
+.title {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.25;
+  font-family: var(--font-unbounded), sans-serif;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.description {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.cancelButton {
+  --button-bg: var(--surface-1);
+  --button-border: var(--glass-border);
+  --button-text: var(--text-primary);
+  --button-border-width: var(--border-width-thin);
+  --button-hover-bg: var(--surface-2);
+  --button-hover-border: var(--border-primary);
+  --button-hover-text: var(--text-primary);
+  --button-hover-shadow: var(--nav-hover-shadow);
+}
+
+.confirmButton {
+  --button-bg: var(--surface-1);
+  --button-border: var(--glass-border);
+  --button-text: var(--text-primary);
+  --button-border-width: var(--border-width-thin);
+  --button-hover-bg: var(--surface-2);
+  --button-hover-border: var(--border-primary);
+  --button-hover-text: var(--text-primary);
+  --button-hover-shadow: var(--nav-hover-shadow);
+}
+
+.confirmButtonDanger {
+  --button-bg: color-mix(in srgb, #ef4444 6%, var(--surface-1));
+  --button-border: color-mix(in srgb, #ef4444 34%, var(--glass-border));
+  --button-text: color-mix(in srgb, #ef4444 72%, var(--text-primary));
+  --button-hover-bg: color-mix(in srgb, #ef4444 10%, var(--surface-2));
+  --button-hover-border: color-mix(in srgb, #ef4444 44%, var(--border-primary));
+  --button-hover-text: color-mix(in srgb, #ef4444 78%, var(--text-primary));
+}

@@ -18,6 +18,7 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import Button from "@/components/ui/Button";
+import Dialog from "@/components/ui/Dialog";
 import Input from "@/components/ui/Input";
 import { teacherApi, type GraphEdge, type GraphNode, type SectionGraphResponse } from "@/lib/api/teacher";
 import { getContentStatusLabel } from "@/lib/status-labels";
@@ -390,39 +391,42 @@ export default function TeacherSectionGraphPanel({
           </Button>
         </div>
 
-        {isCreatePopupOpen ? (
-          <div className={styles.createPopup} role="dialog" aria-label="Создание юнита">
-            <label className={styles.popupLabel}>
-              Название юнита
-              <Input
-                ref={createTitleInputRef}
-                value={newUnitTitle}
-                onChange={(event) => setNewUnitTitle(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    void handleCreateUnit();
-                  }
-                  if (event.key === "Escape") {
-                    event.preventDefault();
-                    setIsCreatePopupOpen(false);
-                  }
-                }}
-                name="unitTitle"
-                autoComplete="off"
-                placeholder="Например, Кинематика..."
-              />
-            </label>
-            <div className={styles.popupActions}>
-              <Button onClick={() => void handleCreateUnit()} disabled={!newUnitTitle.trim()}>
-                Создать
-              </Button>
-              <Button variant="ghost" onClick={() => setIsCreatePopupOpen(false)}>
-                Отмена
-              </Button>
-            </div>
+        <Dialog
+          open={isCreatePopupOpen}
+          onOpenChange={setIsCreatePopupOpen}
+          title="Создание юнита"
+          className={styles.createPopup}
+        >
+          <label className={styles.popupLabel}>
+            Название юнита
+            <Input
+              ref={createTitleInputRef}
+              value={newUnitTitle}
+              onChange={(event) => setNewUnitTitle(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  void handleCreateUnit();
+                }
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  setIsCreatePopupOpen(false);
+                }
+              }}
+              name="unitTitle"
+              autoComplete="off"
+              placeholder="Например, Кинематика..."
+            />
+          </label>
+          <div className={styles.popupActions}>
+            <Button onClick={() => void handleCreateUnit()} disabled={!newUnitTitle.trim()}>
+              Создать
+            </Button>
+            <Button variant="ghost" onClick={() => setIsCreatePopupOpen(false)}>
+              Отмена
+            </Button>
           </div>
-        ) : null}
+        </Dialog>
 
         {selectedEdgeId ? (
           <div className={styles.selectionHint}>Выбрано ребро. Можно удалить и затем сохранить граф.</div>

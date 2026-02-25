@@ -70,6 +70,19 @@
 - `framer-motion` применяется точечно для микровзаимодействий/поэлементных входов (пример: labels в `DashboardShell`), тогда как layout-size анимации остаются на CSS custom properties.
 - Приоритет производительности: избегаем `filter: blur(...)` в часто триггерящихся sidebar-анимациях и уважаем `prefers-reduced-motion`.
 
+## UI primitives stack (`Implemented`)
+
+- Базовый UI-kit остаётся в `apps/web/components/ui/*` как единая точка API для продуктовых экранов.
+- Для сложных интерактивов используется Radix primitives (через локальные обёртки):
+  - `Dialog`, `AlertDialog`, `DropdownMenu`, `Select`, `Switch`, `Tabs`.
+- `Tabs` и `Select` работают через текущие CSS variables/Glass tokens, без перехода на Tailwind.
+- Подтверждения опасных действий (`delete/reset`) переведены с `window.confirm` на единый `AlertDialog`-паттерн.
+- Меню действий в списке учеников переведено на `DropdownMenu` (убран ручной `pointerdown/keydown` outside/escape-контроль).
+- Правила консистентности для Radix wrappers:
+  - стили применяются только в `apps/web/components/ui/*` + feature-level CSS Modules, без прямого импорта Radix в feature-слой;
+  - для `Portal`-контента явно задаются DS-токены радиусов/границ (не опираться на `:root --control-radius`);
+  - `Select`/`DropdownMenu` в списках делаются непрозрачными (без `backdrop-filter`), чтобы не терялась читаемость пунктов.
+
 ## Dashboard navigation history (`Implemented`)
 
 - В teacher edit flow (`/teacher`) переходы `курсы → разделы → граф` синхронизированы с `window.history.state`, поэтому браузерный `Back/Forward` возвращает предыдущий UI-шаг в рамках dashboard.
@@ -88,3 +101,4 @@
 - `apps/web/components/`
 - `apps/web/lib/api/client.ts`
 - `apps/web/lib/status-labels.ts`
+- `apps/web/components/ui/`

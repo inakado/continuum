@@ -159,18 +159,30 @@ Production policy (`Implemented`):
 - **Фикс:** повторить установку в окружении с внешней сетью (CI runner или VPS).
 - **Проверка:** `pnpm install --frozen-lockfile` завершается без retry/fetch ошибок.
 
-- **Симптом:** install падает на `apps/api postinstall: prisma generate` с ошибкой про `DATABASE_URL or POSTGRES_*`.
+- **Симптом:** агент запускает `CI=true pnpm install --frozen-lockfile` в sandbox и получает нестабильные сетевые ошибки.
+- **Команда:** `CI=true pnpm install --frozen-lockfile`
+- **Причина:** в агентском окружении нет гарантированного доступа к npm registry.
+- **Фикс:** для агента эта команда запрещена; выполнять её должен пользователь в локальном терминале.
+- **Проверка:** агент запрашивает локальный запуск команды у пользователя вместо самостоятельного выполнения.
+
+- **Симптом:** после install появляется предупреждение `Ignored build scripts: ...`.
+- **Команда:** `pnpm install --frozen-lockfile`
+- **Причина:** pnpm v10 по умолчанию блокирует lifecycle build scripts без явного allowlist.
+- **Фикс:** в корневом `package.json` зафиксирован `pnpm.onlyBuiltDependencies` для требуемых пакетов (`@nestjs/core`, `@prisma/engines`, `argon2`, `msgpackr-extract`, `prisma`).
+- **Проверка:** install не требует ручного `pnpm approve-builds` в стандартном потоке.
+
+- **Симптом:** install падал на `apps/api postinstall: prisma generate` с ошибкой про `DATABASE_URL or POSTGRES_*`.
 - **Команда:** `pnpm install --filter @continuum/api...`
-- **Причина:** `apps/api/prisma.config.ts` требует `DATABASE_URL` (или `POSTGRES_*`) даже для `prisma generate`.
-- **Фикс:** экспортировать `DATABASE_URL` перед install (`DATABASE_URL=postgresql://... pnpm install ...`) или предварительно загрузить `deploy/env/api.env`.
-- **Проверка:** `pnpm install --frozen-lockfile` проходит без postinstall ошибки `prisma generate`.
+- **Причина:** раньше `@continuum/api` запускал `prisma generate` в `postinstall`, а Prisma config требует DB env.
+- **Фикс:** `postinstall` удалён; генерация Prisma выполняется только явно (`pnpm --filter @continuum/api prisma:generate`) или в Docker build.
+- **Проверка:** `pnpm install --frozen-lockfile` проходит без требования `DATABASE_URL` на этапе install.
 
 - **Симптом:** `pnpm build`/`pnpm typecheck` падают с `tsc: command not found` (обычно в `@continuum/worker`) или `next: command not found` (в `web`).
 - **Команда:** `pnpm build` или `pnpm --filter web run build`
 - **Причина:** частичная установка зависимостей через `pnpm install --filter ...` пересоздаёт общий `node_modules`, и часть пакетов остаётся без локальных бинарей (`apps/*/node_modules/.bin`).
 - **Фикс:**
   - очистить локальные зависимости: `rm -rf node_modules apps/web/node_modules apps/worker/node_modules packages/shared/node_modules`
-  - выполнить полную установку в сети с доступом к npm: `CI=true DATABASE_URL=postgresql://... pnpm -r install --force`
+  - выполнить полную установку в сети с доступом к npm: `CI=true pnpm -r install --force`
   - если снова `ENOTFOUND`, проверить DNS: `curl -I https://registry.npmjs.org` (должен вернуться HTTP-ответ)
 - **Проверка:** существуют `apps/web/node_modules/.bin/next` и `apps/web/node_modules/.bin/tsc`, затем `pnpm build:web` и `pnpm typecheck` проходят.
 

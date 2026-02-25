@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import Button from "@/components/ui/Button";
+import Select from "@/components/ui/Select";
 import {
   teacherApi,
   type StudentSummary,
@@ -170,49 +171,52 @@ export default function TeacherReviewInboxPanel() {
       <section className={styles.filtersRow}>
         <label className={styles.filterField}>
           Статус
-          <select
-            className={styles.select}
+          <Select
+            triggerClassName={styles.selectTrigger}
             value={filters.status}
-            onChange={(event) =>
-              updateFilters({ status: event.target.value as TeacherReviewSubmissionStatus })
-            }
-          >
-            <option value="pending_review">На проверке</option>
-            <option value="accepted">Принято</option>
-            <option value="rejected">Отклонено</option>
-          </select>
+            onValueChange={(value) => updateFilters({ status: value as TeacherReviewSubmissionStatus })}
+            options={[
+              { value: "pending_review", label: "На проверке", section: "В работе" },
+              { value: "accepted", label: "Принято", section: "История" },
+              { value: "rejected", label: "Отклонено", section: "История" },
+            ]}
+            placeholder="Статус"
+          />
         </label>
 
         <label className={styles.filterField}>
           Порядок
-          <select
-            className={styles.select}
+          <Select
+            triggerClassName={styles.selectTrigger}
             value={filters.sort}
-            onChange={(event) => updateFilters({ sort: event.target.value as "oldest" | "newest" })}
-          >
-            <option value="oldest">{sortLabel.oldest}</option>
-            <option value="newest">{sortLabel.newest}</option>
-          </select>
+            onValueChange={(value) => updateFilters({ sort: value as "oldest" | "newest" })}
+            options={[
+              { value: "oldest", label: sortLabel.oldest },
+              { value: "newest", label: sortLabel.newest },
+            ]}
+            placeholder="Порядок"
+          />
         </label>
 
         <label className={styles.filterField}>
           Ученик
-          <select
-            className={styles.select}
+          <Select
+            triggerClassName={styles.selectTrigger}
             value={filters.studentId ?? ""}
-            onChange={(event) =>
+            onValueChange={(value) => {
               updateFilters({
-                studentId: event.target.value || undefined,
-              })
-            }
-          >
-            <option value="">Все ученики</option>
-            {students.map((student) => (
-              <option key={student.id} value={student.id}>
-                {getStudentName(student)} ({student.login})
-              </option>
-            ))}
-          </select>
+                studentId: value || undefined,
+              });
+            }}
+            options={[
+              { value: "", label: "Все ученики" },
+              ...students.map((student) => ({
+                value: student.id,
+                label: `${getStudentName(student)} (${student.login})`,
+              })),
+            ]}
+            placeholder="Ученик"
+          />
         </label>
 
         {hasAnyCustomFilters ? (
