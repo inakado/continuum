@@ -182,6 +182,7 @@
 - `CONTENT.md` — content/publishing/graph/LaTeX pipeline (SoR)
 - `LEARNING.md` — attempts/progress/availability/3+3 (SoR)
 - `FRONTEND.md` — frontend SoR
+- `ARCHITECTURE-PRINCIPLES.md` — инженерные принципы читаемости/поддерживаемости и рекомендуемый стек.
 - `DOMAIN-EVENTS.md` — каталог событий (audit)
 - `HANDLER-MAP.md` — карта обработчиков (HTTP → services → events/jobs)
 - `generated/db-schema.md` — срез текущей БД модели (source: Prisma schema)

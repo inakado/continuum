@@ -1,6 +1,6 @@
 # 2026-02-25 — Radix primitives adoption (web)
 
-Статус: `Active` (реализация выполнена, verification заблокирован окружением)
+Статус: `Completed`
 
 ## Цель
 

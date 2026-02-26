@@ -16,6 +16,7 @@
 ## System of Record (SoR)
 
 - `documents/ARCHITECTURE.md` — карта доменов, модулей и слоев.
+- `documents/ARCHITECTURE-PRINCIPLES.md` — инженерные принципы читаемости/поддерживаемости и рекомендуемый стек.
 - `documents/SECURITY.md` — security-политики и invariants.
 - `documents/RELIABILITY.md` — надежность, очереди, отказоустойчивость, runbooks.
 - `documents/QUALITY_SCORE.md` — оценка качества по шкале 0..5 (фокус: core product domain).
@@ -37,6 +38,7 @@
 - `documents/design-docs/core-beliefs.md` — core beliefs (agent-first).
 - `documents/product-specs/index.md` — индекс продуктовых спецификаций.
 - `documents/exec-plans/active/` — активные планы выполнения.
+- `documents/exec-plans/active/2026-02-26-architecture-principles-refactor-foundation.md` — активный план внедрения архитектурных принципов.
 - `documents/exec-plans/completed/` — завершенные планы.
 - `documents/exec-plans/completed/index.md` — индекс завершенных планов.
 - `documents/exec-plans/tech-debt-tracker.md` — трекер техдолга.
