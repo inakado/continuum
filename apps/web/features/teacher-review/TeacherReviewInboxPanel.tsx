@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import Button from "@/components/ui/Button";
@@ -11,6 +12,7 @@ import {
   type TeacherReviewInboxItem,
   type TeacherReviewSubmissionStatus,
 } from "@/lib/api/teacher";
+import { learningPhotoQueryKeys } from "@/lib/query/keys";
 import { getPhotoReviewStatusLabel } from "@/lib/status-labels";
 import { formatApiErrorPayload } from "@/features/teacher-content/shared/api-errors";
 import { buildReviewSearch, readReviewRouteFilters } from "./review-query";
@@ -51,56 +53,28 @@ export default function TeacherReviewInboxPanel() {
     () => readReviewRouteFilters(new URLSearchParams(searchParamsKey)),
     [searchParamsKey],
   );
-
-  const [items, setItems] = useState<TeacherReviewInboxItem[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [students, setStudents] = useState<StudentSummary[]>([]);
-
-  const loadInbox = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await teacherApi.listTeacherPhotoInbox({
-        ...filters,
-        limit: 50,
-        offset: 0,
-      });
-      setItems(response.items);
-      setTotal(response.total);
-    } catch (err) {
-      setItems([]);
-      setTotal(0);
-      setError(formatApiErrorPayload(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [filters]);
-
-  useEffect(() => {
-    void loadInbox();
-  }, [loadInbox]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadStudents = async () => {
-      try {
-        const response = await teacherApi.listStudents();
-        if (cancelled) return;
-        setStudents(response);
-      } catch {
-        if (cancelled) return;
-        setStudents([]);
-      }
-    };
-
-    void loadStudents();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const inboxParams = useMemo(
+    () => ({
+      ...filters,
+      limit: 50,
+      offset: 0,
+    }),
+    [filters],
+  );
+  const inboxQuery = useQuery({
+    queryKey: learningPhotoQueryKeys.teacherReviewInbox(inboxParams),
+    queryFn: () => teacherApi.listTeacherPhotoInbox(inboxParams),
+    placeholderData: keepPreviousData,
+  });
+  const studentsQuery = useQuery<StudentSummary[]>({
+    queryKey: ["learning-photo", "teacher", "students", "list"],
+    queryFn: () => teacherApi.listStudents(),
+  });
+  const items: TeacherReviewInboxItem[] = inboxQuery.data?.items ?? [];
+  const total = inboxQuery.data?.total ?? 0;
+  const loading = inboxQuery.isPending;
+  const error = inboxQuery.isError ? formatApiErrorPayload(inboxQuery.error) : null;
+  const students = studentsQuery.data ?? [];
 
   const updateFilters = useCallback(
     (patch: Partial<typeof filters>) => {
@@ -152,7 +126,7 @@ export default function TeacherReviewInboxPanel() {
           <span>В очереди: {total}</span>
         </div>
         <div className={styles.headerActions}>
-          <Button variant="ghost" onClick={loadInbox}>
+          <Button variant="ghost" onClick={() => void inboxQuery.refetch()}>
             Обновить
           </Button>
           <Button

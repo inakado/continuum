@@ -4,8 +4,13 @@ import {
   TeacherReviewInboxResponseSchema,
   TeacherReviewSubmissionDetailResponseSchema,
   TeacherStudentPhotoQueueResponseSchema,
+  type TeacherPhotoInboxQuery as SharedTeacherPhotoInboxQuery,
+  type TeacherPhotoPresignViewQuery as SharedTeacherPhotoPresignViewQuery,
   type TeacherPhotoPresignViewResponse as SharedTeacherPhotoPresignViewResponse,
+  type TeacherPhotoQueueQuery as SharedTeacherPhotoQueueQuery,
+  type TeacherPhotoRejectRequest as SharedTeacherPhotoRejectRequest,
   type TeacherPhotoReviewResponse as SharedTeacherPhotoReviewResponse,
+  type TeacherPhotoSubmissionDetailQuery as SharedTeacherPhotoSubmissionDetailQuery,
   type TeacherReviewInboxResponse as SharedTeacherReviewInboxResponse,
   type TeacherReviewSubmissionDetailResponse as SharedTeacherReviewSubmissionDetailResponse,
   type TeacherStudentPhotoQueueResponse as SharedTeacherStudentPhotoQueueResponse,
@@ -372,16 +377,55 @@ export type TeacherReviewSubmissionDetailResponse = SharedTeacherReviewSubmissio
 export type TeacherReviewInboxItem = TeacherReviewInboxResponse["items"][number];
 export type TeacherReviewSubmissionStatus = TeacherReviewInboxItem["status"];
 
-export type TeacherReviewInboxFilters = {
-  status?: TeacherReviewSubmissionStatus;
-  studentId?: string;
-  courseId?: string;
-  sectionId?: string;
-  unitId?: string;
-  taskId?: string;
-  limit?: number;
-  offset?: number;
-  sort?: "oldest" | "newest";
+export type TeacherReviewInboxFilters = Partial<
+  Pick<
+    SharedTeacherPhotoInboxQuery,
+    | "status"
+    | "studentId"
+    | "courseId"
+    | "sectionId"
+    | "unitId"
+    | "taskId"
+    | "sort"
+    | "limit"
+    | "offset"
+  >
+>;
+export type TeacherReviewSubmissionDetailFilters = Partial<
+  Pick<
+    SharedTeacherPhotoSubmissionDetailQuery,
+    "status" | "studentId" | "courseId" | "sectionId" | "unitId" | "taskId" | "sort"
+  >
+>;
+
+const appendReviewFiltersToSearch = (
+  search: URLSearchParams,
+  params?: TeacherReviewInboxFilters | TeacherReviewSubmissionDetailFilters,
+) => {
+  if (!params) return;
+  if (params.status) search.set("status", params.status);
+  if (params.studentId) search.set("studentId", params.studentId);
+  if (params.courseId) search.set("courseId", params.courseId);
+  if (params.sectionId) search.set("sectionId", params.sectionId);
+  if (params.unitId) search.set("unitId", params.unitId);
+  if (params.taskId) search.set("taskId", params.taskId);
+  if (params.sort) search.set("sort", params.sort);
+};
+
+const buildTaskSolutionPdfPresignPath = (taskId: string, ttlSec: number) => {
+  const search = new URLSearchParams({ ttlSec: String(ttlSec) });
+  return `/teacher/tasks/${taskId}/solution/pdf-presign?${search.toString()}`;
+};
+
+const creditTaskRequest = (studentId: string, taskId: string) =>
+  apiRequest<{ ok: true; status: string; taskId: string; studentId: string }>(
+    `/teacher/students/${studentId}/tasks/${taskId}/credit`,
+    { method: "POST" },
+  );
+
+const buildLatexCompileJobPath = (jobId: string, ttlSec: number) => {
+  const search = new URLSearchParams({ ttlSec: String(ttlSec) });
+  return `/teacher/latex/jobs/${jobId}?${search.toString()}`;
 };
 
 export const teacherApi = {
@@ -516,16 +560,14 @@ export const teacherApi = {
   },
 
   getTaskSolutionPdfPresignedUrl(taskId: string, ttlSec = 600) {
-    const search = new URLSearchParams({ ttlSec: String(ttlSec) });
     return apiRequest<TaskSolutionPdfPresignedResponse>(
-      `/teacher/tasks/${taskId}/solution/pdf-presign?${search.toString()}`,
+      buildTaskSolutionPdfPresignPath(taskId, ttlSec),
     );
   },
 
   getTaskSolutionPdfPresignForTeacher(taskId: string, ttlSec = 600) {
-    const search = new URLSearchParams({ ttlSec: String(ttlSec) });
     return apiRequest<TaskSolutionPdfPresignedResponse>(
-      `/teacher/tasks/${taskId}/solution/pdf-presign?${search.toString()}`,
+      buildTaskSolutionPdfPresignPath(taskId, ttlSec),
     );
   },
 
@@ -746,15 +788,9 @@ export const teacherApi = {
 
   listTeacherPhotoInbox(params?: TeacherReviewInboxFilters) {
     const search = new URLSearchParams();
-    if (params?.status) search.set("status", params.status);
-    if (params?.studentId) search.set("studentId", params.studentId);
-    if (params?.courseId) search.set("courseId", params.courseId);
-    if (params?.sectionId) search.set("sectionId", params.sectionId);
-    if (params?.unitId) search.set("unitId", params.unitId);
-    if (params?.taskId) search.set("taskId", params.taskId);
+    appendReviewFiltersToSearch(search, params);
     if (params?.limit !== undefined) search.set("limit", String(params.limit));
     if (params?.offset !== undefined) search.set("offset", String(params.offset));
-    if (params?.sort) search.set("sort", params.sort);
     const suffix = search.toString();
     return apiRequestParsed(
       `/teacher/photo-submissions${suffix ? `?${suffix}` : ""}`,
@@ -762,15 +798,12 @@ export const teacherApi = {
     );
   },
 
-  getTeacherPhotoSubmissionDetail(submissionId: string, params?: Omit<TeacherReviewInboxFilters, "limit" | "offset">) {
+  getTeacherPhotoSubmissionDetail(
+    submissionId: string,
+    params?: TeacherReviewSubmissionDetailFilters,
+  ) {
     const search = new URLSearchParams();
-    if (params?.status) search.set("status", params.status);
-    if (params?.studentId) search.set("studentId", params.studentId);
-    if (params?.courseId) search.set("courseId", params.courseId);
-    if (params?.sectionId) search.set("sectionId", params.sectionId);
-    if (params?.unitId) search.set("unitId", params.unitId);
-    if (params?.taskId) search.set("taskId", params.taskId);
-    if (params?.sort) search.set("sort", params.sort);
+    appendReviewFiltersToSearch(search, params);
     const suffix = search.toString();
     return apiRequestParsed(
       `/teacher/photo-submissions/${submissionId}${suffix ? `?${suffix}` : ""}`,
@@ -780,7 +813,7 @@ export const teacherApi = {
 
   listStudentPhotoQueue(
     studentId: string,
-    params?: { status?: "submitted" | "accepted" | "rejected"; limit?: number; offset?: number },
+    params?: Partial<SharedTeacherPhotoQueueQuery>,
   ) {
     const search = new URLSearchParams();
     if (params?.status) search.set("status", params.status);
@@ -802,8 +835,8 @@ export const teacherApi = {
   presignStudentTaskPhotoView(
     studentId: string,
     taskId: string,
-    assetKey: string,
-    ttlSec?: number,
+    assetKey: SharedTeacherPhotoPresignViewQuery["assetKey"],
+    ttlSec?: SharedTeacherPhotoPresignViewQuery["ttlSec"],
   ) {
     const search = new URLSearchParams({ assetKey });
     if (ttlSec !== undefined) search.set("ttlSec", String(ttlSec));
@@ -825,7 +858,7 @@ export const teacherApi = {
     studentId: string,
     taskId: string,
     submissionId: string,
-    reason?: string,
+    reason?: SharedTeacherPhotoRejectRequest["reason"],
   ) {
     return apiRequestParsed(
       `/teacher/students/${studentId}/tasks/${taskId}/photo-submissions/${submissionId}/reject`,
@@ -838,17 +871,11 @@ export const teacherApi = {
   },
 
   creditStudentTask(studentId: string, taskId: string) {
-    return apiRequest<{ ok: true; status: string; taskId: string; studentId: string }>(
-      `/teacher/students/${studentId}/tasks/${taskId}/credit`,
-      { method: "POST" },
-    );
+    return creditTaskRequest(studentId, taskId);
   },
 
   creditTask(studentId: string, taskId: string) {
-    return apiRequest<{ ok: true; status: string; taskId: string; studentId: string }>(
-      `/teacher/students/${studentId}/tasks/${taskId}/credit`,
-      { method: "POST" },
-    );
+    return creditTaskRequest(studentId, taskId);
   },
 
   overrideOpenUnit(studentId: string, unitId: string) {
@@ -893,17 +920,11 @@ export const teacherApi = {
   },
 
   getLatexCompileJob(jobId: string, ttlSec = 600) {
-    const search = new URLSearchParams({ ttlSec: String(ttlSec) });
-    return apiRequest<LatexCompileJobStatusResponse>(
-      `/teacher/latex/jobs/${jobId}?${search.toString()}`,
-    );
+    return apiRequest<LatexCompileJobStatusResponse>(buildLatexCompileJobPath(jobId, ttlSec));
   },
 
   getLatexJob(jobId: string, ttlSec = 600) {
-    const search = new URLSearchParams({ ttlSec: String(ttlSec) });
-    return apiRequest<LatexCompileJobStatusResponse>(
-      `/teacher/latex/jobs/${jobId}?${search.toString()}`,
-    );
+    return apiRequest<LatexCompileJobStatusResponse>(buildLatexCompileJobPath(jobId, ttlSec));
   },
 
   applyLatexCompileJob(jobId: string) {

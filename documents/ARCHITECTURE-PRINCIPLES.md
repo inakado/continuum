@@ -15,6 +15,7 @@
 - `Implemented` (2026-02-27, Phase 0 tests baseline): в `apps/api`, `apps/web`, `apps/worker`, `packages/shared` подключён `vitest`, добавлены минимальные автотесты для health/login/storage-config критичных путей.
 - `Implemented` (2026-02-27, Phase 1 completed / scope: wave1 Learning/Photo): внедрён schema-first contract slice на `zod` (`@continuum/shared`), подключён custom `ZodValidationPipe` в API boundary для wave1 endpoint-ов, и включён runtime parsing ответов в web-клиенте (`apiRequestParsed`, `API_RESPONSE_INVALID`).
 - `Implemented/Planned` (2026-02-27, Phase 2): для backend декомпозиции добавлен integration safety-net через `supertest` (`Implemented`, wave1); выполнена декомпозиция `learning.service.ts`, `photo-task.service.ts` и `content.service.ts` с выносом graph/payload/write-path сервисов (`Implemented`, wave2-wave4), плюс введён `learning-audit-log.service.ts` и перевод refactored learning/photo write сервисов на audit-helper (`Implemented`, wave5). Дальнейшее масштабирование helper-подхода на остальные модули API остаётся `Planned`.
+- `Implemented/Planned` (2026-02-27, Phase 3 waves 1-6): в `apps/web` подключён `@tanstack/react-query`, добавлен `QueryProvider` в root layout и query key factory для Learning/Photo (`Implemented`, wave1); read-path migration выполнен для `TeacherReviewInboxPanel`, `TeacherReviewSubmissionDetailPanel`, `StudentUnitDetailScreen` (`Implemented`, wave2); write-path (`submitAttempt`, `submitPhoto`, `accept/reject`) переведён на `useMutation` с query invalidation для migration-среза (`Implemented`, wave3); `StudentUnitDetailScreen` и `TeacherUnitDetailScreen` декомпозированы на hooks/subcomponents и оставлены composition-shell (`Implemented`, wave4-wave5); API client surface cleanup для migration-среза завершён в `student.ts`/`teacher.ts` через shared aliases и устранение дублей (`Implemented`, wave6). Дальнейшее расширение migration на non-learning/non-photo остаётся `Planned`.
 
 ## 1) Baseline читаемости и поддерживаемости (`Implemented`, снимок на 2026-02-26)
 
@@ -35,11 +36,16 @@
   - в API-коде много входов типа `unknown`.
 - Frontend в режиме client-first:
   - `41` из `64` TSX-файлов помечены `'use client'`,
-  - в feature-экранах повторяется ручной anti-race паттерн `requestIdRef`.
+  - в feature-экранах повторяются ручные anti-race паттерны (`cancelled/disposed` флаги и cleanup в `useEffect`).
 - Дельта после backend-декомпозиции (2026-02-27, `Implemented`):
   - `apps/api/src/learning/learning.service.ts`: `1378 -> 470` строк;
   - `apps/api/src/learning/photo-task.service.ts`: `1287 -> 88` строк (фасад, read/write вынесены);
   - `apps/api/src/content/content.service.ts`: `1594 -> 384` строки (graph/payload/write слои вынесены).
+- Дельта после frontend-декомпозиции (2026-02-27, `Implemented`):
+  - `apps/web/features/student-content/units/StudentUnitDetailScreen.tsx`: `1327 -> 508` строк;
+  - `apps/web/features/teacher-content/units/TeacherUnitDetailScreen.tsx`: `2140 -> 815` строк;
+  - orchestration вынесен в hooks (`attempt`, `photo submit`, `pdf/image preview`, `task navigation`);
+  - UI-блоки вынесены в subcomponents (`task card shell`, `task answers`, `task media preview`, `task tabs`, `unit pdf panel`, `teacher task/editor panels`, `compile panels`, `media/upload blocks`).
 
 ## 2) Целевые архитектурные принципы (`Planned`)
 
@@ -71,8 +77,10 @@
 - `nestjs-zod` (или эквивалентный bridge-слой):
   - интеграция Zod-схем в NestJS pipe/DTO-поток без ручного парсинга в каждом сервисе (`Planned`);
   - текущий bridge в коде: custom `ZodValidationPipe` (`Implemented`, wave1).
-- `@tanstack/react-query`:
+- `@tanstack/react-query` (`Implemented/Planned`):
   - единый server-state cache/dedup/retry/invalidation слой на frontend.
+  - `Implemented`: foundation (`QueryProvider` + `QueryClient` + query keys) в `apps/web`, плюс migration Learning/Photo read/write-path на `useQuery/useQueries/useMutation`;
+  - `Planned`: дальнейшая migration оставшихся экранов и декомпозиция крупных модулей.
 - `vitest` + `@testing-library/react` + `@testing-library/user-event` + `@testing-library/jest-dom` (`Implemented` для baseline в `apps/web`, дальнейшее расширение `Planned`):
   - безопасный рефакторинг React-модулей.
 - `supertest`:
@@ -105,8 +113,12 @@
   - `apps/web` — runtime-парсинг API-ответов и форм (`Implemented` для wave1 Learning/Photo, далее `Planned` для расширения).
 - `nestjs-zod` (`Planned`):
   - только `apps/api` (интеграция схем в NestJS pipeline).
-- `@tanstack/react-query` (`Planned`):
-  - только `apps/web` (server-state слой).
+- `@tanstack/react-query` (`Implemented/Planned`):
+  - только `apps/web` (server-state слой);
+  - `Implemented`: `apps/web/lib/query/query-client.ts`, `apps/web/lib/query/query-provider.tsx`, `apps/web/lib/query/keys.ts`, подключение provider в `apps/web/app/layout.tsx`;
+  - `Implemented`: перевод Learning/Photo wave-среза (`TeacherReviewInboxPanel`, `TeacherReviewSubmissionDetailPanel`, `StudentUnitDetailScreen`) на query hooks для read/write;
+  - `Implemented`: cleanup API client surface для migration-среза в `apps/web/lib/api/student.ts` и `apps/web/lib/api/teacher.ts` (shared aliases + dedup helpers);
+  - `Planned`: перевод остальных экранов с ручного `useEffect` orchestration на query hooks.
 - `vitest` + Testing Library (`Implemented` baseline в `apps/web`, расширение `Planned`):
   - в `apps/web` покрыт минимальный login happy-path/error-path;
   - далее: расширение покрытия unit/component/hooks и, при необходимости, `packages/shared`.

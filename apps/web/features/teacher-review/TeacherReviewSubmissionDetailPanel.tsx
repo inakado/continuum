@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import LiteTex from "@/components/LiteTex";
 import Button from "@/components/ui/Button";
 import { teacherApi, type TeacherReviewSubmissionDetailResponse } from "@/lib/api/teacher";
+import { learningPhotoQueryKeys } from "@/lib/query/keys";
 import { getPhotoReviewStatusLabel } from "@/lib/status-labels";
 import { formatApiErrorPayload } from "@/features/teacher-content/shared/api-errors";
 import { buildReviewSearch, readReviewRouteFilters } from "./review-query";
@@ -39,6 +41,7 @@ const getTaskNumberLabel = (task: { sortOrder: number }) => `№ ${task.sortOrde
 
 export default function TeacherReviewSubmissionDetailPanel({ submissionId }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const searchParamsKey = searchParams.toString();
   const filters = useMemo(
@@ -46,152 +49,95 @@ export default function TeacherReviewSubmissionDetailPanel({ submissionId }: Pro
     [searchParamsKey],
   );
 
-  const [detail, setDetail] = useState<TeacherReviewSubmissionDetailResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const detailQuery = useQuery<TeacherReviewSubmissionDetailResponse>({
+    queryKey: learningPhotoQueryKeys.teacherReviewSubmissionDetail(submissionId, filters),
+    queryFn: () => teacherApi.getTeacherPhotoSubmissionDetail(submissionId, filters),
+  });
+  const [actionError, setActionError] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState<"accept" | "reject" | null>(null);
-  const [photoPreviewUrlByAssetKey, setPhotoPreviewUrlByAssetKey] = useState<Record<string, string>>({});
-  const [photoPreviewErrorByAssetKey, setPhotoPreviewErrorByAssetKey] = useState<Record<string, true>>({});
   const [activeAssetIndex, setActiveAssetIndex] = useState(0);
-  const [photoPreviewRetryToken, setPhotoPreviewRetryToken] = useState(0);
-  const photoPreviewCacheRef = useRef<Record<string, string>>({});
-  const photoPreviewErrorRef = useRef<Record<string, true>>({});
-
-  const loadDetail = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await teacherApi.getTeacherPhotoSubmissionDetail(submissionId, filters);
-      setDetail(response);
-      setActiveAssetIndex(0);
-      setPhotoPreviewErrorByAssetKey({});
-    } catch (err) {
-      setDetail(null);
-      setError(formatApiErrorPayload(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [filters, submissionId]);
-
-  useEffect(() => {
-    void loadDetail();
-  }, [loadDetail]);
-
-  useEffect(() => {
-    photoPreviewCacheRef.current = photoPreviewUrlByAssetKey;
-  }, [photoPreviewUrlByAssetKey]);
-
-  useEffect(() => {
-    photoPreviewErrorRef.current = photoPreviewErrorByAssetKey;
-  }, [photoPreviewErrorByAssetKey]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const preload = async () => {
-      const submission = detail?.submission;
-      if (!submission) return;
-      const missingAssetKeys = submission.assetKeys.filter(
-        (assetKey) => !photoPreviewCacheRef.current[assetKey] && !photoPreviewErrorRef.current[assetKey],
-      );
-      if (!missingAssetKeys.length) return;
-
-      const entries = await Promise.all(
-        missingAssetKeys.map(async (assetKey) => {
-          try {
-            const response = await teacherApi.presignStudentTaskPhotoView(
-              submission.student.id,
-              submission.task.id,
-              assetKey,
-              300,
-            );
-            if (cancelled) return;
-            return { assetKey, url: response.url, failed: false } as const;
-          } catch {
-            /* fallback: show retry state in viewer */
-            return { assetKey, url: null, failed: true } as const;
-          }
-        }),
-      );
-
-      if (cancelled) return;
-
-      const prepared = entries.filter(
-        (entry): entry is { readonly assetKey: string; readonly url: string; readonly failed: false } =>
-          Boolean(entry && entry.url),
-      );
-      const failedAssetKeys = entries
-        .filter((entry): entry is { readonly assetKey: string; readonly url: null; readonly failed: true } =>
-          Boolean(entry?.failed),
-        )
-        .map((entry) => entry.assetKey);
-
-      if (prepared.length) {
-        setPhotoPreviewUrlByAssetKey((prev) => {
-          let changed = false;
-          const next = { ...prev };
-          for (const { assetKey, url } of prepared) {
-            if (next[assetKey] === url) continue;
-            next[assetKey] = url;
-            changed = true;
-          }
-          if (!changed) return prev;
-          photoPreviewCacheRef.current = next;
-          return next;
-        });
+  const detail = detailQuery.data ?? null;
+  const loading = detailQuery.isPending;
+  const error = actionError ?? (detailQuery.isError ? formatApiErrorPayload(detailQuery.error) : null);
+  const submission = detail?.submission ?? null;
+  const reviewActionMutation = useMutation({
+    mutationFn: async (input: {
+      action: "accept" | "reject";
+      studentId: string;
+      taskId: string;
+      submissionId: string;
+    }) => {
+      if (input.action === "accept") {
+        await teacherApi.acceptStudentTaskPhotoSubmission(
+          input.studentId,
+          input.taskId,
+          input.submissionId,
+        );
+      } else {
+        await teacherApi.rejectStudentTaskPhotoSubmission(
+          input.studentId,
+          input.taskId,
+          input.submissionId,
+        );
       }
+    },
+  });
 
-      if (failedAssetKeys.length) {
-        setPhotoPreviewErrorByAssetKey((prev) => {
-          let changed = false;
-          const next = { ...prev };
-          for (const assetKey of failedAssetKeys) {
-            if (next[assetKey]) continue;
-            next[assetKey] = true;
-            changed = true;
-          }
-          if (!changed) return prev;
-          photoPreviewErrorRef.current = next;
-          return next;
-        });
-      }
+  useEffect(() => {
+    setActionError(null);
+    setActiveAssetIndex(0);
+  }, [searchParamsKey, submissionId]);
 
-      if (prepared.length) {
-        setPhotoPreviewErrorByAssetKey((prev) => {
-          let changed = false;
-          const next = { ...prev };
-          for (const { assetKey } of prepared) {
-            if (!next[assetKey]) continue;
-            delete next[assetKey];
-            changed = true;
-          }
-          if (!changed) return prev;
-          photoPreviewErrorRef.current = next;
-          return next;
-        });
-      }
-    };
-
-    void preload();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [detail, photoPreviewRetryToken]);
+  const photoPreviewQueryConfigs = useMemo(() => {
+    if (!submission) return [];
+    const studentId = submission.student.id;
+    const taskId = submission.task.id;
+    return submission.assetKeys.map((assetKey) => ({
+      queryKey: learningPhotoQueryKeys.teacherPhotoAssetPreview(studentId, taskId, assetKey),
+      queryFn: async () => {
+        const response = await teacherApi.presignStudentTaskPhotoView(
+          studentId,
+          taskId,
+          assetKey,
+          300,
+        );
+        return response.url;
+      },
+      retry: 1,
+    }));
+  }, [submission]);
+  const photoPreviewQueries = useQueries({
+    queries: photoPreviewQueryConfigs,
+  });
+  const photoPreviewUrlByAssetKey = useMemo(() => {
+    if (!submission) return {};
+    return submission.assetKeys.reduce<Record<string, string>>((acc, assetKey, index) => {
+      const url = photoPreviewQueries[index]?.data;
+      if (url) acc[assetKey] = url;
+      return acc;
+    }, {});
+  }, [photoPreviewQueries, submission]);
+  const photoPreviewErrorByAssetKey = useMemo(() => {
+    if (!submission) return {};
+    return submission.assetKeys.reduce<Record<string, true>>((acc, assetKey, index) => {
+      if (photoPreviewQueries[index]?.isError) acc[assetKey] = true;
+      return acc;
+    }, {});
+  }, [photoPreviewQueries, submission]);
 
   const retryActivePreview = useCallback(() => {
-    if (!detail?.submission) return;
-    const activeAssetKey = detail.submission.assetKeys[activeAssetIndex];
+    if (!submission) return;
+    const activeAssetKey = submission.assetKeys[activeAssetIndex];
     if (!activeAssetKey) return;
-    setPhotoPreviewErrorByAssetKey((prev) => {
-      if (!prev[activeAssetKey]) return prev;
-      const next = { ...prev };
-      delete next[activeAssetKey];
-      photoPreviewErrorRef.current = next;
-      return next;
+    void queryClient.invalidateQueries({
+      queryKey: learningPhotoQueryKeys.teacherPhotoAssetPreview(
+        submission.student.id,
+        submission.task.id,
+        activeAssetKey,
+      ),
+      exact: true,
     });
-    setPhotoPreviewRetryToken((prev) => prev + 1);
-  }, [activeAssetIndex, detail]);
+  }, [activeAssetIndex, queryClient, submission]);
 
   const queryString = useMemo(() => buildReviewSearch(filters), [filters]);
 
@@ -211,23 +157,19 @@ export default function TeacherReviewSubmissionDetailPanel({ submissionId }: Pro
       const submission = detail?.submission;
       if (!submission || actionBusy || submission.status !== "pending_review") return;
       setActionBusy(action);
-      setError(null);
+      setActionError(null);
 
       const nextSubmissionId = detail.navigation.nextSubmissionId ?? detail.navigation.prevSubmissionId;
       try {
-        if (action === "accept") {
-          await teacherApi.acceptStudentTaskPhotoSubmission(
-            submission.student.id,
-            submission.task.id,
-            submission.submissionId,
-          );
-        } else {
-          await teacherApi.rejectStudentTaskPhotoSubmission(
-            submission.student.id,
-            submission.task.id,
-            submission.submissionId,
-          );
-        }
+        await reviewActionMutation.mutateAsync({
+          action,
+          studentId: submission.student.id,
+          taskId: submission.task.id,
+          submissionId: submission.submissionId,
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ["learning-photo", "teacher", "review"],
+        });
 
         if (nextSubmissionId) {
           goToSubmission(nextSubmissionId);
@@ -235,15 +177,14 @@ export default function TeacherReviewSubmissionDetailPanel({ submissionId }: Pro
           goToInbox();
         }
       } catch (err) {
-        setError(formatApiErrorPayload(err));
+        setActionError(formatApiErrorPayload(err));
       } finally {
         setActionBusy(null);
       }
     },
-    [actionBusy, detail, goToInbox, goToSubmission],
+    [actionBusy, detail, goToInbox, goToSubmission, queryClient, reviewActionMutation],
   );
 
-  const submission = detail?.submission ?? null;
   const navigation = detail?.navigation ?? null;
   const assetKeys = submission?.assetKeys ?? [];
   const activeAssetKey = assetKeys[activeAssetIndex] ?? null;

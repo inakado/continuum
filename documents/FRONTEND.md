@@ -53,6 +53,64 @@
 - Если refresh вернул `REFRESH_TOKEN_STALE`, клиент делает короткую паузу и повторяет исходный запрос с текущими cookie (race-tolerant сценарий).
 - Базовый URL: `NEXT_PUBLIC_API_BASE_URL` (default `http://localhost:3000`).
 
+## Server-state foundation (`Implemented`, Phase 3 Wave 1)
+
+- В web подключён `@tanstack/react-query` как базовый server-state слой.
+- В `apps/web/app/layout.tsx` добавлен `QueryProvider`, который оборачивает все routes.
+- Query client вынесен в `apps/web/lib/query/query-client.ts`:
+  - дефолтный `staleTime=30s`, `gcTime=5m`;
+  - `refetchOnWindowFocus=false`;
+  - retry для queries отключён на 4xx `ApiError` и ограничен для остальных ошибок.
+- Базовый key factory для Learning/Photo вынесен в `apps/web/lib/query/keys.ts`.
+- Foundation используется как базовый слой для migration waves 2+.
+
+## Server-state adoption (`Implemented/Planned`, Phase 3 Waves 2-6)
+
+- `Implemented` (read-path migration):
+  - `apps/web/features/teacher-review/TeacherReviewInboxPanel.tsx` использует `useQuery` для inbox/students read-flow;
+  - `apps/web/features/teacher-review/TeacherReviewSubmissionDetailPanel.tsx` использует `useQuery` для detail и `useQueries` для photo preview presign read-flow;
+  - `apps/web/features/student-content/units/StudentUnitDetailScreen.tsx` использует `useQuery` для `getUnit` и unit PDF preview (`theory/method`).
+- `Implemented` (write-path migration):
+  - `apps/web/features/student-content/units/StudentUnitDetailScreen.tsx` использует `useMutation` для `submitAttempt` и `submitPhoto`;
+  - `apps/web/features/teacher-review/TeacherReviewSubmissionDetailPanel.tsx` использует `useMutation` для `accept/reject`.
+- `Implemented` (cache invalidation rules for migrated scope):
+  - после student writes invalidируется `learningPhotoQueryKeys.studentUnit(unitId)`;
+  - после teacher review action invalidируется ветка `["learning-photo","teacher","review"]`.
+- `Implemented` (anti-race simplification):
+  - ручные `cancelled` ветки в review initial-load read-flow убраны там, где их заменяет query lifecycle.
+- `Implemented` (wave4 decomposition, Student Unit):
+  - `apps/web/features/student-content/units/StudentUnitDetailScreen.tsx` оставлен composition-shell (`1327 -> 508` строк);
+  - orchestration вынесен в hooks:
+    - `use-student-task-attempt.ts`,
+    - `use-student-photo-submit.ts`,
+    - `use-student-unit-pdf-preview.ts`,
+    - `use-student-task-media-preview.ts`,
+    - `use-student-task-navigation.ts`;
+  - UI-блоки вынесены в subcomponents:
+    - `StudentTaskCardShell.tsx`,
+    - `StudentTaskAnswerForm.tsx`,
+    - `StudentTaskMediaPreview.tsx`,
+    - `StudentTaskTabs.tsx`,
+    - `StudentUnitPdfPanel.tsx`.
+- `Implemented` (wave5 decomposition, Teacher Unit):
+  - `apps/web/features/teacher-content/units/TeacherUnitDetailScreen.tsx` оставлен composition-shell (`2140 -> 815` строк);
+  - orchestration вынесен в hooks:
+    - `use-teacher-unit-fetch-save.ts`,
+    - `use-teacher-unit-latex-compile.ts`,
+    - `use-teacher-task-statement-image.ts`;
+  - UI-блоки вынесены в subcomponents:
+    - `TeacherUnitLatexPanel.tsx`,
+    - `TeacherUnitTasksPanel.tsx`,
+    - `TeacherTaskStatementImageSection.tsx`,
+    - `TeacherTaskSolutionSection.tsx`,
+    - `TeacherCompileErrorDialog.tsx`.
+- `Implemented` (wave6 API client cleanup):
+  - `apps/web/lib/api/student.ts` и `apps/web/lib/api/teacher.ts` очищены от дублей request/query типов в migration-срезе Learning/Photo;
+  - для wave1 endpoint-ов в клиентских сигнатурах используются shared aliases/contracts из `@continuum/shared`;
+  - повторяющаяся сборка query/path wrappers в `teacher.ts` вынесена в dedup helpers без изменения API shape.
+- `Planned`:
+  - дальнейшая migration non-learning/non-photo экранов.
+
 ## Presigned assets (CORS) (`Implemented`)
 
 - Для загрузки PDF по presigned object-storage URL (`PdfCanvasPreview`) используется `withCredentials = false` по умолчанию.
@@ -101,5 +159,8 @@
 - `apps/web/features/`
 - `apps/web/components/`
 - `apps/web/lib/api/client.ts`
+- `apps/web/lib/query/query-client.ts`
+- `apps/web/lib/query/query-provider.tsx`
+- `apps/web/lib/query/keys.ts`
 - `apps/web/lib/status-labels.ts`
 - `apps/web/components/ui/`

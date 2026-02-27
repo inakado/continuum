@@ -14,6 +14,7 @@ import "@fontsource/unbounded/700.css";
 import "./globals.css";
 import "katex/dist/katex.min.css";
 import ThemeHydration from "@/components/ThemeHydration";
+import QueryProvider from "@/lib/query/query-provider";
 
 export const metadata: Metadata = {
   title: "Континуум",
@@ -52,7 +53,7 @@ export default function RootLayout({
 })();`}
         </Script>
         <ThemeHydration />
-        {children}
+        <QueryProvider>{children}</QueryProvider>
       </body>
     </html>
   );

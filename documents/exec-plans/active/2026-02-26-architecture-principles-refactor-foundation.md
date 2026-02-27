@@ -448,12 +448,211 @@
 
 ### Phase 3 — Frontend декомпозиция
 
-- Мигрировать сетевой слой на единый server-state подход (`@tanstack/react-query` или эквивалент, утверждённый в задаче).
-- Вынести эффекты и orchestration из экранов-комбайнов в hooks.
-- Обновить frontend-документацию по структуре, server-state и правилам экранов.
-- Exit criteria:
-  - ручной `requestIdRef` anti-race паттерн минимизирован/устранён;
-  - `TeacherUnitDetailScreen` и `StudentUnitDetailScreen` разделены на feature-subcomponents + hooks.
+- Статус фазы: `Completed` (Waves 1-6 выполнены).
+
+- `Implemented` (Phase 3 baseline, 2026-02-27):
+  - до старта wave1 `@tanstack/react-query` не был подключён в `apps/web/package.json`;
+  - в `apps/web` всего 2 теста (`UnifiedLoginScreen.test.tsx`, `wave1-runtime-parsing.test.ts`);
+  - ключевые точки связности/размера:
+    - `apps/web/features/teacher-content/units/TeacherUnitDetailScreen.tsx` — `2140` строк, `35` API-вызовов;
+    - `apps/web/features/student-content/units/StudentUnitDetailScreen.tsx` — `1327` строк;
+    - `apps/web/features/teacher-dashboard/TeacherDashboardScreen.tsx` — `929` строк;
+    - `apps/web/lib/api/teacher.ts` — `914` строк;
+  - повторяющийся anti-race паттерн во frontend — ручные `cancelled/disposed` флаги и cleanup в `useEffect` (например `TeacherUnitDetailScreen`, `StudentUnitDetailScreen`, `StudentDashboardScreen`, review panels).
+
+- Зафиксированные решения для Phase 3 (без вариантов):
+  - migration path: сначала инфраструктура server-state, потом перенос Learning/Photo экранов, затем декомпозиция больших экранов;
+  - Phase 1 compatibility сохраняется: текущие `error.code` и UI-семантика ошибок не меняются;
+  - приоритет первой волны migration: Learning/Photo e2e-срез (Student Unit + Teacher Review), чтобы идти поверх уже schema-first boundary;
+  - `apps/web/lib/api/client.ts` (cookie refresh и `ApiError`) остаётся единым transport-слоем; `react-query` работает поверх существующих API-методов.
+
+- План реализации Phase 3 (waves):
+  - Wave 1 — Server-state foundation:
+    - добавить `@tanstack/react-query` в `apps/web`;
+    - создать `apps/web/lib/query/query-client.ts` и `apps/web/lib/query/query-provider.tsx`;
+    - подключить provider в `apps/web/app/layout.tsx` через client-wrapper;
+    - добавить query key factory для Learning/Photo (`apps/web/lib/query/keys.ts`).
+  - Wave 2 — Learning/Photo read migration:
+    - мигрировать read-path в `TeacherReviewInboxPanel` и `TeacherReviewSubmissionDetailPanel` на `useQuery`;
+    - мигрировать `StudentUnitDetailScreen` read-path (`getUnit`, presigned preview read-ветки) на `useQuery`;
+    - убрать локальные `cancelled/disposed` ветки там, где их заменяет query lifecycle.
+  - Wave 3 — Learning/Photo write migration:
+    - `submitAttempt`, `submitPhoto`, `accept/reject` перевести на `useMutation`;
+    - добавить целевые invalidation/update правила query cache (unit/review inbox/submission detail);
+    - сохранить текущие optimistic/non-optimistic UX и тексты ошибок.
+  - Wave 4 — Student Unit screen decomposition:
+    - выделить hooks: attempt orchestration, photo upload/submit, pdf/image preview;
+    - выделить subcomponents: task card/task answer forms/media preview blocks;
+    - оставить `StudentUnitDetailScreen` как composition shell.
+  - Wave 5 — Teacher Unit screen decomposition:
+    - выделить hooks: unit fetch/save, latex compile/apply polling, task statement image workflow;
+    - выделить subcomponents: task list/editor panels, compile panels, media/upload blocks;
+    - минимизировать прямые API-вызовы в screen-root.
+  - Wave 6 — API client surface cleanup (within web scope):
+    - для migration-среза убрать дубли типов в `student.ts`/`teacher.ts`, оставить aliases/shared contracts там, где уже есть схемы;
+    - подготовить безопасный шаблон для дальнейшей миграции non-learning экранов в Phase 4.
+
+- Проверки для каждой wave (минимум):
+  - `pnpm --filter web test`;
+  - `pnpm --filter web typecheck`;
+  - `pnpm lint`;
+  - `pnpm lint:boundaries`.
+
+### Phase 3 Wave 1 — Прогресс выполнения (2026-02-27)
+
+- Статус волны: `Completed`.
+
+- `Implemented`:
+  - установлен `@tanstack/react-query` в `apps/web`;
+  - добавлены файлы:
+    - `apps/web/lib/query/query-client.ts`,
+    - `apps/web/lib/query/query-provider.tsx`,
+    - `apps/web/lib/query/keys.ts`;
+  - `QueryProvider` подключён в `apps/web/app/layout.tsx` (обёртка над всем app tree);
+  - создан дефолтный `QueryClient` policy:
+    - `staleTime=30s`, `gcTime=5m`, `refetchOnWindowFocus=false`,
+    - retry для queries отключён на `ApiError` 4xx, ограничен для остальных ошибок,
+    - retry для mutations отключён.
+
+- `Implemented` (проверка):
+  - `pnpm --filter web typecheck` — `pass`;
+  - `pnpm --filter web test` — `pass`;
+  - `pnpm lint` — `pass` (`0 errors`, warnings допустимы);
+  - `pnpm lint:boundaries` — `pass`.
+
+- Next:
+  - Wave 2 — миграция Learning/Photo read-path (`TeacherReviewInboxPanel`, `TeacherReviewSubmissionDetailPanel`, `StudentUnitDetailScreen`) на `useQuery`.
+
+### Phase 3 Wave 2 — Прогресс выполнения (2026-02-27)
+
+- Статус волны: `Completed`.
+
+- `Implemented`:
+  - `TeacherReviewInboxPanel` переведён с ручного `useEffect`/локального `items|total|loading|error` стейта на `useQuery`;
+  - `TeacherReviewSubmissionDetailPanel` переведён на `useQuery` для detail-загрузки и `useQueries` для asset preview presign read-path;
+  - `StudentUnitDetailScreen` переведён на `useQuery` для `getUnit` и unit PDF preview (`theory/method`);
+  - ручные `cancelled` ветки для review inbox/detail initial read-flow удалены.
+
+- `Implemented` (проверка):
+  - `pnpm --filter web typecheck` — `pass`;
+  - `pnpm --filter web test` — `pass`;
+  - `pnpm lint` — `pass` (`0 errors`, warnings допустимы);
+  - `pnpm lint:boundaries` — `pass`.
+
+- Next:
+  - Wave 3 — миграция Learning/Photo write-path (`submitAttempt`, `submitPhoto`, `accept/reject`) на `useMutation` + query invalidation.
+
+### Phase 3 Wave 3 — Прогресс выполнения (2026-02-27)
+
+- Статус волны: `Completed`.
+
+- `Implemented`:
+  - `StudentUnitDetailScreen`:
+    - `submitAttempt` переведён на `useMutation`;
+    - `submitPhoto` (presign-upload + PUT + submit) переведён на `useMutation`;
+    - после успешных write-операций добавлен `queryClient.invalidateQueries` для `learningPhotoQueryKeys.studentUnit(unitId)`.
+  - `TeacherReviewSubmissionDetailPanel`:
+    - `accept/reject` переведены на `useMutation`;
+    - после review action добавлен `queryClient.invalidateQueries` по префиксу `["learning-photo","teacher","review"]` (inbox/detail/preview cache ветка).
+  - legacy UI semantics сохранены:
+    - текущие user-facing тексты ошибок и статусные сообщения не менялись;
+    - flow переходов `next submission / back to inbox` сохранён.
+
+- `Implemented` (проверка):
+  - `pnpm --filter web typecheck` — `pass`;
+  - `pnpm --filter web test` — `pass`;
+  - `pnpm lint` — `pass` (`0 errors`, warnings допустимы);
+  - `pnpm lint:boundaries` — `pass`.
+
+- Next:
+  - Wave 4 — декомпозиция `StudentUnitDetailScreen` на hooks/subcomponents (`Completed`).
+
+### Phase 3 Wave 4 — Прогресс выполнения (2026-02-27)
+
+- Статус волны: `Completed`.
+
+- `Implemented`:
+  - `StudentUnitDetailScreen` декомпозирован до composition-shell (`1327 -> 508` строк);
+  - выделены hooks:
+    - `apps/web/features/student-content/units/hooks/use-student-task-attempt.ts`,
+    - `apps/web/features/student-content/units/hooks/use-student-photo-submit.ts`,
+    - `apps/web/features/student-content/units/hooks/use-student-unit-pdf-preview.ts`,
+    - `apps/web/features/student-content/units/hooks/use-student-task-media-preview.ts`,
+    - `apps/web/features/student-content/units/hooks/use-student-task-navigation.ts`;
+  - выделены subcomponents:
+    - `apps/web/features/student-content/units/components/StudentTaskCardShell.tsx`,
+    - `apps/web/features/student-content/units/components/StudentTaskAnswerForm.tsx`,
+    - `apps/web/features/student-content/units/components/StudentTaskMediaPreview.tsx`,
+    - `apps/web/features/student-content/units/components/StudentTaskTabs.tsx`,
+    - `apps/web/features/student-content/units/components/StudentUnitPdfPanel.tsx`;
+  - API-поведение и user-facing семантика для Learning/Photo среза сохранены (submitAttempt/submitPhoto, блокировки, solution/media preview, тексты ошибок).
+
+- `Implemented` (проверка):
+  - `pnpm --filter web typecheck` — `pass`;
+  - `pnpm --filter web test` — `pass`;
+  - `pnpm lint` — `pass` (`0 errors`, warnings допустимы);
+  - `pnpm lint:boundaries` — `pass`.
+
+- Next:
+  - Wave 5 — декомпозиция `TeacherUnitDetailScreen` на hooks/subcomponents (`Completed`).
+
+### Phase 3 Wave 5 — Прогресс выполнения (2026-02-27)
+
+- Статус волны: `Completed`.
+
+- `Implemented`:
+  - `TeacherUnitDetailScreen` декомпозирован в composition-shell (`2140 -> 815` строк);
+  - выделены hooks:
+    - `apps/web/features/teacher-content/units/hooks/use-teacher-unit-fetch-save.ts`,
+    - `apps/web/features/teacher-content/units/hooks/use-teacher-unit-latex-compile.ts`,
+    - `apps/web/features/teacher-content/units/hooks/use-teacher-task-statement-image.ts`;
+  - выделены subcomponents:
+    - `apps/web/features/teacher-content/units/components/TeacherUnitLatexPanel.tsx`,
+    - `apps/web/features/teacher-content/units/components/TeacherUnitTasksPanel.tsx`,
+    - `apps/web/features/teacher-content/units/components/TeacherTaskStatementImageSection.tsx`,
+    - `apps/web/features/teacher-content/units/components/TeacherTaskSolutionSection.tsx`,
+    - `apps/web/features/teacher-content/units/components/TeacherCompileErrorDialog.tsx`;
+  - в screen-root существенно сокращены прямые orchestration-цепочки: unit fetch/save, latex compile/apply polling, task statement image workflow обслуживаются через выделенные hooks.
+
+- `Implemented` (проверка):
+  - `pnpm --filter web typecheck` — `pass`;
+  - `pnpm --filter web test` — `pass`;
+  - `pnpm lint` — `pass` (`0 errors`, warnings допустимы);
+  - `pnpm lint:boundaries` — `pass`.
+
+- Next:
+  - Wave 6 — API client surface cleanup (within web scope).
+
+### Phase 3 Wave 6 — Прогресс выполнения (2026-02-27)
+
+- Статус волны: `Completed`.
+
+- `Implemented`:
+  - выполнен API client surface cleanup в `apps/web/lib/api/student.ts` и `apps/web/lib/api/teacher.ts` для migration-среза Learning/Photo;
+  - локальные дубли типов request/query для wave1 endpoint-ов заменены на shared aliases из `@continuum/shared`;
+  - в `teacher.ts` убраны дублирующие query-param сборки для review endpoints (вынесен общий helper), и сокращены дубли endpoint wrappers (`credit`, `latex job`, `task solution presign`) без изменения URL/payload shape;
+  - в `student.ts` сигнатуры photo-wave1 методов синхронизированы с shared request contracts (`presign upload`, `submit`, `presign view`).
+
+- `Implemented` (проверка):
+  - `pnpm --filter @continuum/shared test` — `pass`;
+  - `pnpm --filter @continuum/api test` — `pass`;
+  - `pnpm --filter @continuum/worker test` — `pass`;
+  - `pnpm --filter web test` — `pass`;
+  - `pnpm test` — `pass`;
+  - `pnpm lint` — `pass` (`0 errors`, warnings допустимы);
+  - `pnpm lint:boundaries` — `pass`;
+  - `pnpm typecheck` — `pass`;
+  - `pnpm smoke` (вне sandbox) — `pass`;
+  - расширенный teacher/student cookie-auth smoke для wave1 endpoint-ов — `pass` (ожидаемые error-codes + 200 на inbox/queue/list).
+
+- Next:
+  - Phase 4 — stabilization/DX (error catalog consistency, quality budgets in CI, дальнейшая migration non-learning экранов).
+
+- Definition of Done для Phase 3:
+  - серверное состояние Learning/Photo read/write сценариев обслуживается через `react-query`;
+  - ручные anti-race флаги (`cancelled/disposed`) в migrated-экранах удалены или сведены к edge-cases, которые не покрываются query lifecycle;
+  - `TeacherUnitDetailScreen` и `StudentUnitDetailScreen` декомпозированы на hooks/subcomponents, root-компоненты перестают быть “комбайнами”;
+  - обновлены `documents/FRONTEND.md`, `documents/ARCHITECTURE-PRINCIPLES.md` и execution plan по факту внедрения.
 
 ### Phase 4 — Stabilization и DX
 

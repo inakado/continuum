@@ -7,7 +7,10 @@ import {
   type NumericAttemptRequest as SharedNumericAttemptRequest,
   type SingleChoiceAttemptRequest as SharedSingleChoiceAttemptRequest,
   type StudentAttemptResponse as SharedStudentAttemptResponse,
+  type StudentPhotoPresignUploadRequest as SharedStudentPhotoPresignUploadRequest,
+  type StudentPhotoPresignViewQuery as SharedStudentPhotoPresignViewQuery,
   type StudentPhotoPresignUploadResponse as SharedStudentPhotoPresignUploadResponse,
+  type StudentPhotoSubmitRequest as SharedStudentPhotoSubmitRequest,
   type StudentPhotoPresignViewResponse as SharedStudentPhotoPresignViewResponse,
   type StudentPhotoSubmitResponse as SharedStudentPhotoSubmitResponse,
 } from "@continuum/shared";
@@ -153,11 +156,7 @@ export type UnitPdfPresignedResponse = {
   url: string | null;
 };
 
-export type StudentPhotoFileInput = {
-  filename: string;
-  contentType: string;
-  sizeBytes: number;
-};
+export type StudentPhotoFileInput = SharedStudentPhotoPresignUploadRequest["files"][number];
 
 export type StudentPhotoTaskSubmission = {
   id: string;
@@ -248,7 +247,11 @@ export const studentApi = {
     });
   },
 
-  presignPhotoUpload(taskId: string, files: StudentPhotoFileInput[], ttlSec?: number) {
+  presignPhotoUpload(
+    taskId: string,
+    files: StudentPhotoFileInput[],
+    ttlSec?: SharedStudentPhotoPresignUploadRequest["ttlSec"],
+  ) {
     return apiRequestParsed(
       `/student/tasks/${taskId}/photo/presign-upload`,
       StudentPhotoPresignUploadResponseSchema,
@@ -262,7 +265,7 @@ export const studentApi = {
     );
   },
 
-  submitPhoto(taskId: string, assetKeys: string[]) {
+  submitPhoto(taskId: string, assetKeys: SharedStudentPhotoSubmitRequest["assetKeys"]) {
     return apiRequestParsed(`/student/tasks/${taskId}/photo/submit`, StudentPhotoSubmitResponseSchema, {
       method: "POST",
       body: { assetKeys },
@@ -273,7 +276,11 @@ export const studentApi = {
     return apiRequest<StudentPhotoSubmissionsResponse>(`/student/tasks/${taskId}/photo/submissions`);
   },
 
-  presignPhotoView(taskId: string, assetKey: string, ttlSec?: number) {
+  presignPhotoView(
+    taskId: string,
+    assetKey: SharedStudentPhotoPresignViewQuery["assetKey"],
+    ttlSec?: SharedStudentPhotoPresignViewQuery["ttlSec"],
+  ) {
     const search = new URLSearchParams({ assetKey });
     if (ttlSec !== undefined) {
       search.set("ttlSec", String(ttlSec));

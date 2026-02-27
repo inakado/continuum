@@ -1,14 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type ChangeEvent } from "react";
-import dynamic from "next/dynamic";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  studentApi,
-  UnitWithTasks,
-  AttemptRequest,
-  TaskState,
-} from "@/lib/api/student";
+import { studentApi, type TaskState, type UnitWithTasks } from "@/lib/api/student";
+import { ApiError } from "@/lib/api/client";
+import { learningPhotoQueryKeys } from "@/lib/query/keys";
 import { getStudentErrorMessage } from "../shared/student-errors";
 import StudentNotFound from "../shared/StudentNotFound";
 import styles from "./student-unit-detail.module.css";
@@ -16,35 +13,33 @@ import DashboardShell from "@/components/DashboardShell";
 import Tabs from "@/components/ui/Tabs";
 import { toYouTubeEmbed } from "@/lib/video-embed";
 import Button from "@/components/ui/Button";
-import LiteTex from "@/components/LiteTex";
 import { useStudentLogout } from "../auth/use-student-logout";
 import { useStudentIdentity } from "../shared/use-student-identity";
-import { ApiError } from "@/lib/api/client";
+import { useStudentUnitPdfPreview } from "./hooks/use-student-unit-pdf-preview";
+import { useStudentTaskNavigation } from "./hooks/use-student-task-navigation";
+import { useStudentTaskAttempt } from "./hooks/use-student-task-attempt";
+import { useStudentPhotoSubmit } from "./hooks/use-student-photo-submit";
+import { useStudentTaskMediaPreview } from "./hooks/use-student-task-media-preview";
+import { StudentUnitPdfPanel } from "./components/StudentUnitPdfPanel";
+import { StudentTaskTabs } from "./components/StudentTaskTabs";
+import { StudentTaskCardShell } from "./components/StudentTaskCardShell";
+import { StudentTaskAnswerForm } from "./components/StudentTaskAnswerForm";
+import { StudentTaskMediaPreview } from "./components/StudentTaskMediaPreview";
 
 type Props = {
   unitId: string;
 };
 
 type TabKey = "theory" | "method" | "tasks" | "video" | "attachments";
-const PDF_ZOOM_MIN = 0.5;
-const PDF_ZOOM_MAX = 1.4;
-const PDF_ZOOM_STEP = 0.1;
-const PDF_ZOOM_DEFAULT = 0.8;
-const PHOTO_MAX_FILES = 5;
-const PHOTO_MAX_SIZE_BYTES = 20 * 1024 * 1024;
-const PHOTO_ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const PHOTO_REVIEWABLE_STATUS = new Set<TaskState["status"]>(["not_started", "in_progress", "rejected"]);
+
 const CREDITED_TASK_STATUSES = new Set<TaskState["status"]>([
   "correct",
   "accepted",
   "credited_without_progress",
   "teacher_credited",
 ]);
+
 const SOLVED_TASK_STATUSES = new Set<TaskState["status"]>(["correct", "accepted", "teacher_credited"]);
-const PdfCanvasPreview = dynamic(() => import("@/components/PdfCanvasPreview"), {
-  ssr: false,
-  loading: () => <div className={styles.stub}>Загрузка PDF...</div>,
-});
 
 const formatRemainingDuration = (remainingMs: number) => {
   const totalSeconds = Math.ceil(Math.max(0, remainingMs) / 1000);
@@ -53,16 +48,6 @@ const formatRemainingDuration = (remainingMs: number) => {
   if (minutes <= 0) return `${seconds}с`;
   if (seconds === 0) return `${minutes}м`;
   return `${minutes}м ${seconds}с`;
-};
-
-const formatBytes = (bytes: number) => {
-  if (bytes >= 1024 * 1024) {
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
-  if (bytes >= 1024) {
-    return `${Math.round(bytes / 1024)} KB`;
-  }
-  return `${bytes} B`;
 };
 
 function BlockedCountdown({ blockedUntilIso }: { blockedUntilIso: string }) {
@@ -87,305 +72,30 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
   const router = useRouter();
   const handleLogout = useStudentLogout();
   const identity = useStudentIdentity();
-  const [unit, setUnit] = useState<UnitWithTasks | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [notFound, setNotFound] = useState(false);
-  const [lockedAccessMessage, setLockedAccessMessage] = useState<string | null>(null);
+
+  const unitQuery = useQuery<UnitWithTasks>({
+    queryKey: learningPhotoQueryKeys.studentUnit(unitId),
+    queryFn: () => studentApi.getUnit(unitId),
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError) {
+        if (error.status === 409 && error.code === "UNIT_LOCKED") return false;
+        if (error.status === 404) return false;
+      }
+      return failureCount < 2;
+    },
+  });
+
+  const unit = unitQuery.data ?? null;
+  const unitError = unitQuery.error;
+  const isLockedAccess =
+    unitQuery.isError && unitError instanceof ApiError && unitError.status === 409 && unitError.code === "UNIT_LOCKED";
+  const lockedAccessMessage = isLockedAccess ? "Юнит пока заблокирован" : null;
+  const error = unitQuery.isError && !isLockedAccess ? getStudentErrorMessage(unitError) : null;
+  const notFound = error === "Не найдено или недоступно";
+
   const [activeTab, setActiveTab] = useState<TabKey>("tasks");
-  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
-  const [numericAnswers, setNumericAnswers] = useState<Record<string, Record<string, string>>>({});
-  const [singleAnswers, setSingleAnswers] = useState<Record<string, string>>({});
-  const [multiAnswers, setMultiAnswers] = useState<Record<string, string[]>>({});
-  const [showSolutionByTask, setShowSolutionByTask] = useState<Record<string, boolean>>({});
-  const [taskSolutionPdfUrlByTask, setTaskSolutionPdfUrlByTask] = useState<Record<string, string | null>>({});
-  const [taskSolutionLoadingByTask, setTaskSolutionLoadingByTask] = useState<Record<string, boolean>>({});
-  const [taskSolutionErrorByTask, setTaskSolutionErrorByTask] = useState<Record<string, string | null>>({});
-  const [statementImageUrlByTask, setStatementImageUrlByTask] = useState<Record<string, string | null>>(
-    {},
-  );
-  const [statementImageLoadingByTask, setStatementImageLoadingByTask] = useState<
-    Record<string, boolean>
-  >({});
-  const [statementImageErrorByTask, setStatementImageErrorByTask] = useState<
-    Record<string, string | null>
-  >({});
-  const [taskSolutionErrorCodeByTask, setTaskSolutionErrorCodeByTask] = useState<
-    Record<string, string | null>
-  >({});
-  const [attemptLoading, setAttemptLoading] = useState<Record<string, boolean>>({});
-  const [attemptPerPart, setAttemptPerPart] = useState<
-    Record<string, { partKey: string; correct: boolean }[] | null>
-  >({});
-  const [attemptFlash, setAttemptFlash] = useState<Record<string, "incorrect" | null>>({});
-  const [previewUrls, setPreviewUrls] = useState<Record<"theory" | "method", string | null>>({
-    theory: null,
-    method: null,
-  });
-  const [previewLoadingByTarget, setPreviewLoadingByTarget] = useState<
-    Record<"theory" | "method", boolean>
-  >({
-    theory: false,
-    method: false,
-  });
-  const [previewErrorByTarget, setPreviewErrorByTarget] = useState<
-    Record<"theory" | "method", string | null>
-  >({
-    theory: null,
-    method: null,
-  });
-  const [pdfZoomByTarget, setPdfZoomByTarget] = useState<Record<"theory" | "method", number>>({
-    theory: PDF_ZOOM_DEFAULT,
-    method: PDF_ZOOM_DEFAULT,
-  });
-  const flashTimeoutsRef = useRef<Record<string, number>>({});
-  const statementImageRetryRef = useRef<Record<string, boolean>>({});
-  const photoFileInputRef = useRef<HTMLInputElement | null>(null);
-  const [photoSelectedFilesByTask, setPhotoSelectedFilesByTask] = useState<Record<string, File[]>>({});
-  const [photoLoadingByTask, setPhotoLoadingByTask] = useState<Record<string, boolean>>({});
-  const [photoFileDialogTaskId, setPhotoFileDialogTaskId] = useState<string | null>(null);
 
-  const fetchUnit = useCallback(async () => {
-    setError(null);
-    setNotFound(false);
-    setLockedAccessMessage(null);
-    try {
-      const data = await studentApi.getUnit(unitId);
-      setUnit(data);
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 409 && err.code === "UNIT_LOCKED") {
-        setUnit(null);
-        setNotFound(false);
-        setError(null);
-        setLockedAccessMessage("Юнит пока заблокирован");
-        return;
-      }
-      const message = getStudentErrorMessage(err);
-      if (message === "Не найдено или недоступно") setNotFound(true);
-      setError(message);
-    }
-  }, [unitId]);
-
-  useEffect(() => {
-    fetchUnit();
-  }, [fetchUnit]);
-
-  useEffect(() => {
-    let disposed = false;
-    const loadPreviewUrls = async () => {
-      if (!unit?.id) {
-        setPreviewUrls({ theory: null, method: null });
-        setPreviewLoadingByTarget({ theory: false, method: false });
-        setPreviewErrorByTarget({ theory: null, method: null });
-        return;
-      }
-
-      const keyByTarget: Record<"theory" | "method", string | null | undefined> = {
-        theory: unit.theoryPdfAssetKey,
-        method: unit.methodPdfAssetKey,
-      };
-      setPreviewLoadingByTarget({
-        theory: Boolean(keyByTarget.theory),
-        method: Boolean(keyByTarget.method),
-      });
-      setPreviewErrorByTarget({ theory: null, method: null });
-
-      const targets = ["theory", "method"] as const;
-      const entries = await Promise.all(
-        targets.map(async (target) => {
-          const key = keyByTarget[target];
-          if (!key) return [target, null, null] as const;
-          try {
-            const response = await studentApi.getUnitPdfPresignedUrl(unit.id, target, 180);
-            return [target, response.url, null] as const;
-          } catch (err) {
-            return [target, null, getStudentErrorMessage(err)] as const;
-          }
-        }),
-      );
-
-      if (disposed) return;
-
-      const nextUrls: Record<"theory" | "method", string | null> = { theory: null, method: null };
-      const nextErrors: Record<"theory" | "method", string | null> = { theory: null, method: null };
-      for (const [target, url, previewError] of entries) {
-        nextUrls[target] = url;
-        nextErrors[target] = previewError;
-      }
-
-      setPreviewUrls(nextUrls);
-      setPreviewErrorByTarget(nextErrors);
-      setPreviewLoadingByTarget({ theory: false, method: false });
-    };
-
-    loadPreviewUrls();
-    return () => {
-      disposed = true;
-    };
-  }, [unit?.id, unit?.methodPdfAssetKey, unit?.theoryPdfAssetKey]);
-
-  const refreshPreviewUrl = useCallback(
-    async (target: "theory" | "method") => {
-      if (!unit?.id) return null;
-      const response = await studentApi.getUnitPdfPresignedUrl(unit.id, target, 180);
-      const nextUrl = response.url ?? null;
-      setPreviewUrls((prev) => ({ ...prev, [target]: nextUrl }));
-      setPreviewErrorByTarget((prev) => ({ ...prev, [target]: null }));
-      return nextUrl;
-    },
-    [unit?.id],
-  );
-
-  const refreshTheoryPreviewUrl = useCallback(
-    () => refreshPreviewUrl("theory"),
-    [refreshPreviewUrl],
-  );
-  const refreshMethodPreviewUrl = useCallback(
-    () => refreshPreviewUrl("method"),
-    [refreshPreviewUrl],
-  );
-
-  const loadTaskSolutionPdf = useCallback(async (taskId: string) => {
-    setTaskSolutionLoadingByTask((prev) => ({ ...prev, [taskId]: true }));
-    setTaskSolutionErrorByTask((prev) => ({ ...prev, [taskId]: null }));
-    setTaskSolutionErrorCodeByTask((prev) => ({ ...prev, [taskId]: null }));
-    try {
-      const response = await studentApi.getTaskSolutionPdfPresignForStudent(taskId, 180);
-      setTaskSolutionPdfUrlByTask((prev) => ({ ...prev, [taskId]: response.url }));
-      return response.url;
-    } catch (err) {
-      const code = err instanceof ApiError ? err.code ?? null : null;
-      setTaskSolutionPdfUrlByTask((prev) => ({ ...prev, [taskId]: null }));
-      setTaskSolutionErrorByTask((prev) => ({ ...prev, [taskId]: getStudentErrorMessage(err) }));
-      setTaskSolutionErrorCodeByTask((prev) => ({ ...prev, [taskId]: code }));
-      throw err;
-    } finally {
-      setTaskSolutionLoadingByTask((prev) => ({ ...prev, [taskId]: false }));
-    }
-  }, []);
-
-  const loadStatementImage = useCallback(async (taskId: string) => {
-    setStatementImageLoadingByTask((prev) => ({ ...prev, [taskId]: true }));
-    setStatementImageErrorByTask((prev) => ({ ...prev, [taskId]: null }));
-    try {
-      const response = await studentApi.getTaskStatementImagePresignForStudent(taskId, 180);
-      statementImageRetryRef.current[taskId] = false;
-      setStatementImageUrlByTask((prev) => ({ ...prev, [taskId]: response.url }));
-      return response.url;
-    } catch (err) {
-      if (err instanceof ApiError && err.code === "STATEMENT_IMAGE_MISSING") {
-        setStatementImageUrlByTask((prev) => ({ ...prev, [taskId]: null }));
-        setStatementImageErrorByTask((prev) => ({ ...prev, [taskId]: null }));
-        return null;
-      }
-      setStatementImageUrlByTask((prev) => ({ ...prev, [taskId]: null }));
-      setStatementImageErrorByTask((prev) => ({ ...prev, [taskId]: getStudentErrorMessage(err) }));
-      throw err;
-    } finally {
-      setStatementImageLoadingByTask((prev) => ({ ...prev, [taskId]: false }));
-    }
-  }, []);
-
-  const validatePhotoFiles = useCallback((files: File[]) => {
-    if (files.length === 0) return "Выберите хотя бы один файл.";
-    if (files.length > PHOTO_MAX_FILES) {
-      return `Можно выбрать не более ${PHOTO_MAX_FILES} файлов.`;
-    }
-    for (const file of files) {
-      if (!PHOTO_ALLOWED_TYPES.has(file.type.toLowerCase())) {
-        return "Разрешены только JPEG, PNG и WEBP.";
-      }
-      if (file.size > PHOTO_MAX_SIZE_BYTES) {
-        return `Файл ${file.name} превышает лимит ${formatBytes(PHOTO_MAX_SIZE_BYTES)}.`;
-      }
-    }
-    return null;
-  }, []);
-
-  const openPhotoFileDialog = useCallback((taskId: string) => {
-    setPhotoFileDialogTaskId(taskId);
-    photoFileInputRef.current?.click();
-  }, []);
-
-  const submitPhotoTask = useCallback(
-    async (taskId: string, filesOverride?: File[]) => {
-      const files = filesOverride ?? photoSelectedFilesByTask[taskId] ?? [];
-      const validationError = validatePhotoFiles(files);
-      if (validationError) {
-        return;
-      }
-
-      setPhotoLoadingByTask((prev) => ({ ...prev, [taskId]: true }));
-
-      try {
-        const presigned = await studentApi.presignPhotoUpload(
-          taskId,
-          files.map((file) => ({
-            filename: file.name,
-            contentType: file.type,
-            sizeBytes: file.size,
-          })),
-        );
-
-        await Promise.all(
-          presigned.uploads.map(async (upload, index) => {
-            const file = files[index];
-            if (!file) {
-              throw new Error("Ошибка сопоставления файла и presigned URL.");
-            }
-            const headers = new Headers(upload.headers ?? {});
-            if (!headers.has("Content-Type")) {
-              headers.set("Content-Type", file.type);
-            }
-
-            const response = await fetch(upload.url, {
-              method: "PUT",
-              headers,
-              body: file,
-            });
-
-            if (!response.ok) {
-              throw new Error(`Не удалось загрузить файл ${file.name}.`);
-            }
-          }),
-        );
-
-        await studentApi.submitPhoto(
-          taskId,
-          presigned.uploads.map((item) => item.assetKey),
-        );
-
-        setPhotoSelectedFilesByTask((prev) => ({ ...prev, [taskId]: [] }));
-        await fetchUnit();
-      } catch {
-      } finally {
-        setPhotoLoadingByTask((prev) => ({ ...prev, [taskId]: false }));
-      }
-    },
-    [fetchUnit, photoSelectedFilesByTask, validatePhotoFiles],
-  );
-
-  const handlePhotoFileSelection = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const taskId = photoFileDialogTaskId;
-      if (!taskId) return;
-      const files = Array.from(event.target.files ?? []);
-      event.currentTarget.value = "";
-      const validationError = validatePhotoFiles(files);
-      if (validationError) {
-        return;
-      }
-      setPhotoSelectedFilesByTask((prev) => ({ ...prev, [taskId]: files }));
-    },
-    [photoFileDialogTaskId, validatePhotoFiles],
-  );
-
-  useEffect(() => {
-    return () => {
-      Object.values(flashTimeoutsRef.current).forEach((timeoutId) => {
-        window.clearTimeout(timeoutId);
-      });
-    };
-  }, []);
+  const unitPdfPreview = useStudentUnitPdfPreview({ unit, unitId });
 
   const navItems = useMemo(
     () => [
@@ -459,347 +169,48 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
       requiredDone: requiredDoneFallback,
     };
   }, [orderedTasks, unit?.countedTasks, unit?.solvedTasks, unit?.totalTasks]);
-  const normalizePercent = useCallback((value: number) => Math.max(0, Math.min(100, Math.round(value))), []);
+
+  const normalizePercent = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
   const completionMeter = normalizePercent(completionPercent);
   const solvedMeter = normalizePercent(solvedPercent);
   const requiredMeter = requiredTotal > 0 ? normalizePercent((requiredDone / requiredTotal) * 100) : 100;
-  const getProgressFillStyle = useCallback(
-    (percent: number) => {
-      const level = normalizePercent(percent);
-      const startColor =
-        level >= 80
-          ? "color-mix(in srgb, #22c55e 82%, var(--border-primary))"
-          : level >= 55
+  const getProgressFillStyle = (percent: number) => {
+    const level = normalizePercent(percent);
+    const startColor =
+      level >= 80
+        ? "color-mix(in srgb, #22c55e 82%, var(--border-primary))"
+        : level >= 55
+          ? "color-mix(in srgb, #22c55e 68%, var(--border-primary))"
+          : level >= 30
+            ? "color-mix(in srgb, #22c55e 56%, var(--border-primary))"
+            : "color-mix(in srgb, #22c55e 44%, var(--surface-2))";
+
+    const endColor =
+      level >= 80
+        ? "color-mix(in srgb, #22c55e 92%, var(--border-primary))"
+        : level >= 55
+          ? "color-mix(in srgb, #22c55e 80%, var(--border-primary))"
+          : level >= 30
             ? "color-mix(in srgb, #22c55e 68%, var(--border-primary))"
-            : level >= 30
-              ? "color-mix(in srgb, #22c55e 56%, var(--border-primary))"
-              : "color-mix(in srgb, #22c55e 44%, var(--surface-2))";
-      const endColor =
-        level >= 80
-          ? "color-mix(in srgb, #22c55e 92%, var(--border-primary))"
-          : level >= 55
-            ? "color-mix(in srgb, #22c55e 80%, var(--border-primary))"
-            : level >= 30
-              ? "color-mix(in srgb, #22c55e 68%, var(--border-primary))"
-              : "color-mix(in srgb, #22c55e 56%, var(--border-primary))";
+            : "color-mix(in srgb, #22c55e 56%, var(--border-primary))";
 
-      return {
-        width: `${level}%`,
-        background: `linear-gradient(90deg, ${startColor}, ${endColor})`,
-      };
-    },
-    [normalizePercent],
-  );
+    return {
+      width: `${level}%`,
+      background: `linear-gradient(90deg, ${startColor}, ${endColor})`,
+    };
+  };
 
-  const isCreditedStatus = useCallback(
-    (status?: TaskState["status"] | null) =>
-      CREDITED_TASK_STATUSES.has((status ?? "not_started") as TaskState["status"]),
-    [],
-  );
+  const { activeTaskIndex, activeTask, setActiveTaskId } = useStudentTaskNavigation(orderedTasks);
+  const activeState = activeTask?.state ?? null;
 
-  useEffect(() => {
-    if (!orderedTasks.length) {
-      setActiveTaskId(null);
-      return;
-    }
-    setActiveTaskId((prev) => {
-      const fallbackId = orderedTasks[0].id;
-      if (!prev) return fallbackId;
-      const index = orderedTasks.findIndex((task) => task.id === prev);
-      if (index === -1) return fallbackId;
-      return prev;
-    });
-  }, [orderedTasks]);
+  const attempt = useStudentTaskAttempt({ activeTask, unitId });
+  const photo = useStudentPhotoSubmit({ activeTask, activeState, unitId });
+  const media = useStudentTaskMediaPreview({ activeTask });
 
-  const activeTaskIndex = useMemo(() => {
-    if (!orderedTasks.length) return 0;
-    if (!activeTaskId) return 0;
-    const index = orderedTasks.findIndex((task) => task.id === activeTaskId);
-    return index >= 0 ? index : 0;
-  }, [activeTaskId, orderedTasks]);
-
-  const activeTask = useMemo(
-    () => orderedTasks[activeTaskIndex],
-    [activeTaskIndex, orderedTasks],
-  );
-
-  const activeState = activeTask?.state;
-  const wrongAttempts = activeState?.wrongAttempts ?? 0;
-  const attemptsLeft = Math.max(0, 6 - wrongAttempts);
-  const blockedUntilIso = activeState?.blockedUntil ?? null;
-  const blockedUntilMs = blockedUntilIso ? new Date(blockedUntilIso).getTime() : null;
-  const [isBlocked, setIsBlocked] = useState(false);
-  const isTaskCredited = isCreditedStatus(activeState?.status ?? "not_started");
-  const hasTaskSolutionPdf = Boolean(activeTask?.solutionPdfAssetKey);
-  const isChoiceTask =
-    activeTask?.answerType === "single_choice" || activeTask?.answerType === "multi_choice";
-  const showIncorrectBadge =
-    Boolean(activeTask) && isChoiceTask && attemptFlash[activeTask.id] === "incorrect";
-  const showCorrectBadge = activeState?.status === "correct";
-  const isSolutionVisible = Boolean(activeTask && showSolutionByTask[activeTask.id]);
   const isPhotoTask = activeTask?.answerType === "photo";
-  const hasStatementImage = Boolean(activeTask?.hasStatementImage);
-  const activeTaskStatementImageUrl = activeTask ? (statementImageUrlByTask[activeTask.id] ?? null) : null;
-  const activeTaskStatementImageLoading = activeTask
-    ? Boolean(statementImageLoadingByTask[activeTask.id])
-    : false;
-  const activeTaskStatementImageError = activeTask
-    ? (statementImageErrorByTask[activeTask.id] ?? null)
-    : null;
-  const activeTaskSolutionPdfUrl = activeTask ? (taskSolutionPdfUrlByTask[activeTask.id] ?? null) : null;
-  const activeTaskSolutionLoading = activeTask ? Boolean(taskSolutionLoadingByTask[activeTask.id]) : false;
-  const activeTaskSolutionError = activeTask ? (taskSolutionErrorByTask[activeTask.id] ?? null) : null;
-  const activeTaskSolutionErrorCode = activeTask ? (taskSolutionErrorCodeByTask[activeTask.id] ?? null) : null;
-  const photoSelectedFiles = activeTask ? (photoSelectedFilesByTask[activeTask.id] ?? []) : [];
-  const isPhotoLoading = activeTask ? Boolean(photoLoadingByTask[activeTask.id]) : false;
-  const canUploadPhoto =
-    Boolean(activeTask) &&
-    isPhotoTask &&
-    PHOTO_REVIEWABLE_STATUS.has(activeState?.status ?? "not_started");
-
-  const refreshTaskSolutionPreviewUrl = useCallback(async () => {
-    if (!activeTask || activeTask.answerType === "photo") return null;
-    try {
-      return await loadTaskSolutionPdf(activeTask.id);
-    } catch {
-      return null;
-    }
-  }, [activeTask, loadTaskSolutionPdf]);
-
-  const refreshTaskStatementImageUrl = useCallback(async () => {
-    if (!activeTask || !activeTask.hasStatementImage) return null;
-    try {
-      return await loadStatementImage(activeTask.id);
-    } catch {
-      return null;
-    }
-  }, [activeTask, loadStatementImage]);
-
-  useEffect(() => {
-    if (!activeTask || activeTask.answerType === "photo") return;
-    if (!isSolutionVisible) return;
-    if (activeTaskSolutionPdfUrl || activeTaskSolutionLoading) return;
-    void loadTaskSolutionPdf(activeTask.id).catch(() => {
-      // сообщение уже выставлено в state
-    });
-  }, [
-    activeTask,
-    activeTaskSolutionLoading,
-    activeTaskSolutionPdfUrl,
-    isSolutionVisible,
-    loadTaskSolutionPdf,
-  ]);
-
-  useEffect(() => {
-    if (!activeTask || !activeTask.hasStatementImage) return;
-    if (activeTaskStatementImageUrl || activeTaskStatementImageLoading) return;
-    void loadStatementImage(activeTask.id).catch(() => {
-      // сообщение уже выставлено в state
-    });
-  }, [
-    activeTask,
-    activeTaskStatementImageLoading,
-    activeTaskStatementImageUrl,
-    loadStatementImage,
-  ]);
-
-
-  useEffect(() => {
-    if (!activeTask) return;
-    if (!isTaskCredited) return;
-    if (activeTask.answerType === "numeric") {
-      const next = (activeTask.numericPartsJson ?? []).reduce<Record<string, string>>(
-        (acc, part) => {
-          if (part.correctValue !== undefined) acc[part.key] = part.correctValue;
-          return acc;
-        },
-        {},
-      );
-      if (Object.keys(next).length > 0) {
-        setNumericAnswers((prev) => ({ ...prev, [activeTask.id]: next }));
-      }
-    }
-    if (activeTask.answerType === "single_choice") {
-      const key = activeTask.correctAnswerJson?.key ?? "";
-      if (key) {
-        setSingleAnswers((prev) => ({ ...prev, [activeTask.id]: key }));
-      }
-    }
-    if (activeTask.answerType === "multi_choice") {
-      const keys = activeTask.correctAnswerJson?.keys ?? [];
-      if (keys.length > 0) {
-        setMultiAnswers((prev) => ({ ...prev, [activeTask.id]: keys }));
-      }
-    }
-  }, [activeTask, isTaskCredited]);
-
-  useEffect(() => {
-    if (!blockedUntilMs || !Number.isFinite(blockedUntilMs)) {
-      setIsBlocked(false);
-      return;
-    }
-    const remainingMs = blockedUntilMs - Date.now();
-    if (remainingMs <= 0) {
-      setIsBlocked(false);
-      return;
-    }
-    setIsBlocked(true);
-    const timeoutId = window.setTimeout(() => {
-      setIsBlocked(false);
-    }, remainingMs + 100);
-    return () => window.clearTimeout(timeoutId);
-  }, [blockedUntilMs, activeTask?.id]);
-
-  const attemptPerPartResults = useMemo(() => {
-    if (!activeTask) return null;
-    return attemptPerPart[activeTask.id] ?? null;
-  }, [activeTask, attemptPerPart]);
-
-  const attemptPerPartByKey = useMemo(() => {
-    if (!attemptPerPartResults) return null;
-    return new Map(attemptPerPartResults.map((item) => [item.partKey, item.correct]));
-  }, [attemptPerPartResults]);
-
-  const updateNumericValue = useCallback((taskId: string, partKey: string, value: string) => {
-    setNumericAnswers((prev) => ({
-      ...prev,
-      [taskId]: {
-        ...(prev[taskId] ?? {}),
-        [partKey]: value,
-      },
-    }));
-  }, []);
-
-  const updateSingleValue = useCallback((taskId: string, choiceKey: string) => {
-    setSingleAnswers((prev) => ({ ...prev, [taskId]: choiceKey }));
-  }, []);
-
-  const toggleMultiValue = useCallback((taskId: string, choiceKey: string) => {
-    setMultiAnswers((prev) => {
-      const current = new Set(prev[taskId] ?? []);
-      if (current.has(choiceKey)) {
-        current.delete(choiceKey);
-      } else {
-        current.add(choiceKey);
-      }
-      return { ...prev, [taskId]: Array.from(current) };
-    });
-  }, []);
-
-  const activeTaskChoices = useMemo(() => {
-    if (!activeTask?.choicesJson) return [];
-    const items = [...activeTask.choicesJson];
-    for (let i = items.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [items[i], items[j]] = [items[j], items[i]];
-    }
-    return items;
-  }, [activeTask?.id, activeTask?.choicesJson]);
-
-  const setPdfZoom = useCallback((target: "theory" | "method", zoom: number) => {
-    const clamped = Math.max(PDF_ZOOM_MIN, Math.min(PDF_ZOOM_MAX, zoom));
-    setPdfZoomByTarget((prev) => ({ ...prev, [target]: clamped }));
-  }, []);
-
-  const isAttemptDisabled = useMemo(() => {
-    if (!activeTask) return true;
-    if (attemptLoading[activeTask.id]) return true;
-    if (activeTask.answerType === "photo") return true;
-    if (activeState?.status === "correct") return true;
-    if (activeState?.status === "credited_without_progress") return true;
-    if (activeState?.status === "teacher_credited") return true;
-    if (isBlocked) return true;
-    return false;
-  }, [activeTask, activeState?.status, attemptLoading, isBlocked]);
-
-  const isAnswerReady = useMemo(() => {
-    if (!activeTask) return false;
-    if (activeTask.answerType === "numeric") {
-      const parts = activeTask.numericPartsJson ?? [];
-      if (!parts.length) return false;
-      const values = numericAnswers[activeTask.id] ?? {};
-      return parts.every((part) => (values[part.key] ?? "").trim().length > 0);
-    }
-    if (activeTask.answerType === "single_choice") {
-      return Boolean(singleAnswers[activeTask.id]);
-    }
-    if (activeTask.answerType === "multi_choice") {
-      return (multiAnswers[activeTask.id] ?? []).length > 0;
-    }
-    return false;
-  }, [activeTask, multiAnswers, numericAnswers, singleAnswers]);
-
-  const handleSubmitAttempt = useCallback(async () => {
-    if (!activeTask) return;
-    const taskId = activeTask.id;
-    setAttemptPerPart((prev) => ({ ...prev, [taskId]: null }));
-    setAttemptLoading((prev) => ({ ...prev, [taskId]: true }));
-    try {
-      let payload: AttemptRequest | null = null;
-      if (activeTask.answerType === "numeric") {
-        const values = numericAnswers[taskId] ?? {};
-        payload = {
-          answers: (activeTask.numericPartsJson ?? []).map((part) => ({
-            partKey: part.key,
-            value: values[part.key] ?? "",
-          })),
-        };
-      }
-      if (activeTask.answerType === "single_choice") {
-        payload = { choiceKey: singleAnswers[taskId] };
-      }
-      if (activeTask.answerType === "multi_choice") {
-        payload = { choiceKeys: multiAnswers[taskId] ?? [] };
-      }
-      if (!payload) return;
-
-      const response = await studentApi.submitAttempt(taskId, payload);
-      setAttemptPerPart((prev) => ({ ...prev, [taskId]: response.perPart ?? null }));
-      if (activeTask.answerType === "single_choice" || activeTask.answerType === "multi_choice") {
-        if (response.status !== "correct") {
-          if (activeTask.answerType === "single_choice") {
-            setSingleAnswers((prev) => ({ ...prev, [taskId]: "" }));
-          } else {
-            setMultiAnswers((prev) => ({ ...prev, [taskId]: [] }));
-          }
-          setAttemptFlash((prev) => ({ ...prev, [taskId]: "incorrect" }));
-          if (flashTimeoutsRef.current[taskId]) {
-            window.clearTimeout(flashTimeoutsRef.current[taskId]);
-          }
-          flashTimeoutsRef.current[taskId] = window.setTimeout(() => {
-            setAttemptFlash((prev) => ({ ...prev, [taskId]: null }));
-          }, 2500);
-        } else {
-          setAttemptFlash((prev) => ({ ...prev, [taskId]: null }));
-        }
-      }
-      await fetchUnit();
-    } catch (error) {
-      if (error instanceof ApiError) {
-        console.warn("Attempt failed", error.status, error.message);
-      } else {
-        console.warn("Attempt failed");
-      }
-    } finally {
-      setAttemptLoading((prev) => ({ ...prev, [taskId]: false }));
-    }
-  }, [activeTask, fetchUnit, multiAnswers, numericAnswers, singleAnswers]);
-
-  const handleStatementImageLoadError = useCallback(() => {
-    if (!activeTask || !activeTask.hasStatementImage) return;
-    const taskId = activeTask.id;
-    if (statementImageRetryRef.current[taskId]) {
-      setStatementImageErrorByTask((prev) => ({
-        ...prev,
-        [taskId]: "Не удалось обновить изображение условия.",
-      }));
-      return;
-    }
-    statementImageRetryRef.current[taskId] = true;
-    void refreshTaskStatementImageUrl().catch(() => {
-      // ошибка выставляется в state
-    });
-  }, [activeTask, refreshTaskStatementImageUrl]);
+  const hasTaskSolutionPdf = Boolean(activeTask?.solutionPdfAssetKey);
+  const showSolutionPanel =
+    !isPhotoTask && attempt.isTaskCredited && hasTaskSolutionPdf && media.isSolutionVisible;
 
   return (
     <DashboardShell
@@ -821,6 +232,7 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
             {error}
           </div>
         ) : null}
+
         {lockedAccessMessage ? (
           <section className={styles.lockedGate} role="status" aria-live="polite">
             <div className={styles.lockedGateTitle}>Юнит заблокирован</div>
@@ -901,117 +313,27 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
 
             <div id={activePanelId} role="tabpanel" aria-labelledby={activeTabId}>
               {activeTab === "theory" ? (
-                <div className={styles.pdfPanel}>
-                  {previewErrorByTarget.theory ? (
-                    <div className={styles.previewError} role="status" aria-live="polite">
-                      {previewErrorByTarget.theory}
-                    </div>
-                  ) : null}
-                  <div className={styles.pdfToolbar}>
-                    <span className={styles.pdfToolbarLabel}>Масштаб</span>
-                    <span className={styles.pdfZoomGroup}>
-                      <button
-                        type="button"
-                        className={styles.pdfZoomButton}
-                        onClick={() => setPdfZoom("theory", pdfZoomByTarget.theory - PDF_ZOOM_STEP)}
-                        disabled={pdfZoomByTarget.theory <= PDF_ZOOM_MIN}
-                      >
-                        −
-                      </button>
-                      <span className={styles.pdfZoomValue}>{Math.round(pdfZoomByTarget.theory * 100)}%</span>
-                      <button
-                        type="button"
-                        className={styles.pdfZoomButton}
-                        onClick={() => setPdfZoom("theory", pdfZoomByTarget.theory + PDF_ZOOM_STEP)}
-                        disabled={pdfZoomByTarget.theory >= PDF_ZOOM_MAX}
-                      >
-                        +
-                      </button>
-                    </span>
-                    <button
-                      type="button"
-                      className={styles.pdfZoomReset}
-                      onClick={() => setPdfZoom("theory", PDF_ZOOM_DEFAULT)}
-                    >
-                      100%
-                    </button>
-                  </div>
-                  <div className={styles.pdfViewport}>
-                    {previewUrls.theory ? (
-                      <PdfCanvasPreview
-                        className={styles.pdfFrame}
-                        url={previewUrls.theory}
-                        refreshKey={unit?.theoryPdfAssetKey ?? undefined}
-                        getFreshUrl={refreshTheoryPreviewUrl}
-                        zoom={pdfZoomByTarget.theory}
-                        scrollFeel="inertial-heavy"
-                        freezeWidth
-                      />
-                    ) : (
-                      <div className={styles.stub}>
-                        {previewLoadingByTarget.theory
-                          ? "Загрузка PDF..."
-                          : "PDF теории пока не опубликован учителем."}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <StudentUnitPdfPanel
+                  previewError={unitPdfPreview.theoryPreviewError}
+                  previewUrl={unitPdfPreview.theoryPreviewUrl}
+                  previewLoading={unitPdfPreview.theoryPreviewLoading}
+                  unavailableText="PDF теории пока не опубликован учителем."
+                  refreshKey={unit?.theoryPdfAssetKey ?? undefined}
+                  getFreshUrl={unitPdfPreview.refreshTheoryPreviewUrl}
+                  zoom={unitPdfPreview.pdfZoomByTarget.theory}
+                  onZoomChange={(zoom) => unitPdfPreview.setPdfZoom("theory", zoom)}
+                />
               ) : activeTab === "method" ? (
-                <div className={styles.pdfPanel}>
-                  {previewErrorByTarget.method ? (
-                    <div className={styles.previewError} role="status" aria-live="polite">
-                      {previewErrorByTarget.method}
-                    </div>
-                  ) : null}
-                  <div className={styles.pdfToolbar}>
-                    <span className={styles.pdfToolbarLabel}>Масштаб</span>
-                    <span className={styles.pdfZoomGroup}>
-                      <button
-                        type="button"
-                        className={styles.pdfZoomButton}
-                        onClick={() => setPdfZoom("method", pdfZoomByTarget.method - PDF_ZOOM_STEP)}
-                        disabled={pdfZoomByTarget.method <= PDF_ZOOM_MIN}
-                      >
-                        −
-                      </button>
-                      <span className={styles.pdfZoomValue}>{Math.round(pdfZoomByTarget.method * 100)}%</span>
-                      <button
-                        type="button"
-                        className={styles.pdfZoomButton}
-                        onClick={() => setPdfZoom("method", pdfZoomByTarget.method + PDF_ZOOM_STEP)}
-                        disabled={pdfZoomByTarget.method >= PDF_ZOOM_MAX}
-                      >
-                        +
-                      </button>
-                    </span>
-                    <button
-                      type="button"
-                      className={styles.pdfZoomReset}
-                      onClick={() => setPdfZoom("method", PDF_ZOOM_DEFAULT)}
-                    >
-                      100%
-                    </button>
-                  </div>
-                  <div className={styles.pdfViewport}>
-                    {previewUrls.method ? (
-                      <PdfCanvasPreview
-                        className={styles.pdfFrame}
-                        url={previewUrls.method}
-                        refreshKey={unit?.methodPdfAssetKey ?? undefined}
-                        getFreshUrl={refreshMethodPreviewUrl}
-                        zoom={pdfZoomByTarget.method}
-                        scrollFeel="inertial-heavy"
-                        freezeWidth
-                      />
-                    ) : (
-                      <div className={styles.stub}>
-                        {previewLoadingByTarget.method
-                          ? "Загрузка PDF..."
-                          : "PDF методики пока не опубликован учителем."}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <StudentUnitPdfPanel
+                  previewError={unitPdfPreview.methodPreviewError}
+                  previewUrl={unitPdfPreview.methodPreviewUrl}
+                  previewLoading={unitPdfPreview.methodPreviewLoading}
+                  unavailableText="PDF методики пока не опубликован учителем."
+                  refreshKey={unit?.methodPdfAssetKey ?? undefined}
+                  getFreshUrl={unitPdfPreview.refreshMethodPreviewUrl}
+                  zoom={unitPdfPreview.pdfZoomByTarget.method}
+                  onZoomChange={(zoom) => unitPdfPreview.setPdfZoom("method", zoom)}
+                />
               ) : activeTab === "video" ? (
                 <div className={styles.videoList}>
                   {videos.length === 0 ? (
@@ -1045,279 +367,138 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
                 <div className={styles.stub}>Вложения будут добавлены позже.</div>
               ) : (
                 <div className={styles.tasks}>
-              {orderedTasks.length ? (
-                <>
-                  <div className={styles.taskTabs}>
-                    {orderedTasks.map((task, index) => {
-                      const isActive = index === activeTaskIndex;
-                      const isCorrect = task.state?.status === "correct";
-                      return (
-                        <button
-                          key={task.id}
-                          type="button"
-                          className={`${styles.taskTab} ${
-                            isActive ? styles.taskTabActive : ""
-                          } ${isCorrect ? styles.taskTabDone : ""}`}
-                          onClick={() => setActiveTaskId(task.id)}
-                        >
-                          <span>{index + 1}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {orderedTasks.length ? (
+                    <>
+                      <StudentTaskTabs
+                        tasks={orderedTasks}
+                        activeTaskIndex={activeTaskIndex}
+                        onSelectTask={setActiveTaskId}
+                      />
 
-                  {activeTask ? (
-                    <div className={styles.taskCard}>
-                      <div className={styles.taskHeader}>
-                        <div className={styles.taskTitle}>Задача №{activeTaskIndex + 1}</div>
-                        <div className={styles.taskHeaderBadges}>
-                          {activeTask.isRequired ? (
-                            <span className={styles.taskBadge}>Обязательная</span>
-                          ) : null}
-                        </div>
-                      </div>
-                      <div className={styles.taskStatement}>
-                        <LiteTex value={activeTask.statementLite} block />
-                      </div>
-                      {hasStatementImage ? (
-                        <div className={styles.statementImageBlock}>
-                          {activeTaskStatementImageLoading ? (
-                            <div className={styles.statementImageHint}>Загрузка изображения…</div>
-                          ) : activeTaskStatementImageError ? (
-                            <div className={styles.statementImageError} role="status" aria-live="polite">
-                              {activeTaskStatementImageError}
+                      {activeTask ? (
+                        <StudentTaskCardShell task={activeTask} taskIndex={activeTaskIndex}>
+                          <StudentTaskMediaPreview
+                            hasStatementImage={Boolean(activeTask.hasStatementImage)}
+                            statementImageLoading={media.activeTaskStatementImageLoading}
+                            statementImageError={media.activeTaskStatementImageError}
+                            statementImageUrl={media.activeTaskStatementImageUrl}
+                            onStatementImageLoadError={media.handleStatementImageLoadError}
+                            showSolutionPanel={showSolutionPanel}
+                            solutionLoading={media.activeTaskSolutionLoading}
+                            solutionError={media.activeTaskSolutionError}
+                            solutionErrorCode={media.activeTaskSolutionErrorCode}
+                            solutionUrl={media.activeTaskSolutionPdfUrl}
+                            solutionRefreshKey={activeTask.solutionPdfAssetKey ?? undefined}
+                            getFreshSolutionUrl={media.refreshTaskSolutionPreviewUrl}
+                            onGoToStudentGraph={() => router.push("/student")}
+                          />
+
+                          {activeState?.requiredSkipped ? (
+                            <div className={styles.taskMeta}>
+                              <span className={styles.requiredBadge}>Обязательная пропущена</span>
                             </div>
-                          ) : activeTaskStatementImageUrl ? (
-                            <img
-                              src={activeTaskStatementImageUrl}
-                              alt="Иллюстрация к условию задачи"
-                              className={styles.statementImage}
-                              onError={handleStatementImageLoadError}
-                            />
-                          ) : (
-                            <div className={styles.statementImageHint}>Изображение условия недоступно.</div>
-                          )}
-                        </div>
-                      ) : null}
-
-                      {activeState?.requiredSkipped ? (
-                        <div className={styles.taskMeta}>
-                          <span className={styles.requiredBadge}>Обязательная пропущена</span>
-                        </div>
-                      ) : null}
-
-                      {activeState?.status === "credited_without_progress" ? (
-                        <div className={styles.notice}>Задача зачтена без прогресса.</div>
-                      ) : null}
-
-                      {activeState?.status === "teacher_credited" ? (
-                        <div className={styles.notice}>Задача зачтена учителем.</div>
-                      ) : null}
-
-                      {activeTask.answerType === "numeric" ? (
-                        <div className={styles.answerList}>
-                          {(activeTask.numericPartsJson ?? []).length === 0 ? (
-                            <div className={styles.stub}>Части ответа будут добавлены позже.</div>
-                          ) : (
-                            (activeTask.numericPartsJson ?? []).map((part, idx) => (
-                              <div key={part.key} className={styles.answerRow}>
-                                <div className={styles.answerInline}>
-                                  <span className={styles.answerIndex}>{idx + 1}.</span>
-                                  <span className={styles.answerLabelText}>
-                                    <LiteTex value={part.labelLite ?? ""} />
-                                  </span>
-                                  <input
-                                    className={styles.answerInputInline}
-                                    value={numericAnswers[activeTask.id]?.[part.key] ?? ""}
-                                    disabled={isTaskCredited}
-                                    aria-label={`Ответ ${idx + 1}`}
-                                    onChange={(event) =>
-                                      updateNumericValue(activeTask.id, part.key, event.target.value)
-                                    }
-                                    placeholder="Ответ"
-                                  />
-                                  {attemptPerPartResults ? (
-                                    <span
-                                      className={`${styles.partResult} ${
-                                        attemptPerPartByKey?.get(part.key)
-                                          ? styles.partResultCorrect
-                                          : styles.partResultIncorrect
-                                      }`}
-                                    >
-                                      {
-                                        attemptPerPartByKey?.get(part.key)
-                                          ? "верно"
-                                          : "ошибка"
-                                      }
-                                    </span>
-                                  ) : null}
-                                </div>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      ) : null}
-
-                      {activeTask.answerType === "single_choice" ||
-                      activeTask.answerType === "multi_choice" ? (
-                        <div className={styles.optionList}>
-                          {(activeTask.choicesJson ?? []).length === 0 ? (
-                            <div className={styles.stub}>Варианты ответа будут добавлены позже.</div>
-                          ) : (
-                            activeTaskChoices.map((choice, idx) => {
-                              const isSingle = activeTask.answerType === "single_choice";
-                              const selected = isSingle
-                                ? singleAnswers[activeTask.id] === choice.key
-                                : (multiAnswers[activeTask.id] ?? []).includes(choice.key);
-                              return (
-                                <label key={choice.key} className={styles.optionItem}>
-                                  <input
-                                    className={styles.optionInput}
-                                    type={isSingle ? "radio" : "checkbox"}
-                                    name={`task-${activeTask.id}`}
-                                    checked={selected}
-                                    disabled={isTaskCredited}
-                                    onChange={() => {
-                                      if (isSingle) {
-                                        updateSingleValue(activeTask.id, choice.key);
-                                      } else {
-                                        toggleMultiValue(activeTask.id, choice.key);
-                                      }
-                                    }}
-                                  />
-                                  <span className={styles.optionIndex}>{idx + 1}.</span>
-                                  <span className={styles.optionText}>
-                                    <LiteTex value={choice.textLite} />
-                                  </span>
-                                </label>
-                              );
-                            })
-                          )}
-                        </div>
-                      ) : null}
-
-                      {activeTask.answerType === "photo" ? (
-                        <div className={styles.photoActions}>
-                          {canUploadPhoto ? (
-                            <Button
-                              variant="ghost"
-                              onClick={() => openPhotoFileDialog(activeTask.id)}
-                              disabled={isPhotoLoading}
-                            >
-                              Загрузить фото
-                            </Button>
                           ) : null}
-                          {canUploadPhoto ? (
-                            <Button
-                              onClick={() => submitPhotoTask(activeTask.id)}
-                              disabled={isPhotoLoading || photoSelectedFiles.length === 0}
-                            >
-                              {isPhotoLoading ? "Отправка..." : "Отправить"}
-                            </Button>
-                          ) : null}
-                        </div>
-                      ) : null}
 
-                      <div className={styles.taskActions}>
-                        {!isPhotoTask && !isTaskCredited ? (
-                          <Button
-                            onClick={handleSubmitAttempt}
-                            disabled={isAttemptDisabled || !isAnswerReady}
-                          >
-                            Проверить
-                          </Button>
-                        ) : null}
-                        {!isPhotoTask && !isTaskCredited && showIncorrectBadge ? (
-                          <span className={styles.taskResultIncorrect}>Неверно</span>
-                        ) : null}
-                        {!isPhotoTask && isBlocked && blockedUntilIso ? (
-                          <BlockedCountdown blockedUntilIso={blockedUntilIso} />
-                        ) : null}
-                        {!isPhotoTask && isTaskCredited && activeTaskIndex < orderedTasks.length - 1 ? (
-                          <Button
-                            variant="ghost"
-                            onClick={() => setActiveTaskId(orderedTasks[activeTaskIndex + 1]?.id ?? null)}
-                          >
-                            Следующая
-                          </Button>
-                        ) : null}
-                        {!isPhotoTask && isTaskCredited && hasTaskSolutionPdf ? (
-                          <Button
-                            variant="ghost"
-                            onClick={async () => {
-                              const isVisible = Boolean(showSolutionByTask[activeTask.id]);
-                              if (isVisible) {
-                                setShowSolutionByTask((prev) => ({ ...prev, [activeTask.id]: false }));
-                                return;
-                              }
-                              setShowSolutionByTask((prev) => ({ ...prev, [activeTask.id]: true }));
-                              if (!taskSolutionPdfUrlByTask[activeTask.id]) {
-                                try {
-                                  await loadTaskSolutionPdf(activeTask.id);
-                                } catch {
-                                  // ошибка уже в taskSolutionErrorByTask
-                                }
-                              }
-                            }}
-                          >
-                            {isSolutionVisible ? "Скрыть решение" : "Показать решение"}
-                          </Button>
-                        ) : null}
-                        {!isPhotoTask && showCorrectBadge ? (
-                          <span className={styles.taskResultCorrect}>Верно</span>
-                        ) : null}
-                        {!isPhotoTask ? (
-                          <div className={styles.attemptsLeftBadge}>Осталось попыток: {attemptsLeft}</div>
-                        ) : null}
-                      </div>
-                        {!isPhotoTask ? (
-                          isTaskCredited && hasTaskSolutionPdf && isSolutionVisible ? (
-                            activeTaskSolutionLoading ? (
-                              <div className={styles.solutionHint}>Загружаем PDF-решение…</div>
-                            ) : activeTaskSolutionError ? (
-                              <div className={styles.solutionError} role="status" aria-live="polite">
-                                {activeTaskSolutionError}
-                                {activeTaskSolutionErrorCode === "UNIT_LOCKED" ? (
-                                  <div className={styles.solutionErrorActions}>
-                                    <Button variant="ghost" onClick={() => router.push("/student")}>
-                                      К графу раздела
-                                    </Button>
-                                  </div>
-                                ) : null}
-                              </div>
-                            ) : activeTaskSolutionPdfUrl ? (
-                              <div className={styles.solutionPdfViewport}>
-                                <PdfCanvasPreview
-                                  className={styles.solutionPdfFrame}
-                                  url={activeTaskSolutionPdfUrl}
-                                  refreshKey={activeTask.solutionPdfAssetKey ?? undefined}
-                                  getFreshUrl={refreshTaskSolutionPreviewUrl}
-                                  zoom={PDF_ZOOM_DEFAULT}
-                                  scrollFeel="inertial-heavy"
-                                  freezeWidth
-                                />
-                              </div>
-                            ) : null
-                          ) : null
+                          {activeState?.status === "credited_without_progress" ? (
+                            <div className={styles.notice}>Задача зачтена без прогресса.</div>
+                          ) : null}
+
+                          {activeState?.status === "teacher_credited" ? (
+                            <div className={styles.notice}>Задача зачтена учителем.</div>
+                          ) : null}
+
+                          <StudentTaskAnswerForm
+                            task={activeTask}
+                            isTaskCredited={attempt.isTaskCredited}
+                            numericValues={attempt.activeNumericAnswers}
+                            attemptPerPartByKey={attempt.attemptPerPartByKey}
+                            choiceItems={attempt.activeTaskChoices}
+                            singleAnswer={attempt.activeSingleAnswer}
+                            multiAnswers={attempt.activeMultiAnswers}
+                            onNumericChange={attempt.updateNumericValue}
+                            onSingleChoiceChange={attempt.updateSingleValue}
+                            onMultiChoiceToggle={attempt.toggleMultiValue}
+                          />
+
+                          {isPhotoTask ? (
+                            <div className={styles.photoActions}>
+                              {photo.canUploadPhoto ? (
+                                <Button
+                                  variant="ghost"
+                                  onClick={() => photo.openPhotoFileDialog(activeTask.id)}
+                                  disabled={photo.isPhotoLoading}
+                                >
+                                  Загрузить фото
+                                </Button>
+                              ) : null}
+                              {photo.canUploadPhoto ? (
+                                <Button
+                                  onClick={() => photo.submitPhotoTask(activeTask.id)}
+                                  disabled={photo.isPhotoLoading || photo.photoSelectedFiles.length === 0}
+                                >
+                                  {photo.isPhotoLoading ? "Отправка..." : "Отправить"}
+                                </Button>
+                              ) : null}
+                            </div>
+                          ) : null}
+
+                          <div className={styles.taskActions}>
+                            {!isPhotoTask && !attempt.isTaskCredited ? (
+                              <Button onClick={attempt.handleSubmitAttempt} disabled={attempt.isAttemptDisabled || !attempt.isAnswerReady}>
+                                Проверить
+                              </Button>
+                            ) : null}
+
+                            {!isPhotoTask && !attempt.isTaskCredited && attempt.showIncorrectBadge ? (
+                              <span className={styles.taskResultIncorrect}>Неверно</span>
+                            ) : null}
+
+                            {!isPhotoTask && attempt.isBlocked && attempt.blockedUntilIso ? (
+                              <BlockedCountdown blockedUntilIso={attempt.blockedUntilIso} />
+                            ) : null}
+
+                            {!isPhotoTask && attempt.isTaskCredited && activeTaskIndex < orderedTasks.length - 1 ? (
+                              <Button
+                                variant="ghost"
+                                onClick={() => setActiveTaskId(orderedTasks[activeTaskIndex + 1]?.id ?? null)}
+                              >
+                                Следующая
+                              </Button>
+                            ) : null}
+
+                            {!isPhotoTask && attempt.isTaskCredited && hasTaskSolutionPdf ? (
+                              <Button variant="ghost" onClick={media.toggleSolutionVisibility}>
+                                {media.isSolutionVisible ? "Скрыть решение" : "Показать решение"}
+                              </Button>
+                            ) : null}
+
+                            {!isPhotoTask && attempt.showCorrectBadge ? (
+                              <span className={styles.taskResultCorrect}>Верно</span>
+                            ) : null}
+
+                            {!isPhotoTask ? (
+                              <div className={styles.attemptsLeftBadge}>Осталось попыток: {attempt.attemptsLeft}</div>
+                            ) : null}
+                          </div>
+                        </StudentTaskCardShell>
                       ) : null}
-                    </div>
-                  ) : null}
-                </>
-              ) : (
-                <div className={styles.stub}>Задач пока нет.</div>
-              )}
+                    </>
+                  ) : (
+                    <div className={styles.stub}>Задач пока нет.</div>
+                  )}
                 </div>
               )}
             </div>
+
             <input
-              ref={photoFileInputRef}
+              ref={photo.photoFileInputRef}
               className={styles.photoFileInput}
               type="file"
               accept="image/jpeg,image/png,image/webp"
               multiple
               tabIndex={-1}
               aria-hidden="true"
-              onChange={handlePhotoFileSelection}
+              onChange={photo.handlePhotoFileSelection}
             />
           </>
         )}
