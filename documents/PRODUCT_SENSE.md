@@ -35,4 +35,5 @@
 
 - `documents/ARCHITECTURE.md`
 - `apps/api/src/learning/learning-availability.service.ts`
-- `apps/api/src/learning/photo-task.service.ts`
+- `apps/api/src/learning/photo-task-read.service.ts`
+- `apps/api/src/learning/photo-task-review-write.service.ts`

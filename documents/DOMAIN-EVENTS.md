@@ -20,7 +20,7 @@
 
 ## 1) Список событий (`Implemented`, extracted from code)
 
-> Источник: фактические вызовы `eventsLogService.append({ eventType: ... })` в `apps/api/src/**`.
+> Источник: фактические вызовы `eventsLogService.append({ eventType: ... })` и обёрток `learningAuditLogService.append*` в `apps/api/src/**`.
 
 ### 1.1 Identity & Access (BC1-ish)
 
@@ -100,7 +100,10 @@
   - `apps/api/prisma/schema.prisma` (model `DomainEventLog`)
   - `apps/api/src/events/events-log.service.ts`
 - Emitters (примерно):
+  - `apps/api/src/content/content-write.service.ts`
   - `apps/api/src/content/*.controller.ts`
-  - `apps/api/src/learning/learning.service.ts`
-  - `apps/api/src/learning/photo-task.service.ts`
+  - `apps/api/src/learning/learning-attempts-write.service.ts`
+  - `apps/api/src/learning/learning-teacher-actions.service.ts`
+  - `apps/api/src/learning/photo-task-review-write.service.ts`
+  - `apps/api/src/learning/learning-audit-log.service.ts`
   - `apps/api/src/students/*.controller.ts`

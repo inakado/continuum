@@ -5,7 +5,9 @@ import { ObjectStorageModule } from '../infra/storage/object-storage.module';
 import { LearningRecomputeModule } from '../learning/learning-recompute.module';
 import { InternalLatexController } from './internal-latex.controller';
 import { LatexCompileQueueService } from './latex-compile-queue.service';
+import { ContentGraphService } from './content-graph.service';
 import { ContentService } from './content.service';
+import { ContentWriteService } from './content-write.service';
 import { StudentCoursesController } from './student-courses.controller';
 import { StudentSectionsController } from './student-sections.controller';
 import { TeacherCoursesController } from './teacher-courses.controller';
@@ -15,6 +17,7 @@ import { TeacherSectionsController } from './teacher-sections.controller';
 import { TeacherUnitsController } from './teacher-units.controller';
 import { TeacherTasksController } from './teacher-tasks.controller';
 import { TaskStatementImagePolicyService } from './task-statement-image-policy.service';
+import { TaskRevisionPayloadService } from './task-revision-payload.service';
 import { UnitPdfPolicyService } from './unit-pdf-policy.service';
 
 @Module({
@@ -32,6 +35,9 @@ import { UnitPdfPolicyService } from './unit-pdf-policy.service';
   ],
   providers: [
     ContentService,
+    ContentGraphService,
+    ContentWriteService,
+    TaskRevisionPayloadService,
     UnitPdfPolicyService,
     TaskStatementImagePolicyService,
     LatexCompileQueueService,

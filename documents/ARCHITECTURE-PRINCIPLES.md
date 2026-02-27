@@ -13,7 +13,8 @@
 - `Planned`: целевые принципы и инструменты, которые нужно внедрить.
 - `Implemented` (2026-02-27, Phase 0 foundation): в monorepo подключены `eslint` + `@typescript-eslint` + `eslint-plugin-boundaries`, добавлены workspace `lint`-scripts и CI-проверки `lint` + `lint:boundaries`.
 - `Implemented` (2026-02-27, Phase 0 tests baseline): в `apps/api`, `apps/web`, `apps/worker`, `packages/shared` подключён `vitest`, добавлены минимальные автотесты для health/login/storage-config критичных путей.
-- `Implemented` (2026-02-27, Phase 1 wave1 Learning/Photo): внедрён schema-first contract slice на `zod` (`@continuum/shared`), подключён custom `ZodValidationPipe` в API boundary для wave1 endpoint-ов, и включён runtime parsing ответов в web-клиенте (`apiRequestParsed`, `API_RESPONSE_INVALID`).
+- `Implemented` (2026-02-27, Phase 1 completed / scope: wave1 Learning/Photo): внедрён schema-first contract slice на `zod` (`@continuum/shared`), подключён custom `ZodValidationPipe` в API boundary для wave1 endpoint-ов, и включён runtime parsing ответов в web-клиенте (`apiRequestParsed`, `API_RESPONSE_INVALID`).
+- `Implemented/Planned` (2026-02-27, Phase 2): для backend декомпозиции добавлен integration safety-net через `supertest` (`Implemented`, wave1); выполнена декомпозиция `learning.service.ts`, `photo-task.service.ts` и `content.service.ts` с выносом graph/payload/write-path сервисов (`Implemented`, wave2-wave4), плюс введён `learning-audit-log.service.ts` и перевод refactored learning/photo write сервисов на audit-helper (`Implemented`, wave5). Дальнейшее масштабирование helper-подхода на остальные модули API остаётся `Planned`.
 
 ## 1) Baseline читаемости и поддерживаемости (`Implemented`, снимок на 2026-02-26)
 
@@ -35,6 +36,10 @@
 - Frontend в режиме client-first:
   - `41` из `64` TSX-файлов помечены `'use client'`,
   - в feature-экранах повторяется ручной anti-race паттерн `requestIdRef`.
+- Дельта после backend-декомпозиции (2026-02-27, `Implemented`):
+  - `apps/api/src/learning/learning.service.ts`: `1378 -> 470` строк;
+  - `apps/api/src/learning/photo-task.service.ts`: `1287 -> 88` строк (фасад, read/write вынесены);
+  - `apps/api/src/content/content.service.ts`: `1594 -> 384` строки (graph/payload/write слои вынесены).
 
 ## 2) Целевые архитектурные принципы (`Planned`)
 
@@ -71,7 +76,8 @@
 - `vitest` + `@testing-library/react` + `@testing-library/user-event` + `@testing-library/jest-dom` (`Implemented` для baseline в `apps/web`, дальнейшее расширение `Planned`):
   - безопасный рефакторинг React-модулей.
 - `supertest`:
-  - интеграционные тесты API boundary (валидация, коды ошибок, auth инварианты).
+  - интеграционные тесты API boundary (валидация, коды ошибок, auth инварианты) (`Implemented` baseline для Phase 2 wave1, дальнейшее расширение `Planned`).
+  - декомпозиция backend сервисов выполняется под этим safety-net (`Implemented` для wave2-wave5 в scope Phase 2).
 
 ### 3.2 Минимальный обязательный quality-контур (`Implemented`, 2026-02-27)
 
@@ -104,8 +110,10 @@
 - `vitest` + Testing Library (`Implemented` baseline в `apps/web`, расширение `Planned`):
   - в `apps/web` покрыт минимальный login happy-path/error-path;
   - далее: расширение покрытия unit/component/hooks и, при необходимости, `packages/shared`.
-- `supertest` (`Planned`):
-  - только `apps/api` (интеграционные HTTP-тесты).
+- `supertest` (`Implemented/Planned`):
+  - только `apps/api` (интеграционные HTTP-тесты);
+  - `Implemented`: `apps/api/test/integration/*` + docker-only script `test:integration`;
+  - `Planned`: расширить coverage при декомпозиции wave2+.
 - `eslint` + `@typescript-eslint` + `eslint-plugin-boundaries` (`Implemented`, 2026-02-27):
   - на уровне monorepo (корневой конфиг), применяется к `apps/*` и `packages/*`.
 

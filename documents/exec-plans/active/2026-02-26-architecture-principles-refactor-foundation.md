@@ -82,9 +82,9 @@
 - `zod`:
   - где добавляем: `packages/shared` (базовые schema/contracts), затем использование в `apps/api` и `apps/web`;
   - зачем в этой фазе: единый источник контрактов и runtime-валидации.
-- `nestjs-zod`:
+- custom `ZodValidationPipe` bridge:
   - где добавляем: `apps/api`;
-  - зачем в этой фазе: встроить schema validation в HTTP boundary NestJS.
+  - зачем в этой фазе: встроить schema validation в HTTP boundary NestJS без изменения legacy error-handling.
 
 ### Phase 2 (Backend декомпозиция)
 
@@ -129,7 +129,7 @@
 - `packages/shared/package.json`:
   - добавить dependency: `zod`.
 - `apps/api/package.json`:
-  - добавить dependency: `zod`, `nestjs-zod` (или выбранный bridge-слой).
+  - добавить dependency: `zod` (bridge-слой реализован custom `ZodValidationPipe`, без `nestjs-zod` в wave1).
 - `apps/web/package.json`:
   - добавить dependency: `zod` (для runtime parsing/форм).
 - Корневой `package.json`: без обязательных новых зависимостей на этом шаге.
@@ -238,7 +238,8 @@
 
 ### Phase 1 Wave 1 — Прогресс выполнения (2026-02-27)
 
-- Статус волны: `In Progress` (wave1 Learning/Photo реализован, дальнейшие волны Phase 1 остаются `Planned`).
+- Статус волны: `Completed`.
+- Статус фазы: `Completed` (в согласованном scope Phase 1 = wave1 Learning/Photo, без глобального ValidationPipe и без массовой миграции всех endpoint-ов).
 
 - `Implemented`:
   - в `packages/shared` добавлен contract layer `src/contracts/learning-photo.ts` (request/response schemas + `z.infer` aliases) и unit-тесты `test/learning-photo-contracts.test.ts`;
@@ -275,10 +276,10 @@
   - `pnpm lint:boundaries` — `pass`;
   - `pnpm typecheck` — `pass` (по текущему корневому скрипту для `@continuum/shared` и `web`).
 
-- `Planned` (следующие волны Phase 1):
-  - расширить contract-first подход за пределы Learning/Photo;
-  - решить стратегию глобального validation pipeline в API (после wave1);
-  - подготовить возможный переход с custom bridge на `nestjs-zod`, если это даст выигрыш без регрессий совместимости.
+- `Deferred` (вынесено за рамки закрытой Phase 1):
+  - расширение contract-first подхода за пределы Learning/Photo;
+  - решение стратегии глобального validation pipeline в API;
+  - возможный переход с custom bridge на `nestjs-zod`, если это даст выигрыш без регрессий совместимости.
 
 ### Phase 2 — Backend декомпозиция
 
@@ -288,6 +289,162 @@
 - Exit criteria:
   - `content.service.ts` и `learning.service.ts` декомпозированы на smaller units;
   - число cross-cutting дублирований заметно снижено.
+
+### Phase 2 — Анализ и план запуска (2026-02-27)
+
+- Статус фазы: `Completed` (Wave 1-5 выполнены в целевом scope Phase 2).
+
+- `Implemented` (анализ текущего baseline):
+  - главные точки риска по размеру/связности:
+    - `apps/api/src/content/content.service.ts` — `1594` строк;
+    - `apps/api/src/learning/learning.service.ts` — `1333` строки;
+    - `apps/api/src/learning/photo-task.service.ts` — `1178` строк;
+  - в этих трёх сервисах зафиксировано `14` точек транзакций (`$transaction`);
+  - в API-коде зафиксировано `45` вызовов `eventsLogService.append(...)` (cross-cutting дублирование);
+  - guard/ownership проверки дублируются между модулями (`LearningService.assertTeacherOwnsStudent` и `StudentsService.assertTeacherOwnsStudent`).
+
+- Зафиксированные решения для Phase 2 (без вариантов):
+  - рефакторинг делаем инкрементально по волнам, с сохранением текущих HTTP контрактов и `error.code`;
+  - перед декомпозицией write-path добавляем integration safety-net через `supertest` в `apps/api`;
+  - `supertest`-тесты запускаются в Docker-контуре (в sandbox остаются controller/service тесты без открытия сокета);
+  - на переходном этапе сохраняем фасады `ContentService`, `LearningService`, `PhotoTaskService` для обратной совместимости контроллеров.
+
+- План реализации Phase 2 (waves):
+  - Wave 1 — API integration safety-net (`supertest`):
+    - добавить `supertest` (+ typings) в `apps/api`;
+    - подготовить integration harness (`apps/api/test/integration/*`) для критичных сценариев:
+      - attempts (`numeric/single/multi` + негативные `error.code`);
+      - photo submit/review (`submit`, `accept`, `reject`, inbox/detail);
+      - content publish/graph update (минимальный smoke read/write);
+    - добавить scripts: `test:integration` (docker-only) и обновить `DEVELOPMENT.md`.
+  - Wave 2 — Декомпозиция `learning.service.ts`:
+    - выделить `learning-attempts-write.service.ts` (submit/evaluate/3+3/events);
+    - выделить `learning-teacher-actions.service.ts` (override/credit/unblock/notifications);
+    - оставить в `LearningService` только orchestration facade + thin delegation.
+  - Wave 3 — Декомпозиция `photo-task.service.ts`:
+    - выделить `photo-task-read.service.ts` (queue/inbox/detail/presign-view/list);
+    - выделить `photo-task-review-write.service.ts` (submit/accept/reject + state transitions/events);
+    - сохранить policy в `PhotoTaskPolicyService`, не дублировать validation из boundary.
+  - Wave 4 — Декомпозиция `content.service.ts`:
+    - выделить `content-graph.service.ts` (build/update/cycle checks/layout);
+    - выделить `task-revision-payload.service.ts` (normalize/sanitize/validate task payload/revision);
+    - выделить write-path сервисы для course/section/unit/task mutation, сохранив текущие контроллерные контракты.
+  - Wave 5 — Cross-cutting cleanup:
+    - унифицировать teacher-student ownership check через `StudentsService`;
+    - вынести повторяющиеся audit append-паттерны в композиционный helper/facade;
+    - обновить SoR-документацию по новым backend boundaries.
+
+### Phase 2 Wave 1 — Прогресс выполнения (2026-02-27)
+
+- Статус волны: `Completed`.
+
+- `Implemented`:
+  - в `apps/api` добавлены devDependencies:
+    - `supertest`,
+    - `@types/supertest`,
+    - `@nestjs/testing` (test harness для Nest integration);
+  - integration-test контур выделен в отдельный конфиг:
+    - `apps/api/vitest.integration.config.ts`;
+    - `apps/api/vitest.config.ts` исключает `test/integration/**/*.test.ts` из baseline unit-прогона;
+  - добавлен docker-only script:
+    - `apps/api/package.json` → `test:integration` (`ensure-docker-build` + `vitest.integration.config.ts`);
+  - добавлен общий integration factory:
+    - `apps/api/test/integration/test-app.factory.ts` (guard override + constructor metadata для Nest DI в vitest);
+  - добавлены integration smoke tests:
+    - `apps/api/test/integration/student-attempts.integration.test.ts`;
+    - `apps/api/test/integration/learning-photo-boundary.integration.test.ts`;
+    - `apps/api/test/integration/content-publish-graph.integration.test.ts`.
+
+- `Implemented` (проверка):
+  - `pnpm --filter @continuum/api test` — `pass`;
+  - `docker compose exec -T api sh -lc "pnpm --filter @continuum/api test:integration"` — `pass`;
+  - `docker compose exec -T api sh -lc "pnpm --filter @continuum/api typecheck"` — `pass`;
+  - `pnpm lint` — `pass` (`0 errors`, warnings допустимы);
+  - `pnpm lint:boundaries` — `pass`.
+
+- Следующий шаг:
+  - перейти к Phase 3 (frontend декомпозиция: server-state слой и резка крупных экранов на hooks/subcomponents).
+
+### Phase 2 Wave 2 — Прогресс выполнения (2026-02-27)
+
+- Статус волны: `Completed`.
+
+- `Implemented`:
+  - добавлен `apps/api/src/learning/learning-attempts-write.service.ts`:
+    - write-path `submitAttempt`,
+    - evaluate/3+3 transitions,
+    - recompute + notifications + events;
+  - добавлен `apps/api/src/learning/learning-teacher-actions.service.ts`:
+    - `overrideOpenUnit`, `creditTask`, `unblockTask`, `listNotifications`;
+  - `apps/api/src/learning/learning.service.ts` переведён в фасадный orchestration слой с thin delegation;
+  - ownership-check в teacher-flow унифицирован через `StudentsService.assertTeacherOwnsStudent`.
+
+### Phase 2 Wave 3 — Прогресс выполнения (2026-02-27)
+
+- Статус волны: `Completed`.
+
+- `Implemented`:
+  - `apps/api/src/learning/photo-task.service.ts` переведён в фасад (`1178 -> 88` строк);
+  - выделены сервисы:
+    - `apps/api/src/learning/photo-task-read.service.ts` (inbox/queue/detail/list/presign-view),
+    - `apps/api/src/learning/photo-task-review-write.service.ts` (presign-upload/submit/accept/reject);
+  - `PhotoTaskPolicyService` сохранён как policy-layer; boundary validation не дублируется внутри бизнес-сервисов.
+
+### Phase 2 Wave 4 — Прогресс выполнения (2026-02-27)
+
+- Статус волны: `Completed`.
+
+- `Implemented`:
+  - `apps/api/src/content/content-graph.service.ts`:
+    - build/read/update graph,
+    - cycle/self-loop/duplicate-edge guards,
+    - layout fallback;
+  - `apps/api/src/content/task-revision-payload.service.ts`:
+    - normalize/sanitize/validate task payload,
+    - revision create + revision no management,
+    - mapper `mapTaskWithRevision`;
+  - `apps/api/src/content/content-write.service.ts`:
+    - вынесены course/section/unit/task mutation write-path,
+    - вынесены task-revision write operations (solution latex/pdf key, statement image key),
+    - сохранены текущие коды ошибок и response-shape;
+  - `apps/api/src/content/content.service.ts` переведён на delegation в graph/payload/write сервисы (`1594 -> 384` строки), публичный фасад сохранён для совместимости.
+
+- Грабли/решение:
+  - где упало: `docker compose exec -T api sh -lc "pnpm --filter @continuum/api typecheck"`;
+  - что увидели: `Property 'mapTaskWithRevision' does not exist on type 'ContentService'`;
+  - почему: после выноса mapper в `task-revision-payload.service.ts` была удалена публичная фасадная точка, на которую опирается `learning.service.ts`;
+  - как чинить: вернуть в `ContentService` thin method `mapTaskWithRevision(...)`, делегирующий в payload-service;
+  - как проверить: повторный docker typecheck + integration tests проходят.
+
+### Phase 2 Wave 5 — Прогресс выполнения (2026-02-27)
+
+- Статус волны: `Completed` (scope Phase 2).
+
+- `Implemented`:
+  - добавлен `apps/api/src/learning/learning-audit-log.service.ts` (62 строки) как композиционный helper для audit append patterns (student-learning, student-system, teacher-admin);
+  - `LearningAttemptsWriteService`, `LearningTeacherActionsService`, `PhotoTaskReviewWriteService` переведены на helper вместо прямого дублирования `eventsLogService.append(...)`;
+  - teacher-student ownership в learning/photo ветке централизован через `StudentsService`.
+
+- `Deferred`:
+  - расширить helper-подход на content/students контроллеры и остальные модули API (вне scope Phase 2).
+
+- `Implemented` (проверка после waves 2-5):
+  - `pnpm --filter @continuum/api test` — `pass`;
+  - `docker compose exec -T api sh -lc "pnpm --filter @continuum/api typecheck"` — `pass`;
+  - `docker compose exec -T api sh -lc "pnpm --filter @continuum/api test:integration"` — `pass`;
+  - `pnpm lint` — `pass` (`0 errors`, warnings допустимы);
+  - `pnpm lint:boundaries` — `pass`;
+  - `pnpm typecheck` — `pass` (root scope: `@continuum/shared` + `web`).
+
+- Definition of Done для старта реализации Phase 2:
+  - утверждён wave-order и scope первого PR (Wave 1: safety-net);
+  - зафиксированы target-файлы декомпозиции для Wave 2/3/4;
+  - подтверждён минимальный обязательный прогон:
+    - `pnpm --filter @continuum/api test`;
+    - `pnpm --filter @continuum/api typecheck` (в Docker);
+    - `pnpm --filter @continuum/api test:integration` (в Docker);
+    - `pnpm lint`;
+    - `pnpm lint:boundaries`.
 
 ### Phase 3 — Frontend декомпозиция
 

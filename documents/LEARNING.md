@@ -108,8 +108,14 @@
   - `apps/api/src/learning/learning-availability.service.ts`
   - `apps/api/src/learning/learning-recompute.service.ts`
 - Attempts + teacher actions:
-  - `apps/api/src/learning/learning.service.ts`
+  - `apps/api/src/learning/learning.service.ts` (facade/orchestration)
+  - `apps/api/src/learning/learning-attempts-write.service.ts`
+  - `apps/api/src/learning/learning-teacher-actions.service.ts`
+  - `apps/api/src/learning/learning-audit-log.service.ts`
 - Photo tasks:
-  - `apps/api/src/learning/photo-task.service.ts`
+  - `apps/api/src/learning/photo-task.service.ts` (facade)
+  - `apps/api/src/learning/photo-task-read.service.ts`
+  - `apps/api/src/learning/photo-task-review-write.service.ts`
+  - `apps/api/src/learning/photo-task-policy.service.ts`
 - Prisma models:
   - `apps/api/prisma/schema.prisma` (`StudentTaskState`, `StudentUnitState`, `Attempt`, `UnitUnlockOverride`, `PhotoTaskSubmission`, `Notification`)

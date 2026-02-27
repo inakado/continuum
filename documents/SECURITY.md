@@ -76,8 +76,11 @@ Operational pitfall (`Implemented`):
   - `apps/worker/src/latex/latex-apply-client.ts`
 - Storage:
   - `apps/api/src/infra/storage/object-storage.service.ts`
-  - `apps/api/src/learning/photo-task.service.ts`
+  - `apps/api/src/learning/photo-task-read.service.ts`
+  - `apps/api/src/learning/photo-task-review-write.service.ts`
+  - `apps/api/src/learning/photo-task-policy.service.ts`
   - `apps/api/src/learning/student-units.controller.ts`
+  - `apps/api/src/learning/student-task-solutions.controller.ts`
 
 ## Planned / TODO
 

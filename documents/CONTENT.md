@@ -97,7 +97,10 @@
 - Prisma models:
   - `apps/api/prisma/schema.prisma`
 - Content CRUD + graph:
-  - `apps/api/src/content/content.service.ts`
+  - `apps/api/src/content/content.service.ts` (facade)
+  - `apps/api/src/content/content-write.service.ts`
+  - `apps/api/src/content/content-graph.service.ts`
+  - `apps/api/src/content/task-revision-payload.service.ts`
   - `apps/api/src/content/teacher-*.controller.ts`
 - LaTeX queue + apply:
   - `apps/api/src/content/latex-compile-queue.service.ts`

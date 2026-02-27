@@ -5,8 +5,13 @@ import { EventsLogModule } from '../events/events.module';
 import { ObjectStorageModule } from '../infra/storage/object-storage.module';
 import { StudentsModule } from '../students/students.module';
 import { LearningRecomputeModule } from './learning-recompute.module';
+import { LearningAttemptsWriteService } from './learning-attempts-write.service';
+import { LearningAuditLogService } from './learning-audit-log.service';
 import { LearningService } from './learning.service';
+import { LearningTeacherActionsService } from './learning-teacher-actions.service';
 import { PhotoTaskPolicyService } from './photo-task-policy.service';
+import { PhotoTaskReadService } from './photo-task-read.service';
+import { PhotoTaskReviewWriteService } from './photo-task-review-write.service';
 import { PhotoTaskService } from './photo-task.service';
 import { StudentAttemptsController } from './student-attempts.controller';
 import { StudentPhotoTasksController } from './student-photo-tasks.controller';
@@ -46,6 +51,15 @@ import { TeacherUnitOverrideOpenController } from './teacher-unit-override-open.
     TeacherTaskUnblockController,
     TeacherUnitOverrideOpenController,
   ],
-  providers: [LearningService, PhotoTaskService, PhotoTaskPolicyService],
+  providers: [
+    LearningService,
+    LearningAuditLogService,
+    LearningAttemptsWriteService,
+    LearningTeacherActionsService,
+    PhotoTaskService,
+    PhotoTaskReadService,
+    PhotoTaskReviewWriteService,
+    PhotoTaskPolicyService,
+  ],
 })
 export class LearningModule {}

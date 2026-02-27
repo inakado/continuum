@@ -79,6 +79,8 @@
 - Test (turbo):
   - `pnpm test`
   - `apps/api`, `apps/web`, `apps/worker`, `packages/shared` запускают `vitest`.
+- API integration tests (docker-only, `supertest`):
+  - `docker compose exec -T api sh -lc "pnpm --filter @continuum/api test:integration"`
 
 Примечание: backend docker build в агентском sandbox-окружении может быть недоступен по правам к Docker socket; для гарантированного результата запускать вне sandbox (обычный терминал/VPS/CI runner).
 
@@ -148,6 +150,21 @@ Production policy (`Implemented`):
 - **Причина:** sandbox запрещает bind/listen для тестового HTTP server.
 - **Фикс:** для sandbox использовать controller/service-level тесты без bind/listen; socket-based integration запускать вне sandbox.
 - **Проверка:** `pnpm --filter @continuum/api test` проходит без `listen EPERM`.
+
+- **Симптом:** `docker compose exec -T api sh -lc "pnpm --filter @continuum/api test:integration"` падает с `Cannot find package 'supertest'`.
+- **Команда:** `pnpm --filter @continuum/api test:integration` (в контейнере `api`).
+- **Причина:** контейнерный `node_modules` не синхронизирован с обновлённым lockfile после добавления новых devDependencies.
+- **Фикс:** выполнить в контейнере переустановку зависимостей для api scope:
+  - `docker compose exec -T api sh -lc "pnpm install --filter @continuum/api... --frozen-lockfile"`.
+- **Проверка:** повторный запуск `pnpm --filter @continuum/api test:integration` в контейнере проходит.
+
+- **Симптом:** integration тесты Nest в vitest отвечают `500` с ошибками вида `Cannot read properties of undefined (reading '<serviceMethod>')` в контроллерах.
+- **Команда:** `pnpm --filter @continuum/api test:integration`.
+- **Причина:** в vitest/esbuild metadata конструктора контроллеров может не резолвиться автоматически; DI создаёт контроллер с `undefined` зависимостями.
+- **Фикс:** использовать `apps/api/test/integration/test-app.factory.ts`:
+  - `overrideGuard(JwtAuthGuard|RolesGuard)` для bypass auth;
+  - явная регистрация `constructorParams` (через `Reflect.defineMetadata('design:paramtypes', ...)`) для тестируемых контроллеров.
+- **Проверка:** integration suite проходит без `undefined` зависимостей.
 
 - **Симптом:** на production после `docker compose up -d` неожиданно запускается `minio`, а `api` падает с `Bind for 127.0.0.1:3000 failed: port is already allocated`.
 - **Команда:** `docker compose up -d`

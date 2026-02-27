@@ -39,9 +39,13 @@
 ## Source links
 
 - Published-only queries:
-  - `apps/api/src/content/content.service.ts`
-  - `apps/api/src/learning/learning.service.ts`
+  - `apps/api/src/content/content.service.ts` (facade)
+  - `apps/api/src/content/content-write.service.ts`
+  - `apps/api/src/learning/learning.service.ts` (facade)
+  - `apps/api/src/learning/learning-attempts-write.service.ts`
 - Photo review policy:
-  - `apps/api/src/learning/photo-task.service.ts`
+  - `apps/api/src/learning/photo-task.service.ts` (facade)
+  - `apps/api/src/learning/photo-task-read.service.ts`
+  - `apps/api/src/learning/photo-task-review-write.service.ts`
 - Unit progress snapshots:
   - `apps/api/src/learning/learning-availability.service.ts`

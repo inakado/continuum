@@ -39,14 +39,23 @@
 ## 3) Learning: attempts / progress / availability (BC3) (`Implemented`)
 
 - Auto-check submit: `LearningService.submitAttempt()`:
+  - write-path делегируется в `LearningAttemptsWriteService` (фасад в `LearningService` сохранён для совместимости),
   - проверка доступности юнита для student (`LearningAvailabilityService.recomputeSectionAvailability()`),
   - создание `Attempt`,
   - обновление `StudentTaskState`,
   - события: `AttemptSubmitted`, `AttemptEvaluatedCorrect|Incorrect`, `TaskLockedForStudent`, `TaskAutoCreditedWithoutProgress`, `RequiredTaskSkippedFlagSet`.
+- Teacher actions: `LearningService.openUnitOverride|creditTask|unblockTask()`:
+  - write-path делегируется в `LearningTeacherActionsService`,
+  - события: `UnitOverrideOpenedForStudent`, `TaskTeacherCreditedForStudent`, `TaskUnblockedForStudent`.
 
 - Unit status/metrics для student UI вычисляются через `LearningAvailabilityService` (снапшоты по section) и persisted в `student_unit_state`.
 
-Источник: `apps/api/src/learning/learning.service.ts`, `apps/api/src/learning/learning-availability.service.ts`.
+Источник:
+- `apps/api/src/learning/learning.service.ts` (facade)
+- `apps/api/src/learning/learning-attempts-write.service.ts`
+- `apps/api/src/learning/learning-teacher-actions.service.ts`
+- `apps/api/src/learning/learning-availability.service.ts`
+- `apps/api/src/learning/learning-audit-log.service.ts`
 
 ## 4) Manual review (photo) (BC4) (`Implemented`)
 
@@ -61,7 +70,11 @@
   - `GET /teacher/photo-submissions/:submissionId` → detail
   - review actions (accept/reject) → events `PhotoAttemptAccepted|Rejected`
 
-Источник: `apps/api/src/learning/photo-task.service.ts` + соответствующие controllers.
+Источник:
+- `apps/api/src/learning/photo-task.service.ts` (facade)
+- `apps/api/src/learning/photo-task-read.service.ts` (read-path: inbox/detail/queue/list/presign-view)
+- `apps/api/src/learning/photo-task-review-write.service.ts` (write-path: presign-upload/submit/accept/reject)
+- соответствующие controllers в `apps/api/src/learning/*`.
 
 ## 5) Rendering / LaTeX (worker + internal apply) (`Implemented`)
 
