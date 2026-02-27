@@ -1,4 +1,17 @@
-import { apiRequest } from "./client";
+import {
+  StudentAttemptResponseSchema,
+  StudentPhotoPresignUploadResponseSchema,
+  StudentPhotoPresignViewResponseSchema,
+  StudentPhotoSubmitResponseSchema,
+  type MultiChoiceAttemptRequest as SharedMultiChoiceAttemptRequest,
+  type NumericAttemptRequest as SharedNumericAttemptRequest,
+  type SingleChoiceAttemptRequest as SharedSingleChoiceAttemptRequest,
+  type StudentAttemptResponse as SharedStudentAttemptResponse,
+  type StudentPhotoPresignUploadResponse as SharedStudentPhotoPresignUploadResponse,
+  type StudentPhotoPresignViewResponse as SharedStudentPhotoPresignViewResponse,
+  type StudentPhotoSubmitResponse as SharedStudentPhotoSubmitResponse,
+} from "@continuum/shared";
+import { apiRequest, apiRequestParsed } from "./client";
 import type { MeResponse } from "./auth";
 
 export type ContentStatus = "draft" | "published";
@@ -38,21 +51,15 @@ export type TaskState = {
   requiredSkipped: boolean;
 };
 
-export type NumericAttemptRequest = { answers: { partKey: string; value: string }[] };
-export type SingleChoiceAttemptRequest = { choiceKey: string };
-export type MultiChoiceAttemptRequest = { choiceKeys: string[] };
+export type NumericAttemptRequest = SharedNumericAttemptRequest;
+export type SingleChoiceAttemptRequest = SharedSingleChoiceAttemptRequest;
+export type MultiChoiceAttemptRequest = SharedMultiChoiceAttemptRequest;
 export type AttemptRequest =
   | NumericAttemptRequest
   | SingleChoiceAttemptRequest
   | MultiChoiceAttemptRequest;
 
-export type AttemptResponse = {
-  status: TaskState["status"];
-  attemptNo: number;
-  wrongAttempts: number;
-  blockedUntil: string | null;
-  perPart?: { partKey: string; correct: boolean }[];
-};
+export type AttemptResponse = SharedStudentAttemptResponse;
 
 export type Section = {
   id: string;
@@ -152,15 +159,6 @@ export type StudentPhotoFileInput = {
   sizeBytes: number;
 };
 
-export type StudentPhotoPresignUploadResponse = {
-  uploads: Array<{
-    assetKey: string;
-    url: string;
-    headers?: Record<string, string>;
-  }>;
-  expiresInSec: number;
-};
-
 export type StudentPhotoTaskSubmission = {
   id: string;
   studentUserId: string;
@@ -180,32 +178,9 @@ export type StudentPhotoSubmissionsResponse = {
   items: StudentPhotoTaskSubmission[];
 };
 
-export type StudentPhotoSubmitResponse = {
-  ok: true;
-  submissionId: string;
-  taskState: {
-    status: TaskState["status"];
-    wrongAttempts: number;
-    blockedUntil: string | null;
-    requiredSkipped: boolean;
-  };
-  unitSnapshot?: {
-    unitId: string;
-    status: StudentUnitStatus;
-    totalTasks: number;
-    countedTasks: number;
-    solvedTasks: number;
-    completionPercent: number;
-    solvedPercent: number;
-  };
-};
-
-export type StudentPhotoPresignViewResponse = {
-  ok: true;
-  assetKey: string;
-  expiresInSec: number;
-  url: string;
-};
+export type StudentPhotoPresignUploadResponse = SharedStudentPhotoPresignUploadResponse;
+export type StudentPhotoSubmitResponse = SharedStudentPhotoSubmitResponse;
+export type StudentPhotoPresignViewResponse = SharedStudentPhotoPresignViewResponse;
 
 export type StudentTaskSolutionPdfPresignResponse = {
   ok: true;
@@ -267,15 +242,16 @@ export const studentApi = {
   },
 
   submitAttempt(taskId: string, body: AttemptRequest) {
-    return apiRequest<AttemptResponse>(`/student/tasks/${taskId}/attempts`, {
+    return apiRequestParsed(`/student/tasks/${taskId}/attempts`, StudentAttemptResponseSchema, {
       method: "POST",
       body,
     });
   },
 
   presignPhotoUpload(taskId: string, files: StudentPhotoFileInput[], ttlSec?: number) {
-    return apiRequest<StudentPhotoPresignUploadResponse>(
+    return apiRequestParsed(
       `/student/tasks/${taskId}/photo/presign-upload`,
+      StudentPhotoPresignUploadResponseSchema,
       {
         method: "POST",
         body: {
@@ -287,7 +263,7 @@ export const studentApi = {
   },
 
   submitPhoto(taskId: string, assetKeys: string[]) {
-    return apiRequest<StudentPhotoSubmitResponse>(`/student/tasks/${taskId}/photo/submit`, {
+    return apiRequestParsed(`/student/tasks/${taskId}/photo/submit`, StudentPhotoSubmitResponseSchema, {
       method: "POST",
       body: { assetKeys },
     });
@@ -302,8 +278,9 @@ export const studentApi = {
     if (ttlSec !== undefined) {
       search.set("ttlSec", String(ttlSec));
     }
-    return apiRequest<StudentPhotoPresignViewResponse>(
+    return apiRequestParsed(
       `/student/tasks/${taskId}/photo/presign-view?${search.toString()}`,
+      StudentPhotoPresignViewResponseSchema,
     );
   },
 

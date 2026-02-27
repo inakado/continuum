@@ -4,6 +4,16 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  type StudentPhotoPresignUploadRequest,
+  type StudentPhotoPresignViewQuery,
+  type StudentPhotoSubmitRequest,
+  type TeacherPhotoInboxQuery,
+  type TeacherPhotoPresignViewQuery,
+  type TeacherPhotoQueueQuery,
+  type TeacherPhotoRejectRequest,
+  type TeacherPhotoSubmissionDetailQuery,
+} from '@continuum/shared';
+import {
   AttemptKind,
   AttemptResult,
   ContentStatus,
@@ -24,12 +34,6 @@ import { LearningAvailabilityService, UnitProgressSnapshot } from './learning-av
 import { PhotoTaskPolicyService } from './photo-task-policy.service';
 
 type DbClient = PrismaService | Prisma.TransactionClient;
-const PHOTO_SUBMISSION_STATUSES = new Set<PhotoTaskSubmissionStatus>([
-  PhotoTaskSubmissionStatus.submitted,
-  PhotoTaskSubmissionStatus.accepted,
-  PhotoTaskSubmissionStatus.rejected,
-]);
-const INBOX_SORT_VALUES = new Set(['oldest', 'newest'] as const);
 type InboxSort = 'oldest' | 'newest';
 type InboxStatus = 'pending_review' | 'accepted' | 'rejected';
 type InboxFilters = {
@@ -69,13 +73,12 @@ export class PhotoTaskService {
     private readonly photoTaskPolicyService: PhotoTaskPolicyService,
   ) {}
 
-  async presignUpload(studentId: string, taskId: string, body: unknown) {
+  async presignUpload(studentId: string, taskId: string, body: StudentPhotoPresignUploadRequest) {
     const task = await this.requirePublishedPhotoTask(this.prisma, taskId);
     await this.assertUnitAvailableForStudent(studentId, task.unit.sectionId, task.unit.id);
 
-    const payload = this.asRecord(body);
-    const files = this.photoTaskPolicyService.validatePresignFiles(payload.files);
-    const ttlSec = this.photoTaskPolicyService.resolveUploadTtl(payload.ttlSec);
+    const files = body.files;
+    const ttlSec = this.photoTaskPolicyService.resolveUploadTtl(body.ttlSec);
     const prefix = this.buildAssetPrefix(task.id, studentId, task.activeRevisionId);
 
     const uploads = await Promise.all(
@@ -102,9 +105,8 @@ export class PhotoTaskService {
     };
   }
 
-  async submit(studentId: string, taskId: string, body: unknown) {
-    const payload = this.asRecord(body);
-    const assetKeys = this.photoTaskPolicyService.parseAssetKeys(payload.assetKeys);
+  async submit(studentId: string, taskId: string, body: StudentPhotoSubmitRequest) {
+    const assetKeys = body.assetKeys;
 
     const txResult = await this.prisma.$transaction(async (tx) => {
       const task = await this.requirePublishedPhotoTask(tx, taskId);
@@ -313,15 +315,12 @@ export class PhotoTaskService {
   async listQueueForTeacher(
     teacherId: string,
     studentId: string,
-    statusRaw: unknown,
-    limitRaw: unknown,
-    offsetRaw: unknown,
+    query: TeacherPhotoQueueQuery,
   ) {
     await this.studentsService.assertTeacherOwnsStudent(teacherId, studentId);
-
-    const status = this.parseQueueStatus(statusRaw);
-    const limit = this.parseLimit(limitRaw);
-    const offset = this.parseOffset(offsetRaw);
+    const status = query.status;
+    const limit = query.limit;
+    const offset = query.offset;
 
     const where: Prisma.PhotoTaskSubmissionWhereInput = {
       studentUserId: studentId,
@@ -377,27 +376,19 @@ export class PhotoTaskService {
 
   async listInboxForTeacher(
     teacherId: string,
-    statusRaw: unknown,
-    studentIdRaw: unknown,
-    courseIdRaw: unknown,
-    sectionIdRaw: unknown,
-    unitIdRaw: unknown,
-    taskIdRaw: unknown,
-    limitRaw: unknown,
-    offsetRaw: unknown,
-    sortRaw: unknown,
+    query: TeacherPhotoInboxQuery,
   ) {
-    const filters = this.parseInboxFilters(
-      statusRaw,
-      studentIdRaw,
-      courseIdRaw,
-      sectionIdRaw,
-      unitIdRaw,
-      taskIdRaw,
-    );
-    const sort = this.parseInboxSort(sortRaw);
-    const limit = this.parseLimit(limitRaw);
-    const offset = this.parseOffset(offsetRaw);
+    const filters: InboxFilters = {
+      status: query.status,
+      studentId: query.studentId,
+      courseId: query.courseId,
+      sectionId: query.sectionId,
+      unitId: query.unitId,
+      taskId: query.taskId,
+    };
+    const sort = query.sort;
+    const limit = query.limit;
+    const offset = query.offset;
     const where = this.buildInboxWhere(teacherId, filters);
 
     const [items, total] = await this.prisma.$transaction([
@@ -496,23 +487,17 @@ export class PhotoTaskService {
   async getInboxSubmissionForTeacher(
     teacherId: string,
     submissionId: string,
-    statusRaw: unknown,
-    studentIdRaw: unknown,
-    courseIdRaw: unknown,
-    sectionIdRaw: unknown,
-    unitIdRaw: unknown,
-    taskIdRaw: unknown,
-    sortRaw: unknown,
+    query: TeacherPhotoSubmissionDetailQuery,
   ) {
-    const filters = this.parseInboxFilters(
-      statusRaw,
-      studentIdRaw,
-      courseIdRaw,
-      sectionIdRaw,
-      unitIdRaw,
-      taskIdRaw,
-    );
-    const sort = this.parseInboxSort(sortRaw);
+    const filters: InboxFilters = {
+      status: query.status,
+      studentId: query.studentId,
+      courseId: query.courseId,
+      sectionId: query.sectionId,
+      unitId: query.unitId,
+      taskId: query.taskId,
+    };
+    const sort = query.sort;
     const aclWhere = this.buildInboxWhere(teacherId, {});
 
     const submission = await this.prisma.photoTaskSubmission.findFirst({
@@ -643,13 +628,11 @@ export class PhotoTaskService {
   async presignViewForStudent(
     studentId: string,
     taskId: string,
-    assetKeyRaw: unknown,
-    ttlRaw: unknown,
+    query: StudentPhotoPresignViewQuery,
   ) {
     const task = await this.requirePublishedPhotoTask(this.prisma, taskId);
     await this.assertUnitAvailableForStudent(studentId, task.unit.sectionId, task.unit.id);
-
-    const assetKey = this.photoTaskPolicyService.parseSingleAssetKey(assetKeyRaw);
+    const assetKey = query.assetKey;
 
     const owned = await this.prisma.photoTaskSubmission.findFirst({
       where: {
@@ -669,7 +652,7 @@ export class PhotoTaskService {
       });
     }
 
-    const ttlSec = this.photoTaskPolicyService.resolveViewTtl(Role.student, ttlRaw);
+    const ttlSec = this.photoTaskPolicyService.resolveViewTtl(Role.student, query.ttlSec);
     const responseContentType = this.photoTaskPolicyService.inferResponseContentType(assetKey);
     const url = await this.objectStorageService.presignGetObject(assetKey, ttlSec, responseContentType);
 
@@ -685,12 +668,10 @@ export class PhotoTaskService {
     teacherId: string,
     studentId: string,
     taskId: string,
-    assetKeyRaw: unknown,
-    ttlRaw: unknown,
+    query: TeacherPhotoPresignViewQuery,
   ) {
     await this.studentsService.assertTeacherOwnsStudent(teacherId, studentId);
-
-    const assetKey = this.photoTaskPolicyService.parseSingleAssetKey(assetKeyRaw);
+    const assetKey = query.assetKey;
 
     const owned = await this.prisma.photoTaskSubmission.findFirst({
       where: {
@@ -710,7 +691,7 @@ export class PhotoTaskService {
       });
     }
 
-    const ttlSec = this.photoTaskPolicyService.resolveViewTtl(Role.teacher, ttlRaw);
+    const ttlSec = this.photoTaskPolicyService.resolveViewTtl(Role.teacher, query.ttlSec);
     const responseContentType = this.photoTaskPolicyService.inferResponseContentType(assetKey);
     const url = await this.objectStorageService.presignGetObject(assetKey, ttlSec, responseContentType);
 
@@ -840,12 +821,10 @@ export class PhotoTaskService {
     studentId: string,
     taskId: string,
     submissionId: string,
-    body: unknown,
+    body: TeacherPhotoRejectRequest,
   ) {
     await this.studentsService.assertTeacherOwnsStudent(teacherId, studentId);
-
-    const reasonRaw = this.asRecord(body).reason;
-    const reason = typeof reasonRaw === 'string' ? reasonRaw.trim() : '';
+    const reason = body.reason?.trim() ?? '';
 
     const txResult = await this.prisma.$transaction(async (tx) => {
       const submission = await tx.photoTaskSubmission.findFirst({
@@ -1097,53 +1076,6 @@ export class PhotoTaskService {
     };
   }
 
-  private parseInboxFilters(
-    statusRaw: unknown,
-    studentIdRaw: unknown,
-    courseIdRaw: unknown,
-    sectionIdRaw: unknown,
-    unitIdRaw: unknown,
-    taskIdRaw: unknown,
-  ): InboxFilters {
-    return {
-      status: this.parseInboxStatus(statusRaw),
-      studentId: this.parseOptionalId(studentIdRaw),
-      courseId: this.parseOptionalId(courseIdRaw),
-      sectionId: this.parseOptionalId(sectionIdRaw),
-      unitId: this.parseOptionalId(unitIdRaw),
-      taskId: this.parseOptionalId(taskIdRaw),
-    };
-  }
-
-  private parseOptionalId(raw: unknown): string | undefined {
-    if (typeof raw !== 'string') return undefined;
-    const trimmed = raw.trim();
-    return trimmed || undefined;
-  }
-
-  private parseInboxStatus(raw: unknown): InboxStatus {
-    const parsed = typeof raw === 'string' ? raw.trim() : '';
-    if (!parsed || parsed === 'pending_review' || parsed === 'submitted') {
-      return 'pending_review';
-    }
-    if (parsed === 'accepted' || parsed === 'rejected') return parsed;
-
-    throw new ConflictException({
-      code: 'INVALID_QUEUE_STATUS',
-      message: 'status must be one of: pending_review, accepted, rejected',
-    });
-  }
-
-  private parseInboxSort(raw: unknown): InboxSort {
-    const parsed = typeof raw === 'string' ? raw.trim() : '';
-    if (!parsed) return 'oldest';
-    if (INBOX_SORT_VALUES.has(parsed as InboxSort)) return parsed as InboxSort;
-    throw new ConflictException({
-      code: 'INVALID_SORT',
-      message: 'sort must be one of: oldest, newest',
-    });
-  }
-
   private mapInboxStatusToDb(status?: InboxStatus): PhotoTaskSubmissionStatus | undefined {
     if (!status) return undefined;
     if (status === 'pending_review') return PhotoTaskSubmissionStatus.submitted;
@@ -1239,49 +1171,8 @@ export class PhotoTaskService {
     return adjacent?.id ?? null;
   }
 
-  private parseQueueStatus(raw: unknown): PhotoTaskSubmissionStatus {
-    const parsed = typeof raw === 'string' ? raw.trim() : '';
-    if (!parsed || parsed === 'pending_review') return PhotoTaskSubmissionStatus.submitted;
-    if (PHOTO_SUBMISSION_STATUSES.has(parsed as PhotoTaskSubmissionStatus)) {
-      return parsed as PhotoTaskSubmissionStatus;
-    }
-    throw new ConflictException({
-      code: 'INVALID_QUEUE_STATUS',
-      message: `status must be one of: ${Array.from(PHOTO_SUBMISSION_STATUSES).join(', ')}`,
-    });
-  }
-
-  private parseLimit(raw: unknown): number {
-    if (raw === undefined || raw === null || raw === '') return 20;
-    const parsed = Number(raw);
-    if (!Number.isInteger(parsed) || parsed <= 0) {
-      throw new ConflictException({
-        code: 'INVALID_LIMIT',
-        message: 'limit must be a positive integer',
-      });
-    }
-    return Math.min(parsed, 100);
-  }
-
-  private parseOffset(raw: unknown): number {
-    if (raw === undefined || raw === null || raw === '') return 0;
-    const parsed = Number(raw);
-    if (!Number.isInteger(parsed) || parsed < 0) {
-      throw new ConflictException({
-        code: 'INVALID_OFFSET',
-        message: 'offset must be a non-negative integer',
-      });
-    }
-    return parsed;
-  }
-
   private parseAssetKeysJson(value: Prisma.JsonValue): string[] {
     if (!Array.isArray(value)) return [];
     return value.filter((item): item is string => typeof item === 'string');
-  }
-
-  private asRecord(value: unknown): Record<string, unknown> {
-    if (!value || typeof value !== 'object') return {};
-    return value as Record<string, unknown>;
   }
 }

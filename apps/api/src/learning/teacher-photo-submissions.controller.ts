@@ -1,9 +1,22 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  TeacherPhotoPresignViewQuerySchema,
+  TeacherPhotoQueueQuerySchema,
+  TeacherPhotoRejectRequestSchema,
+  type TeacherPhotoPresignViewQuery,
+  type TeacherPhotoQueueQuery,
+  type TeacherPhotoRejectRequest,
+} from '@continuum/shared';
 import { Role } from '@prisma/client';
 import { AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import {
+  photoPresignViewExceptionFactory,
+  teacherQueueQueryExceptionFactory,
+} from '../common/validation/zod-exception-factories';
 import { PhotoTaskService } from './photo-task.service';
 
 @Controller('teacher/students')
@@ -16,11 +29,10 @@ export class TeacherPhotoSubmissionsController {
   listQueue(
     @Param('studentId') studentId: string,
     @Req() req: AuthRequest,
-    @Query('status') status: string | undefined,
-    @Query('limit') limit: string | undefined,
-    @Query('offset') offset: string | undefined,
+    @Query(new ZodValidationPipe(TeacherPhotoQueueQuerySchema, teacherQueueQueryExceptionFactory))
+    query: TeacherPhotoQueueQuery,
   ) {
-    return this.photoTaskService.listQueueForTeacher(req.user.id, studentId, status, limit, offset);
+    return this.photoTaskService.listQueueForTeacher(req.user.id, studentId, query);
   }
 
   @Get(':studentId/tasks/:taskId/photo-submissions')
@@ -37,10 +49,10 @@ export class TeacherPhotoSubmissionsController {
     @Param('studentId') studentId: string,
     @Param('taskId') taskId: string,
     @Req() req: AuthRequest,
-    @Query('assetKey') assetKey: string | undefined,
-    @Query('ttlSec') ttlSec: string | undefined,
+    @Query(new ZodValidationPipe(TeacherPhotoPresignViewQuerySchema, photoPresignViewExceptionFactory))
+    query: TeacherPhotoPresignViewQuery,
   ) {
-    return this.photoTaskService.presignViewForTeacher(req.user.id, studentId, taskId, assetKey, ttlSec);
+    return this.photoTaskService.presignViewForTeacher(req.user.id, studentId, taskId, query);
   }
 
   @Post(':studentId/tasks/:taskId/photo-submissions/:submissionId/accept')
@@ -61,7 +73,7 @@ export class TeacherPhotoSubmissionsController {
     @Param('taskId') taskId: string,
     @Param('submissionId') submissionId: string,
     @Req() req: AuthRequest,
-    @Body() body: unknown,
+    @Body(new ZodValidationPipe(TeacherPhotoRejectRequestSchema)) body: TeacherPhotoRejectRequest,
   ) {
     return this.photoTaskService.reject(req.user.id, studentId, taskId, submissionId, body);
   }

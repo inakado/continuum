@@ -17,20 +17,26 @@ import {
   StudentUnitStatus,
   TaskAnswerType,
 } from '@prisma/client';
+import {
+  type StudentAttemptRequest,
+} from '@continuum/shared';
 import { ContentService } from '../content/content.service';
 import { EventsLogService } from '../events/events-log.service';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  parseMultiChoiceAttemptPayload,
+  parseNumericAttemptPayload,
+  parseSingleChoiceAttemptPayload,
+  type NumericAnswerInput,
+} from './attempt-validation';
 import { LearningAvailabilityService } from './learning-availability.service';
 
-const MAX_ANSWER_LENGTH = 2000;
 const TASK_SOLUTION_ALLOWED_STATUSES = new Set<StudentTaskStatus>([
   StudentTaskStatus.correct,
   StudentTaskStatus.accepted,
   StudentTaskStatus.credited_without_progress,
   StudentTaskStatus.teacher_credited,
 ]);
-
-type NumericAnswerInput = { partKey: string; value: string };
 
 type NumericPartResult = { partKey: string; correct: boolean };
 
@@ -380,7 +386,7 @@ export class LearningService {
     };
   }
 
-  async submitAttempt(studentId: string, taskId: string, body: unknown) {
+  async submitAttempt(studentId: string, taskId: string, body: StudentAttemptRequest) {
     const task = await this.prisma.task.findFirst({
       where: {
         id: taskId,
@@ -1253,40 +1259,10 @@ export class LearningService {
       choices: { choiceKey: string; contentLite: string }[];
       correctChoices: { choiceKey: string }[];
     },
-    body: unknown,
+    body: StudentAttemptRequest,
   ) {
     if (revision.answerType === TaskAnswerType.numeric) {
-      const payload = body as { answers?: NumericAnswerInput[] };
-      if (!payload || !Array.isArray(payload.answers)) {
-        throw new BadRequestException({
-          code: 'INVALID_NUMERIC_ANSWERS',
-          message: 'Invalid numeric answers',
-        });
-      }
-
-      const answers: NumericAnswerInput[] = payload.answers.map((item) => {
-        if (!item || typeof item !== 'object') {
-          throw new BadRequestException({
-            code: 'INVALID_NUMERIC_ANSWERS',
-            message: 'Invalid numeric answers',
-          });
-        }
-        const partKey = typeof item.partKey === 'string' ? item.partKey.trim() : '';
-        const value = typeof item.value === 'string' ? item.value.trim() : '';
-        if (!partKey) {
-          throw new BadRequestException({
-            code: 'INVALID_NUMERIC_ANSWERS',
-            message: 'Invalid numeric answers',
-          });
-        }
-        if (value.length > MAX_ANSWER_LENGTH) {
-          throw new BadRequestException({
-            code: 'INVALID_NUMERIC_ANSWERS',
-            message: 'Invalid numeric answers',
-          });
-        }
-        return { partKey, value };
-      });
+      const answers = parseNumericAttemptPayload(body);
 
       const answersMap = new Map(answers.map((item) => [item.partKey, item.value]));
       const perPart: NumericPartResult[] = revision.numericParts.map((part) => {
@@ -1304,14 +1280,7 @@ export class LearningService {
     }
 
     if (revision.answerType === TaskAnswerType.single_choice) {
-      const payload = body as { choiceKey?: string };
-      const choiceKey = typeof payload?.choiceKey === 'string' ? payload.choiceKey.trim() : '';
-      if (!choiceKey) {
-        throw new BadRequestException({
-          code: 'INVALID_CHOICE_KEY',
-          message: 'Invalid choiceKey',
-        });
-      }
+      const choiceKey = parseSingleChoiceAttemptPayload(body);
 
       const allowedKeys = new Set(revision.choices.map((choice) => choice.choiceKey));
       if (!allowedKeys.has(choiceKey)) {
@@ -1331,21 +1300,7 @@ export class LearningService {
     }
 
     if (revision.answerType === TaskAnswerType.multi_choice) {
-      const payload = body as { choiceKeys?: string[] };
-      if (!payload || !Array.isArray(payload.choiceKeys) || payload.choiceKeys.length === 0) {
-        throw new BadRequestException({
-          code: 'INVALID_CHOICE_KEYS',
-          message: 'Invalid choiceKeys',
-        });
-      }
-
-      const normalized = payload.choiceKeys.map((value) => (typeof value === 'string' ? value.trim() : '')).filter(Boolean);
-      if (normalized.length === 0) {
-        throw new BadRequestException({
-          code: 'INVALID_CHOICE_KEYS',
-          message: 'Invalid choiceKeys',
-        });
-      }
+      const normalized = parseMultiChoiceAttemptPayload(body);
 
       const allowedKeys = new Set(revision.choices.map((choice) => choice.choiceKey));
       const uniqueKeys = Array.from(new Set(normalized));

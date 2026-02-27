@@ -1,4 +1,16 @@
-import { apiRequest } from "./client";
+import {
+  TeacherPhotoPresignViewResponseSchema,
+  TeacherPhotoReviewResponseSchema,
+  TeacherReviewInboxResponseSchema,
+  TeacherReviewSubmissionDetailResponseSchema,
+  TeacherStudentPhotoQueueResponseSchema,
+  type TeacherPhotoPresignViewResponse as SharedTeacherPhotoPresignViewResponse,
+  type TeacherPhotoReviewResponse as SharedTeacherPhotoReviewResponse,
+  type TeacherReviewInboxResponse as SharedTeacherReviewInboxResponse,
+  type TeacherReviewSubmissionDetailResponse as SharedTeacherReviewSubmissionDetailResponse,
+  type TeacherStudentPhotoQueueResponse as SharedTeacherStudentPhotoQueueResponse,
+} from "@continuum/shared";
+import { apiRequest, apiRequestParsed } from "./client";
 import type { MeResponse } from "./auth";
 
 export type ContentStatus = "draft" | "published";
@@ -351,100 +363,14 @@ export type TeacherTaskPhotoSubmissionsResponse = {
   items: TeacherPhotoSubmission[];
 };
 
-export type TeacherStudentPhotoQueueItem = {
-  submissionId: string;
-  taskId: string;
-  taskTitle: string | null;
-  unitId: string;
-  unitTitle: string;
-  status: "submitted" | "accepted" | "rejected";
-  submittedAt: string;
-  rejectedReason: string | null;
-  assetKeysCount: number;
-};
-
-export type TeacherStudentPhotoQueueResponse = {
-  items: TeacherStudentPhotoQueueItem[];
-  total: number;
-  limit: number;
-  offset: number;
-};
-
-export type TeacherPhotoPresignViewResponse = {
-  ok: true;
-  assetKey: string;
-  expiresInSec: number;
-  url: string;
-};
-
-export type TeacherPhotoReviewResponse = {
-  ok: true;
-  submission: TeacherPhotoSubmission;
-  taskState: {
-    status:
-      | "not_started"
-      | "in_progress"
-      | "correct"
-      | "pending_review"
-      | "accepted"
-      | "rejected"
-      | "blocked"
-      | "credited_without_progress"
-      | "teacher_credited";
-    wrongAttempts: number;
-    blockedUntil: string | null;
-    requiredSkipped: boolean;
-  };
-  unitSnapshot?: {
-    unitId: string;
-    status: "locked" | "available" | "in_progress" | "completed";
-    totalTasks: number;
-    countedTasks: number;
-    solvedTasks: number;
-    completionPercent: number;
-    solvedPercent: number;
-  };
-};
-
-export type TeacherReviewSubmissionStatus = "pending_review" | "accepted" | "rejected";
-
-export type TeacherReviewInboxItem = {
-  submissionId: string;
-  status: TeacherReviewSubmissionStatus;
-  submittedAt: string;
-  assetKeysCount: number;
-  student: {
-    id: string;
-    login: string;
-    firstName: string | null;
-    lastName: string | null;
-  };
-  course: {
-    id: string;
-    title: string;
-  };
-  section: {
-    id: string;
-    title: string;
-  };
-  unit: {
-    id: string;
-    title: string;
-  };
-  task: {
-    id: string;
-    title: string | null;
-    sortOrder: number;
-  };
-};
-
-export type TeacherReviewInboxResponse = {
-  items: TeacherReviewInboxItem[];
-  total: number;
-  limit: number;
-  offset: number;
-  sort: "oldest" | "newest";
-};
+export type TeacherStudentPhotoQueueResponse = SharedTeacherStudentPhotoQueueResponse;
+export type TeacherStudentPhotoQueueItem = TeacherStudentPhotoQueueResponse["items"][number];
+export type TeacherPhotoPresignViewResponse = SharedTeacherPhotoPresignViewResponse;
+export type TeacherPhotoReviewResponse = SharedTeacherPhotoReviewResponse;
+export type TeacherReviewInboxResponse = SharedTeacherReviewInboxResponse;
+export type TeacherReviewSubmissionDetailResponse = SharedTeacherReviewSubmissionDetailResponse;
+export type TeacherReviewInboxItem = TeacherReviewInboxResponse["items"][number];
+export type TeacherReviewSubmissionStatus = TeacherReviewInboxItem["status"];
 
 export type TeacherReviewInboxFilters = {
   status?: TeacherReviewSubmissionStatus;
@@ -456,54 +382,6 @@ export type TeacherReviewInboxFilters = {
   limit?: number;
   offset?: number;
   sort?: "oldest" | "newest";
-};
-
-export type TeacherReviewSubmissionDetailResponse = {
-  submission: {
-    submissionId: string;
-    status: TeacherReviewSubmissionStatus;
-    submittedAt: string;
-    reviewedAt: string | null;
-    rejectedReason: string | null;
-    assetKeys: string[];
-    student: {
-      id: string;
-      login: string;
-      firstName: string | null;
-      lastName: string | null;
-    };
-    course: {
-      id: string;
-      title: string;
-    };
-    section: {
-      id: string;
-      title: string;
-    };
-    unit: {
-      id: string;
-      title: string;
-    };
-    task: {
-      id: string;
-      title: string | null;
-      sortOrder: number;
-      statementLite: string;
-    };
-  };
-  navigation: {
-    prevSubmissionId: string | null;
-    nextSubmissionId: string | null;
-  };
-  appliedFilters: {
-    status?: TeacherReviewSubmissionStatus;
-    studentId?: string;
-    courseId?: string;
-    sectionId?: string;
-    unitId?: string;
-    taskId?: string;
-    sort: "oldest" | "newest";
-  };
 };
 
 export const teacherApi = {
@@ -878,8 +756,9 @@ export const teacherApi = {
     if (params?.offset !== undefined) search.set("offset", String(params.offset));
     if (params?.sort) search.set("sort", params.sort);
     const suffix = search.toString();
-    return apiRequest<TeacherReviewInboxResponse>(
+    return apiRequestParsed(
       `/teacher/photo-submissions${suffix ? `?${suffix}` : ""}`,
+      TeacherReviewInboxResponseSchema,
     );
   },
 
@@ -893,8 +772,9 @@ export const teacherApi = {
     if (params?.taskId) search.set("taskId", params.taskId);
     if (params?.sort) search.set("sort", params.sort);
     const suffix = search.toString();
-    return apiRequest<TeacherReviewSubmissionDetailResponse>(
+    return apiRequestParsed(
       `/teacher/photo-submissions/${submissionId}${suffix ? `?${suffix}` : ""}`,
+      TeacherReviewSubmissionDetailResponseSchema,
     );
   },
 
@@ -907,8 +787,9 @@ export const teacherApi = {
     if (params?.limit !== undefined) search.set("limit", String(params.limit));
     if (params?.offset !== undefined) search.set("offset", String(params.offset));
     const suffix = search.toString();
-    return apiRequest<TeacherStudentPhotoQueueResponse>(
+    return apiRequestParsed(
       `/teacher/students/${studentId}/photo-submissions${suffix ? `?${suffix}` : ""}`,
+      TeacherStudentPhotoQueueResponseSchema,
     );
   },
 
@@ -926,14 +807,16 @@ export const teacherApi = {
   ) {
     const search = new URLSearchParams({ assetKey });
     if (ttlSec !== undefined) search.set("ttlSec", String(ttlSec));
-    return apiRequest<TeacherPhotoPresignViewResponse>(
+    return apiRequestParsed(
       `/teacher/students/${studentId}/tasks/${taskId}/photo-submissions/presign-view?${search.toString()}`,
+      TeacherPhotoPresignViewResponseSchema,
     );
   },
 
   acceptStudentTaskPhotoSubmission(studentId: string, taskId: string, submissionId: string) {
-    return apiRequest<TeacherPhotoReviewResponse>(
+    return apiRequestParsed(
       `/teacher/students/${studentId}/tasks/${taskId}/photo-submissions/${submissionId}/accept`,
+      TeacherPhotoReviewResponseSchema,
       { method: "POST" },
     );
   },
@@ -944,8 +827,9 @@ export const teacherApi = {
     submissionId: string,
     reason?: string,
   ) {
-    return apiRequest<TeacherPhotoReviewResponse>(
+    return apiRequestParsed(
       `/teacher/students/${studentId}/tasks/${taskId}/photo-submissions/${submissionId}/reject`,
+      TeacherPhotoReviewResponseSchema,
       {
         method: "POST",
         body: reason?.trim() ? { reason: reason.trim() } : {},

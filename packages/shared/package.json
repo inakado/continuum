@@ -10,6 +10,11 @@
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./contracts/learning-photo": {
+      "types": "./dist/contracts/learning-photo.d.ts",
+      "require": "./dist/contracts/learning-photo.js",
+      "default": "./dist/contracts/learning-photo.js"
+    },
     "./storage-core": {
       "types": "./dist/storage-core",
       "require": "./dist/storage-core.js",
@@ -25,5 +30,8 @@
   "devDependencies": {
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
   }
 }

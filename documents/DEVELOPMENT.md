@@ -182,6 +182,18 @@ Production policy (`Implemented`):
   - выровнять store-dir на текущий (`PNPM_STORE_DIR=/Users/<user>/Library/pnpm/store/v10`) или выполнить чистую переустановку зависимостей.
 - **Проверка:** команда `pnpm add -Dw ...` завершается успешно, после чего рабочие команды (`pnpm lint`, `pnpm lint:boundaries`) выполняются без ошибок.
 
+- **Симптом:** typecheck/test не резолвят `@continuum/shared/contracts/learning-photo` (`Cannot find module ...`).
+- **Команда:** `pnpm typecheck`, `pnpm --filter @continuum/api test`, `pnpm --filter web test`.
+- **Причина:** новый contract subpath в `@continuum/shared` требует либо собранный `dist`, либо явный source-alias в toolchain.
+- **Фикс:**
+  - для тестов использовать alias в `apps/api/vitest.config.ts` и `apps/web/vitest.config.ts` на `packages/shared/src/index.ts` (с re-export контрактов);
+  - для web typecheck добавить `paths` mapping в `apps/web/tsconfig.json`.
+  - для docker dev backend в `docker-compose.yml` проверять наличие `packages/shared/dist/contracts/learning-photo.js` и при отсутствии пересобирать shared через `tsc`.
+- **Проверка:**
+  - `pnpm --filter @continuum/api test` — проходит;
+  - `pnpm --filter web test` — проходит;
+  - `pnpm typecheck` — проходит.
+
 - **Симптом:** агент запускает `CI=true pnpm install --frozen-lockfile` в sandbox и получает нестабильные сетевые ошибки.
 - **Команда:** `CI=true pnpm install --frozen-lockfile`
 - **Причина:** в агентском окружении нет гарантированного доступа к npm registry.

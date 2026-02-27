@@ -13,6 +13,7 @@
 - `Planned`: целевые принципы и инструменты, которые нужно внедрить.
 - `Implemented` (2026-02-27, Phase 0 foundation): в monorepo подключены `eslint` + `@typescript-eslint` + `eslint-plugin-boundaries`, добавлены workspace `lint`-scripts и CI-проверки `lint` + `lint:boundaries`.
 - `Implemented` (2026-02-27, Phase 0 tests baseline): в `apps/api`, `apps/web`, `apps/worker`, `packages/shared` подключён `vitest`, добавлены минимальные автотесты для health/login/storage-config критичных путей.
+- `Implemented` (2026-02-27, Phase 1 wave1 Learning/Photo): внедрён schema-first contract slice на `zod` (`@continuum/shared`), подключён custom `ZodValidationPipe` в API boundary для wave1 endpoint-ов, и включён runtime parsing ответов в web-клиенте (`apiRequestParsed`, `API_RESPONSE_INVALID`).
 
 ## 1) Baseline читаемости и поддерживаемости (`Implemented`, снимок на 2026-02-26)
 
@@ -61,9 +62,10 @@
 
 - `zod`:
   - единый runtime/schema слой для API boundary + frontend parsing + shared contracts;
-  - ответ на вопрос “нужен ли Zod”: **да, нужен**.
+  - ответ на вопрос “нужен ли Zod”: **да, нужен** (`Implemented` для Phase 1 wave1 Learning/Photo).
 - `nestjs-zod` (или эквивалентный bridge-слой):
-  - интеграция Zod-схем в NestJS pipe/DTO-поток без ручного парсинга в каждом сервисе.
+  - интеграция Zod-схем в NestJS pipe/DTO-поток без ручного парсинга в каждом сервисе (`Planned`);
+  - текущий bridge в коде: custom `ZodValidationPipe` (`Implemented`, wave1).
 - `@tanstack/react-query`:
   - единый server-state cache/dedup/retry/invalidation слой на frontend.
 - `vitest` + `@testing-library/react` + `@testing-library/user-event` + `@testing-library/jest-dom` (`Implemented` для baseline в `apps/web`, дальнейшее расширение `Planned`):
@@ -91,10 +93,10 @@
 
 ### 3.4 Где именно подключаются библиотеки (`Implemented/Planned`)
 
-- `zod` (`Planned`):
-  - `packages/shared` — общие schema/contracts;
-  - `apps/api` — boundary validation входов/выходов;
-  - `apps/web` — runtime-парсинг API-ответов и форм.
+- `zod` (`Implemented/Planned`):
+  - `packages/shared` — общие schema/contracts (`Implemented` для wave1 Learning/Photo);
+  - `apps/api` — boundary validation входов/выходов (`Implemented` для wave1 Learning/Photo через custom pipe);
+  - `apps/web` — runtime-парсинг API-ответов и форм (`Implemented` для wave1 Learning/Photo, далее `Planned` для расширения).
 - `nestjs-zod` (`Planned`):
   - только `apps/api` (интеграция схем в NestJS pipeline).
 - `@tanstack/react-query` (`Planned`):

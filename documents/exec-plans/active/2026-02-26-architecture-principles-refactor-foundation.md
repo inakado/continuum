@@ -236,6 +236,50 @@
   - ключевые endpoint-ы проходят через единый validation boundary;
   - типы API/Web выводятся из одного источника.
 
+### Phase 1 Wave 1 — Прогресс выполнения (2026-02-27)
+
+- Статус волны: `In Progress` (wave1 Learning/Photo реализован, дальнейшие волны Phase 1 остаются `Planned`).
+
+- `Implemented`:
+  - в `packages/shared` добавлен contract layer `src/contracts/learning-photo.ts` (request/response schemas + `z.infer` aliases) и unit-тесты `test/learning-photo-contracts.test.ts`;
+  - в `apps/api` добавлен custom bridge:
+    - `src/common/pipes/zod-validation.pipe.ts`,
+    - `src/common/validation/zod-exception-factories.ts`;
+  - boundary validation перенесён на wave1 endpoint-ы:
+    - `POST /student/tasks/:taskId/attempts`,
+    - `POST /student/tasks/:taskId/photo/presign-upload`,
+    - `POST /student/tasks/:taskId/photo/submit`,
+    - `GET /student/tasks/:taskId/photo/presign-view`,
+    - `GET /teacher/photo-submissions`,
+    - `GET /teacher/photo-submissions/:submissionId`,
+    - `GET /teacher/students/:studentId/tasks/:taskId/photo-submissions/presign-view`,
+    - `POST /teacher/students/:studentId/tasks/:taskId/photo-submissions/:submissionId/accept`,
+    - `POST /teacher/students/:studentId/tasks/:taskId/photo-submissions/:submissionId/reject`,
+    - `GET /teacher/students/:studentId/photo-submissions`;
+  - в `apps/api/src/learning/learning.service.ts` attempt parsing переведён на shared schemas (через `attempt-validation.ts`) с сохранением кодов:
+    - `INVALID_NUMERIC_ANSWERS`,
+    - `INVALID_CHOICE_KEY`,
+    - `INVALID_CHOICE_KEYS`;
+  - в `apps/api/src/learning/photo-task.service.ts` убран ручной `asRecord`/`parse*` для wave1 request/query, сохранены legacy `error.code` и legacy `409` для review/photo query/body-веток;
+  - в `apps/web/lib/api/client.ts` добавлен runtime parsing helper `apiRequestParsed` (ошибка `ApiError.code = API_RESPONSE_INVALID`);
+  - в `apps/web/lib/api/student.ts` и `apps/web/lib/api/teacher.ts` wave1 методы переведены на shared response schemas и shared type aliases;
+  - добавлены API/Web тесты wave1:
+    - API: `zod-validation.pipe`, exception mapping, learning attempt parsing helpers;
+    - Web: runtime parsing success/failure (`API_RESPONSE_INVALID`).
+
+- `Implemented` (проверка):
+  - `pnpm --filter @continuum/shared test` — `pass`;
+  - `pnpm --filter @continuum/api test` — `pass`;
+  - `pnpm --filter web test` — `pass`;
+  - `pnpm lint` — `pass` (`0 errors`, warnings допустимы);
+  - `pnpm lint:boundaries` — `pass`;
+  - `pnpm typecheck` — `pass` (по текущему корневому скрипту для `@continuum/shared` и `web`).
+
+- `Planned` (следующие волны Phase 1):
+  - расширить contract-first подход за пределы Learning/Photo;
+  - решить стратегию глобального validation pipeline в API (после wave1);
+  - подготовить возможный переход с custom bridge на `nestjs-zod`, если это даст выигрыш без регрессий совместимости.
+
 ### Phase 2 — Backend декомпозиция
 
 - Разделить самые крупные сервисы на read/write + policy + mapper слои.

@@ -1,9 +1,17 @@
 import { Controller, Get, Param, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  TeacherPhotoInboxQuerySchema,
+  TeacherPhotoSubmissionDetailQuerySchema,
+  type TeacherPhotoInboxQuery,
+  type TeacherPhotoSubmissionDetailQuery,
+} from '@continuum/shared';
 import { Role } from '@prisma/client';
 import { AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import { teacherInboxQueryExceptionFactory } from '../common/validation/zod-exception-factories';
 import { PhotoTaskService } from './photo-task.service';
 
 @Controller('teacher/photo-submissions')
@@ -15,52 +23,19 @@ export class TeacherPhotoReviewInboxController {
   @Get()
   list(
     @Req() req: AuthRequest,
-    @Query('status') status: string | undefined,
-    @Query('studentId') studentId: string | undefined,
-    @Query('courseId') courseId: string | undefined,
-    @Query('sectionId') sectionId: string | undefined,
-    @Query('unitId') unitId: string | undefined,
-    @Query('taskId') taskId: string | undefined,
-    @Query('limit') limit: string | undefined,
-    @Query('offset') offset: string | undefined,
-    @Query('sort') sort: string | undefined,
+    @Query(new ZodValidationPipe(TeacherPhotoInboxQuerySchema, teacherInboxQueryExceptionFactory))
+    query: TeacherPhotoInboxQuery,
   ) {
-    return this.photoTaskService.listInboxForTeacher(
-      req.user.id,
-      status,
-      studentId,
-      courseId,
-      sectionId,
-      unitId,
-      taskId,
-      limit,
-      offset,
-      sort,
-    );
+    return this.photoTaskService.listInboxForTeacher(req.user.id, query);
   }
 
   @Get(':submissionId')
   detail(
     @Req() req: AuthRequest,
     @Param('submissionId') submissionId: string,
-    @Query('status') status: string | undefined,
-    @Query('studentId') studentId: string | undefined,
-    @Query('courseId') courseId: string | undefined,
-    @Query('sectionId') sectionId: string | undefined,
-    @Query('unitId') unitId: string | undefined,
-    @Query('taskId') taskId: string | undefined,
-    @Query('sort') sort: string | undefined,
+    @Query(new ZodValidationPipe(TeacherPhotoSubmissionDetailQuerySchema, teacherInboxQueryExceptionFactory))
+    query: TeacherPhotoSubmissionDetailQuery,
   ) {
-    return this.photoTaskService.getInboxSubmissionForTeacher(
-      req.user.id,
-      submissionId,
-      status,
-      studentId,
-      courseId,
-      sectionId,
-      unitId,
-      taskId,
-      sort,
-    );
+    return this.photoTaskService.getInboxSubmissionForTeacher(req.user.id, submissionId, query);
   }
 }

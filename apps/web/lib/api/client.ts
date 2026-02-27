@@ -1,3 +1,5 @@
+import type { ZodTypeAny } from "zod";
+
 export class ApiError extends Error {
   status: number;
   code?: string;
@@ -151,4 +153,22 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
 
   return data as T;
+}
+
+export async function apiRequestParsed<TSchema extends ZodTypeAny>(
+  path: string,
+  responseSchema: TSchema,
+  options: RequestOptions = {},
+): Promise<TSchema["_output"]> {
+  const data = await apiRequest<unknown>(path, options);
+  const parsed = responseSchema.safeParse(data);
+  if (!parsed.success) {
+    throw new ApiError(
+      500,
+      `API response validation failed for ${path}`,
+      "API_RESPONSE_INVALID",
+    );
+  }
+
+  return parsed.data;
 }
