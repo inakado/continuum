@@ -15,6 +15,11 @@
       "require": "./dist/contracts/learning-photo.js",
       "default": "./dist/contracts/learning-photo.js"
     },
+    "./contracts/content-non-learning": {
+      "types": "./dist/contracts/content-non-learning.d.ts",
+      "require": "./dist/contracts/content-non-learning.js",
+      "default": "./dist/contracts/content-non-learning.js"
+    },
     "./storage-core": {
       "types": "./dist/storage-core",
       "require": "./dist/storage-core.js",

@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Pencil, Trash2 } from "lucide-react";
@@ -9,7 +10,9 @@ import AlertDialog from "@/components/ui/AlertDialog";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Textarea from "@/components/ui/Textarea";
-import { teacherApi, Course, CourseWithSections, Section } from "@/lib/api/teacher";
+import { teacherApi } from "@/lib/api/teacher";
+import type { Course, CourseWithSections, Section } from "@/lib/api/teacher";
+import { contentQueryKeys } from "@/lib/query/keys";
 import { getContentStatusLabel } from "@/lib/status-labels";
 import { getApiErrorMessage } from "@/features/teacher-content/shared/api-errors";
 import { useTeacherLogout } from "@/features/teacher-content/auth/use-teacher-logout";
@@ -141,13 +144,10 @@ function TeacherAnalyticsMode({ content }: { content: ContentConfig }) {
 
 function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
   const router = useRouter();
-  const [courses, setCourses] = useState<Course[]>([]);
+  const queryClient = useQueryClient();
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
-  const [selectedCourse, setSelectedCourse] = useState<CourseWithSections | null>(null);
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
   const [selectedSectionTitle, setSelectedSectionTitle] = useState<string | null>(null);
-  const [loadingCourses, setLoadingCourses] = useState(false);
-  const [loadingSections, setLoadingSections] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [courseTitle, setCourseTitle] = useState("");
   const [courseDescription, setCourseDescription] = useState("");
@@ -166,8 +166,25 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
   const [savingEdit, setSavingEdit] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState>(null);
   const [historyReady, setHistoryReady] = useState(Boolean(initialSectionId));
-  const coursesRequestIdRef = useRef(0);
-  const sectionsRequestIdRef = useRef(0);
+  const coursesQuery = useQuery({
+    queryKey: contentQueryKeys.teacherCourses(),
+    queryFn: () => teacherApi.listCourses(),
+  });
+  const selectedCourseQuery = useQuery({
+    queryKey: contentQueryKeys.teacherCourse(selectedCourseId ?? ""),
+    queryFn: () => teacherApi.getCourse(selectedCourseId as string),
+    enabled: Boolean(selectedCourseId),
+  });
+  const courses: Course[] = coursesQuery.data ?? [];
+  const selectedCourse: CourseWithSections | null = selectedCourseQuery.data ?? null;
+  const loadingCourses = coursesQuery.isPending;
+  const loadingSections = Boolean(selectedCourseId) && selectedCourseQuery.isPending;
+  const requestError = useMemo(() => {
+    if (coursesQuery.isError) return getApiErrorMessage(coursesQuery.error);
+    if (selectedCourseQuery.isError && selectedCourseId) return getApiErrorMessage(selectedCourseQuery.error);
+    return null;
+  }, [coursesQuery.error, coursesQuery.isError, selectedCourseId, selectedCourseQuery.error, selectedCourseQuery.isError]);
+  const visibleError = error ?? requestError;
 
   const writeHistoryState = useCallback(
     (next: Omit<TeacherEditHistoryState, "__continuumTeacherEditNav">, mode: "push" | "replace" = "push") => {
@@ -205,63 +222,42 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
     return [...selectedCourse.sections].sort((a, b) => a.sortOrder - b.sortOrder);
   }, [selectedCourse]);
 
-  const fetchCourses = useCallback(async () => {
-    const requestId = ++coursesRequestIdRef.current;
-    setLoadingCourses(true);
-    setError(null);
-    try {
-      const data = await teacherApi.listCourses();
-      if (requestId !== coursesRequestIdRef.current) return;
-      setCourses(data);
-    } catch (err) {
-      if (requestId !== coursesRequestIdRef.current) return;
-      setError(getApiErrorMessage(err));
-    } finally {
-      if (requestId === coursesRequestIdRef.current) {
-        setLoadingCourses(false);
-      }
-    }
-  }, []);
+  const refreshCourses = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: contentQueryKeys.teacherCourses() });
+  }, [queryClient]);
 
-  const selectCourse = useCallback(async (courseId: string) => {
-    const requestId = ++sectionsRequestIdRef.current;
-    setSelectedCourseId(courseId);
-    setSelectedCourse(null);
-    setLoadingSections(true);
-    setSectionTitle("");
-    setSectionDescription("");
-    setShowSectionForm(false);
-    setSectionFormError(null);
-    try {
-      const data = await teacherApi.getCourse(courseId);
-      if (requestId !== sectionsRequestIdRef.current) return;
-      setSelectedCourse(data);
-    } catch (err) {
-      if (requestId !== sectionsRequestIdRef.current) return;
-      setError(getApiErrorMessage(err));
-    } finally {
-      if (requestId === sectionsRequestIdRef.current) {
-        setLoadingSections(false);
-      }
-    }
-  }, []);
+  const refreshSelectedCourse = useCallback(async (courseId: string) => {
+    await queryClient.invalidateQueries({
+      queryKey: contentQueryKeys.teacherCourse(courseId),
+    });
+  }, [queryClient]);
 
   const handleOpenCourse = useCallback(
     async (courseId: string, mode: HistoryUpdateMode = "push") => {
+      setError(null);
       setShowCourseForm(false);
       setCourseTitle("");
       setCourseFormError(null);
-      await selectCourse(courseId);
+      setSelectedCourseId(courseId);
+      setSectionTitle("");
+      setSectionDescription("");
+      setShowSectionForm(false);
+      setSectionFormError(null);
+      try {
+        await queryClient.fetchQuery({
+          queryKey: contentQueryKeys.teacherCourse(courseId),
+          queryFn: () => teacherApi.getCourse(courseId),
+        });
+      } catch (err) {
+        setError(getApiErrorMessage(err));
+        return;
+      }
       if (mode !== "none") {
         writeHistoryState({ courseId, sectionId: null, sectionTitle: null }, mode);
       }
     },
-    [selectCourse, writeHistoryState],
+    [queryClient, writeHistoryState],
   );
-
-  useEffect(() => {
-    void fetchCourses();
-  }, [fetchCourses]);
 
   useEffect(() => {
     if (initialSectionId) {
@@ -287,7 +283,6 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
 
     if (!currentState.courseId) {
       setSelectedCourseId(null);
-      setSelectedCourse(null);
       setSelectedSectionId(null);
       setSelectedSectionTitle(null);
       setHistoryReady(true);
@@ -310,7 +305,6 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
       const next = event.state;
       if (!next.courseId) {
         setSelectedCourseId(null);
-        setSelectedCourse(null);
         setSelectedSectionId(null);
         setSelectedSectionTitle(null);
         return;
@@ -339,8 +333,8 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
       setCourseTitle("");
       setCourseDescription("");
       setShowCourseForm(false);
-      await fetchCourses();
-      await selectCourse(created.id);
+      await refreshCourses();
+      await handleOpenCourse(created.id, "none");
     } catch (err) {
       setCourseFormError(getApiErrorMessage(err));
     } finally {
@@ -362,7 +356,7 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
       setSectionTitle("");
       setSectionDescription("");
       setShowSectionForm(false);
-      await selectCourse(selectedCourse.id);
+      await refreshSelectedCourse(selectedCourse.id);
     } catch (err) {
       setSectionFormError(getApiErrorMessage(err));
     } finally {
@@ -378,7 +372,10 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
       } else {
         await teacherApi.publishCourse(course.id);
       }
-      await fetchCourses();
+      await refreshCourses();
+      if (selectedCourseId === course.id) {
+        await refreshSelectedCourse(course.id);
+      }
     } catch (err) {
       setError(getApiErrorMessage(err));
     }
@@ -393,13 +390,12 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
     try {
       await teacherApi.deleteCourse(course.id);
       if (selectedCourseId === course.id) {
-        setSelectedCourse(null);
         setSelectedCourseId(null);
         setSelectedSectionId(null);
         setSelectedSectionTitle(null);
         writeHistoryState({ courseId: null, sectionId: null, sectionTitle: null }, "replace");
       }
-      await fetchCourses();
+      await refreshCourses();
     } catch (err) {
       setError(getApiErrorMessage(err));
     }
@@ -414,7 +410,7 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
       } else {
         await teacherApi.publishSection(section.id);
       }
-      await selectCourse(selectedCourse.id);
+      await refreshSelectedCourse(selectedCourse.id);
     } catch (err) {
       setError(getApiErrorMessage(err));
     }
@@ -430,7 +426,7 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
     setError(null);
     try {
       await teacherApi.deleteSection(section.id);
-      await selectCourse(selectedCourse.id);
+      await refreshSelectedCourse(selectedCourse.id);
     } catch (err) {
       setError(getApiErrorMessage(err));
     }
@@ -485,9 +481,9 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
           title,
           description: normalizeDescription(editDescription),
         });
-        await fetchCourses();
+        await refreshCourses();
         if (selectedCourseId === editDialog.id) {
-          await selectCourse(editDialog.id);
+          await refreshSelectedCourse(editDialog.id);
         }
       } else if (selectedCourse) {
         const updated = await teacherApi.updateSection(editDialog.id, {
@@ -497,7 +493,7 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
         if (selectedSectionId === updated.id) {
           setSelectedSectionTitle(updated.title);
         }
-        await selectCourse(selectedCourse.id);
+        await refreshSelectedCourse(selectedCourse.id);
       }
       setEditDialog(null);
     } catch (err) {
@@ -525,7 +521,6 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
   };
 
   const handleBackToCoursesRoot = () => {
-    setSelectedCourse(null);
     setSelectedCourseId(null);
     setShowSectionForm(false);
     setSectionTitle("");
@@ -537,9 +532,9 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
 
   return (
     <>
-      {error ? (
+      {visibleError ? (
         <div className={styles.error} role="status" aria-live="polite">
-          {error}
+          {visibleError}
         </div>
       ) : null}
 

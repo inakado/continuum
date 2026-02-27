@@ -1,11 +1,13 @@
 "use client";
 
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import DashboardShell from "@/components/DashboardShell";
 import Button from "@/components/ui/Button";
 import { studentApi, type Course, type CourseWithSections, type Section } from "@/lib/api/student";
+import { contentQueryKeys } from "@/lib/query/keys";
 import { getContentStatusLabel } from "@/lib/status-labels";
 import { useStudentLogout } from "@/features/student-content/auth/use-student-logout";
 import { useStudentIdentity } from "@/features/student-content/shared/use-student-identity";
@@ -50,22 +52,35 @@ type StudentDashboardScreenProps = {
 
 export default function StudentDashboardScreen({ queryOverride = false }: StudentDashboardScreenProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const handleLogout = useStudentLogout();
   const identity = useStudentIdentity();
   const skipAutoRestoreOnceRef = useRef(false);
   const [boot, setBoot] = useState<Boot>("checking_last");
   const [view, setView] = useState<View>("courses");
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [loadingCourses, setLoadingCourses] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
-  const [selectedCourse, setSelectedCourse] = useState<CourseWithSections | null>(null);
-
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
   const [selectedSectionTitle, setSelectedSectionTitle] = useState<string | null>(null);
-  const coursesRequestIdRef = useRef(0);
-  const courseRequestIdRef = useRef(0);
+  const coursesQuery = useQuery({
+    queryKey: contentQueryKeys.studentCourses(),
+    queryFn: () => studentApi.listCourses(),
+    enabled: boot === "ready",
+  });
+  const selectedCourseQuery = useQuery({
+    queryKey: contentQueryKeys.studentCourse(selectedCourseId ?? ""),
+    queryFn: () => studentApi.getCourse(selectedCourseId as string),
+    enabled: boot === "ready" && Boolean(selectedCourseId),
+  });
+  const selectedSectionQuery = useQuery({
+    queryKey: contentQueryKeys.studentSection(selectedSectionId ?? ""),
+    queryFn: () => studentApi.getSection(selectedSectionId as string),
+    enabled: boot === "ready" && view === "graph" && Boolean(selectedSectionId),
+  });
+  const courses: Course[] = coursesQuery.data ?? [];
+  const selectedCourse: CourseWithSections | null = selectedCourseQuery.data ?? null;
+  const loadingCourses = coursesQuery.isPending;
 
   const writeHistoryState = useCallback(
     (
@@ -101,64 +116,47 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
     if (!selectedCourse) return [];
     return [...selectedCourse.sections].sort((a, b) => a.sortOrder - b.sortOrder);
   }, [selectedCourse]);
-
-  const fetchCourses = useCallback(async () => {
-    const requestId = ++coursesRequestIdRef.current;
-    setLoadingCourses(true);
-    setError(null);
-    try {
-      const data = await studentApi.listCourses();
-      if (requestId !== coursesRequestIdRef.current) return;
-      setCourses(data);
-    } catch (err) {
-      if (requestId !== coursesRequestIdRef.current) return;
-      setError(err instanceof Error ? err.message : "Ошибка загрузки курсов");
-    } finally {
-      if (requestId === coursesRequestIdRef.current) {
-        setLoadingCourses(false);
-      }
+  const requestError = useMemo(() => {
+    if (coursesQuery.isError) {
+      return coursesQuery.error instanceof Error ? coursesQuery.error.message : "Ошибка загрузки курсов";
     }
-  }, []);
-
-  const loadCourse = useCallback(async (courseId: string) => {
-    const requestId = ++courseRequestIdRef.current;
-    setError(null);
-    setSelectedCourseId(courseId);
-    setSelectedCourse(null);
-    try {
-      const data = await studentApi.getCourse(courseId);
-      if (requestId !== courseRequestIdRef.current) return null;
-      setSelectedCourse(data);
-      return data;
-    } catch (err) {
-      if (requestId !== courseRequestIdRef.current) return null;
-      setError(err instanceof Error ? err.message : "Ошибка загрузки курса");
-      return null;
+    if (selectedCourseQuery.isError && view === "sections") {
+      return selectedCourseQuery.error instanceof Error ? selectedCourseQuery.error.message : "Ошибка загрузки курса";
     }
-  }, []);
+    return null;
+  }, [coursesQuery.error, coursesQuery.isError, selectedCourseQuery.error, selectedCourseQuery.isError, view]);
+  const visibleError = error ?? requestError;
 
   const openCourse = useCallback(
     async (courseId: string, mode: HistoryMode = "push") => {
-      const data = await loadCourse(courseId);
-      if (!data) return false;
-      setSelectedSectionId(null);
-      setSelectedSectionTitle(null);
-      setView("sections");
-      if (mode !== "none") {
-        writeHistoryState(
-          { view: "sections", courseId: data.id, sectionId: null, sectionTitle: null },
-          mode,
-        );
+      setError(null);
+      try {
+        const data = await queryClient.fetchQuery({
+          queryKey: contentQueryKeys.studentCourse(courseId),
+          queryFn: () => studentApi.getCourse(courseId),
+        });
+        setSelectedCourseId(courseId);
+        setSelectedSectionId(null);
+        setSelectedSectionTitle(null);
+        setView("sections");
+        if (mode !== "none") {
+          writeHistoryState(
+            { view: "sections", courseId: data.id, sectionId: null, sectionTitle: null },
+            mode,
+          );
+        }
+        return true;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Ошибка загрузки курса");
+        return false;
       }
-      return true;
     },
-    [loadCourse, writeHistoryState],
+    [queryClient, writeHistoryState],
   );
 
   const forceShowCourses = useCallback(() => {
     setError(null);
     setSelectedCourseId(null);
-    setSelectedCourse(null);
     setSelectedSectionId(null);
     setSelectedSectionTitle(null);
     setView("courses");
@@ -173,7 +171,6 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
     setSelectedSectionId(null);
     setSelectedSectionTitle(null);
     setSelectedCourseId(null);
-    setSelectedCourse(null);
     setView("courses");
     writeHistoryState({ view: "courses", courseId: null, sectionId: null, sectionTitle: null }, "replace");
   }, [writeHistoryState]);
@@ -246,45 +243,41 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
   }, [forceShowCourses, queryOverride, router, writeHistoryState]);
 
   useEffect(() => {
-    if (boot !== "ready") return;
-    // We always want courses cached for the dashboard, even if we start on the graph.
-    fetchCourses();
-  }, [boot, fetchCourses]);
-
-  useEffect(() => {
     // If we restored a section graph (or landed here without section title),
     // fetch the section to display its title and allow back-navigation to sections.
     if (boot !== "ready") return;
     if (view !== "graph") return;
     if (!selectedSectionId) return;
     if (selectedSectionTitle) return;
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const section = await studentApi.getSection(selectedSectionId);
-        if (cancelled) return;
-        setSelectedSectionTitle(section.title);
-        setSelectedCourseId(section.courseId);
-        writeHistoryState(
-          {
-            view: "graph",
-            courseId: section.courseId,
-            sectionId: section.id,
-            sectionTitle: section.title,
-          },
-          "replace",
-        );
-      } catch {
-        if (cancelled) return;
-        handleGraphNotFound();
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [boot, handleGraphNotFound, selectedSectionId, selectedSectionTitle, view, writeHistoryState]);
+    if (selectedSectionQuery.isSuccess) {
+      const section = selectedSectionQuery.data;
+      setSelectedSectionTitle(section.title);
+      setSelectedCourseId(section.courseId);
+      writeHistoryState(
+        {
+          view: "graph",
+          courseId: section.courseId,
+          sectionId: section.id,
+          sectionTitle: section.title,
+        },
+        "replace",
+      );
+      return;
+    }
+    if (selectedSectionQuery.isError) {
+      handleGraphNotFound();
+    }
+  }, [
+    boot,
+    handleGraphNotFound,
+    selectedSectionId,
+    selectedSectionQuery.data,
+    selectedSectionQuery.isError,
+    selectedSectionQuery.isSuccess,
+    selectedSectionTitle,
+    view,
+    writeHistoryState,
+  ]);
 
   useEffect(() => {
     if (boot !== "ready") return;
@@ -317,16 +310,15 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
       setSelectedSectionTitle(next.sectionTitle);
       setSelectedCourseId(next.courseId);
       setView("graph");
-      if (next.courseId) {
-        void loadCourse(next.courseId);
-      }
+      if (!next.courseId) return;
+      setSelectedCourseId(next.courseId);
     };
 
     window.addEventListener("popstate", onPopState);
     return () => {
       window.removeEventListener("popstate", onPopState);
     };
-  }, [boot, forceShowCourses, loadCourse, openCourse]);
+  }, [boot, forceShowCourses, openCourse]);
 
   const handleCourseClick = useCallback(
     async (courseId: string) => {
@@ -411,9 +403,9 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
           </div>
         </div>
 
-        {error ? (
+        {visibleError ? (
           <div className={styles.error} role="status" aria-live="polite">
-            {error}
+            {visibleError}
           </div>
         ) : null}
 

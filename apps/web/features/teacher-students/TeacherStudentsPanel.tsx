@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MoreHorizontal } from "lucide-react";
 import AlertDialog from "@/components/ui/AlertDialog";
@@ -14,6 +15,7 @@ import {
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import { teacherApi, type StudentSummary, type TeacherSummary } from "@/lib/api/teacher";
+import { contentQueryKeys } from "@/lib/query/keys";
 import { formatApiErrorPayload } from "@/features/teacher-content/shared/api-errors";
 import TeacherStudentProfilePanel from "./TeacherStudentProfilePanel";
 import styles from "./teacher-students-panel.module.css";
@@ -35,11 +37,9 @@ type Props = {
 
 export default function TeacherStudentsPanel({ studentId }: Props) {
   const router = useRouter();
-  const [students, setStudents] = useState<StudentSummary[]>([]);
-  const [teachers, setTeachers] = useState<TeacherSummary[]>([]);
+  const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [loadingTeachers, setLoadingTeachers] = useState(false);
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [createLogin, setCreateLogin] = useState("");
   const [createFirstName, setCreateFirstName] = useState("");
@@ -61,55 +61,39 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
   const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null);
   const [openActionsStudentId, setOpenActionsStudentId] = useState<string | null>(null);
   const [confirmState, setConfirmState] = useState<StudentConfirmState>(null);
-  const studentsRequestIdRef = useRef(0);
-
-  const fetchStudents = useCallback(async (search: string) => {
-    const requestId = ++studentsRequestIdRef.current;
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await teacherApi.listStudents({ query: search.trim() || undefined });
-      if (requestId !== studentsRequestIdRef.current) return;
-      setStudents(data);
-    } catch (err) {
-      if (requestId !== studentsRequestIdRef.current) return;
-      setError(formatApiErrorPayload(err));
-    } finally {
-      if (requestId === studentsRequestIdRef.current) {
-        setLoading(false);
-      }
-    }
-  }, []);
+  const studentsQuery = useQuery({
+    queryKey: contentQueryKeys.teacherStudents(debouncedQuery.trim() || undefined),
+    queryFn: () => teacherApi.listStudents({ query: debouncedQuery.trim() || undefined }),
+    enabled: !studentId,
+  });
+  const teachersQuery = useQuery({
+    queryKey: contentQueryKeys.teacherTeachers(),
+    queryFn: () => teacherApi.listTeachers(),
+    enabled: !studentId,
+  });
+  const students: StudentSummary[] = studentsQuery.data ?? [];
+  const teachers: TeacherSummary[] = teachersQuery.data ?? [];
+  const loading = studentsQuery.isPending;
+  const loadingTeachers = teachersQuery.isPending;
+  const requestError = useMemo(() => {
+    if (studentsQuery.isError) return formatApiErrorPayload(studentsQuery.error);
+    if (teachersQuery.isError) return formatApiErrorPayload(teachersQuery.error);
+    return null;
+  }, [studentsQuery.error, studentsQuery.isError, teachersQuery.error, teachersQuery.isError]);
+  const visibleError = error ?? requestError;
 
   const refreshStudents = useCallback(async () => {
     if (studentId) return;
-    await fetchStudents(query);
-  }, [fetchStudents, query, studentId]);
-
-  const fetchTeachers = useCallback(async () => {
-    setLoadingTeachers(true);
-    try {
-      const data = await teacherApi.listTeachers();
-      setTeachers(data);
-    } catch (err) {
-      setError(formatApiErrorPayload(err));
-    } finally {
-      setLoadingTeachers(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (studentId) return;
-    void fetchTeachers();
-  }, [fetchTeachers, studentId]);
+    await queryClient.invalidateQueries({ queryKey: contentQueryKeys.teacherStudentsList() });
+  }, [queryClient, studentId]);
 
   useEffect(() => {
     if (studentId) return;
     const handle = window.setTimeout(() => {
-      void fetchStudents(query);
+      setDebouncedQuery(query);
     }, 300);
     return () => window.clearTimeout(handle);
-  }, [query, fetchStudents, studentId]);
+  }, [query, studentId]);
 
   useEffect(() => {
     if (!openActionsStudentId) return;
@@ -426,9 +410,9 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
         </div>
       ) : null}
 
-      {error ? (
+      {visibleError ? (
         <div className={styles.error} role="status" aria-live="polite">
-          {error}
+          {visibleError}
         </div>
       ) : null}
 

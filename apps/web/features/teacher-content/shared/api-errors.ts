@@ -1,35 +1,17 @@
-import { ApiError } from "@/lib/api/client";
-import { getApiErrorCodeLabel } from "@/lib/status-labels";
+import {
+  type UiApiErrorPayload,
+  getApiErrorMessageByAudience,
+  getApiErrorPayloadByAudience,
+} from "@/lib/api/error-catalog";
 
 export const getApiErrorMessage = (error: unknown) => {
-  if (error instanceof ApiError) {
-    if (error.status === 401 || error.status === 403) {
-      return "Перелогиньтесь";
-    }
-    if (error.status === 409) {
-      return error.message;
-    }
-    return error.message || "Ошибка запроса";
-  }
-  return "Неизвестная ошибка";
+  return getApiErrorMessageByAudience(error, "teacher");
 };
 
-export type ApiErrorPayload = {
-  code: string;
-  message: string;
-};
+export type ApiErrorPayload = UiApiErrorPayload;
 
 export const getApiErrorPayload = (error: unknown): ApiErrorPayload => {
-  if (error instanceof ApiError) {
-    const code = error.code ?? `HTTP_${error.status}`;
-    const message = getApiErrorCodeLabel(error.code) ?? getApiErrorMessage(error);
-    return { code, message };
-  }
-
-  return {
-    code: "UNKNOWN_ERROR",
-    message: getApiErrorMessage(error),
-  };
+  return getApiErrorPayloadByAudience(error, "teacher");
 };
 
 export const formatApiErrorPayload = (error: unknown) => {

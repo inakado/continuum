@@ -1,9 +1,34 @@
 import {
+  TeacherCourseDetailResponseSchema,
+  TeacherCourseListResponseSchema,
+  TeacherCourseSchema,
+  TeacherCreateStudentResponseSchema,
+  TeacherDeleteStudentResponseSchema,
+  TeacherOverrideOpenUnitResponseSchema,
   TeacherPhotoPresignViewResponseSchema,
   TeacherPhotoReviewResponseSchema,
+  TeacherResetStudentPasswordResponseSchema,
   TeacherReviewInboxResponseSchema,
   TeacherReviewSubmissionDetailResponseSchema,
+  TeacherSectionDetailResponseSchema,
+  TeacherSectionGraphResponseSchema,
+  TeacherSectionSchema,
   TeacherStudentPhotoQueueResponseSchema,
+  TeacherStudentProfileResponseSchema,
+  TeacherStudentsListResponseSchema,
+  TeacherTaskCreditResponseSchema,
+  TeacherTeachersListResponseSchema,
+  TeacherTransferStudentResponseSchema,
+  TeacherUnitSchema,
+  TeacherUpdateStudentProfileResponseSchema,
+  type TeacherCourse as SharedTeacherCourse,
+  type TeacherCourseDetailResponse as SharedTeacherCourseDetailResponse,
+  type TeacherCreateCourseRequest as SharedTeacherCreateCourseRequest,
+  type TeacherCreateSectionRequest as SharedTeacherCreateSectionRequest,
+  type TeacherCreateStudentRequest as SharedTeacherCreateStudentRequest,
+  type TeacherCreateUnitRequest as SharedTeacherCreateUnitRequest,
+  type TeacherGraphEdge as SharedTeacherGraphEdge,
+  type TeacherGraphNode as SharedTeacherGraphNode,
   type TeacherPhotoInboxQuery as SharedTeacherPhotoInboxQuery,
   type TeacherPhotoPresignViewQuery as SharedTeacherPhotoPresignViewQuery,
   type TeacherPhotoPresignViewResponse as SharedTeacherPhotoPresignViewResponse,
@@ -13,21 +38,28 @@ import {
   type TeacherPhotoSubmissionDetailQuery as SharedTeacherPhotoSubmissionDetailQuery,
   type TeacherReviewInboxResponse as SharedTeacherReviewInboxResponse,
   type TeacherReviewSubmissionDetailResponse as SharedTeacherReviewSubmissionDetailResponse,
+  type TeacherSection as SharedTeacherSection,
+  type TeacherSectionDetailResponse as SharedTeacherSectionDetailResponse,
+  type TeacherSectionGraphResponse as SharedTeacherSectionGraphResponse,
+  type TeacherSectionGraphUpdateRequest as SharedTeacherSectionGraphUpdateRequest,
   type TeacherStudentPhotoQueueResponse as SharedTeacherStudentPhotoQueueResponse,
+  type TeacherStudentProfileQuery as SharedTeacherStudentProfileQuery,
+  type TeacherStudentProfileResponse as SharedTeacherStudentProfileResponse,
+  type TeacherStudentSummary as SharedTeacherStudentSummary,
+  type TeacherStudentsListQuery as SharedTeacherStudentsListQuery,
+  type TeacherSummary as SharedTeacherSummary,
+  type TeacherTransferStudentRequest as SharedTeacherTransferStudentRequest,
+  type TeacherUnit as SharedTeacherUnit,
+  type TeacherUpdateCourseRequest as SharedTeacherUpdateCourseRequest,
+  type TeacherUpdateSectionRequest as SharedTeacherUpdateSectionRequest,
+  type TeacherUpdateStudentProfileRequest as SharedTeacherUpdateStudentProfileRequest,
 } from "@continuum/shared";
 import { apiRequest, apiRequestParsed } from "./client";
 import type { MeResponse } from "./auth";
 
 export type ContentStatus = "draft" | "published";
 
-export type Course = {
-  id: string;
-  title: string;
-  description: string | null;
-  status: ContentStatus;
-  createdAt: string;
-  updatedAt: string;
-};
+export type Course = SharedTeacherCourse;
 
 export type UnitVideo = { id: string; title: string; embedUrl: string };
 export type UnitAttachment = { id: string; name: string; urlOrKey?: string | null };
@@ -36,33 +68,15 @@ export type NumericPart = { key: string; labelLite?: string | null; correctValue
 export type Choice = { key: string; textLite: string };
 export type CorrectAnswer = { key?: string; keys?: string[] };
 
-export type Section = {
-  id: string;
-  courseId: string;
-  title: string;
-  description: string | null;
-  status: ContentStatus;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
-};
+export type Section = SharedTeacherSection;
 
-export type Unit = {
-  id: string;
-  sectionId: string;
-  title: string;
-  description?: string | null;
-  status: ContentStatus;
-  sortOrder: number;
-  minOptionalCountedTasksToComplete: number;
+export type Unit = SharedTeacherUnit & {
   theoryRichLatex?: string | null;
   theoryPdfAssetKey?: string | null;
   methodRichLatex?: string | null;
   methodPdfAssetKey?: string | null;
   videosJson?: UnitVideo[] | null;
   attachmentsJson?: UnitAttachment[] | null;
-  createdAt: string;
-  updatedAt: string;
 };
 
 export type Task = {
@@ -103,27 +117,8 @@ export type EventsResponse = {
   offset: number;
 };
 
-export type StudentSummary = {
-  id: string;
-  login: string;
-  firstName?: string | null;
-  lastName?: string | null;
-  leadTeacherId: string;
-  leadTeacherLogin: string;
-  leadTeacherDisplayName?: string;
-  createdAt: string;
-  updatedAt: string;
-  activeNotificationsCount: number;
-  pendingPhotoReviewCount: number;
-};
-
-export type TeacherSummary = {
-  id: string;
-  login: string;
-  firstName?: string | null;
-  lastName?: string | null;
-  middleName?: string | null;
-};
+export type StudentSummary = SharedTeacherStudentSummary;
+export type TeacherSummary = SharedTeacherSummary;
 
 export type TeacherMeResponse = {
   user: {
@@ -206,24 +201,7 @@ export type TeacherStudentCourseTree = {
   sections: TeacherStudentTreeSection[];
 };
 
-export type TeacherStudentProfileResponse = {
-  profile: {
-    id: string;
-    login: string;
-    firstName?: string | null;
-    lastName?: string | null;
-    leadTeacherId: string;
-    leadTeacherLogin: string;
-    leadTeacherDisplayName?: string;
-  };
-  notifications: {
-    activeCount: number;
-    items: TeacherNotification[];
-  };
-  courses: Array<{ id: string; title: string }>;
-  selectedCourseId: string | null;
-  courseTree: TeacherStudentCourseTree | null;
-};
+export type TeacherStudentProfileResponse = SharedTeacherStudentProfileResponse;
 
 export type TeacherStudentUnitTask = Task & {
   state?: {
@@ -245,34 +223,14 @@ export type TeacherStudentUnitTask = Task & {
 
 export type TeacherStudentUnitPreview = Unit & { tasks: TeacherStudentUnitTask[] };
 
-export type CourseWithSections = Course & { sections: Section[] };
-export type SectionWithUnits = Section & { units: Unit[] };
+export type CourseWithSections = SharedTeacherCourseDetailResponse;
+export type SectionWithUnits = SharedTeacherSectionDetailResponse;
 export type UnitWithTasks = Unit & { tasks: Task[] };
 
-export type GraphNode = {
-  unitId: string;
-  title: string;
-  status: ContentStatus;
-  createdAt: string;
-  position: { x: number; y: number };
-};
-
-export type GraphEdge = {
-  id: string;
-  fromUnitId: string;
-  toUnitId: string;
-};
-
-export type SectionGraphResponse = {
-  sectionId: string;
-  nodes: GraphNode[];
-  edges: GraphEdge[];
-};
-
-export type SectionGraphUpdateRequest = {
-  nodes: { unitId: string; position: { x: number; y: number } }[];
-  edges: { fromUnitId: string; toUnitId: string }[];
-};
+export type GraphNode = SharedTeacherGraphNode;
+export type GraphEdge = SharedTeacherGraphEdge;
+export type SectionGraphResponse = SharedTeacherSectionGraphResponse;
+export type SectionGraphUpdateRequest = SharedTeacherSectionGraphUpdateRequest;
 
 export type LoginResponse = {
   user: { id: string; login: string; role: string };
@@ -418,9 +376,12 @@ const buildTaskSolutionPdfPresignPath = (taskId: string, ttlSec: number) => {
 };
 
 const creditTaskRequest = (studentId: string, taskId: string) =>
-  apiRequest<{ ok: true; status: string; taskId: string; studentId: string }>(
+  apiRequestParsed(
     `/teacher/students/${studentId}/tasks/${taskId}/credit`,
-    { method: "POST" },
+    TeacherTaskCreditResponseSchema,
+    {
+      method: "POST",
+    },
   );
 
 const buildLatexCompileJobPath = (jobId: string, ttlSec: number) => {
@@ -467,66 +428,66 @@ export const teacherApi = {
   },
 
   listCourses() {
-    return apiRequest<Course[]>("/teacher/courses");
+    return apiRequestParsed("/teacher/courses", TeacherCourseListResponseSchema);
   },
 
   getCourse(id: string) {
-    return apiRequest<CourseWithSections>(`/teacher/courses/${id}`);
+    return apiRequestParsed(`/teacher/courses/${id}`, TeacherCourseDetailResponseSchema);
   },
 
-  createCourse(data: { title: string; description?: string | null }) {
-    return apiRequest<Course>("/teacher/courses", { method: "POST", body: data });
+  createCourse(data: SharedTeacherCreateCourseRequest) {
+    return apiRequestParsed("/teacher/courses", TeacherCourseSchema, { method: "POST", body: data });
   },
 
-  updateCourse(id: string, data: { title?: string; description?: string | null }) {
-    return apiRequest<Course>(`/teacher/courses/${id}`, { method: "PATCH", body: data });
+  updateCourse(id: string, data: SharedTeacherUpdateCourseRequest) {
+    return apiRequestParsed(`/teacher/courses/${id}`, TeacherCourseSchema, { method: "PATCH", body: data });
   },
 
   publishCourse(id: string) {
-    return apiRequest<Course>(`/teacher/courses/${id}/publish`, { method: "POST" });
+    return apiRequestParsed(`/teacher/courses/${id}/publish`, TeacherCourseSchema, { method: "POST" });
   },
 
   unpublishCourse(id: string) {
-    return apiRequest<Course>(`/teacher/courses/${id}/unpublish`, { method: "POST" });
+    return apiRequestParsed(`/teacher/courses/${id}/unpublish`, TeacherCourseSchema, { method: "POST" });
   },
 
   getSection(id: string) {
-    return apiRequest<SectionWithUnits>(`/teacher/sections/${id}`);
+    return apiRequestParsed(`/teacher/sections/${id}`, TeacherSectionDetailResponseSchema);
   },
 
   getSectionGraph(id: string) {
-    return apiRequest<SectionGraphResponse>(`/teacher/sections/${id}/graph`);
+    return apiRequestParsed(`/teacher/sections/${id}/graph`, TeacherSectionGraphResponseSchema);
   },
 
   updateSectionGraph(id: string, payload: SectionGraphUpdateRequest) {
-    return apiRequest<SectionGraphResponse>(`/teacher/sections/${id}/graph`, {
+    return apiRequestParsed(`/teacher/sections/${id}/graph`, TeacherSectionGraphResponseSchema, {
       method: "PUT",
       body: payload,
     });
   },
 
-  createSection(data: { courseId: string; title: string; description?: string | null; sortOrder?: number }) {
-    return apiRequest<Section>("/teacher/sections", { method: "POST", body: data });
+  createSection(data: SharedTeacherCreateSectionRequest) {
+    return apiRequestParsed("/teacher/sections", TeacherSectionSchema, { method: "POST", body: data });
   },
 
-  updateSection(id: string, data: { title?: string; description?: string | null; sortOrder?: number }) {
-    return apiRequest<Section>(`/teacher/sections/${id}`, { method: "PATCH", body: data });
+  updateSection(id: string, data: SharedTeacherUpdateSectionRequest) {
+    return apiRequestParsed(`/teacher/sections/${id}`, TeacherSectionSchema, { method: "PATCH", body: data });
   },
 
   publishSection(id: string) {
-    return apiRequest<Section>(`/teacher/sections/${id}/publish`, { method: "POST" });
+    return apiRequestParsed(`/teacher/sections/${id}/publish`, TeacherSectionSchema, { method: "POST" });
   },
 
   unpublishSection(id: string) {
-    return apiRequest<Section>(`/teacher/sections/${id}/unpublish`, { method: "POST" });
+    return apiRequestParsed(`/teacher/sections/${id}/unpublish`, TeacherSectionSchema, { method: "POST" });
   },
 
   getUnit(id: string) {
     return apiRequest<UnitWithTasks>(`/teacher/units/${id}`);
   },
 
-  createUnit(data: { sectionId: string; title: string; sortOrder?: number }) {
-    return apiRequest<Unit>("/teacher/units", { method: "POST", body: data });
+  createUnit(data: SharedTeacherCreateUnitRequest) {
+    return apiRequestParsed("/teacher/units", TeacherUnitSchema, { method: "POST", body: data });
   },
 
   updateUnit(
@@ -663,11 +624,11 @@ export const teacherApi = {
   },
 
   deleteCourse(id: string) {
-    return apiRequest<Course>(`/teacher/courses/${id}`, { method: "DELETE" });
+    return apiRequestParsed(`/teacher/courses/${id}`, TeacherCourseSchema, { method: "DELETE" });
   },
 
   deleteSection(id: string) {
-    return apiRequest<Section>(`/teacher/sections/${id}`, { method: "DELETE" });
+    return apiRequestParsed(`/teacher/sections/${id}`, TeacherSectionSchema, { method: "DELETE" });
   },
 
   deleteUnit(id: string) {
@@ -678,66 +639,65 @@ export const teacherApi = {
     return apiRequest<Task>(`/teacher/tasks/${id}`, { method: "DELETE" });
   },
 
-  listStudents(params?: { query?: string }) {
+  listStudents(params?: SharedTeacherStudentsListQuery) {
     const search = new URLSearchParams();
     if (params?.query) search.set("query", params.query);
     const suffix = search.toString();
-    return apiRequest<StudentSummary[]>(`/teacher/students${suffix ? `?${suffix}` : ""}`);
+    return apiRequestParsed(
+      `/teacher/students${suffix ? `?${suffix}` : ""}`,
+      TeacherStudentsListResponseSchema,
+    );
   },
 
-  createStudent(data: { login: string; firstName?: string | null; lastName?: string | null }) {
-    return apiRequest<{
-      id: string;
-      login: string;
-      leadTeacherId: string;
-      firstName?: string | null;
-      lastName?: string | null;
-      password: string;
-    }>("/teacher/students", { method: "POST", body: data });
+  createStudent(data: SharedTeacherCreateStudentRequest) {
+    return apiRequestParsed(
+      "/teacher/students",
+      TeacherCreateStudentResponseSchema,
+      { method: "POST", body: data },
+    );
   },
 
   resetStudentPassword(id: string) {
-    return apiRequest<{ id: string; login: string; password: string }>(
+    return apiRequestParsed(
       `/teacher/students/${id}/reset-password`,
+      TeacherResetStudentPasswordResponseSchema,
       { method: "POST" },
     );
   },
 
-  transferStudent(id: string, data: { leaderTeacherId: string }) {
-    return apiRequest<{
-      id: string;
-      login: string;
-      leadTeacherId: string;
-      leadTeacherLogin: string;
-    }>(`/teacher/students/${id}/transfer`, {
-      method: "PATCH",
-      body: data,
-    });
+  transferStudent(id: string, data: SharedTeacherTransferStudentRequest) {
+    return apiRequestParsed(
+      `/teacher/students/${id}/transfer`,
+      TeacherTransferStudentResponseSchema,
+      {
+        method: "PATCH",
+        body: data,
+      },
+    );
   },
 
   updateStudentProfile(
     id: string,
-    data: { firstName?: string | null; lastName?: string | null },
+    data: SharedTeacherUpdateStudentProfileRequest,
   ) {
-    return apiRequest<{
-      id: string;
-      login: string;
-      firstName?: string | null;
-      lastName?: string | null;
-    }>(`/teacher/students/${id}`, {
-      method: "PATCH",
-      body: data,
-    });
+    return apiRequestParsed(
+      `/teacher/students/${id}`,
+      TeacherUpdateStudentProfileResponseSchema,
+      {
+        method: "PATCH",
+        body: data,
+      },
+    );
   },
 
   deleteStudent(id: string) {
-    return apiRequest<{ id: string; login: string }>(`/teacher/students/${id}`, {
+    return apiRequestParsed(`/teacher/students/${id}`, TeacherDeleteStudentResponseSchema, {
       method: "DELETE",
     });
   },
 
   listTeachers() {
-    return apiRequest<TeacherSummary[]>("/teacher/teachers");
+    return apiRequestParsed("/teacher/teachers", TeacherTeachersListResponseSchema);
   },
 
   createTeacher(data: {
@@ -773,12 +733,13 @@ export const teacherApi = {
     });
   },
 
-  getStudentProfile(studentId: string, params?: { courseId?: string }) {
+  getStudentProfile(studentId: string, params?: SharedTeacherStudentProfileQuery) {
     const search = new URLSearchParams();
     if (params?.courseId) search.set("courseId", params.courseId);
     const suffix = search.toString();
-    return apiRequest<TeacherStudentProfileResponse>(
+    return apiRequestParsed(
       `/teacher/students/${studentId}${suffix ? `?${suffix}` : ""}`,
+      TeacherStudentProfileResponseSchema,
     );
   },
 
@@ -879,8 +840,9 @@ export const teacherApi = {
   },
 
   overrideOpenUnit(studentId: string, unitId: string) {
-    return apiRequest<{ ok: true }>(
+    return apiRequestParsed(
       `/teacher/students/${studentId}/units/${unitId}/override-open`,
+      TeacherOverrideOpenUnitResponseSchema,
       { method: "POST" },
     );
   },

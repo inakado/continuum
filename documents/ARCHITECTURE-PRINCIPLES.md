@@ -15,7 +15,7 @@
 - `Implemented` (2026-02-27, Phase 0 tests baseline): в `apps/api`, `apps/web`, `apps/worker`, `packages/shared` подключён `vitest`, добавлены минимальные автотесты для health/login/storage-config критичных путей.
 - `Implemented` (2026-02-27, Phase 1 completed / scope: wave1 Learning/Photo): внедрён schema-first contract slice на `zod` (`@continuum/shared`), подключён custom `ZodValidationPipe` в API boundary для wave1 endpoint-ов, и включён runtime parsing ответов в web-клиенте (`apiRequestParsed`, `API_RESPONSE_INVALID`).
 - `Implemented/Planned` (2026-02-27, Phase 2): для backend декомпозиции добавлен integration safety-net через `supertest` (`Implemented`, wave1); выполнена декомпозиция `learning.service.ts`, `photo-task.service.ts` и `content.service.ts` с выносом graph/payload/write-path сервисов (`Implemented`, wave2-wave4), плюс введён `learning-audit-log.service.ts` и перевод refactored learning/photo write сервисов на audit-helper (`Implemented`, wave5). Дальнейшее масштабирование helper-подхода на остальные модули API остаётся `Planned`.
-- `Implemented/Planned` (2026-02-27, Phase 3 waves 1-6): в `apps/web` подключён `@tanstack/react-query`, добавлен `QueryProvider` в root layout и query key factory для Learning/Photo (`Implemented`, wave1); read-path migration выполнен для `TeacherReviewInboxPanel`, `TeacherReviewSubmissionDetailPanel`, `StudentUnitDetailScreen` (`Implemented`, wave2); write-path (`submitAttempt`, `submitPhoto`, `accept/reject`) переведён на `useMutation` с query invalidation для migration-среза (`Implemented`, wave3); `StudentUnitDetailScreen` и `TeacherUnitDetailScreen` декомпозированы на hooks/subcomponents и оставлены composition-shell (`Implemented`, wave4-wave5); API client surface cleanup для migration-среза завершён в `student.ts`/`teacher.ts` через shared aliases и устранение дублей (`Implemented`, wave6). Дальнейшее расширение migration на non-learning/non-photo остаётся `Planned`.
+- `Implemented/Planned` (2026-02-27, Phase 3 waves 1-6 + Phase 4 waves 1-3): в `apps/web` подключён `@tanstack/react-query`, добавлен `QueryProvider` в root layout и query key factory для Learning/Photo (`Implemented`, wave1); read-path migration выполнен для `TeacherReviewInboxPanel`, `TeacherReviewSubmissionDetailPanel`, `StudentUnitDetailScreen` (`Implemented`, wave2); write-path (`submitAttempt`, `submitPhoto`, `accept/reject`) переведён на `useMutation` с query invalidation для migration-среза (`Implemented`, wave3); `StudentUnitDetailScreen` и `TeacherUnitDetailScreen` декомпозированы на hooks/subcomponents и оставлены composition-shell (`Implemented`, wave4-wave5); API client surface cleanup для migration-среза завершён в `student.ts`/`teacher.ts` через shared aliases и устранение дублей (`Implemented`, wave6); non-learning migration wave1 выполнен для `TeacherDashboardScreen`, `TeacherSectionGraphPanel`, `StudentDashboardScreen`, `TeacherStudentsPanel`, `TeacherStudentProfilePanel` (`Implemented`, Phase 4 wave1); unified web Error Catalog layer внедрён через `apps/web/lib/api/error-catalog.ts` и подключён в student/teacher error helpers (`Implemented`, Phase 4 wave2); runtime parsing/contracts расширены на non-learning migration-срез через `packages/shared/src/contracts/content-non-learning.ts` и `apiRequestParsed` в `student.ts`/`teacher.ts` (`Implemented`, Phase 4 wave3). Дальнейшее расширение migration на remaining-экраны остаётся `Planned`.
 
 ## 1) Baseline читаемости и поддерживаемости (`Implemented`, снимок на 2026-02-26)
 
@@ -79,8 +79,10 @@
   - текущий bridge в коде: custom `ZodValidationPipe` (`Implemented`, wave1).
 - `@tanstack/react-query` (`Implemented/Planned`):
   - единый server-state cache/dedup/retry/invalidation слой на frontend.
-  - `Implemented`: foundation (`QueryProvider` + `QueryClient` + query keys) в `apps/web`, плюс migration Learning/Photo read/write-path на `useQuery/useQueries/useMutation`;
-  - `Planned`: дальнейшая migration оставшихся экранов и декомпозиция крупных модулей.
+  - `Implemented`: foundation (`QueryProvider` + `QueryClient` + query keys) в `apps/web`, migration Learning/Photo read/write-path на `useQuery/useQueries/useMutation`, и non-learning migration wave1 для dashboard/students/profile экранов;
+  - `Implemented`: унификация web error-handling через `apps/web/lib/api/error-catalog.ts` и переиспользование в student/teacher helpers (Phase 4 wave2);
+  - `Implemented`: расширение runtime parsing/contracts на non-learning migration-срез (Phase 4 wave3);
+  - `Planned`: дальнейшая migration оставшихся экранов.
 - `vitest` + `@testing-library/react` + `@testing-library/user-event` + `@testing-library/jest-dom` (`Implemented` для baseline в `apps/web`, дальнейшее расширение `Planned`):
   - безопасный рефакторинг React-модулей.
 - `supertest`:
@@ -108,17 +110,19 @@
 ### 3.4 Где именно подключаются библиотеки (`Implemented/Planned`)
 
 - `zod` (`Implemented/Planned`):
-  - `packages/shared` — общие schema/contracts (`Implemented` для wave1 Learning/Photo);
+  - `packages/shared` — общие schema/contracts (`Implemented` для wave1 Learning/Photo + Phase 4 wave3 non-learning slice);
   - `apps/api` — boundary validation входов/выходов (`Implemented` для wave1 Learning/Photo через custom pipe);
-  - `apps/web` — runtime-парсинг API-ответов и форм (`Implemented` для wave1 Learning/Photo, далее `Planned` для расширения).
+  - `apps/web` — runtime-парсинг API-ответов и форм (`Implemented` для wave1 Learning/Photo + Phase 4 wave3 non-learning migration-среза, далее `Planned` для расширения).
 - `nestjs-zod` (`Planned`):
   - только `apps/api` (интеграция схем в NestJS pipeline).
 - `@tanstack/react-query` (`Implemented/Planned`):
   - только `apps/web` (server-state слой);
   - `Implemented`: `apps/web/lib/query/query-client.ts`, `apps/web/lib/query/query-provider.tsx`, `apps/web/lib/query/keys.ts`, подключение provider в `apps/web/app/layout.tsx`;
   - `Implemented`: перевод Learning/Photo wave-среза (`TeacherReviewInboxPanel`, `TeacherReviewSubmissionDetailPanel`, `StudentUnitDetailScreen`) на query hooks для read/write;
+  - `Implemented`: перевод non-learning wave1 (`TeacherDashboardScreen`, `TeacherSectionGraphPanel`, `StudentDashboardScreen`, `TeacherStudentsPanel`, `TeacherStudentProfilePanel`) на query-driven загрузку и cache invalidation;
   - `Implemented`: cleanup API client surface для migration-среза в `apps/web/lib/api/student.ts` и `apps/web/lib/api/teacher.ts` (shared aliases + dedup helpers);
-  - `Planned`: перевод остальных экранов с ручного `useEffect` orchestration на query hooks.
+  - `Implemented`: Phase 4 wave3 runtime parsing/contracts expansion для non-learning migration-среза;
+  - `Planned`: перевод remaining-экранов.
 - `vitest` + Testing Library (`Implemented` baseline в `apps/web`, расширение `Planned`):
   - в `apps/web` покрыт минимальный login happy-path/error-path;
   - далее: расширение покрытия unit/component/hooks и, при необходимости, `packages/shared`.

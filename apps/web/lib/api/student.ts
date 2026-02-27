@@ -1,8 +1,20 @@
 import {
+  StudentCourseDetailResponseSchema,
+  StudentCourseListResponseSchema,
+  StudentSectionDetailResponseSchema,
+  StudentSectionGraphResponseSchema,
   StudentAttemptResponseSchema,
   StudentPhotoPresignUploadResponseSchema,
   StudentPhotoPresignViewResponseSchema,
   StudentPhotoSubmitResponseSchema,
+  type StudentCourse as SharedStudentCourse,
+  type StudentCourseDetailResponse as SharedStudentCourseDetailResponse,
+  type StudentGraphEdge as SharedStudentGraphEdge,
+  type StudentGraphNode as SharedStudentGraphNode,
+  type StudentSection as SharedStudentSection,
+  type StudentSectionDetailResponse as SharedStudentSectionDetailResponse,
+  type StudentSectionGraphResponse as SharedStudentSectionGraphResponse,
+  type StudentUnit as SharedStudentUnit,
   type MultiChoiceAttemptRequest as SharedMultiChoiceAttemptRequest,
   type NumericAttemptRequest as SharedNumericAttemptRequest,
   type SingleChoiceAttemptRequest as SharedSingleChoiceAttemptRequest,
@@ -20,14 +32,7 @@ import type { MeResponse } from "./auth";
 export type ContentStatus = "draft" | "published";
 export type StudentUnitStatus = "locked" | "available" | "in_progress" | "completed";
 
-export type Course = {
-  id: string;
-  title: string;
-  description: string | null;
-  status: ContentStatus;
-  createdAt: string;
-  updatedAt: string;
-};
+export type Course = SharedStudentCourse;
 
 export type UnitVideo = { id: string; title: string; embedUrl: string };
 export type UnitAttachment = { id: string; name: string; urlOrKey?: string | null };
@@ -64,24 +69,9 @@ export type AttemptRequest =
 
 export type AttemptResponse = SharedStudentAttemptResponse;
 
-export type Section = {
-  id: string;
-  courseId: string;
-  title: string;
-  status: ContentStatus;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
-};
+export type Section = SharedStudentSection;
 
-export type Unit = {
-  id: string;
-  sectionId: string;
-  title: string;
-  description?: string | null;
-  status: ContentStatus;
-  sortOrder: number;
-  minOptionalCountedTasksToComplete: number;
+export type Unit = SharedStudentUnit & {
   theoryRichLatex?: string | null;
   theoryPdfAssetKey?: string | null;
   methodRichLatex?: string | null;
@@ -95,8 +85,6 @@ export type Unit = {
   totalTasks?: number;
   completionPercent?: number;
   solvedPercent?: number;
-  createdAt: string;
-  updatedAt: string;
 };
 
 export type Task = {
@@ -119,30 +107,15 @@ export type Task = {
   state?: TaskState;
 };
 
-export type CourseWithSections = Course & { sections: Section[] };
-export type SectionWithUnits = Section & { units: Unit[] };
+export type CourseWithSections = SharedStudentCourseDetailResponse;
+export type SectionWithUnits = SharedStudentSectionDetailResponse;
 export type UnitWithTasks = Unit & { tasks: Task[] };
 
-export type GraphNode = {
-  unitId: string;
-  title: string;
-  status: StudentUnitStatus;
-  position: { x: number; y: number };
-  completionPercent: number;
-  solvedPercent: number;
-};
+export type GraphNode = SharedStudentGraphNode;
 
-export type GraphEdge = {
-  id: string;
-  fromUnitId: string;
-  toUnitId: string;
-};
+export type GraphEdge = SharedStudentGraphEdge;
 
-export type SectionGraphResponse = {
-  sectionId: string;
-  nodes: GraphNode[];
-  edges: GraphEdge[];
-};
+export type SectionGraphResponse = SharedStudentSectionGraphResponse;
 
 export type LoginResponse = {
   user: { id: string; login: string; role: string };
@@ -216,19 +189,19 @@ export const studentApi = {
   },
 
   listCourses() {
-    return apiRequest<Course[]>("/courses");
+    return apiRequestParsed("/courses", StudentCourseListResponseSchema);
   },
 
   getCourse(id: string) {
-    return apiRequest<CourseWithSections>(`/courses/${id}`);
+    return apiRequestParsed(`/courses/${id}`, StudentCourseDetailResponseSchema);
   },
 
   getSection(id: string) {
-    return apiRequest<SectionWithUnits>(`/sections/${id}`);
+    return apiRequestParsed(`/sections/${id}`, StudentSectionDetailResponseSchema);
   },
 
   getSectionGraph(id: string) {
-    return apiRequest<SectionGraphResponse>(`/sections/${id}/graph`);
+    return apiRequestParsed(`/sections/${id}/graph`, StudentSectionGraphResponseSchema);
   },
 
   getUnit(id: string) {

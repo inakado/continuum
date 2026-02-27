@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { memo, useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useRouter } from "next/navigation";
 import ReactFlow, {
@@ -22,6 +23,7 @@ import Button from "@/components/ui/Button";
 import Dialog from "@/components/ui/Dialog";
 import Input from "@/components/ui/Input";
 import { teacherApi, type GraphEdge, type GraphNode, type SectionGraphResponse } from "@/lib/api/teacher";
+import { contentQueryKeys } from "@/lib/query/keys";
 import { getContentStatusLabel } from "@/lib/status-labels";
 import { getApiErrorMessage } from "@/features/teacher-content/shared/api-errors";
 import AuthRequired from "@/features/teacher-content/auth/AuthRequired";
@@ -163,9 +165,9 @@ export default function TeacherSectionGraphPanel({
   onBackToCourses,
 }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [nodes, setNodes, onNodesChange] = useNodesState<UnitNodeData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [authRequired, setAuthRequired] = useState(false);
@@ -185,26 +187,23 @@ export default function TeacherSectionGraphPanel({
     [setEdges, setNodes, setSelectedEdgeId],
   );
 
-  const fetchGraph = useCallback(async () => {
-    if (authRequired) return;
-    setLoading(true);
-    setError(null);
-    setStatus(null);
-    try {
-      const graph = await teacherApi.getSectionGraph(sectionId);
-      applyGraph(graph);
-    } catch (err) {
-      const message = getApiErrorMessage(err);
-      if (message === "Перелогиньтесь") setAuthRequired(true);
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  }, [applyGraph, authRequired, sectionId]);
-
-  useEffect(() => {
-    fetchGraph();
-  }, [fetchGraph]);
+  const graphQuery = useQuery({
+    queryKey: contentQueryKeys.teacherSectionGraph(sectionId),
+    queryFn: () => teacherApi.getSectionGraph(sectionId),
+    enabled: !authRequired,
+  });
+  const sectionQuery = useQuery({
+    queryKey: contentQueryKeys.teacherSection(sectionId),
+    queryFn: () => teacherApi.getSection(sectionId),
+    enabled: !authRequired,
+  });
+  const sectionCourseId = sectionQuery.data?.courseId;
+  const courseQuery = useQuery({
+    queryKey: contentQueryKeys.teacherCourse(sectionCourseId ?? ""),
+    queryFn: () => teacherApi.getCourse(sectionCourseId as string),
+    enabled: !authRequired && !courseTitle && Boolean(sectionCourseId),
+  });
+  const loading = graphQuery.isPending;
 
   useEffect(() => {
     setResolvedCourseTitle(courseTitle ?? null);
@@ -215,34 +214,41 @@ export default function TeacherSectionGraphPanel({
   }, [sectionTitle]);
 
   useEffect(() => {
-    if (authRequired) return;
-    let cancelled = false;
+    if (!graphQuery.data) return;
+    applyGraph(graphQuery.data);
+  }, [applyGraph, graphQuery.data]);
 
-    void (async () => {
-      try {
-        const section = await teacherApi.getSection(sectionId);
-        if (cancelled) return;
-        setResolvedSectionTitle(section.title);
-        if (!courseTitle) {
-          try {
-            const course = await teacherApi.getCourse(section.courseId);
-            if (cancelled) return;
-            setResolvedCourseTitle(course.title);
-          } catch {
-            if (cancelled) return;
-            setResolvedCourseTitle(null);
-          }
-        }
-      } catch {
-        if (cancelled) return;
-        if (!sectionTitle) setResolvedSectionTitle(null);
-      }
-    })();
+  useEffect(() => {
+    const message = graphQuery.isError
+      ? getApiErrorMessage(graphQuery.error)
+      : sectionQuery.isError
+        ? getApiErrorMessage(sectionQuery.error)
+        : null;
+    if (message === "Перелогиньтесь") {
+      setAuthRequired(true);
+    }
+  }, [graphQuery.error, graphQuery.isError, sectionQuery.error, sectionQuery.isError]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [authRequired, courseTitle, sectionId, sectionTitle]);
+  useEffect(() => {
+    if (sectionQuery.data?.title) {
+      setResolvedSectionTitle(sectionQuery.data.title);
+      return;
+    }
+    if (sectionQuery.isError && !sectionTitle) {
+      setResolvedSectionTitle(null);
+    }
+  }, [sectionQuery.data?.title, sectionQuery.isError, sectionTitle]);
+
+  useEffect(() => {
+    if (courseTitle) return;
+    if (courseQuery.data?.title) {
+      setResolvedCourseTitle(courseQuery.data.title);
+      return;
+    }
+    if (courseQuery.isError) {
+      setResolvedCourseTitle(null);
+    }
+  }, [courseQuery.data?.title, courseQuery.isError, courseTitle]);
 
   useEffect(() => {
     if (!isCreatePopupOpen) return;
@@ -292,6 +298,7 @@ export default function TeacherSectionGraphPanel({
       };
       const graph = await teacherApi.updateSectionGraph(sectionId, payload);
       applyGraph(graph);
+      queryClient.setQueryData(contentQueryKeys.teacherSectionGraph(sectionId), graph);
       setStatus("Граф сохранён");
     } catch (err) {
       const message = getApiErrorMessage(err);
@@ -369,6 +376,9 @@ export default function TeacherSectionGraphPanel({
     return <AuthRequired />;
   }
 
+  const queryError = graphQuery.isError ? getApiErrorMessage(graphQuery.error) : null;
+  const errorMessage = error ?? queryError;
+
   return (
     <div className={styles.wrapper}>
       <div className={styles.breadcrumbs}>
@@ -383,9 +393,9 @@ export default function TeacherSectionGraphPanel({
         <span className={styles.breadcrumbCurrent}>{resolvedSectionTitle ?? "Раздел"}</span>
       </div>
 
-      {error ? (
+      {errorMessage ? (
         <div className={styles.error} role="status" aria-live="polite">
-          {error}
+          {errorMessage}
         </div>
       ) : null}
       {status ? <div className={styles.status}>{status}</div> : null}

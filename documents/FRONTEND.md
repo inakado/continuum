@@ -64,7 +64,7 @@
 - Базовый key factory для Learning/Photo вынесен в `apps/web/lib/query/keys.ts`.
 - Foundation используется как базовый слой для migration waves 2+.
 
-## Server-state adoption (`Implemented/Planned`, Phase 3 Waves 2-6)
+## Server-state adoption (`Implemented/Planned`, Phase 3 Waves 2-6 + Phase 4 Wave 1)
 
 - `Implemented` (read-path migration):
   - `apps/web/features/teacher-review/TeacherReviewInboxPanel.tsx` использует `useQuery` для inbox/students read-flow;
@@ -108,8 +108,23 @@
   - `apps/web/lib/api/student.ts` и `apps/web/lib/api/teacher.ts` очищены от дублей request/query типов в migration-срезе Learning/Photo;
   - для wave1 endpoint-ов в клиентских сигнатурах используются shared aliases/contracts из `@continuum/shared`;
   - повторяющаяся сборка query/path wrappers в `teacher.ts` вынесена в dedup helpers без изменения API shape.
-- `Planned`:
-  - дальнейшая migration non-learning/non-photo экранов.
+- `Implemented` (Phase 4 wave1, non-learning migration):
+  - добавлен non-learning key factory `contentQueryKeys` в `apps/web/lib/query/keys.ts`;
+  - на query-driven загрузку переведены non-learning экраны:
+    - `apps/web/features/teacher-dashboard/TeacherDashboardScreen.tsx`,
+    - `apps/web/features/teacher-dashboard/TeacherSectionGraphPanel.tsx`,
+    - `apps/web/features/student-dashboard/StudentDashboardScreen.tsx`,
+    - `apps/web/features/teacher-students/TeacherStudentsPanel.tsx`,
+    - `apps/web/features/teacher-students/TeacherStudentProfilePanel.tsx`;
+  - в перечисленных экранах удалены ручные `requestIdRef`/`cancelled` anti-race паттерны.
+- `Implemented` (Phase 4 wave2, error catalog consistency):
+  - добавлен единый error-catalog helper `apps/web/lib/api/error-catalog.ts`;
+  - `apps/web/features/student-content/shared/student-errors.ts` и `apps/web/features/teacher-content/shared/api-errors.ts` переведены на общий mapping-layer;
+  - сохранены текущие user-facing semantics для student/teacher веток.
+- `Implemented` (Phase 4 wave3, contracts/runtime parsing expansion):
+  - в `packages/shared` добавлен non-learning contract slice `src/contracts/content-non-learning.ts` и экспорт из `src/index.ts`;
+  - в `apps/web/lib/api/student.ts` и `apps/web/lib/api/teacher.ts` non-learning методы migration-среза переведены на `apiRequestParsed` + shared schemas;
+  - в API client surface для wave3-среза локальные transport-типы заменены на aliases из `@continuum/shared`.
 
 ## Presigned assets (CORS) (`Implemented`)
 

@@ -101,11 +101,26 @@
   - где добавляем: `apps/web` (при необходимости частично в `packages/shared`);
   - зачем в этой фазе: безопасно резать крупные экраны и hooks.
 
-### Phase 4 (Stabilization и DX)
+### Phase 4 (Stabilization core: non-learning migration + error consistency)
 
-- `dependency-cruiser` (опционально, если нужен более глубокий контроль графа зависимостей):
-  - где добавляем: уровень monorepo;
-  - зачем в этой фазе: усилить контроль архитектурных границ после стабилизации базового контура.
+- Новых библиотек не требуется:
+  - используем уже внедрённые `@tanstack/react-query` и `zod` для расширения migration вне Learning/Photo.
+- Опционально:
+  - `dependency-cruiser` для более глубокого контроля графа зависимостей после стабилизации migration.
+
+### Phase 5 (Coverage + CI docs checks + DX guardrails)
+
+- Опционально:
+  - `dependency-cruiser` (если не подключался в Phase 4) для усиления архитектурного контроля;
+  - дополнительные devtools для docs-checks (только если встроенных скриптов недостаточно).
+- Основной фокус:
+  - расширение test coverage и автоматизация проверок документации в CI.
+
+### Phase 6 (Final lint hardening)
+
+- Новых библиотек не требуется.
+- Фаза запускается только после обнуления текущих предупреждений `pnpm lint`.
+- В этой фазе ужесточаются правила lint и включается fail-on-warnings в CI.
 
 ## Чеклист изменений `package.json` по фазам
 
@@ -150,12 +165,31 @@
 - Корневой `package.json`:
   - опционально добавить агрегирующие scripts для test/typecheck web.
 
-### Phase 4 (Stabilization и DX)
+### Phase 4 (Stabilization core)
 
-- Корневой `package.json` (опционально):
-  - добавить devDependency: `dependency-cruiser`.
-  - добавить script: `deps:check` (или эквивалент).
-- `apps/*` и `packages/*`: без обязательных dependency-изменений.
+- `apps/*` и `packages/*`:
+  - без обязательных dependency-изменений;
+  - допускаются точечные scripts для migration/smoke по non-learning срезам.
+- Корневой `package.json`:
+  - без обязательных изменений (до решения по docs checks/dependency graph).
+
+### Phase 5 (Coverage + CI docs checks)
+
+- Корневой `package.json`:
+  - опционально добавить devDependency: `dependency-cruiser`;
+  - опционально добавить scripts:
+    - `deps:check`,
+    - `docs:check` (валидность ссылок, anti-orphans, маркеры `Implemented/Planned`).
+- `apps/*` и `packages/*`:
+  - опционально добавить узконаправленные test scripts для новых test suites.
+
+### Phase 6 (Final lint hardening)
+
+- Корневой `package.json`:
+  - добавить строгий lint script (`lint:strict`) с `--max-warnings=0` (или эквивалент).
+- `apps/*` и `packages/*`:
+  - без новых dependency;
+  - при необходимости локальные strict scripts для проблемных пакетов.
 
 ## План выполнения
 
@@ -646,7 +680,8 @@
   - расширенный teacher/student cookie-auth smoke для wave1 endpoint-ов — `pass` (ожидаемые error-codes + 200 на inbox/queue/list).
 
 - Next:
-  - Phase 4 — stabilization/DX (error catalog consistency, quality budgets in CI, дальнейшая migration non-learning экранов).
+  - Phase 4 — stabilization core (non-learning migration + error consistency);
+  - далее Phase 5 (coverage + CI docs checks) и финальная Phase 6 (lint hardening после `0 warnings`).
 
 - Definition of Done для Phase 3:
   - серверное состояние Learning/Photo read/write сценариев обслуживается через `react-query`;
@@ -654,13 +689,158 @@
   - `TeacherUnitDetailScreen` и `StudentUnitDetailScreen` декомпозированы на hooks/subcomponents, root-компоненты перестают быть “комбайнами”;
   - обновлены `documents/FRONTEND.md`, `documents/ARCHITECTURE-PRINCIPLES.md` и execution plan по факту внедрения.
 
-### Phase 4 — Stabilization и DX
+### Phase 4 — Stabilization core (non-learning migration + error consistency)
 
-- Унифицировать Error Catalog и UI-обработку ошибок.
-- Закрепить quality-бюджеты в CI-правилах.
-- Обновить SoR-документы и закрыть/перевести execution plan по факту завершения.
+- Статус фазы: `Completed` (Wave 1-3 выполнены).
+
+- Цель:
+  - расширить принципы Phase 1-3 на non-learning/non-photo зоны без изменения API семантики.
+
+- План работ:
+  - Wave 1 — Non-learning server-state migration:
+    - перевести на `react-query` ключевые non-learning экраны:
+      - `TeacherDashboardScreen`,
+      - `TeacherSectionGraphPanel`,
+      - `StudentDashboardScreen`,
+      - `TeacherStudentsPanel`,
+      - `TeacherStudentProfilePanel`;
+    - убрать ручные `cancelled/disposed` anti-race ветки там, где lifecycle покрывается query hooks.
+  - Wave 2 — Error catalog consistency:
+    - унифицировать mapping `error.code -> user-facing message` для student/teacher UI через единый shared слой;
+    - синхронизировать коды API/Web для мигрированного среза, не меняя HTTP shape и совместимость.
+  - Wave 3 — Contracts/runtime parsing expansion:
+    - расширить runtime parsing response/request на non-learning endpoints, затронутые в Wave 1;
+    - обеспечить typed aliases из shared-contracts в web API-клиентах по аналогии с Learning/Photo.
+
 - Exit criteria:
-  - архитектурные принципы enforced линтами/тестами/границами зависимостей, а не только договорённостями.
+  - перечисленные non-learning экраны переведены на query hooks и не используют legacy race-pattern как основной механизм;
+  - Error Catalog для migration-среза централизован и переиспользуется между student/teacher ветками;
+  - в затронутых non-learning клиентах нет дублирования локальных transport-типов при наличии shared contracts.
+
+### Phase 4 Wave 1 — Прогресс выполнения (2026-02-27)
+
+- Статус волны: `Completed`.
+
+- `Implemented`:
+  - non-learning query key factory добавлен в `apps/web/lib/query/keys.ts` (`contentQueryKeys`);
+  - migration на `react-query` выполнен для целевых экранов:
+    - `apps/web/features/teacher-dashboard/TeacherDashboardScreen.tsx`,
+    - `apps/web/features/teacher-dashboard/TeacherSectionGraphPanel.tsx`,
+    - `apps/web/features/student-dashboard/StudentDashboardScreen.tsx`,
+    - `apps/web/features/teacher-students/TeacherStudentsPanel.tsx`,
+    - `apps/web/features/teacher-students/TeacherStudentProfilePanel.tsx`;
+  - ручные `requestIdRef`/`cancelled` anti-race ветки удалены из перечисленных экранов;
+  - write-actions в teacher students/profile flow оставлены без изменения пользовательской семантики, но refresh переведён на query invalidation (`queryClient.invalidateQueries`).
+
+- `Implemented` (проверка):
+  - `pnpm --filter web typecheck` — `pass`;
+  - `pnpm --filter web test` — `pass`;
+  - `pnpm lint` — `pass` (`0 errors`, warnings допустимы);
+  - `pnpm lint:boundaries` — `pass`;
+  - `pnpm typecheck` — `pass`.
+
+- Next:
+  - Wave 2 — Error catalog consistency (унификация mapping `error.code -> user-facing message` в едином shared слое).
+
+### Phase 4 Wave 2 — Прогресс выполнения (2026-02-27)
+
+- Статус волны: `Completed`.
+
+- `Implemented`:
+  - добавлен единый web error-catalog helper:
+    - `apps/web/lib/api/error-catalog.ts`;
+  - student/teacher error helpers переведены на общий слой:
+    - `apps/web/features/student-content/shared/student-errors.ts`,
+    - `apps/web/features/teacher-content/shared/api-errors.ts`;
+  - сохранена текущая UI-совместимость:
+    - teacher-flow сохраняет текущий fallback по HTTP status (`401/403`, `409`);
+    - student-flow сохраняет текущие доменные user-facing тексты (`INVALID_FILE_TYPE`, `FILE_TOO_LARGE`, `TASK_NOT_PHOTO` и т.д.);
+  - payload formatter (`code/message`) для teacher ветки теперь также использует единый catalog-resolver.
+
+- `Implemented` (проверка):
+  - `pnpm --filter web typecheck` — `pass`;
+  - `pnpm --filter web test` — `pass`;
+  - `pnpm lint:boundaries` — `pass`;
+  - `pnpm typecheck` — `pass`.
+
+- Next:
+  - Phase 5 — Coverage + CI docs checks + DX guardrails.
+
+### Phase 4 Wave 3 — Прогресс выполнения (2026-02-27)
+
+- Статус волны: `Completed`.
+
+- `Implemented`:
+  - в `packages/shared` добавлен и подключён в публичный export non-learning contract slice:
+    - `packages/shared/src/contracts/content-non-learning.ts`,
+    - `packages/shared/src/index.ts`,
+    - `packages/shared/package.json` (`exports` для `./contracts/content-non-learning`);
+  - в `apps/web/lib/api/student.ts` non-learning методы migration-среза переведены на runtime parsing через `apiRequestParsed` + shared schemas:
+    - `listCourses`, `getCourse`, `getSection`, `getSectionGraph`;
+  - в `apps/web/lib/api/teacher.ts` non-learning read/write методы migration-среза переведены на runtime parsing + shared contracts:
+    - `list/get/create/update/publish/unpublish/delete` для course/section в edit-flow,
+    - `getSectionGraph`/`updateSectionGraph`, `createUnit`,
+    - `listStudents`, `listTeachers`, `createStudent`, `resetStudentPassword`, `transferStudent`, `updateStudentProfile`, `deleteStudent`, `getStudentProfile`,
+    - `creditTask` helper и `overrideOpenUnit`;
+  - для wave3 endpoints в web API client включены shared type aliases (`Course/Section/Graph/StudentSummary/TeacherSummary/...`) вместо локальных transport-дублей.
+  - добавлены тесты:
+    - `packages/shared/test/content-non-learning-contracts.test.ts`,
+    - `apps/web/lib/api/wave3-runtime-parsing.test.ts`.
+
+- `Implemented` (проверка):
+  - `pnpm --filter @continuum/shared test` — `pass`;
+  - `pnpm --filter @continuum/shared typecheck` — `pass`;
+  - `pnpm --filter web typecheck` — `pass`;
+  - `pnpm --filter web test` — `pass`;
+  - `pnpm --filter web lint` — `pass` (`0 errors`, warnings допустимы);
+  - `pnpm lint:boundaries` — `pass`;
+  - `pnpm typecheck` — `pass`.
+
+### Phase 5 — Coverage + CI docs checks + DX guardrails
+
+- Статус фазы: `Planned`.
+
+- План работ:
+  - Wave 1 — Test coverage expansion:
+    - web: добавить unit/component/hook тесты для Phase 4 migration-среза;
+    - api: расширить `supertest` integration coverage на non-learning read/write сценарии;
+    - shared: покрыть тестами unified error catalog/contracts helpers.
+  - Wave 2 — Documentation checks in CI:
+    - добавить автоматические проверки:
+      - валидность markdown links;
+      - anti-orphans относительно `documents/DOCS-INDEX.md`;
+      - наличие `Implemented/Planned` в ключевых SoR-доках;
+    - зафиксировать troubleshooting для новых checks в `documents/DEVELOPMENT.md`.
+  - Wave 3 — Architectural guardrails (optional):
+    - при необходимости подключить `dependency-cruiser` и добавить `deps:check` в CI/локальные проверки.
+
+- Exit criteria:
+  - coverage для migration-среза заметно расширен и включён в обязательный прогон;
+  - docs checks автоматически исполняются в CI;
+  - архитектурные границы подтверждаются автоматическими проверками (eslint boundaries + при необходимости dependency graph check).
+
+### Phase 6 — Final lint hardening (последним шагом)
+
+- Статус фазы: `Planned`.
+
+- Предусловие запуска:
+  - `pnpm lint` возвращает `0 warnings` на актуальной `main`-ветке.
+
+- План работ:
+  - Wave 1 — Warning burn-down:
+    - устранить все текущие предупреждения по `@typescript-eslint`/`complexity`/`max-lines` в `api`, `web`, `shared`, `worker`.
+  - Wave 2 — Rules hardening:
+    - перевести agreed subset правил из `warn` в `error` (минимум: `no-explicit-any`, `consistent-type-imports`, `no-unused-vars`);
+    - для complexity/size правил выбрать финальную стратегию (error или explicit exception-list).
+  - Wave 3 — CI strict mode + closeout:
+    - включить fail-on-warnings (`lint:strict` с `--max-warnings=0` или эквивалент);
+    - обновить SoR/DEVELOPMENT под финальные quality budgets;
+    - перевести execution plan из `active` в `completed`.
+
+- Exit criteria:
+  - lint-контур strict: `0 warnings`, `0 errors` как обязательный merge-gate;
+  - quality budgets enforced автоматически в CI;
+  - execution plan закрыт и перенесён в `documents/exec-plans/completed/`.
 
 ## Decision log
 
@@ -676,6 +856,8 @@
   - Митигировать: staged rollout проверок и кэширование.
 - Риск: неполное покрытие тестами перед началом активного рефакторинга.
   - Митигировать: фокус на критичных сценариях и границах API.
+- Риск: преждевременное ужесточение lint-правил заблокирует поставку feature-задач.
+  - Митигировать: выполнять lint hardening только в финальной Phase 6 после warning burn-down.
 
 ## Откат
 
@@ -688,3 +870,4 @@
 - Контракты и validation централизованы.
 - Cross-cutting дубли существенно сокращены.
 - Quality-бюджеты автоматизированы в CI и отражены в SoR.
+- Lint-контур ужесточён после обнуления warning’ов (strict merge-gate).

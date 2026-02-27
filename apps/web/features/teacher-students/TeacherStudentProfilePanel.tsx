@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronRight, GraduationCap } from "lucide-react";
@@ -7,10 +8,10 @@ import LiteTex from "@/components/LiteTex";
 import Button from "@/components/ui/Button";
 import {
   teacherApi,
-  type TeacherStudentProfileResponse,
   type TeacherStudentTreeTask,
   type TeacherStudentTreeUnit,
 } from "@/lib/api/teacher";
+import { contentQueryKeys } from "@/lib/query/keys";
 import { getStudentTaskStatusLabel, getStudentUnitStatusLabel } from "@/lib/status-labels";
 import { formatApiErrorPayload } from "@/features/teacher-content/shared/api-errors";
 import { buildReviewSearch } from "@/features/teacher-review/review-query";
@@ -70,6 +71,7 @@ export default function TeacherStudentProfilePanel({
   onRefreshStudents,
 }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
 
   const focusedCourseId = searchParams.get("courseId")?.trim() || null;
@@ -77,7 +79,6 @@ export default function TeacherStudentProfilePanel({
   const focusedUnitId = searchParams.get("unitId")?.trim() || null;
   const focusedTaskId = searchParams.get("taskId")?.trim() || null;
 
-  const [details, setDetails] = useState<TeacherStudentProfileResponse | null>(null);
   const [activeCourseId, setActiveCourseId] = useState<string | null>(focusedCourseId);
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(focusedSectionId);
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(focusedUnitId);
@@ -85,10 +86,32 @@ export default function TeacherStudentProfilePanel({
   const [creditBusyTaskId, setCreditBusyTaskId] = useState<string | null>(null);
   const [overrideBusyUnitId, setOverrideBusyUnitId] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const [reviewTotal, setReviewTotal] = useState(0);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const detailsQuery = useQuery({
+    queryKey: contentQueryKeys.teacherStudentProfile(studentId, activeCourseId),
+    queryFn: () =>
+      teacherApi.getStudentProfile(studentId, {
+        courseId: activeCourseId ?? undefined,
+      }),
+  });
+  const reviewPreviewQuery = useQuery({
+    queryKey: contentQueryKeys.teacherStudentReviewPendingTotal(studentId),
+    queryFn: async () => {
+      const response = await teacherApi.listTeacherPhotoInbox({
+        status: "pending_review",
+        studentId,
+        sort: "oldest",
+        limit: 1,
+        offset: 0,
+      });
+      return response.total;
+    },
+  });
+  const details = detailsQuery.data ?? null;
+  const reviewTotal = reviewPreviewQuery.data ?? 0;
+  const loading = detailsQuery.isPending;
+  const queryError = detailsQuery.isError ? formatApiErrorPayload(detailsQuery.error) : null;
+  const error = actionError ?? queryError;
 
   useEffect(() => {
     setActiveCourseId(focusedCourseId);
@@ -96,7 +119,7 @@ export default function TeacherStudentProfilePanel({
     setSelectedUnitId(focusedUnitId);
     setSelectedTaskId(focusedTaskId);
     setActionNotice(null);
-    setError(null);
+    setActionError(null);
   }, [focusedCourseId, focusedSectionId, focusedTaskId, focusedUnitId, studentId]);
 
   const syncContext = useCallback(
@@ -115,45 +138,6 @@ export default function TeacherStudentProfilePanel({
     },
     [router, studentId],
   );
-
-  const loadDetails = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await teacherApi.getStudentProfile(studentId, {
-        courseId: activeCourseId ?? undefined,
-      });
-      setDetails(data);
-    } catch (err) {
-      setError(formatApiErrorPayload(err));
-      setDetails(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [activeCourseId, studentId]);
-
-  const loadReviewPreview = useCallback(async () => {
-    try {
-      const response = await teacherApi.listTeacherPhotoInbox({
-        status: "pending_review",
-        studentId,
-        sort: "oldest",
-        limit: 1,
-        offset: 0,
-      });
-      setReviewTotal(response.total);
-    } catch {
-      setReviewTotal(0);
-    }
-  }, [studentId]);
-
-  useEffect(() => {
-    void loadDetails();
-  }, [loadDetails]);
-
-  useEffect(() => {
-    void loadReviewPreview();
-  }, [loadReviewPreview]);
 
   const courseTree = details?.courseTree ?? null;
 
@@ -249,40 +233,54 @@ export default function TeacherStudentProfilePanel({
     async (unitId: string) => {
       if (overrideBusyUnitId) return;
       setOverrideBusyUnitId(unitId);
-      setError(null);
+      setActionError(null);
       setActionNotice(null);
       try {
         await teacherApi.overrideOpenUnit(studentId, unitId);
         setActionNotice("Доступ к юниту открыт вручную. Статусы обновлены.");
-        await Promise.all([loadDetails(), loadReviewPreview()]);
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: contentQueryKeys.teacherStudentProfileRoot(studentId),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: contentQueryKeys.teacherStudentReviewPendingTotal(studentId),
+          }),
+        ]);
         void onRefreshStudents?.();
       } catch (err) {
-        setError(formatApiErrorPayload(err));
+        setActionError(formatApiErrorPayload(err));
       } finally {
         setOverrideBusyUnitId(null);
       }
     },
-    [loadDetails, loadReviewPreview, onRefreshStudents, overrideBusyUnitId, studentId],
+    [onRefreshStudents, overrideBusyUnitId, queryClient, studentId],
   );
 
   const handleCreditTask = useCallback(
     async (task: TeacherStudentTreeTask) => {
       if (creditBusyTaskId) return;
       setCreditBusyTaskId(task.id);
-      setError(null);
+      setActionError(null);
       setActionNotice(null);
       try {
         await teacherApi.creditTask(studentId, task.id);
         setActionNotice("Задача зачтена. Прогресс и доступность пересчитаны.");
-        await Promise.all([loadDetails(), loadReviewPreview()]);
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: contentQueryKeys.teacherStudentProfileRoot(studentId),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: contentQueryKeys.teacherStudentReviewPendingTotal(studentId),
+          }),
+        ]);
         void onRefreshStudents?.();
       } catch (err) {
-        setError(formatApiErrorPayload(err));
+        setActionError(formatApiErrorPayload(err));
       } finally {
         setCreditBusyTaskId(null);
       }
     },
-    [creditBusyTaskId, loadDetails, loadReviewPreview, onRefreshStudents, studentId],
+    [creditBusyTaskId, onRefreshStudents, queryClient, studentId],
   );
 
   const openCourse = useCallback(
