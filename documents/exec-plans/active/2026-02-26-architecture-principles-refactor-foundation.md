@@ -38,6 +38,7 @@
 - Двигаться малыми шагами: один PR/задача = одна ось изменений (контракты, декомпозиция, state management и т.д.).
 - Не смешивать feature-разработку и крупный рефакторинг в одном изменении.
 - Для legacy-модулей применять ratchet-подход: не ухудшать и улучшать инкрементально.
+- После завершения каждой фазы синхронизировать документацию (SoR + execution plan + индекс при необходимости).
 
 ### 2) Инварианты и совместимость
 
@@ -162,14 +163,75 @@
 
 - Ввести минимальный тестовый контур для API и критичных UI-экранов.
 - Подключить lint и dependency-boundary проверки в CI.
+- Обновить документацию по принятым проверкам и правилам выполнения фазы.
 - Exit criteria:
   - критичные happy-path покрыты smoke/integration тестами;
   - архитектурные нарушения ловятся автоматически.
+
+### Phase 0 — Прогресс выполнения (2026-02-27)
+
+- Статус фазы: `Completed` (exit criteria для safety rails закрыты).
+
+- `Implemented`:
+  - в root добавлены devDependencies: `eslint`, `@typescript-eslint/parser`, `@typescript-eslint/eslint-plugin`, `eslint-plugin-boundaries`;
+  - добавлен корневой flat config `eslint.config.mjs` для `apps/*` и `packages/*`;
+  - добавлены package-level `lint` scripts (`apps/api`, `apps/web`, `apps/worker`, `packages/shared`);
+  - добавлен root script `lint:boundaries`;
+  - в CI (`.github/workflows/ci.yml`) добавлены обязательные шаги `Lint` и `Dependency boundaries`;
+  - добавлен минимальный test-baseline:
+    - `apps/api` — `vitest` тесты для `HealthController`/`ReadyController` (`/health` и ветки `/ready`);
+    - `apps/web` — `vitest` + Testing Library тесты login flow (`teacher/student redirect`, `401` error-path);
+    - `apps/worker` — `vitest` тесты конфигурации object storage (`resolveWorkerObjectStorageConfig`);
+    - `packages/shared` — `vitest` тесты storage-core утилит (`parseBool`, `parsePositiveInt`, URL normalization/rewrites, env resolve);
+  - package `test` scripts в `apps/api`, `apps/web`, `apps/worker`, `packages/shared` переключены с placeholder на реальный test-runner;
+  - обновлены SoR/операционные документы (`ARCHITECTURE-PRINCIPLES.md`, `DEVELOPMENT.md`) под фактический контур.
+- `Planned`:
+  - расширить baseline-покрытие на “горячие” модули (`content`, `learning`, `teacher unit`, `student unit`);
+  - расширить baseline-покрытие на worker/shared edge-cases (ошибки env/infra).
+- Проверка факта:
+  - `pnpm lint` — `0 errors` (есть warnings);
+  - `pnpm lint:boundaries` — успешно (`0 errors`), boundary-правила исполняются в общем lint-контуре.
+  - `pnpm --filter @continuum/api test` — `pass`;
+  - `pnpm --filter web test` — `pass`;
+  - `pnpm --filter @continuum/worker test` — `pass`;
+  - `pnpm --filter @continuum/shared test` — `pass`;
+  - `pnpm test` — `pass`.
+
+### Phase 0 — Грабли и решения (2026-02-27)
+
+- Где упало:
+  - `pnpm add -Dw eslint @typescript-eslint/parser @typescript-eslint/eslint-plugin eslint-plugin-boundaries` (sandbox).
+- Что увидели:
+  - `ERR_PNPM_META_FETCH_FAIL ... ENOTFOUND registry.npmjs.org`;
+  - `ERR_PNPM_UNEXPECTED_STORE`.
+- Почему:
+  - sandbox без стабильного egress до npm registry;
+  - конфликт store-dir с существующим `node_modules` (`/Users/<user>/Library/pnpm/store/v10` vs локальный `.pnpm-store/v10`).
+- Как чинить:
+  - выполнить установку вне sandbox/через escalated shell;
+  - запускать команды установки с согласованным store-dir:
+    - `PNPM_STORE_DIR=/Users/<user>/Library/pnpm/store/v10 pnpm add -Dw <deps>`.
+- Как проверить:
+  - `pnpm lint`;
+  - `pnpm lint:boundaries`.
+
+- Где упало:
+  - `pnpm --filter @continuum/api test` (первая версия HTTP-style теста).
+- Что увидели:
+  - `listen EPERM: operation not permitted 0.0.0.0`.
+- Почему:
+  - sandbox запрещает bind/listen для тестового HTTP server.
+- Как чинить:
+  - в sandbox использовать controller/service-level тесты без открытия socket;
+  - socket-based integration выполнять вне sandbox.
+- Как проверить:
+  - `pnpm --filter @continuum/api test` проходит без `listen EPERM`.
 
 ### Phase 1 — Контракты и boundary validation
 
 - Внедрить schema-first слой (`zod`) для ключевых DTO и API-ответов.
 - Централизовать parse/validate внешних входов (убрать ручной parse `unknown` с критичных путей).
+- Обновить документацию по контрактам и validation flow после внедрения.
 - Exit criteria:
   - ключевые endpoint-ы проходят через единый validation boundary;
   - типы API/Web выводятся из одного источника.
@@ -178,6 +240,7 @@
 
 - Разделить самые крупные сервисы на read/write + policy + mapper слои.
 - Свернуть дублирующееся audit/guard поведение в композиционные примитивы.
+- Обновить документацию по новым границам модулей и слоям.
 - Exit criteria:
   - `content.service.ts` и `learning.service.ts` декомпозированы на smaller units;
   - число cross-cutting дублирований заметно снижено.
@@ -186,6 +249,7 @@
 
 - Мигрировать сетевой слой на единый server-state подход (`@tanstack/react-query` или эквивалент, утверждённый в задаче).
 - Вынести эффекты и orchestration из экранов-комбайнов в hooks.
+- Обновить frontend-документацию по структуре, server-state и правилам экранов.
 - Exit criteria:
   - ручной `requestIdRef` anti-race паттерн минимизирован/устранён;
   - `TeacherUnitDetailScreen` и `StudentUnitDetailScreen` разделены на feature-subcomponents + hooks.
@@ -194,6 +258,7 @@
 
 - Унифицировать Error Catalog и UI-обработку ошибок.
 - Закрепить quality-бюджеты в CI-правилах.
+- Обновить SoR-документы и закрыть/перевести execution plan по факту завершения.
 - Exit criteria:
   - архитектурные принципы enforced линтами/тестами/границами зависимостей, а не только договорённостями.
 

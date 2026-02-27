@@ -4,23 +4,25 @@
   "version": "0.0.0",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/main.ts",
+    "lint": "pnpm exec eslint \"src/**/*.ts\"",
     "build": "node ../../scripts/ensure-docker-build.cjs && pnpm exec tsc -p tsconfig.json",
     "typecheck": "node ../../scripts/ensure-docker-build.cjs && pnpm exec tsc -p tsconfig.json --noEmit",
-    "test": "node -e \"console.log('No tests for @continuum/worker yet')\"",
+    "test": "pnpm exec vitest run --config vitest.config.ts",
     "start": "node dist/main.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.988.0",
     "@aws-sdk/lib-storage": "^3.988.0",
     "@aws-sdk/s3-request-presigner": "^3.988.0",
-    "@smithy/node-http-handler": "^4.4.10",
     "@continuum/shared": "workspace:*",
+    "@smithy/node-http-handler": "^4.4.10",
     "bullmq": "^5.67.2",
     "ioredis": "^5.9.2"
   },
   "devDependencies": {
     "@types/node": "^25.2.0",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   }
 }

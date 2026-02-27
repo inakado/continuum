@@ -10,6 +10,7 @@
     "build:backend:prod": "docker compose -f docker-compose.prod.yml build api worker",
     "build:web": "turbo build --filter=@continuum/shared --filter=web",
     "lint": "turbo lint",
+    "lint:boundaries": "pnpm exec eslint \"apps/**/*.{ts,tsx}\" \"packages/**/*.{ts,tsx}\" --no-error-on-unmatched-pattern --quiet",
     "typecheck": "turbo typecheck --filter=@continuum/shared --filter=web",
     "test": "turbo test",
     "audit": "pnpm audit",
@@ -21,6 +22,10 @@
     "smoke": "node scripts/smoke.mjs"
   },
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.56.1",
+    "@typescript-eslint/parser": "^8.56.1",
+    "eslint": "^9.39.3",
+    "eslint-plugin-boundaries": "^5.4.0",
     "turbo": "^2.8.1"
   },
   "pnpm": {

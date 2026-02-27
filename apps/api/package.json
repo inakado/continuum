@@ -4,10 +4,11 @@
   "version": "0.0.0",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/main.ts",
+    "lint": "pnpm exec eslint \"src/**/*.ts\"",
     "prisma:generate": "prisma generate",
     "build": "node ../../scripts/ensure-docker-build.cjs && pnpm exec tsc -p tsconfig.json",
     "typecheck": "node ../../scripts/ensure-docker-build.cjs && pnpm exec tsc -p tsconfig.json --noEmit",
-    "test": "node -e \"console.log('No tests for @continuum/api yet')\"",
+    "test": "pnpm exec vitest run --config vitest.config.ts",
     "start": "node dist/main.js"
   },
   "dependencies": {
@@ -47,6 +48,7 @@
     "dotenv": "^16.4.7",
     "prisma": "^7.0.0",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   }
 }

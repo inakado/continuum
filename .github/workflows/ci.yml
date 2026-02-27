@@ -32,6 +32,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Lint
+        run: pnpm lint
+
+      - name: Dependency boundaries
+        run: pnpm lint:boundaries
+
       - name: Build backend images (Docker only)
         run: pnpm build:backend
 

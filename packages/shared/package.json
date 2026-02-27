@@ -18,10 +18,12 @@
   },
   "scripts": {
     "build": "pnpm exec tsc -p tsconfig.json",
+    "lint": "pnpm exec eslint \"src/**/*.ts\"",
     "typecheck": "pnpm exec tsc -p tsconfig.json --noEmit",
-    "test": "node -e \"console.log('No tests for @continuum/shared yet')\""
+    "test": "pnpm exec vitest run --config vitest.config.ts"
   },
   "devDependencies": {
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   }
 }

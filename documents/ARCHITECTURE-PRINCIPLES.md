@@ -11,6 +11,8 @@
 
 - `Implemented`: baseline-метрики и факты по текущему коду.
 - `Planned`: целевые принципы и инструменты, которые нужно внедрить.
+- `Implemented` (2026-02-27, Phase 0 foundation): в monorepo подключены `eslint` + `@typescript-eslint` + `eslint-plugin-boundaries`, добавлены workspace `lint`-scripts и CI-проверки `lint` + `lint:boundaries`.
+- `Implemented` (2026-02-27, Phase 0 tests baseline): в `apps/api`, `apps/web`, `apps/worker`, `packages/shared` подключён `vitest`, добавлены минимальные автотесты для health/login/storage-config критичных путей.
 
 ## 1) Baseline читаемости и поддерживаемости (`Implemented`, снимок на 2026-02-26)
 
@@ -53,9 +55,9 @@
 - **P11. Server-first rendering by default**: для read-heavy экранов предпочитать RSC/SSR; client-компоненты только для интерактивности.
 - **P12. Dependency rule enforcement**: границы зависимостей feature/layer проверяются автоматически.
 
-## 3) Рекомендуемые библиотеки (`Planned`)
+## 3) Рекомендуемые библиотеки и текущий статус
 
-### 3.1 Приоритетный стек
+### 3.1 Приоритетный стек (`Implemented/Planned`)
 
 - `zod`:
   - единый runtime/schema слой для API boundary + frontend parsing + shared contracts;
@@ -64,39 +66,45 @@
   - интеграция Zod-схем в NestJS pipe/DTO-поток без ручного парсинга в каждом сервисе.
 - `@tanstack/react-query`:
   - единый server-state cache/dedup/retry/invalidation слой на frontend.
-- `vitest` + `@testing-library/react` + `@testing-library/user-event` + `@testing-library/jest-dom`:
+- `vitest` + `@testing-library/react` + `@testing-library/user-event` + `@testing-library/jest-dom` (`Implemented` для baseline в `apps/web`, дальнейшее расширение `Planned`):
   - безопасный рефакторинг React-модулей.
 - `supertest`:
   - интеграционные тесты API boundary (валидация, коды ошибок, auth инварианты).
 
-### 3.2 Минимальный обязательный quality-контур
+### 3.2 Минимальный обязательный quality-контур (`Implemented`, 2026-02-27)
 
 - `eslint` + `@typescript-eslint/parser` + `@typescript-eslint/eslint-plugin`:
   - базовая типобезопасность/читаемость (`no-explicit-any`, правила сложности и размерности для изменённого кода).
 - `eslint-plugin-boundaries`:
   - контроль архитектурных границ импортов между слоями/feature-модулями.
+- Текущее enforcement:
+  - корневой flat config `eslint.config.mjs` применяется к `apps/*` и `packages/*`;
+  - `pnpm lint` запускает lint по всем workspace-пакетам через `turbo`;
+  - `pnpm lint:boundaries` выполняет отдельный boundary-check;
+  - в CI (`.github/workflows/ci.yml`) добавлены обязательные шаги `Lint` и `Dependency boundaries`.
 
-### 3.3 Опционально (не блокирует внедрение принципов на старте)
+### 3.3 Опционально (не блокирует внедрение принципов на старте, `Planned`)
 
 - `dependency-cruiser`:
   - полезен для глубокого анализа графа зависимостей, но внедряется после стабилизации минимального контура.
 - Дополнительные плагины (например, расширенные import-правила) подключаются только при явной пользе и без перегруза CI.
 
-### 3.4 Где именно подключаются библиотеки
+### 3.4 Где именно подключаются библиотеки (`Implemented/Planned`)
 
-- `zod`:
+- `zod` (`Planned`):
   - `packages/shared` — общие schema/contracts;
   - `apps/api` — boundary validation входов/выходов;
   - `apps/web` — runtime-парсинг API-ответов и форм.
-- `nestjs-zod`:
+- `nestjs-zod` (`Planned`):
   - только `apps/api` (интеграция схем в NestJS pipeline).
-- `@tanstack/react-query`:
+- `@tanstack/react-query` (`Planned`):
   - только `apps/web` (server-state слой).
-- `vitest` + Testing Library:
-  - в первую очередь `apps/web` (unit/component/hooks), по необходимости `packages/shared`.
-- `supertest`:
+- `vitest` + Testing Library (`Implemented` baseline в `apps/web`, расширение `Planned`):
+  - в `apps/web` покрыт минимальный login happy-path/error-path;
+  - далее: расширение покрытия unit/component/hooks и, при необходимости, `packages/shared`.
+- `supertest` (`Planned`):
   - только `apps/api` (интеграционные HTTP-тесты).
-- `eslint` + `@typescript-eslint` + `eslint-plugin-boundaries`:
+- `eslint` + `@typescript-eslint` + `eslint-plugin-boundaries` (`Implemented`, 2026-02-27):
   - на уровне monorepo (корневой конфиг), применяется к `apps/*` и `packages/*`.
 
 ## 4) Приоритеты качества и анти-гейминг (`Planned`)

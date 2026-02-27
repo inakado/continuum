@@ -27,6 +27,7 @@
 - `pnpm dev:web` поднимает Next.js на `http://localhost:3001`.
 - `GET /login` возвращает `200`.
 - `pnpm build:backend`, `pnpm build:web`, `pnpm typecheck` проходят успешно.
+- `pnpm lint` и `pnpm lint:boundaries` проходят (warnings допустимы, errors блокируют шаг).
 
 ### 1) Подготовка окружения (один раз или после чистки зависимостей)
 1) Установить зависимости workspace:
@@ -51,7 +52,11 @@
    - `pnpm build:web`
 3) Typecheck:
    - `pnpm typecheck`
-4) Test (пока placeholder):
+4) Lint:
+   - `pnpm lint`
+5) Dependency boundaries:
+   - `pnpm lint:boundaries`
+6) Test:
    - `pnpm test`
 
 ## Smoke-check
@@ -69,11 +74,15 @@
 - Frontend/shared build: `pnpm build:web`
 - Полный build (backend docker + web/shared): `pnpm build`
 - Typecheck (web/shared): `pnpm typecheck`
-- Test (текущий placeholder): `pnpm test`
+- Lint (workspace): `pnpm lint`
+- Dependency boundaries: `pnpm lint:boundaries`
+- Test (turbo):
+  - `pnpm test`
+  - `apps/api`, `apps/web`, `apps/worker`, `packages/shared` запускают `vitest`.
 
 Примечание: backend docker build в агентском sandbox-окружении может быть недоступен по правам к Docker socket; для гарантированного результата запускать вне sandbox (обычный терминал/VPS/CI runner).
 
-Примечание: сейчас `test` в пакетах — placeholder-команды без unit/integration набора.
+Примечание: минимальный test-baseline есть во всех ключевых пакетах (`apps/api`, `apps/web`, `apps/worker`, `packages/shared`) и исполняется через `pnpm test`.
 
 ## Инвариант: backend build only in Docker (`Implemented`)
 - `apps/api` и `apps/worker` не должны собираться на хосте напрямую.
@@ -134,6 +143,12 @@ Production policy (`Implemented`):
 - **Фикс:** запускать команды вне sandbox/с повышенными правами (или напрямую в обычном терминале пользователя).
 - **Проверка:** `docker compose -f docker-compose.prod.yml build api worker` завершается без ошибки доступа к socket.
 
+- **Симптом:** HTTP-style тесты API через `supertest` в sandbox падают с `listen EPERM: operation not permitted 0.0.0.0`.
+- **Команда:** `pnpm --filter @continuum/api test` (если тест пытается открыть локальный socket).
+- **Причина:** sandbox запрещает bind/listen для тестового HTTP server.
+- **Фикс:** для sandbox использовать controller/service-level тесты без bind/listen; socket-based integration запускать вне sandbox.
+- **Проверка:** `pnpm --filter @continuum/api test` проходит без `listen EPERM`.
+
 - **Симптом:** на production после `docker compose up -d` неожиданно запускается `minio`, а `api` падает с `Bind for 127.0.0.1:3000 failed: port is already allocated`.
 - **Команда:** `docker compose up -d`
 - **Причина:** запущен dev compose (`docker-compose.yml`) вместо production compose (`docker-compose.prod.yml`).
@@ -158,6 +173,14 @@ Production policy (`Implemented`):
 - **Причина:** отсутствует DNS/egress доступ к npm registry в текущем окружении.
 - **Фикс:** повторить установку в окружении с внешней сетью (CI runner или VPS).
 - **Проверка:** `pnpm install --frozen-lockfile` завершается без retry/fetch ошибок.
+
+- **Симптом:** `pnpm add -Dw ...` в sandbox падает с `ERR_PNPM_META_FETCH_FAIL` (ENOTFOUND) и/или `ERR_PNPM_UNEXPECTED_STORE`.
+- **Команда:** `pnpm add -Dw <deps>`
+- **Причина:** одновременно недоступен npm registry в sandbox и отличается store-dir от уже собранного `node_modules`.
+- **Фикс:**
+  - запускать установку вне sandbox (escalated shell/локальный терминал);
+  - выровнять store-dir на текущий (`PNPM_STORE_DIR=/Users/<user>/Library/pnpm/store/v10`) или выполнить чистую переустановку зависимостей.
+- **Проверка:** команда `pnpm add -Dw ...` завершается успешно, после чего рабочие команды (`pnpm lint`, `pnpm lint:boundaries`) выполняются без ошибок.
 
 - **Симптом:** агент запускает `CI=true pnpm install --frozen-lockfile` в sandbox и получает нестабильные сетевые ошибки.
 - **Команда:** `CI=true pnpm install --frozen-lockfile`
@@ -269,4 +292,4 @@ Production policy (`Implemented`):
 ## Planned
 
 - CI-проверки документации (валидность ссылок, отсутствие сирот, наличие `Implemented/Planned` в ключевых SoR-доках).
-- Реальные unit/integration/e2e tests вместо placeholder `test` скриптов.
+- Расширение test-покрытия (unit/integration/e2e) поверх текущего baseline во всех пакетах.
