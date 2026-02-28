@@ -1,7 +1,7 @@
 import { ConflictException, Injectable } from '@nestjs/common';
-import { Role, User } from '@prisma/client';
+import { type Role, type User } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateUserInput, PublicUser } from './users.types';
+import { type CreateUserInput, type PublicUser } from './users.types';
 
 const authSelect = {
   id: true,

@@ -10,20 +10,20 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { EventCategory, Role } from '@prisma/client';
-import { Job } from 'bullmq';
+import { type Job } from 'bullmq';
 import { EventsLogService } from '../events/events-log.service';
 import { ContentService } from './content.service';
 import { LatexCompileQueueService } from './latex-compile-queue.service';
 import {
-  LatexCompileJobResult,
-  LatexCompileQueuePayload,
-  TaskSolutionLatexCompileJobResult,
-  TaskSolutionLatexCompileQueuePayload,
+  type LatexCompileJobResult,
+  type LatexCompileQueuePayload,
+  type TaskSolutionLatexCompileJobResult,
+  type TaskSolutionLatexCompileQueuePayload,
   TASK_SOLUTION_PDF_TARGET,
-  UnitLatexCompileJobResult,
-  UnitLatexCompileQueuePayload,
+  type UnitLatexCompileJobResult,
+  type UnitLatexCompileQueuePayload,
   shouldApplyIncomingPdfKey,
-  UnitPdfTarget,
+  type UnitPdfTarget,
 } from './unit-pdf.constants';
 
 @Controller('internal/latex/jobs')

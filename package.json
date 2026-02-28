@@ -19,7 +19,11 @@
     "dev:infra": "docker compose up -d postgres redis minio",
     "dev:backend": "docker compose up -d api worker",
     "dev:web": "PORT=3001 NEXT_PUBLIC_API_BASE_URL=http://localhost:3000 pnpm --filter web dev",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "docs:check": "pnpm docs:check:links && pnpm docs:check:index && pnpm docs:check:status",
+    "docs:check:links": "node scripts/docs/check-links.mjs",
+    "docs:check:index": "node scripts/docs/check-index.mjs",
+    "docs:check:status": "node scripts/docs/check-status.mjs"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.56.1",

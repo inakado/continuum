@@ -6,10 +6,10 @@ import {
 } from '@nestjs/common';
 import { ContentStatus, Prisma, TaskAnswerType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateCourseDto, UpdateCourseDto } from './dto/course.dto';
-import { CreateSectionDto, UpdateSectionDto } from './dto/section.dto';
-import { CreateTaskDto, UpdateTaskDto } from './dto/task.dto';
-import { CreateUnitDto, UpdateUnitDto } from './dto/unit.dto';
+import { type CreateCourseDto, type UpdateCourseDto } from './dto/course.dto';
+import { type CreateSectionDto, type UpdateSectionDto } from './dto/section.dto';
+import { type CreateTaskDto, type UpdateTaskDto } from './dto/task.dto';
+import { type CreateUnitDto, type UpdateUnitDto } from './dto/unit.dto';
 import {
   TaskRevisionPayloadService,
   type TaskRevisionRecord,

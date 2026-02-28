@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type {
+  DocumentInitParameters,
+  PDFDocumentLoadingTask,
+  PDFDocumentProxy,
+  RenderTask,
+} from "pdfjs-dist/types/src/display/api";
 import styles from "./pdf-canvas-preview.module.css";
 
 type Props = {
@@ -64,13 +70,13 @@ export default function PdfCanvasPreview({
   const [observedWidth, setObservedWidth] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
   const [pageCount, setPageCount] = useState(0);
-  const [pdfDoc, setPdfDoc] = useState<any | null>(null);
+  const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
   const [currentUrl, setCurrentUrl] = useState(url);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const refreshAttemptedKeyRef = useRef<string | null>(null);
-  const activeRenderTasksRef = useRef<Array<any | null>>([]);
+  const activeRenderTasksRef = useRef<Array<RenderTask | null>>([]);
   const renderGenerationRef = useRef(0);
 
   useEffect(() => {
@@ -207,7 +213,7 @@ export default function PdfCanvasPreview({
 
   useEffect(() => {
     let disposed = false;
-    let loadingTask: any | null = null;
+    let loadingTask: PDFDocumentLoadingTask | null = null;
 
     const loadPdf = async () => {
       setLoading(true);
@@ -218,14 +224,15 @@ export default function PdfCanvasPreview({
       canvasRefs.current = [];
 
       try {
-        const pdfjs = (await import("pdfjs-dist")) as any;
+        const pdfjs = await import("pdfjs-dist");
         if (typeof window !== "undefined" && !pdfjs.GlobalWorkerOptions.workerSrc) {
           pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
         }
-        loadingTask = pdfjs.getDocument({
+        const documentParams: DocumentInitParameters = {
           url: currentUrl,
           withCredentials,
-        } as any);
+        };
+        loadingTask = pdfjs.getDocument(documentParams);
         const doc = await loadingTask.promise;
         if (disposed) return;
         setPdfDoc(doc);
@@ -275,9 +282,6 @@ export default function PdfCanvasPreview({
       if (loadingTask && typeof loadingTask.destroy === "function") {
         loadingTask.destroy();
       }
-      if (loadingTask && typeof loadingTask.cancel === "function") {
-        loadingTask.cancel();
-      }
     };
   }, [currentUrl, withCredentials, getFreshUrl, refreshKey]);
 
@@ -324,6 +328,7 @@ export default function PdfCanvasPreview({
 
         const renderTask = page.render({
           canvasContext: context,
+          canvas,
           viewport,
         });
         activeRenderTasksRef.current[index] = renderTask;

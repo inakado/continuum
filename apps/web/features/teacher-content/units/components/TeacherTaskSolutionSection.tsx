@@ -1,11 +1,12 @@
 import dynamic from "next/dynamic";
 import { type ComponentProps } from "react";
 import Button from "@/components/ui/Button";
+import type PdfCanvasPreviewComponent from "@/components/PdfCanvasPreview";
 import type { Task } from "@/lib/api/teacher";
 import type { TaskSolutionCompileState } from "../hooks/use-teacher-unit-latex-compile";
 import styles from "../teacher-unit-detail.module.css";
 
-type PdfCanvasPreviewProps = ComponentProps<typeof import("@/components/PdfCanvasPreview").default>;
+type PdfCanvasPreviewProps = ComponentProps<typeof PdfCanvasPreviewComponent>;
 
 const PdfCanvasPreview = dynamic<PdfCanvasPreviewProps>(() => import("@/components/PdfCanvasPreview"), {
   ssr: false,

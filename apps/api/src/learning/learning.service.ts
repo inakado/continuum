@@ -12,6 +12,7 @@ import {
   type StudentAttemptRequest,
 } from '@continuum/shared';
 import { ContentService } from '../content/content.service';
+import { type TaskWithActiveRevision } from '../content/task-revision-payload.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StudentsService } from '../students/students.service';
 import { LearningAvailabilityService } from './learning-availability.service';
@@ -163,7 +164,7 @@ export class LearningService {
       completionPercent: unitSnapshot.completionPercent,
       solvedPercent: unitSnapshot.solvedPercent,
       tasks: unit.tasks.map((task) => {
-        const mapped = this.contentService.mapTaskWithRevision(task as any);
+        const mapped = this.contentService.mapTaskWithRevision(task as TaskWithActiveRevision);
         const state = statesMap.get(task.id);
         const normalizedState = this.normalizeTaskState(state ?? null, task.activeRevisionId, now);
         const {
@@ -182,11 +183,19 @@ export class LearningService {
           normalizedState.status === StudentTaskStatus.credited_without_progress ||
           normalizedState.status === StudentTaskStatus.teacher_credited;
         const safeNumericParts = Array.isArray(numericPartsJson)
-          ? numericPartsJson.map((part: any) => ({
-              key: part.key,
-              labelLite: part.labelLite ?? null,
-              ...(isCredited ? { correctValue: part.correctValue } : {}),
-            }))
+          ? numericPartsJson.map((part) => {
+              const safePart = part as {
+                key: string;
+                labelLite?: string | null;
+                correctValue?: unknown;
+              };
+
+              return {
+                key: safePart.key,
+                labelLite: safePart.labelLite ?? null,
+                ...(isCredited ? { correctValue: safePart.correctValue } : {}),
+              };
+            })
           : null;
         return {
           ...rest,

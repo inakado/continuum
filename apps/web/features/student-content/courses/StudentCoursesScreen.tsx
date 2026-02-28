@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import StudentShell from "@/components/StudentShell";
-import EntityList, { EntityListItem } from "@/components/EntityList";
+import EntityList, { type EntityListItem } from "@/components/EntityList";
 import Button from "@/components/ui/Button";
-import { studentApi, Course } from "@/lib/api/student";
+import { studentApi, type Course } from "@/lib/api/student";
 import { getStudentErrorMessage } from "../shared/student-errors";
 import StudentAuthRequired from "../auth/StudentAuthRequired";
 import { useStudentLogout } from "../auth/use-student-logout";

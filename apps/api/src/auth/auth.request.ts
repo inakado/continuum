@@ -1,4 +1,4 @@
-import { Request } from 'express';
-import { AuthUser } from './auth.types';
+import { type Request } from 'express';
+import { type AuthUser } from './auth.types';
 
 export type AuthRequest = Request & { user: AuthUser };

@@ -1,12 +1,12 @@
 import { createHash, randomBytes } from 'crypto';
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
-import { Prisma, Role } from '@prisma/client';
+import { type Prisma, type Role } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import argon2 from 'argon2';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { resolveRefreshExpiresInDays, resolveRefreshReuseGraceSeconds } from './auth.config';
-import { AuthUser, JwtPayload } from './auth.types';
+import { type AuthUser, type JwtPayload } from './auth.types';
 
 const AUTH_ERRORS = {
   REFRESH_TOKEN_INVALID: {

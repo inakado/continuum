@@ -17,7 +17,11 @@ export class StudentUnitsController {
     return {
       ...unit,
       tasks: unit.tasks.map((task) => {
-        const { solutionLite, correctAnswerJson, ...rest } = task as Record<string, unknown>;
+        const {
+          solutionLite: _solutionLite,
+          correctAnswerJson: _correctAnswerJson,
+          ...rest
+        } = task as Record<string, unknown>;
         return rest;
       }),
     };

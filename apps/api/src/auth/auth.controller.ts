@@ -9,10 +9,10 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
-import { Request, Response } from 'express';
+import { type Request, type Response } from 'express';
 import { Role } from '@prisma/client';
 import { AuthService } from './auth.service';
-import { AuthRequest } from './auth.request';
+import { type AuthRequest } from './auth.request';
 import {
   resolveAuthCookieName,
   resolveAuthCookieOptions,

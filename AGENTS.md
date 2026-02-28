@@ -29,6 +29,24 @@
    - как проверить (команда/критерий).  
    Куда писать: в execution plan (если специфично задаче) и/или в `documents/DEVELOPMENT.md` → Troubleshooting (если повторяемая проблема), и/или в `documents/exec-plans/tech-debt-tracker.md` (если это реальный техдолг/баг).  
 
+### 1.2) Границы документов (обязательно)
+
+1) `documents/ARCHITECTURE-PRINCIPLES.md`:
+   - хранит только стабильные инженерные принципы, quality budgets, enforced practices и архитектурные ограничения;
+   - не хранит phase/wave history, progress logs, пошаговые планы внедрения и migration backlog.
+2) `documents/DEVELOPMENT.md`:
+   - хранит только runbook/команды/окружение/troubleshooting для dev, test, build, deploy;
+   - не хранит архитектурные rationale, продуктовые решения и историю рефакторинга.
+3) Execution plans:
+   - единственное место для phase/wave planning, progress logs, decision log и task-specific troubleshooting.
+4) `documents/DOCS-INDEX.md`:
+   - хранит карту документов и их назначение;
+   - если назначение документа меняется, сначала обновить индекс, потом сам документ.
+5) При сомнении:
+   - stable rule → SoR;
+   - временный план/прогресс → execution plan;
+   - команда/окружение/грабли → `documents/DEVELOPMENT.md`.
+
 ### Agent install policy (`Implemented`)
 
 - В агентской/sandbox-сессии агент **не запускает** команду `CI=true pnpm install --frozen-lockfile`.
@@ -58,6 +76,8 @@
    - `Planned` — запланировано, но не реализовано.
 4. Нельзя смешивать `Implemented` и `Planned` без явной маркировки в разделе.
 5. Если описание устарело и не относится к будущим фичам, его нужно удалить или переписать.
+6. Нельзя записывать progress/history внедрения в SoR-документ, если для этого уже существует execution plan.
+7. Перед правкой документа агент обязан коротко сверить его назначение по `documents/DOCS-INDEX.md` и не выходить за эти границы.
 
 ## 4) Source of Truth порядок
 

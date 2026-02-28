@@ -6,12 +6,14 @@ import {
   type PointerEvent as ReactPointerEvent,
   type RefObject,
 } from "react";
+import type CodeMirrorComponent from "@uiw/react-codemirror";
 import Button from "@/components/ui/Button";
+import type PdfCanvasPreviewComponent from "@/components/PdfCanvasPreview";
 import type { CompileState } from "../hooks/use-teacher-unit-latex-compile";
 import styles from "../teacher-unit-detail.module.css";
 
-type CodeMirrorProps = ComponentProps<typeof import("@uiw/react-codemirror").default>;
-type PdfCanvasPreviewProps = ComponentProps<typeof import("@/components/PdfCanvasPreview").default>;
+type CodeMirrorProps = ComponentProps<typeof CodeMirrorComponent>;
+type PdfCanvasPreviewProps = ComponentProps<typeof PdfCanvasPreviewComponent>;
 
 const CodeMirror = dynamic<CodeMirrorProps>(() => import("@uiw/react-codemirror"), {
   ssr: false,

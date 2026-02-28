@@ -1,17 +1,17 @@
 import {
-  BucketLocationConstraint,
+  type BucketLocationConstraint,
   CreateBucketCommand,
-  CreateBucketCommandInput,
+  type CreateBucketCommandInput,
   GetObjectCommand,
   HeadBucketCommand,
-  PutObjectCommandInput,
+  type PutObjectCommandInput,
   S3Client,
   S3ServiceException,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Upload } from '@aws-sdk/lib-storage';
 import { NodeHttpHandler } from '@smithy/node-http-handler';
-import { WorkerObjectStorageConfig } from './object-storage-config';
+import { type WorkerObjectStorageConfig } from './object-storage-config';
 
 type PutObjectBody = Buffer | Uint8Array | NodeJS.ReadableStream | string;
 

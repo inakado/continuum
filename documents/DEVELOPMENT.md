@@ -1,324 +1,248 @@
 # DEVELOPMENT.md
 
-Краткий контрольный контур для dev/prod запуска.
+Назначение: operational runbook для dev/build/test/deploy и повторяемый troubleshooting.
 
-Статус: `Draft` (источник истины — код/скрипты).
+## Границы документа (`Implemented`)
 
-## Implemented
+- Здесь хранятся только команды, prerequisites, environment rules, smoke-проверки и troubleshooting.
+- Архитектурные принципы и quality policy живут в [ARCHITECTURE-PRINCIPLES.md](./ARCHITECTURE-PRINCIPLES.md).
+- Доменная логика и бизнес-инварианты живут в профильных SoR-доках.
+- Планы внедрения, журнал выполнения и история рефакторинга живут только в execution plans.
 
-## Переменные
-- `API_PORT` (default: 3000)
-- `NEXT_PUBLIC_API_BASE_URL` (default: http://localhost:3000)
+## Статус-модель (`Implemented`)
 
-## Dev запуск
-1) Infra (Docker):
+- `Implemented`:
+  - команда, ограничение или runbook подтверждены текущим кодом, scripts или compose-конфигурацией.
+- `Planned`:
+  - в этом документе не используется как backlog; если нужен operational change, он сначала описывается в execution plan, а сюда попадает только после внедрения.
+
+## Prerequisites / Env (`Implemented`)
+
+- `API_PORT` — default `3000`
+- `NEXT_PUBLIC_API_BASE_URL` — default `http://localhost:3000`
+- Для backend/Prisma-команд должны быть доступны `DATABASE_URL` или `POSTGRES_*`
+- В агентской sandbox-сессии команда `CI=true pnpm install --frozen-lockfile` не запускается; её должен выполнять пользователь локально
+
+## Dev Runbook (`Implemented`)
+
+### Базовый локальный контур
+
+1. Поднять infra:
    - `pnpm dev:infra`
-2) Backend (API + Worker):
+2. Поднять backend:
    - `pnpm dev:backend`
-3) Web (локально):
+3. Запустить web локально:
    - `pnpm dev:web`
 
-Примечание: команды `dev:web` и `smoke` рассчитаны на bash (macOS/Linux). На Windows используйте WSL или задайте переменные окружения вручную.
+Примечание:
+- `dev:web` и `smoke` рассчитаны на bash-совместимую оболочку.
+- На Windows использовать WSL или задавать env-переменные вручную.
 
-## Рекомендованный локальный runbook (`Implemented`)
+### Подготовка окружения
 
-Проверено локально (macOS, 2026-02-20):
-- `pnpm dev:infra` и `pnpm dev:backend` поднимают `postgres`, `redis`, `minio`, `api`, `worker` без ошибок.
-- `pnpm dev:web` поднимает Next.js на `http://localhost:3001`.
-- `GET /login` возвращает `200`.
-- `pnpm build:backend`, `pnpm build:web`, `pnpm typecheck` проходят успешно.
-- `pnpm lint` и `pnpm lint:boundaries` проходят (warnings допустимы, errors блокируют шаг).
-
-### 1) Подготовка окружения (один раз или после чистки зависимостей)
-1) Установить зависимости workspace:
-   - `CI=true DATABASE_URL=postgresql://continuum:continuum@localhost:5432/continuum pnpm -r install --force`
-2) Проверить, что web-бинарники доступны:
+1. Установить workspace dependencies:
+   - `pnpm -r install --force`
+2. Проверить, что web binary доступны:
    - `ls -l apps/web/node_modules/.bin/next apps/web/node_modules/.bin/tsc`
 
-### 2) Ежедневная разработка
-1) Поднять infra:
-   - `pnpm dev:infra`
-2) Поднять backend в Docker:
-   - `pnpm dev:backend`
-3) Запустить frontend локально:
-   - `pnpm dev:web`
-4) Быстрый smoke:
-   - `pnpm smoke`
+## Verification Commands (`Implemented`)
 
-### 3) Проверка перед push
-1) Backend production build (только Docker):
-   - `pnpm build:backend`
-2) Frontend/shared build:
-   - `pnpm build:web`
-3) Typecheck:
-   - `pnpm typecheck`
-4) Lint:
-   - `pnpm lint`
-5) Dependency boundaries:
-   - `pnpm lint:boundaries`
-6) Test:
-   - `pnpm test`
+### Build
 
-## Smoke-check
-Убедитесь, что infra и backend подняты, web запущен локально:
+- Backend images:
+  - `pnpm build:backend`
+- Dev backend images:
+  - `pnpm build:backend:dev`
+- Web + shared:
+  - `pnpm build:web`
+- Full workspace build:
+  - `pnpm build`
+
+### Typecheck / Lint / Tests
+
+- Typecheck:
+  - `pnpm typecheck`
+- Lint:
+  - `pnpm lint`
+- Dependency boundaries:
+  - `pnpm lint:boundaries`
+- Tests:
+  - `pnpm test`
+- Documentation checks:
+  - `pnpm docs:check`
+
+### Smoke
+
+Перед запуском smoke должны быть подняты infra и backend, а web должен быть доступен локально.
+
 - `pnpm smoke`
 
-Проверяет:
-1) API `/health` и `/ready`
-2) `POST /debug/enqueue-ping`
-3) Web `/login`
+Smoke проверяет:
+1. `GET /health`
+2. `GET /ready`
+3. `POST /debug/enqueue-ping`
+4. `GET /login`
 
-## Build/typecheck/test контур
-- Backend build (только Docker): `pnpm build:backend`
-- Backend build для dev compose (опционально): `pnpm build:backend:dev`
-- Frontend/shared build: `pnpm build:web`
-- Полный build (backend docker + web/shared): `pnpm build`
-- Typecheck (web/shared): `pnpm typecheck`
-- Lint (workspace): `pnpm lint`
-- Dependency boundaries: `pnpm lint:boundaries`
-- Test (turbo):
-  - `pnpm test`
-  - `apps/api`, `apps/web`, `apps/worker`, `packages/shared` запускают `vitest`.
-- API integration tests (docker-only, `supertest`):
+### API integration tests (Docker only)
+
+- Полный integration-прогон:
   - `docker compose exec -T api sh -lc "pnpm --filter @continuum/api test:integration"`
+- Точечный прогон одного suite:
+  - `docker compose exec -T api sh -lc "cd /app/apps/api && pnpm exec vitest run --config vitest.integration.config.ts test/integration/<suite>.integration.test.ts"`
 
-Примечание: backend docker build в агентском sandbox-окружении может быть недоступен по правам к Docker socket; для гарантированного результата запускать вне sandbox (обычный терминал/VPS/CI runner).
+## Prisma / Migrations (`Implemented`)
 
-Примечание: минимальный test-baseline есть во всех ключевых пакетах (`apps/api`, `apps/web`, `apps/worker`, `packages/shared`) и исполняется через `pnpm test`.
-
-## Инвариант: backend build only in Docker (`Implemented`)
-- `apps/api` и `apps/worker` не должны собираться на хосте напрямую.
-- Скрипты `build`/`typecheck` в `apps/api` и `apps/worker` содержат guard `scripts/ensure-docker-build.cjs`.
-- При запуске вне контейнера сборка завершается ошибкой с подсказкой использовать Docker Compose.
-
-## Шрифты frontend (Implemented)
-- `Inter` и `Unbounded` подключены локально через `@fontsource/inter` и `@fontsource/unbounded`.
-- Для `Unbounded` подключены веса `300/400/500/600/700`, чтобы исключить weight-fallback на экранах с заголовками `500+`.
-- На логин-экране бренд-текст оставлен в `font-weight: 300` для соответствия историческому визуалу.
-- Сборка web больше не зависит от `next/font/google` / `fonts.googleapis.com`.
-
-## Prisma / миграции
-1) Схема менялась → создаём миграцию в контейнере:
+1. Создать миграцию в контейнере:
    - `docker compose exec -T api sh -lc "DATABASE_URL=postgresql://continuum:continuum@postgres:5432/continuum pnpm --filter @continuum/api exec prisma migrate dev --name <name>"`
-2) Если в рантайме появились ошибки вида `Property 'course' does not exist on type 'PrismaService'` — заново сгенерировать клиент:
+2. Явно пересгенерировать Prisma client:
    - `docker compose exec -T api sh -lc "DATABASE_URL=postgresql://continuum:continuum@postgres:5432/continuum pnpm --filter @continuum/api exec prisma generate"`
-3) Prisma v7 читает env из `apps/api/prisma.config.ts`. Для локального запуска обязательно доступны `DATABASE_URL` или `POSTGRES_*`.
-4) Production manual migration (до deploy):
+3. Production manual migration:
    - `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`
 
-## Production deploy артефакты
-- `docker-compose.prod.yml` — production compose без bind-монтажей исходников.
-- `deploy/env/*.env` — service-specific env files (`api`, `worker`, `postgres`, `redis`).
-- `deploy/systemd/continuum-web.service` — systemd unit для Next.js frontend.
-- `deploy/nginx/continuum.conf` — reverse proxy `/` и `/api/` + TLS контур.
-- `deploy/README.md` — пошаговый runbook (GitHub, VPS, migrations, rollback).
+## Operational Invariants (`Implemented`)
 
-Production policy (`Implemented`):
-- object storage в production — внешний S3-провайдер (Beget S3);
-- MinIO используется только в dev-окружении (`docker compose` без `-f docker-compose.prod.yml`).
+### Backend build/typecheck only in Docker
 
-## Lockfile / зависимости (Docker)
-1) Docker сборки используют `--frozen-lockfile`, поэтому lockfile должен быть актуальным.
-2) После изменения `package.json` запускать в корне:
-   - `pnpm -r install`
-   - в репозитории включён `recursive-install=true` (`.npmrc`), чтобы install ставил все workspace-пакеты, а не только root.
-3) Если build падает на Corepack/pnpm download:
-   - проверить доступ в сеть (registry.npmjs.org),
-   - повторить сборку после успешной установки зависимостей.
+- `apps/api` и `apps/worker` не должны собираться на хосте напрямую.
+- Скрипты `build` и `typecheck` для backend содержат guard `scripts/ensure-docker-build.cjs`.
+- Если backend build/typecheck запускается вне Docker, это считается неверным operational path.
 
-## Troubleshooting (накопление граблей)
+### Production deploy source of truth
+
+- Подробный production deploy runbook хранится в [deploy/README.md](../deploy/README.md).
+- `DEVELOPMENT.md` хранит только минимальные operational инварианты и команды.
+- Dev storage использует MinIO; production storage использует внешний S3-провайдер.
+
+### Lockfile discipline
+
+- Docker builds используют `--frozen-lockfile`.
+- После изменения `package.json` lockfile должен быть актуальным.
+- В репозитории включён `recursive-install=true`, чтобы `pnpm install` ставил все workspace-пакеты.
+
+## Troubleshooting (`Implemented`)
 
 Границы раздела:
-- Здесь фиксируем только run/deploy проблемы окружения (dev/prod контур, build, миграции, сервисы).
-- Доменные инварианты публикации вынесены в `documents/CONTENT.md`.
-- Auth/storage edge-cases вынесены в `documents/SECURITY.md` и `deploy/README.md`.
+- здесь фиксируются только повторяемые run/build/test/deploy проблемы;
+- доменные ошибки и продуктовые инварианты сюда не переносятся.
 
-- **Симптом:** `pnpm smoke` возвращает `TypeError: fetch failed` для всех endpoint checks.
+- **Симптом:** `pnpm smoke` возвращает `TypeError: fetch failed`.
 - **Команда:** `pnpm smoke`
-- **Причина:** sandbox-сеть блокирует доступ к локальным портам в текущей среде запуска.
-- **Фикс:** выполнить те же проверки вне sandbox (escalated shell) через `curl`.
-- **Проверка:** `curl -fsS http://localhost:3000/health` и `curl -fsS http://localhost:3000/ready`.
+- **Причина:** sandbox не даёт доступ к локальным портам в текущей среде.
+- **Фикс:** повторить проверки вне sandbox через `curl`.
+- **Проверка:** `curl -fsS http://localhost:3000/health` и `curl -fsS http://localhost:3000/ready`
 
-- **Симптом:** backend docker build не стартует из агентской сессии с `permission denied ... docker.sock`.
-- **Команда:** `pnpm build:backend` или `docker compose -f docker-compose.prod.yml build api worker`
-- **Причина:** у sandbox-процесса нет прав на Docker daemon socket (`/Users/<user>/.docker/run/docker.sock`).
-- **Фикс:** запускать команды вне sandbox/с повышенными правами (или напрямую в обычном терминале пользователя).
-- **Проверка:** `docker compose -f docker-compose.prod.yml build api worker` завершается без ошибки доступа к socket.
+- **Симптом:** backend Docker build не стартует с `permission denied ... docker.sock`.
+- **Команда:** `pnpm build:backend`
+- **Причина:** у текущего процесса нет доступа к Docker daemon socket.
+- **Фикс:** запускать build вне sandbox или в обычном пользовательском терминале.
+- **Проверка:** `docker compose -f docker-compose.prod.yml build api worker`
 
-- **Симптом:** HTTP-style тесты API через `supertest` в sandbox падают с `listen EPERM: operation not permitted 0.0.0.0`.
-- **Команда:** `pnpm --filter @continuum/api test` (если тест пытается открыть локальный socket).
-- **Причина:** sandbox запрещает bind/listen для тестового HTTP server.
-- **Фикс:** для sandbox использовать controller/service-level тесты без bind/listen; socket-based integration запускать вне sandbox.
-- **Проверка:** `pnpm --filter @continuum/api test` проходит без `listen EPERM`.
+- **Симптом:** `pnpm --filter @continuum/api test` падает с `listen EPERM: operation not permitted 0.0.0.0`.
+- **Команда:** `pnpm --filter @continuum/api test`
+- **Причина:** sandbox запрещает bind/listen локального HTTP server.
+- **Фикс:** socket-based integration гонять вне sandbox; локально использовать controller/service-level tests без bind/listen.
+- **Проверка:** повторный запуск вне sandbox или через Docker integration contour
 
-- **Симптом:** `docker compose exec -T api sh -lc "pnpm --filter @continuum/api test:integration"` падает с `Cannot find package 'supertest'`.
-- **Команда:** `pnpm --filter @continuum/api test:integration` (в контейнере `api`).
-- **Причина:** контейнерный `node_modules` не синхронизирован с обновлённым lockfile после добавления новых devDependencies.
-- **Фикс:** выполнить в контейнере переустановку зависимостей для api scope:
-  - `docker compose exec -T api sh -lc "pnpm install --filter @continuum/api... --frozen-lockfile"`.
-- **Проверка:** повторный запуск `pnpm --filter @continuum/api test:integration` в контейнере проходит.
+- **Симптом:** `pnpm --filter @continuum/api test:integration` в контейнере падает с `Cannot find package 'supertest'`.
+- **Команда:** `docker compose exec -T api sh -lc "pnpm --filter @continuum/api test:integration"`
+- **Причина:** контейнерный `node_modules` не синхронизирован с обновлённым lockfile.
+- **Фикс:** переустановить зависимости внутри контейнера:
+  - `docker compose exec -T api sh -lc "pnpm install --filter @continuum/api... --frozen-lockfile"`
+- **Проверка:** повторный integration-прогон проходит
 
-- **Симптом:** integration тесты Nest в vitest отвечают `500` с ошибками вида `Cannot read properties of undefined (reading '<serviceMethod>')` в контроллерах.
-- **Команда:** `pnpm --filter @continuum/api test:integration`.
-- **Причина:** в vitest/esbuild metadata конструктора контроллеров может не резолвиться автоматически; DI создаёт контроллер с `undefined` зависимостями.
-- **Фикс:** использовать `apps/api/test/integration/test-app.factory.ts`:
-  - `overrideGuard(JwtAuthGuard|RolesGuard)` для bypass auth;
-  - явная регистрация `constructorParams` (через `Reflect.defineMetadata('design:paramtypes', ...)`) для тестируемых контроллеров.
-- **Проверка:** integration suite проходит без `undefined` зависимостей.
+- **Симптом:** integration-тесты Nest отвечают `500` с `Cannot read properties of undefined (reading '<serviceMethod>')`.
+- **Команда:** `pnpm --filter @continuum/api test:integration`
+- **Причина:** DI metadata конструктора не резолвится автоматически в vitest/esbuild.
+- **Фикс:** использовать `apps/api/test/integration/test-app.factory.ts` и явно задавать `constructorParams`.
+- **Проверка:** suite проходит без `undefined` зависимостей
 
-- **Симптом:** на production после `docker compose up -d` неожиданно запускается `minio`, а `api` падает с `Bind for 127.0.0.1:3000 failed: port is already allocated`.
-- **Команда:** `docker compose up -d`
-- **Причина:** запущен dev compose (`docker-compose.yml`) вместо production compose (`docker-compose.prod.yml`).
-- **Фикс:**
-  - остановить dev-контур: `docker compose down --remove-orphans`
-  - (опционально) удалить dev volumes: `docker compose down --remove-orphans -v`
-  - поднять production-контур: `docker compose -f docker-compose.prod.yml up -d postgres redis && docker compose -f docker-compose.prod.yml up -d --build api worker`
-- **Проверка:** `docker compose -f docker-compose.prod.yml ps` и `curl -fsS http://127.0.0.1:3000/health`.
+- **Симптом:** точечный запуск `apps/api/test/integration/*.integration.test.ts` на хосте падает с `Cannot find module '.prisma/client/default'`.
+- **Команда:** `pnpm exec vitest run --config vitest.integration.config.ts test/integration/<suite>.integration.test.ts`
+- **Причина:** integration-контур `apps/api` рассчитан на Docker runtime с корректно сгенерированным Prisma client.
+- **Фикс:** запускать suite внутри контейнера `api`:
+  - `docker compose exec -T api sh -lc "cd /app/apps/api && pnpm exec vitest run --config vitest.integration.config.ts test/integration/<suite>.integration.test.ts"`
+- **Проверка:** нужный suite проходит внутри контейнера
 
-- **Симптом:** `git pull --ff-only` блокируется на `deploy/env/*.env` (`would be overwritten by merge`) после перехода на `.env.example`.
+- **Симптом:** `git pull --ff-only` конфликтует с `deploy/env/*.env`.
 - **Команда:** `git pull --ff-only`
-- **Причина:** на сервере остались локальные правки в старых tracked `.env`, а в репозитории файлы уже переименованы в `*.env.example`.
+- **Причина:** на сервере остались локальные tracked-правки, а в репозитории файлы уже заменены на `*.env.example`.
 - **Фикс:**
-  - сделать backup: `mkdir -p .env-backup && cp deploy/env/*.env .env-backup/`
-  - временно убрать tracked-изменения: `git stash push -m "server-env-before-untrack" -- deploy/env/api.env deploy/env/postgres.env deploy/env/worker.env deploy/env/redis.env`
-  - выполнить `git pull --ff-only`
-  - восстановить runtime env: `for f in api worker postgres redis; do [ -f "deploy/env/$f.env" ] || cp "deploy/env/$f.env.example" "deploy/env/$f.env"; done && cp .env-backup/*.env deploy/env/ && rm -rf .env-backup`
-- **Проверка:** `git status --short` пустой, а последующие `git pull --ff-only` проходят без конфликтов по `deploy/env/*.env`.
+  - `mkdir -p .env-backup && cp deploy/env/*.env .env-backup/`
+  - `git stash push -m "server-env-before-untrack" -- deploy/env/api.env deploy/env/postgres.env deploy/env/worker.env deploy/env/redis.env`
+  - `git pull --ff-only`
+  - `for f in api worker postgres redis; do [ -f "deploy/env/$f.env" ] || cp "deploy/env/$f.env.example" "deploy/env/$f.env"; done && cp .env-backup/*.env deploy/env/ && rm -rf .env-backup`
+- **Проверка:** `git status --short` пустой, а последующие `git pull --ff-only` проходят
 
 - **Симптом:** `pnpm install` падает с `ENOTFOUND registry.npmjs.org`.
-- **Команда:** `CI=true pnpm install`
-- **Причина:** отсутствует DNS/egress доступ к npm registry в текущем окружении.
-- **Фикс:** повторить установку в окружении с внешней сетью (CI runner или VPS).
-- **Проверка:** `pnpm install --frozen-lockfile` завершается без retry/fetch ошибок.
-
-- **Симптом:** `pnpm add -Dw ...` в sandbox падает с `ERR_PNPM_META_FETCH_FAIL` (ENOTFOUND) и/или `ERR_PNPM_UNEXPECTED_STORE`.
-- **Команда:** `pnpm add -Dw <deps>`
-- **Причина:** одновременно недоступен npm registry в sandbox и отличается store-dir от уже собранного `node_modules`.
-- **Фикс:**
-  - запускать установку вне sandbox (escalated shell/локальный терминал);
-  - выровнять store-dir на текущий (`PNPM_STORE_DIR=/Users/<user>/Library/pnpm/store/v10`) или выполнить чистую переустановку зависимостей.
-- **Проверка:** команда `pnpm add -Dw ...` завершается успешно, после чего рабочие команды (`pnpm lint`, `pnpm lint:boundaries`) выполняются без ошибок.
-
-- **Симптом:** typecheck/test не резолвят `@continuum/shared/contracts/learning-photo` (`Cannot find module ...`).
-- **Команда:** `pnpm typecheck`, `pnpm --filter @continuum/api test`, `pnpm --filter web test`.
-- **Причина:** новый contract subpath в `@continuum/shared` требует либо собранный `dist`, либо явный source-alias в toolchain.
-- **Фикс:**
-  - для тестов использовать alias в `apps/api/vitest.config.ts` и `apps/web/vitest.config.ts` на `packages/shared/src/index.ts` (с re-export контрактов);
-  - для web typecheck добавить `paths` mapping в `apps/web/tsconfig.json`.
-  - для docker dev backend в `docker-compose.yml` проверять наличие `packages/shared/dist/contracts/learning-photo.js` и при отсутствии пересобирать shared через `tsc`.
-- **Проверка:**
-  - `pnpm --filter @continuum/api test` — проходит;
-  - `pnpm --filter web test` — проходит;
-  - `pnpm typecheck` — проходит.
-
-- **Симптом:** агент запускает `CI=true pnpm install --frozen-lockfile` в sandbox и получает нестабильные сетевые ошибки.
-- **Команда:** `CI=true pnpm install --frozen-lockfile`
-- **Причина:** в агентском окружении нет гарантированного доступа к npm registry.
-- **Фикс:** для агента эта команда запрещена; выполнять её должен пользователь в локальном терминале.
-- **Проверка:** агент запрашивает локальный запуск команды у пользователя вместо самостоятельного выполнения.
-
-- **Симптом:** после install появляется предупреждение `Ignored build scripts: ...`.
 - **Команда:** `pnpm install --frozen-lockfile`
-- **Причина:** pnpm v10 по умолчанию блокирует lifecycle build scripts без явного allowlist.
-- **Фикс:** в корневом `package.json` зафиксирован `pnpm.onlyBuiltDependencies` для требуемых пакетов (`@nestjs/core`, `@prisma/engines`, `argon2`, `msgpackr-extract`, `prisma`).
-- **Проверка:** install не требует ручного `pnpm approve-builds` в стандартном потоке.
+- **Причина:** нет DNS/egress доступа к npm registry.
+- **Фикс:** повторить install в окружении с внешней сетью.
+- **Проверка:** install завершается без fetch/dns ошибок
 
-- **Симптом:** install падал на `apps/api postinstall: prisma generate` с ошибкой про `DATABASE_URL or POSTGRES_*`.
-- **Команда:** `pnpm install --filter @continuum/api...`
-- **Причина:** раньше `@continuum/api` запускал `prisma generate` в `postinstall`, а Prisma config требует DB env.
-- **Фикс:** `postinstall` удалён; генерация Prisma выполняется только явно (`pnpm --filter @continuum/api prisma:generate`) или в Docker build.
-- **Проверка:** `pnpm install --frozen-lockfile` проходит без требования `DATABASE_URL` на этапе install.
+- **Симптом:** `pnpm add -Dw ...` падает с `ERR_PNPM_META_FETCH_FAIL` или `ERR_PNPM_UNEXPECTED_STORE`.
+- **Команда:** `pnpm add -Dw <deps>`
+- **Причина:** sandbox не видит registry и store-dir не совпадает с уже собранным `node_modules`.
+- **Фикс:** запускать установку вне sandbox и при необходимости выровнять `PNPM_STORE_DIR`.
+- **Проверка:** команда завершается успешно, затем `pnpm lint` и `pnpm lint:boundaries` проходят
 
-- **Симптом:** `pnpm build`/`pnpm typecheck` падают с `tsc: command not found` (обычно в `@continuum/worker`) или `next: command not found` (в `web`).
-- **Команда:** `pnpm build` или `pnpm --filter web run build`
-- **Причина:** частичная установка зависимостей через `pnpm install --filter ...` пересоздаёт общий `node_modules`, и часть пакетов остаётся без локальных бинарей (`apps/*/node_modules/.bin`).
+- **Симптом:** `pnpm typecheck` или тесты не резолвят `@continuum/shared/contracts/...`.
+- **Команда:** `pnpm typecheck`, `pnpm --filter @continuum/api test`, `pnpm --filter web test`
+- **Причина:** subpath требует корректный source-alias или собранный `dist`.
+- **Фикс:** проверить alias/path mapping в toolchain и при необходимости пересобрать shared.
+- **Проверка:** `pnpm typecheck`, `pnpm --filter @continuum/api test`, `pnpm --filter web test`
+
+- **Симптом:** агент пытается запустить `CI=true pnpm install --frozen-lockfile` в sandbox и получает сетевые ошибки.
+- **Команда:** `CI=true pnpm install --frozen-lockfile`
+- **Причина:** для агентской sandbox-сессии эта команда запрещена policy и нестабильна по сети.
+- **Фикс:** запуск должен делать пользователь локально.
+- **Проверка:** агент вместо выполнения запрашивает локальный запуск у пользователя
+
+- **Симптом:** install пишет `Ignored build scripts: ...`.
+- **Команда:** `pnpm install --frozen-lockfile`
+- **Причина:** pnpm v10 блокирует lifecycle build scripts без allowlist.
+- **Фикс:** использовать зафиксированный `pnpm.onlyBuiltDependencies` в root `package.json`.
+- **Проверка:** install не требует ручного `pnpm approve-builds`
+
+- **Симптом:** `pnpm build` или `pnpm typecheck` падают с `tsc: command not found` или `next: command not found`.
+- **Команда:** `pnpm build`, `pnpm typecheck`, `pnpm --filter web run build`
+- **Причина:** частичная установка зависимостей оставила пакеты без локальных binaries.
 - **Фикс:**
-  - очистить локальные зависимости: `rm -rf node_modules apps/web/node_modules apps/worker/node_modules packages/shared/node_modules`
-  - выполнить полную установку в сети с доступом к npm: `CI=true pnpm -r install --force`
-  - если снова `ENOTFOUND`, проверить DNS: `curl -I https://registry.npmjs.org` (должен вернуться HTTP-ответ)
-- **Проверка:** существуют `apps/web/node_modules/.bin/next` и `apps/web/node_modules/.bin/tsc`, затем `pnpm build:web` и `pnpm typecheck` проходят.
+  - `rm -rf node_modules apps/web/node_modules apps/worker/node_modules packages/shared/node_modules`
+  - `pnpm -r install --force`
+- **Проверка:** существуют `apps/web/node_modules/.bin/next` и `apps/web/node_modules/.bin/tsc`, затем build/typecheck проходят
 
 - **Симптом:** backend build/typecheck запускается на хосте и сразу падает.
 - **Команда:** `pnpm --filter @continuum/api run build` или `pnpm --filter @continuum/worker run build`
-- **Причина:** включён guard `Backend build/typecheck is allowed only inside Docker containers.`
-- **Фикс:** использовать `pnpm build:backend` (или `pnpm build:backend:dev`).
-- **Проверка:** `docker compose -f docker-compose.prod.yml build api worker` завершается успешно.
+- **Причина:** backend guard разрешает build/typecheck только в Docker.
+- **Фикс:** использовать `pnpm build:backend` или `pnpm build:backend:dev`.
+- **Проверка:** Docker build завершается успешно
 
 - **Симптом:** backend health-check успешен, но `/login` недоступен.
 - **Команда:** `curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/login`
-- **Причина:** frontend-процесс не запущен (в dev нужно отдельно запускать `pnpm dev:web`; в production — `continuum-web.service`).
+- **Причина:** frontend не запущен.
 - **Фикс (dev):** `pnpm dev:web`
-- **Фикс (prod):** `NEXT_PUBLIC_API_BASE_URL=/api pnpm --filter web build && sudo systemctl restart continuum-web`
-- **Проверка:** `curl -fsS http://localhost:3001/login >/dev/null`.
+- **Фикс (prod):** пересобрать web и перезапустить frontend service по runbook из `deploy/README.md`
 
-- **Симптом:** пользователя периодически разлогинивает после истечения access token, в API логе встречается `REFRESH_TOKEN_REUSED`.
-- **Команда:** `docker compose logs --no-color --tail=200 api`
-- **Причина:** race refresh-запросов и/или legacy refresh-cookie c другим `path` (одинаковое имя cookie, разные path).
+- **Симптом:** `api` контейнер формально `Up`, но логин не работает, `GET /health` снаружи не отвечает, а в `docker compose logs api` есть `UnknownDependenciesException`.
+- **Команда:** `docker compose logs --no-color --tail=120 api`
+- **Причина:** mass-fix `@typescript-eslint/consistent-type-imports` перевёл Nest DI зависимости (`PrismaService`, `AuthService`, `LearningService`, `Reflector` и другие runtime-классы) в type-only imports, поэтому приложение не проходит bootstrap.
 - **Фикс:**
-  - выровнять `NEXT_PUBLIC_API_BASE_URL` и `AUTH_REFRESH_COOKIE_PATH`;
-  - задать cleanup путей: `AUTH_REFRESH_COOKIE_LEGACY_PATHS=/,/auth` (или релевантный набор прошлых path);
-  - при необходимости подстроить `AUTH_REFRESH_REUSE_GRACE_SECONDS` (default `20`).
+  - вернуть обычные imports для всех runtime-классов, которые участвуют в constructor DI;
+  - отдельно проверить guards/strategies/controllers и сервисы с `PrismaService`;
+  - после правки дождаться успешного `Nest application successfully started` в логах.
 - **Проверка:**
-  - истечь access-token и убедиться, что `POST /auth/refresh` возвращает `200/201`;
-  - в логах API отсутствуют массовые `REFRESH_TOKEN_REUSED` для активных пользователей.
+  - `docker compose exec -T api sh -lc "wget -qO- http://localhost:3000/health || curl -s -i http://localhost:3000/health"`
+  - `docker compose exec -T api sh -lc "curl -s -i -X POST http://localhost:3000/auth/login -H 'Content-Type: application/json' -d '{\"login\":\"teacher1\",\"password\":\"Pass123!\"}'"`
 
-- **Симптом:** `prisma migrate deploy` в production падает с `P1001: Can't reach database server at postgres:5432`.
-- **Команда:** `DATABASE_URL=postgresql://...@postgres:5432/... pnpm --filter @continuum/api exec prisma migrate deploy`
-- **Причина:** команда запущена на хосте VPS, где `postgres` (docker service name) не резолвится.
-- **Фикс:** запускать миграцию внутри docker network:
-  - `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`
-- **Проверка:** команда миграции завершается успешно и `docker compose -f docker-compose.prod.yml up -d --build api worker` поднимает `api` в `healthy`.
-
-- **Симптом:** после `git pull` API отвечает `500`, в логах Prisma `P2022` и Postgres `column sections.description does not exist`.
-- **Команда:** `docker compose -f docker-compose.prod.yml logs --no-color --tail=200 api`
-- **Причина:** migration-файлы уже в репозитории, но миграция не применена (часто запуск `migrate deploy` делали без пересборки образа и использовали устаревший image).
+- **Симптом:** PDF compile из UI запускается, но результат долго не появляется и явной ошибки нет.
+- **Команда:** `docker compose logs --no-color --tail=120 worker`
+- **Причина:** `worker` использует stale `node_modules` volume и после изменений в `packages/shared` не видит новые runtime dependencies (например, `zod`), поэтому latex worker не стартует или не обрабатывает очередь.
 - **Фикс:**
-  - `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`
-  - `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'pnpm --filter @continuum/api exec prisma migrate status'`
-  - при необходимости проверить колонку напрямую:
-    - `docker compose -f docker-compose.prod.yml exec -T postgres psql -U continuum -d continuum -c "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='sections' AND column_name='description';"`
-- **Проверка:** запрос к `information_schema` возвращает `description`, а в логах API исчезают ошибки `P2022`/`42703`.
-
-- **Симптом:** production `api` уходит в restart-loop с `Cannot find module '.prisma/client/default'`.
-- **Команда:** `docker compose -f docker-compose.prod.yml logs --no-color --tail=200 api`
-- **Причина:** в `apps/api/Dockerfile` runner stage копировал `node_modules` из `deps`, а `prisma generate` выполняется в `builder`; в рантайм-образ не попадал сгенерированный Prisma client.
-- **Фикс:** в runner stage копировать `node_modules` из `builder` (см. `apps/api/Dockerfile`), затем пересобрать `api`:
-  - `docker compose -f docker-compose.prod.yml build --no-cache api`
-  - `docker compose -f docker-compose.prod.yml up -d --force-recreate api`
-- **Проверка:** `curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3000/health` возвращает `200`, а в логах `api` нет `MODULE_NOT_FOUND`.
-
-- **Симптом:** `docker compose ... run api ... prisma migrate deploy` падает с `Could not find Prisma Schema`.
-- **Команда:** `docker compose -f docker-compose.prod.yml run --rm api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`
-- **Причина:** в runner image не скопированы `apps/api/prisma` и `apps/api/prisma.config.ts`.
-- **Фикс:** копировать `prisma` каталог и `prisma.config.ts` в runner stage `apps/api/Dockerfile`, затем пересобрать `api`.
-- **Проверка:** migrate deploy выполняется без ошибки schema location.
-
-- **Симптом:** `api` в production уходит в restart-loop с `Error: JWT_SECRET must be set in production.`
-- **Команда:** `docker compose -f docker-compose.prod.yml logs --no-color --tail=120 api`
-- **Причина:** в `deploy/env/api.env` не задан `JWT_SECRET` (или пустой).
-- **Фикс:** задать сильный `JWT_SECRET`, затем `docker compose -f docker-compose.prod.yml up -d --build api`.
-- **Проверка:** `docker compose -f docker-compose.prod.yml ps` показывает `api` как `healthy`.
-
-- **Симптом:** `sudo -n systemctl restart continuum-web` → `Unit continuum-web.service not found`.
-- **Команда:** `sudo -n systemctl restart continuum-web`
-- **Причина:** unit-файл ещё не установлен в `/etc/systemd/system/continuum-web.service`.
-- **Фикс:** под `root` выполнить `cp deploy/systemd/continuum-web.service /etc/systemd/system/continuum-web.service && systemctl daemon-reload && systemctl enable continuum-web`.
-- **Проверка:** `systemctl is-active continuum-web` возвращает `active`.
-
-- **Симптом:** `nginx -t` падает с `cannot load certificate ... fullchain.pem`.
-- **Команда:** `nginx -t`
-- **Причина:** SSL-блок включён до выпуска сертификата Let's Encrypt.
-- **Фикс:** сначала применить HTTP-only nginx конфиг и запустить `certbot --nginx -d <domain> --redirect`; только потом использовать SSL-пути.
-- **Проверка:** `curl -I https://<domain>/login` и `curl -I https://<domain>/api/health` дают `200`.
-
-- **Симптом:** нельзя войти в production (нет teacher/student), хотя API живой.
-- **Команда:** попытка логина на `/login` с `teacher1`/`student1`.
-- **Причина:** seed пользователей не выполнялся после миграций.
-- **Фикс:** создать пользователей через контейнер API:
-  - `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'node apps/api/scripts/seed-users.mjs --teacher-login=teacher1 --teacher-password=Pass123! --student-login=student1 --student-password=Pass123!'`
-- **Проверка:** логин teacher/student проходит, `/auth/me` возвращает пользователя.
-
-## Planned
-
-- CI-проверки документации (валидность ссылок, отсутствие сирот, наличие `Implemented/Planned` в ключевых SoR-доках).
-- Расширение test-покрытия (unit/integration/e2e) поверх текущего baseline во всех пакетах.
+  - пересоздать dev-контур:
+    - `docker compose up -d --build --force-recreate api worker`
+  - если нужно убедиться вручную:
+    - `docker compose exec -T worker sh -lc "cd /app/packages/shared && node -e \"require('zod'); console.log('ok')\""`
+- **Проверка:**
+  - в логах есть:
+    - `[worker] latex ready concurrency=1`
+    - `[worker][latex] success jobId=...`

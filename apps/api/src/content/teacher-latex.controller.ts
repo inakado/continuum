@@ -14,8 +14,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { EventCategory, Role } from '@prisma/client';
-import { Job } from 'bullmq';
-import { AuthRequest } from '../auth/auth.request';
+import { type Job } from 'bullmq';
+import { type AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -25,16 +25,16 @@ import { ContentService } from './content.service';
 import { LatexCompileQueueService } from './latex-compile-queue.service';
 import {
   LATEX_MAX_SOURCE_LENGTH,
-  LatexCompileJobError,
-  LatexCompileJobResult,
-  LatexCompileQueuePayload,
-  TaskSolutionLatexCompileJobResult,
-  TaskSolutionLatexCompileQueuePayload,
+  type LatexCompileJobError,
+  type LatexCompileJobResult,
+  type LatexCompileQueuePayload,
+  type TaskSolutionLatexCompileJobResult,
+  type TaskSolutionLatexCompileQueuePayload,
   TASK_SOLUTION_PDF_TARGET,
-  UnitLatexCompileJobResult,
-  UnitLatexCompileQueuePayload,
+  type UnitLatexCompileJobResult,
+  type UnitLatexCompileQueuePayload,
   shouldApplyIncomingPdfKey,
-  UnitPdfTarget,
+  type UnitPdfTarget,
 } from './unit-pdf.constants';
 import { UnitPdfPolicyService } from './unit-pdf-policy.service';
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import ReactFlow, {
   Background,
@@ -10,6 +10,7 @@ import ReactFlow, {
   type Edge,
   type EdgeTypes,
   type Node,
+  type NodeMouseHandler,
   type NodeProps,
 } from "reactflow";
 import "reactflow/dist/style.css";
@@ -202,7 +203,7 @@ const buildFlowEdges = (edges: GraphEdge[], nodes: GraphNode[]): Edge[] => {
 type GraphCanvasProps = {
   nodes: Node<UnitNodeData>[];
   edges: Edge[];
-  onNodeClick: (...args: any[]) => void;
+  onNodeClick: NodeMouseHandler;
 };
 
 const GraphCanvas = memo(function GraphCanvas({

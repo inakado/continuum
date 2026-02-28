@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { ContentStatus, Prisma, StudentTaskStatus, StudentUnitStatus } from '@prisma/client';
+import { ContentStatus, type Prisma, StudentTaskStatus, StudentUnitStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 type DbClient = PrismaService | Prisma.TransactionClient;

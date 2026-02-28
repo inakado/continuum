@@ -12,7 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { EventCategory, Role } from '@prisma/client';
-import { AuthRequest } from '../auth/auth.request';
+import { type AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -20,7 +20,7 @@ import { EventsLogService } from '../events/events-log.service';
 import { ObjectStorageService } from '../infra/storage/object-storage.service';
 import { LearningRecomputeService } from '../learning/learning-recompute.service';
 import { ContentService } from './content.service';
-import { CreateUnitDto, UpdateUnitDto } from './dto/unit.dto';
+import { type CreateUnitDto, type UpdateUnitDto } from './dto/unit.dto';
 import { UnitPdfPolicyService } from './unit-pdf-policy.service';
 
 @Controller('teacher/units')

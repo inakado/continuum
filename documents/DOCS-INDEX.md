@@ -6,8 +6,9 @@
 
 ## Статус индекса
 
-- `Implemented`: текущая структура каталогов/SoR-доков (сверяется по репозиторию).
-- `Planned`: механическая валидация структуры/ссылок/coverage в CI.
+- `Implemented`: текущая структура каталогов/SoR-доков сверяется по репозиторию.
+- `Implemented`: doc-governance валидируется через `docs:check` (`links`, `index`, `status`) локально и в CI.
+- `Planned`: дальнейшее расширение doc-governance только при появлении новых классов drift.
 
 ## Корневая карта
 
@@ -16,7 +17,7 @@
 ## System of Record (SoR)
 
 - `documents/ARCHITECTURE.md` — карта доменов, модулей и слоев.
-- `documents/ARCHITECTURE-PRINCIPLES.md` — инженерные принципы читаемости/поддерживаемости и рекомендуемый стек.
+- `documents/ARCHITECTURE-PRINCIPLES.md` — инженерные принципы читаемости/поддерживаемости, quality budgets и стабильные architectural guardrails.
 - `documents/SECURITY.md` — security-политики и invariants.
 - `documents/RELIABILITY.md` — надежность, очереди, отказоустойчивость, runbooks.
 - `documents/QUALITY_SCORE.md` — оценка качества по шкале 0..5 (фокус: core product domain).
@@ -29,8 +30,24 @@
 - `documents/PRODUCT_SENSE.md` — продуктовые приоритеты и decision heuristics.
 - `documents/DOMAIN-EVENTS.md` — каталог доменных событий (audit log / диагностика / будущие проекции).
 - `documents/HANDLER-MAP.md` — карта обработчиков (HTTP → services → events/jobs).
-- `documents/DEVELOPMENT.md` — dev запуск/миграции/смоук (операционный минимум).
+- `documents/DEVELOPMENT.md` — dev/build/test/deploy runbook и troubleshooting (операционный минимум).
 - `documents/DECISIONS.md` — decision cards (что выбрали и почему; сверено по коду).
+
+## Границы документов (`Implemented`)
+
+- `documents/ARCHITECTURE-PRINCIPLES.md`:
+  - содержит только принципы, budgets, enforced practices и стабильные ограничения;
+  - не содержит phase/wave planning, progress logs и историю выполнения.
+- `documents/DEVELOPMENT.md`:
+  - содержит только команды, runbook, prerequisites, troubleshooting и операционные инварианты;
+  - не содержит feature planning, архитектурные rationale и историю рефакторинга.
+- `documents/exec-plans/active/*` и `documents/exec-plans/completed/*`:
+  - содержат planning, progress logs, риски, decision log и task-specific troubleshooting;
+  - не дублируют SoR-контент, кроме краткой фиксации результата.
+- При сомнении:
+  - stable rule → SoR;
+  - временный план/прогресс → execution plan;
+  - команда/окружение/грабли → `documents/DEVELOPMENT.md`.
 
 ## Каталоги
 

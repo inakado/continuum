@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
-import { Prisma, TaskAnswerType } from '@prisma/client';
+import { type Prisma, TaskAnswerType } from '@prisma/client';
 
 export type NumericPart = { key: string; labelLite?: string | null; correctValue: string };
 export type Choice = { key: string; textLite: string };
@@ -403,11 +403,10 @@ export class TaskRevisionPayloadService {
       throw new BadRequestException('InvalidCorrectAnswer');
     }
     const unique = new Set<string>();
-    const keys = v.keys.map((item) => {
+    v.keys.forEach((item) => {
       const key = this.normalizeKey(item, 'InvalidCorrectAnswer');
       if (!choiceKeys.has(key)) throw new BadRequestException('InvalidCorrectAnswer');
       unique.add(key);
-      return key;
     });
     if (unique.size === 0) throw new BadRequestException('InvalidCorrectAnswer');
     return { keys: Array.from(unique) };

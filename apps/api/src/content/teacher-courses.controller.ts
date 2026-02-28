@@ -11,13 +11,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { EventCategory, Role } from '@prisma/client';
-import { AuthRequest } from '../auth/auth.request';
+import { type AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { EventsLogService } from '../events/events-log.service';
 import { ContentService } from './content.service';
-import { CreateCourseDto, UpdateCourseDto } from './dto/course.dto';
+import { type CreateCourseDto, type UpdateCourseDto } from './dto/course.dto';
 
 @Controller('teacher/courses')
 @UseGuards(JwtAuthGuard, RolesGuard)

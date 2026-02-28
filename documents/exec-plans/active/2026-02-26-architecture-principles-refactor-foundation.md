@@ -798,30 +798,232 @@
 
 ### Phase 5 — Coverage + CI docs checks + DX guardrails
 
-- Статус фазы: `Planned`.
+- Статус фазы: `Implemented/Planned` (Wave 1A/1B выполнены, Wave 1C/1D + Wave 2-3 запланированы).
+
+- `Implemented` (анализ baseline, 2026-03-01):
+  - `apps/web`:
+    - есть runtime parsing tests для wave1/wave3 API-клиентов:
+      - `apps/web/lib/api/wave1-runtime-parsing.test.ts`,
+      - `apps/web/lib/api/wave3-runtime-parsing.test.ts`;
+    - есть только baseline auth UI test:
+      - `apps/web/features/auth/UnifiedLoginScreen.test.tsx`;
+    - отсутствует coverage для Phase 4 migration-среза:
+      - `TeacherDashboardScreen`,
+      - `TeacherSectionGraphPanel`,
+      - `StudentDashboardScreen`,
+      - `TeacherStudentsPanel`,
+      - `TeacherStudentProfilePanel`;
+    - отсутствуют прямые тесты unified error catalog:
+      - `apps/web/lib/api/error-catalog.ts`.
+  - `apps/api`:
+    - есть integration harness и smoke coverage для:
+      - learning/photo boundary,
+      - student attempts,
+      - content publish/graph;
+    - отсутствует integration coverage для non-learning Phase 4 read/write сценариев:
+      - teacher courses/sections create-update-publish/delete,
+      - teacher students/profile flows,
+      - student dashboard read-path (`/courses`, `/courses/:id`, `/sections/:id`, `/sections/:id/graph`) как HTTP boundary slice.
+  - `packages/shared`:
+    - есть contract tests для `learning-photo` и `content-non-learning`;
+    - отсутствуют тесты для `apps/web/lib/api/error-catalog.ts`-уровня и для будущих docs-check helpers.
+  - `CI/docs`:
+    - `.github/workflows/ci.yml` пока исполняет только `lint`, `lint:boundaries`, build, typecheck, test;
+    - автоматических docs-check шагов нет;
+    - в репозитории пока нет `docs:check`/`docs:check:links`/`docs:check:index` scripts.
 
 - План работ:
   - Wave 1 — Test coverage expansion:
-    - web: добавить unit/component/hook тесты для Phase 4 migration-среза;
-    - api: расширить `supertest` integration coverage на non-learning read/write сценарии;
-    - shared: покрыть тестами unified error catalog/contracts helpers.
+    - Wave 1A — web migration-slice coverage:
+      - добавить unit/component tests для `apps/web/features/student-dashboard/StudentDashboardScreen.tsx`:
+        - успешная загрузка курсов;
+        - ошибка загрузки курсов;
+        - переход `courses -> sections`;
+      - добавить unit/component tests для `apps/web/features/teacher-dashboard/TeacherDashboardScreen.tsx`:
+        - загрузка teacher courses;
+        - создание course/section с invalidation;
+        - publish/unpublish/delete happy-path без регрессии UI state;
+      - добавить component tests для `apps/web/features/teacher-students/TeacherStudentsPanel.tsx`:
+        - загрузка students/teachers;
+        - create/reset/transfer/update/delete flows через mocked `teacherApi`;
+        - проверка invalidation `contentQueryKeys.teacherStudentsList()`;
+      - добавить component tests для `apps/web/features/teacher-students/TeacherStudentProfilePanel.tsx`:
+        - загрузка профиля;
+        - `creditTask` и `overrideOpenUnit` с invalidation нужных query keys;
+        - переход в review flow через `buildReviewSearch`;
+      - не покрывать Phase 5 wave1 real browser/e2e: достаточно vitest + testing-library, без playwright.
+    - Wave 1B — web low-level helpers:
+      - покрыть тестами `apps/web/lib/api/error-catalog.ts`:
+        - `student` audience overrides;
+        - `teacher` status-based fallback;
+        - payload formatting (`code/message`) для `ApiError` и unknown errors;
+      - при необходимости добавить tests для `apps/web/lib/query/keys.ts`, если component tests неявно не фиксируют shape query keys.
+    - Wave 1C — api integration expansion:
+      - расширить `apps/api/test/integration/` на non-learning boundary сценарии:
+        - teacher courses/sections CRUD+publish/unpublish;
+        - teacher students list/profile/update/transfer/reset-password/delete;
+        - teacher task credit / unit override-open;
+        - student courses/course/section/graph read-path;
+      - использовать существующий `test-app.factory.ts`, не вводить второй harness;
+      - целевой стиль: controller-level HTTP tests через `supertest` + mocked services/events/recompute, без реальной БД.
+    - Wave 1D — shared/test harness:
+      - при необходимости вынести общие factory helpers для mock payloads migration-среза;
+      - не расширять `packages/shared` beyond contracts/helpers scope.
   - Wave 2 — Documentation checks in CI:
-    - добавить автоматические проверки:
-      - валидность markdown links;
-      - anti-orphans относительно `documents/DOCS-INDEX.md`;
-      - наличие `Implemented/Planned` в ключевых SoR-доках;
-    - зафиксировать troubleshooting для новых checks в `documents/DEVELOPMENT.md`.
+    - Wave 2A — local docs-check scripts:
+      - добавить scripts:
+        - `docs:check`,
+        - `docs:check:links`,
+        - `docs:check:index`,
+        - `docs:check:status` (названия можно скорректировать при реализации, но split обязан сохраниться);
+      - реализовать проверки на Node.js scripts в `scripts/` без внешнего network dependency;
+      - в scope:
+        - валидность относительных markdown links;
+        - отсутствие orphan-docs вне `documents/DOCS-INDEX.md` (исключения только для явно разрешённых generated/completed индексов);
+        - наличие маркеров `Implemented`/`Planned` в ключевых SoR-доках:
+          - `ARCHITECTURE.md`,
+          - `ARCHITECTURE-PRINCIPLES.md`,
+          - `FRONTEND.md`,
+          - `CONTENT.md`,
+          - `LEARNING.md`,
+          - `SECURITY.md`,
+          - `RELIABILITY.md`,
+          - `DEVELOPMENT.md`,
+          - `DOCS-INDEX.md`.
+      - вместе с docs-check выполнить doc-hygiene cleanup:
+        - `documents/DEVELOPMENT.md` сократить до runbook/troubleshooting scope;
+        - `documents/ARCHITECTURE-PRINCIPLES.md` очистить от phase/wave planning, progress history и migration backlog;
+        - синхронизировать назначение документов между `AGENTS.md`, `documents/DOCS-INDEX.md` и самими SoR-доками.
+    - Wave 2B — CI integration:
+      - добавить docs-check step в `.github/workflows/ci.yml` после install и до build/typecheck;
+      - docs-check должен быть обязательным merge-gate наравне с `lint`/`lint:boundaries`.
+    - Wave 2C — docs/runbook updates:
+      - обновить `documents/DEVELOPMENT.md`:
+        - локальные команды запуска docs-checks;
+        - troubleshooting для типовых падений (`broken link`, `orphan doc`, `missing status marker`);
+      - обновить `documents/DOCS-INDEX.md`, если в процессе появятся новые docs/scripts references;
+      - зафиксировать doc-governance:
+        - чем отличается SoR от execution plan;
+        - куда писать progress/history, а куда нельзя.
   - Wave 3 — Architectural guardrails (optional):
-    - при необходимости подключить `dependency-cruiser` и добавить `deps:check` в CI/локальные проверки.
+    - decision gate:
+      - запускать wave только если после Wave 1-2 остаётся риск drift по импортам/слоям, который не покрывается `eslint-plugin-boundaries`;
+      - если текущего boundary-lint достаточно, wave можно закрыть как `Skipped` без внедрения новой зависимости.
+    - если wave активируется:
+      - подключить `dependency-cruiser`;
+      - добавить `deps:check` script;
+      - встроить check в CI как non-optional quality gate;
+      - зафиксировать ограничения/исключения в docs.
 
 - Exit criteria:
-  - coverage для migration-среза заметно расширен и включён в обязательный прогон;
-  - docs checks автоматически исполняются в CI;
-  - архитектурные границы подтверждаются автоматическими проверками (eslint boundaries + при необходимости dependency graph check).
+  - web migration-срез имеет целевой safety-net:
+    - component/unit coverage для dashboard/students/profile flows;
+    - direct tests для `error-catalog.ts`;
+  - api non-learning boundary сценарии покрыты `supertest` integration tests без реальной БД;
+  - docs checks запускаются локально и в CI как отдельный обязательный шаг;
+  - `documents/DEVELOPMENT.md` содержит runbook/troubleshooting для docs-checks;
+  - architectural guardrails либо усилены через `dependency-cruiser`, либо явно зафиксировано решение `Skipped` с обоснованием.
+
+### Phase 5 Wave 1 — Прогресс выполнения (2026-03-01)
+
+- Статус волны: `Implemented/Planned` (Wave 1A/1B/1C выполнены, Wave 1D запланирована).
+
+- `Implemented`:
+  - в `apps/web/test` добавлен helper:
+    - `apps/web/test/render-with-query-client.tsx`;
+  - добавлены direct tests для unified error catalog:
+    - `apps/web/lib/api/error-catalog.test.ts`;
+  - добавлены component/unit tests для Phase 4 migration-среза:
+    - `apps/web/features/student-dashboard/StudentDashboardScreen.test.tsx`,
+    - `apps/web/features/teacher-dashboard/TeacherDashboardScreen.test.tsx`,
+    - `apps/web/features/teacher-students/TeacherStudentsPanel.test.tsx`,
+    - `apps/web/features/teacher-students/TeacherStudentProfilePanel.test.tsx`;
+  - покрытые сценарии:
+    - student dashboard: успешная загрузка курсов, ошибка loading, переход `courses -> sections`;
+    - teacher dashboard edit-flow: загрузка courses, create course + invalidate;
+    - teacher students: create student + password reveal, transfer student + invalidate;
+    - teacher student profile: review inbox routing, `creditTask` + invalidate + notice;
+    - error catalog: student overrides, teacher status fallbacks, payload formatting.
+
+- `Implemented` (проверка):
+  - `pnpm --filter web test` — `pass` (`8` files / `23` tests);
+  - `pnpm --filter web typecheck` — `pass`;
+  - `pnpm --filter web lint` — `pass` (`0 errors`, только существующие warnings baseline).
+
+- `Implemented`:
+  - добавлены API integration suites для non-learning boundary:
+    - `apps/api/test/integration/content-non-learning-boundary.integration.test.ts`,
+    - `apps/api/test/integration/teacher-students-boundary.integration.test.ts`;
+  - покрытые HTTP-сценарии:
+    - `teacher/courses`: list/create/update/publish/unpublish/delete;
+    - `teacher/sections`: get/create/update/publish/unpublish/delete;
+    - `teacher/students`: list/detail/create/update/transfer/reset-password/delete;
+    - `teacher/students/:studentId/tasks/:taskId/credit`;
+    - `teacher/students/:studentId/units/:unitId/override-open`;
+    - `courses`, `courses/:id`, `sections/:id`, `sections/:id/graph` для student read-path;
+  - coverage строится на существующем `test-app.factory.ts` и mocked services/events без реальной БД.
+
+- `Implemented` (проверка):
+  - `pnpm --filter @continuum/api test` — `pass`;
+  - `docker compose exec -T api sh -lc "cd /app/apps/api && pnpm exec vitest run --config vitest.integration.config.ts"` — `pass` (`5` files / `14` tests);
+  - `docker compose exec -T api sh -lc "cd /app/apps/api && pnpm exec tsc -p tsconfig.json --noEmit"` — `pass`.
+
+- `Implemented` (грабли/фиксация):
+  - прямой запуск `pnpm exec vitest run --config vitest.integration.config.ts test/integration/<suite>.integration.test.ts` на хосте может падать с `Cannot find module '.prisma/client/default'`;
+  - root cause: integration-контур `apps/api` требует Prisma runtime внутри Docker `api` контейнера;
+  - фиксация в runbook: точечные integration-suite запускать через `docker compose exec -T api ...`.
+
+- Next:
+  - Wave 1D — при необходимости вынести общие test factories/helpers для migration-среза;
+  - затем Wave 2 — docs-check scripts + CI integration.
+
+### Phase 5 Wave 2 — Прогресс выполнения (2026-03-01)
+
+- Статус волны: `Implemented`.
+
+- `Implemented`:
+  - выполнен doc-hygiene cleanup для SoR-доков:
+    - `documents/ARCHITECTURE-PRINCIPLES.md` очищен от phase/wave history, progress narrative, dated snapshots и rollout chronology;
+    - `documents/DEVELOPMENT.md` сокращён до operational runbook/troubleshooting scope;
+    - `documents/DOCS-INDEX.md` усилен как source of truth по назначению документов;
+    - `AGENTS.md` и `DOCS-INDEX.md` синхронизированы по правилам doc-governance;
+  - добавлен docs governance toolchain:
+    - `scripts/docs/_shared.mjs`,
+    - `scripts/docs/check-links.mjs`,
+    - `scripts/docs/check-index.mjs`,
+    - `scripts/docs/check-status.mjs`;
+  - в root `package.json` добавлены scripts:
+    - `docs:check`,
+    - `docs:check:links`,
+    - `docs:check:index`,
+    - `docs:check:status`;
+  - в `.github/workflows/ci.yml` добавлен обязательный шаг `Docs check` до `lint/build/typecheck/test`.
+
+- `Implemented` (semantics):
+  - `ARCHITECTURE-PRINCIPLES.md` теперь хранит только stable principles, quality guardrails и approved stack;
+  - `DEVELOPMENT.md` теперь хранит только команды, operational invariants и troubleshooting;
+  - phase/wave history и журнал выполнения остаются только в execution plan;
+  - `docs:check:status` запрещает повторный drift для ключевых документов через required/forbidden patterns.
+
+- `Implemented` (проверка):
+  - `pnpm docs:check` — `pass`;
+  - `pnpm lint` — `pass` (`0 errors`, baseline warnings остаются вне scope волны);
+  - `pnpm lint:boundaries` — `pass`;
+  - `pnpm typecheck` — `pass`;
+  - `pnpm test` — `pass`.
+
+- `Implemented` (дополнительный фикс):
+  - во время verification найден TS regression в новых web tests (`vi.importActual` возвращал `unknown` и ломал spread в `StudentDashboardScreen.test.tsx`, `TeacherDashboardScreen.test.tsx`, `TeacherStudentProfilePanel.test.tsx`, `TeacherStudentsPanel.test.tsx`);
+  - regression устранён через явный generic `vi.importActual<typeof import(...)>()`, после чего `pnpm typecheck` и `pnpm test` снова проходят.
+
+- Next:
+  - Wave 1D не требуется на текущем объёме: общий test-harness не выделялся отдельно, так как дублирование недостаточно велико;
+  - Wave 3 (`dependency-cruiser`) закрыта как `Skipped`: текущего `eslint-plugin-boundaries` + `pnpm lint:boundaries` достаточно для актуального риска drift;
+  - после завершения Phase 5 следующим обязательным этапом остаётся Phase 6 — final lint hardening.
 
 ### Phase 6 — Final lint hardening (последним шагом)
 
-- Статус фазы: `Planned`.
+- Статус фазы: `Implemented/Planned` (Wave 1 analysis + mechanical cleanup начаты, complexity refactor остаётся основным хвостом).
 
 - Предусловие запуска:
   - `pnpm lint` возвращает `0 warnings` на актуальной `main`-ветке.
@@ -841,6 +1043,96 @@
   - lint-контур strict: `0 warnings`, `0 errors` как обязательный merge-gate;
   - quality budgets enforced автоматически в CI;
   - execution plan закрыт и перенесён в `documents/exec-plans/completed/`.
+
+### Phase 6 Wave 1 — Прогресс выполнения (2026-03-01)
+
+- Статус волны: `Implemented/Planned`.
+
+- `Implemented`:
+  - выполнен lint-triage по workspace;
+  - механический хвост warnings снят:
+    - `@typescript-eslint/consistent-type-imports` очищен через repo-wide cleanup;
+    - `@typescript-eslint/no-unused-vars` очищен локальными правками;
+    - `@typescript-eslint/no-explicit-any` практически полностью убран, кроме мест, которые временно перерастали в complexity/refactor scope и затем были тоже устранены;
+  - проведена типовая cleanup-подготовка для дальнейшего strict lint:
+    - исправлены type-only imports в `api/web/worker`,
+    - выпрямлены тестовые `vi.importActual<typeof import(...)>()`,
+    - локальные helper typings добавлены для `pdfjs-dist`, `reactflow`, `@uiw/react-codemirror`.
+  - в ходе cleanup выявлена и устранена runtime-regression в `apps/api`:
+    - mass-fix `consistent-type-imports` перевёл часть Nest DI зависимостей в type-only imports;
+    - symptom: `api` контейнер оставался `Up`, но bootstrap падал с `UnknownDependenciesException`, поэтому `/auth/login` и внешний `/health` были недоступны;
+    - исправление: возвращены обычные imports для runtime-классов (`PrismaService`, `AuthService`, `UsersService`, `LearningService`, `Reflector`, `ContentGraphService`, `TaskRevisionPayloadService` и смежных DI providers);
+    - проверка: внутри контейнера `api` снова проходят `GET /health` и `POST /auth/login`.
+  - в dev-contour выявлена и устранена operational regression для PDF compile:
+    - symptom: compile job enqueue происходил, но UI долго не получал результат и не показывал явную ошибку;
+    - root cause: `worker` использовал stale `node_modules` volume и после появления `zod` в `packages/shared` не мог загрузить новый compiled bundle;
+    - исправление: в `docker-compose.yml` startup guards для `api/worker` расширены проверкой наличия `zod`, после чего контейнеры пересозданы через `docker compose up -d --build --force-recreate api worker`;
+    - проверка: `worker` снова логирует `[worker] latex ready concurrency=1`, а latex jobs переходят в `completed/success`.
+
+- `Implemented` (проверка после cleanup):
+  - `pnpm typecheck` — `pass`;
+  - lint warnings сокращены примерно с `236` до `16`.
+
+- `Implemented` (анализ причин остатка):
+  - после mechanical cleanup все оставшиеся warnings относятся только к `complexity`;
+  - это значит, что текущий хвост больше не является косметическим и требует структурного refactor, а не очередного auto-fix pass.
+
+- Complexity triage по `ARCHITECTURE-PRINCIPLES.md`:
+  - критерии обязательного refactor:
+    - нарушение `P1 (SRP + complexity budget)`: один экран/метод совмещает несколько orchestration responsibilities;
+    - нарушение `P4 (read/write separation)`: read-path, write-path и invalidation смешаны в одном flow;
+    - нарушение `P9 (server-state discipline)`: server-state orchestration и UI branching переплетены;
+    - нарушение `P10 (effect isolation)`: async orchestration и side-effects не вынесены в hooks/helpers;
+  - низкий приоритет / допустимый локальный helper refactor:
+    - инфраструктурные или UI-helper функции, где complexity локальна и не размывает архитектурные границы.
+
+- Tier A — обязательный architectural refactor:
+  - `apps/web/features/student-content/units/StudentUnitDetailScreen.tsx`
+  - `apps/web/features/teacher-content/units/TeacherUnitDetailScreen.tsx`
+  - `apps/web/features/teacher-dashboard/TeacherDashboardScreen.tsx`
+  - `apps/web/features/teacher-students/TeacherStudentProfilePanel.tsx`
+  - `apps/web/features/teacher-students/TeacherStudentsPanel.tsx`
+  - `apps/web/features/student-dashboard/StudentDashboardScreen.tsx`
+  - `apps/web/features/teacher-review/TeacherReviewSubmissionDetailPanel.tsx`
+  - `apps/web/features/teacher-review/TeacherReviewInboxPanel.tsx`
+  - `apps/web/features/teacher-settings/TeacherSettingsScreen.tsx`
+  - `apps/web/features/student-content/units/hooks/use-student-task-attempt.ts`
+  - `apps/web/features/teacher-content/units/hooks/use-teacher-unit-latex-compile.ts`
+  - `apps/api/src/learning/learning-attempts-write.service.ts`
+  - `apps/api/src/learning/learning-availability.service.ts`
+  - rationale:
+    - это product-facing orchestration surfaces, где текущая complexity прямо конфликтует с `P1/P4/P9/P10`.
+
+- Tier B — желательный, но вторичный refactor:
+  - `apps/web/components/PdfCanvasPreview.tsx`
+  - `apps/web/features/student-content/units/hooks/use-student-unit-pdf-preview.ts`
+  - `apps/api/src/infra/latex/latex-compile.service.ts`
+  - rationale:
+    - complexity здесь реальна, но ответственность локальна и boundary leakage ниже; эти файлы не так сильно ломают архитектурную модель, как Tier A.
+
+- Порядок выполнения Wave 1 дальше:
+  - сначала самые дешёвые Tier A точки:
+    - `TeacherReviewInboxPanel.tsx`
+    - `TeacherSettingsScreen.tsx`
+    - `StudentDashboardScreen.tsx`
+    - `use-student-unit-pdf-preview.ts` (если останется как Tier B helper, можно взять между Tier A экранами как quick win)
+  - затем средние product orchestration:
+    - `TeacherReviewSubmissionDetailPanel.tsx`
+    - `TeacherStudentsPanel.tsx`
+    - `use-student-task-attempt.ts`
+    - `learning-attempts-write.service.ts`
+  - затем тяжёлые shells:
+    - `TeacherStudentProfilePanel.tsx`
+    - `TeacherDashboardScreen.tsx`
+    - `TeacherUnitDetailScreen.tsx`
+    - `StudentUnitDetailScreen.tsx`
+    - `use-teacher-unit-latex-compile.ts`
+    - `learning-availability.service.ts`
+
+- Decision:
+  - `complexity` warnings не будут suppress/ignore-иться, пока файл попадает в Tier A;
+  - `dependency-cruiser` в рамках этой фазы окончательно `Skipped`;
+  - единственный допустимый fallback для Tier B — отложить refactor, но не переводить правило `complexity` в `error`, пока хвост не снят.
 
 ## Decision log
 

@@ -1,12 +1,11 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
-import { Job, Queue } from 'bullmq';
+import { Injectable, type OnModuleDestroy } from '@nestjs/common';
+import { type Job, Queue } from 'bullmq';
 import IORedis from 'ioredis';
 import {
   LATEX_COMPILE_JOB_NAME,
   LATEX_COMPILE_QUEUE_NAME,
-  LatexCompileQueuePayload,
-  TaskSolutionLatexCompileQueuePayload,
-  UnitLatexCompileQueuePayload,
+  type TaskSolutionLatexCompileQueuePayload,
+  type UnitLatexCompileQueuePayload,
 } from './unit-pdf.constants';
 
 @Injectable()

@@ -1,13 +1,13 @@
 import {
-  BucketLocationConstraint,
+  type BucketLocationConstraint,
   CreateBucketCommand,
-  CreateBucketCommandInput,
+  type CreateBucketCommandInput,
   DeleteObjectCommand,
   GetObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
   PutObjectCommand,
-  PutObjectCommandInput,
+  type PutObjectCommandInput,
   S3Client,
   S3ServiceException,
 } from '@aws-sdk/client-s3';
@@ -16,7 +16,7 @@ import { Upload } from '@aws-sdk/lib-storage';
 import { Inject, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { NodeHttpHandler } from '@smithy/node-http-handler';
 import { Readable } from 'node:stream';
-import { OBJECT_STORAGE_CONFIG, ObjectStorageConfig } from './object-storage.config';
+import { OBJECT_STORAGE_CONFIG, type ObjectStorageConfig } from './object-storage.config';
 
 type PutObjectBody = Buffer | Uint8Array | NodeJS.ReadableStream | string;
 

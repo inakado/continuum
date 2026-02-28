@@ -14,7 +14,12 @@ import ReactFlow, {
   type Edge,
   type EdgeTypes,
   type Node,
+  type NodeMouseHandler,
   type NodeProps,
+  type OnConnect,
+  type OnEdgesChange,
+  type OnNodesChange,
+  type OnSelectionChangeFunc,
   useEdgesState,
   useNodesState,
 } from "reactflow";
@@ -110,11 +115,11 @@ const getNextPosition = (count: number) => {
 type GraphCanvasProps = {
   nodes: Node<UnitNodeData>[];
   edges: Edge[];
-  onNodesChange: (...args: any[]) => void;
-  onEdgesChange: (...args: any[]) => void;
-  onConnect: (...args: any[]) => void;
-  onNodeClick: (...args: any[]) => void;
-  onSelectionChange: (...args: any[]) => void;
+  onNodesChange: OnNodesChange;
+  onEdgesChange: OnEdgesChange;
+  onConnect: OnConnect;
+  onNodeClick: NodeMouseHandler;
+  onSelectionChange: OnSelectionChangeFunc;
 };
 
 const GraphCanvas = memo(function GraphCanvas({

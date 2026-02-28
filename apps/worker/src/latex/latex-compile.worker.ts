@@ -1,20 +1,20 @@
-import { Job } from 'bullmq';
+import { type Job } from 'bullmq';
 import {
   LATEX_COMPILE_JOB_NAME,
-  LatexCompileJobResult,
-  LatexCompileQueuePayload,
+  type LatexCompileJobResult,
+  type LatexCompileQueuePayload,
   TASK_SOLUTION_PDF_TARGET,
-  TaskSolutionLatexCompileJobResult,
-  TaskSolutionLatexCompileQueuePayload,
-  UnitLatexCompileJobResult,
-  UnitLatexCompileQueuePayload,
-  UnitPdfTarget,
+  type TaskSolutionLatexCompileJobResult,
+  type TaskSolutionLatexCompileQueuePayload,
+  type UnitLatexCompileJobResult,
+  type UnitLatexCompileQueuePayload,
+  type UnitPdfTarget,
   buildTaskSolutionPdfKey,
   buildUnitPdfKey,
 } from './latex-queue.contract';
 import { compileLatexToPdf, LatexCompileError } from './latex-compile';
 import { applyUnitPdfKeyViaApi } from './latex-apply-client';
-import { WorkerObjectStorageService } from '../storage/object-storage';
+import { type WorkerObjectStorageService } from '../storage/object-storage';
 
 const ensureUnitTarget = (value: unknown): value is UnitPdfTarget =>
   value === 'theory' || value === 'method';

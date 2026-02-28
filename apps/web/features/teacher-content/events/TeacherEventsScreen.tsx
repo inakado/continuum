@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import TeacherShell from "@/components/TeacherShell";
-import { teacherApi, EventLog } from "@/lib/api/teacher";
+import { teacherApi, type EventLog } from "@/lib/api/teacher";
 import AuthRequired from "../auth/AuthRequired";
 import { useTeacherLogout } from "../auth/use-teacher-logout";
 import { getApiErrorMessage } from "../shared/api-errors";

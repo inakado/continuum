@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
+import type { JwtModuleOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
@@ -17,7 +18,10 @@ import { LocalStrategy } from './strategies/local.strategy';
     PassportModule,
     JwtModule.register({
       secret: resolveJwtSecret(),
-      signOptions: { expiresIn: resolveJwtAccessExpiresIn() as any },
+      signOptions: {
+        expiresIn:
+          resolveJwtAccessExpiresIn() as NonNullable<JwtModuleOptions['signOptions']>['expiresIn'],
+      },
     }),
   ],
   controllers: [AuthController],

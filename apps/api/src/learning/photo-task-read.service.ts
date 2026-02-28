@@ -9,7 +9,7 @@ import {
 import {
   ContentStatus,
   PhotoTaskSubmissionStatus,
-  Prisma,
+  type Prisma,
   Role,
   StudentUnitStatus,
   TaskAnswerType,

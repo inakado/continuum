@@ -1,13 +1,13 @@
 import { Body, Controller, Get, HttpCode, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { EventCategory, Role } from '@prisma/client';
-import { AuthRequest } from '../auth/auth.request';
+import { type AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { EventsLogService } from '../events/events-log.service';
 import {
-  ChangeTeacherPasswordDto,
-  UpdateTeacherProfileDto,
+  type ChangeTeacherPasswordDto,
+  type UpdateTeacherProfileDto,
 } from './dto/teacher-settings.dto';
 import { StudentsService } from './students.service';
 

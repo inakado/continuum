@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
-import { Request } from 'express';
+import { type Request } from 'express';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { AuthUser, JwtPayload } from '../auth.types';
+import { type AuthUser, type JwtPayload } from '../auth.types';
 import { resolveAuthCookieName, resolveJwtSecret } from '../auth.config';
 import { AuthService } from '../auth.service';
 

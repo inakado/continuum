@@ -12,15 +12,15 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { EventCategory, Role } from '@prisma/client';
-import { AuthRequest } from '../auth/auth.request';
+import { type AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { EventsLogService } from '../events/events-log.service';
 import {
-  CreateStudentDto,
-  TransferStudentDto,
-  UpdateStudentProfileDto,
+  type CreateStudentDto,
+  type TransferStudentDto,
+  type UpdateStudentProfileDto,
 } from './dto/student.dto';
 import { StudentsService } from './students.service';
 

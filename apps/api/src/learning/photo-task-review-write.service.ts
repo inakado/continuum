@@ -8,7 +8,7 @@ import {
   AttemptKind,
   AttemptResult,
   ContentStatus,
-  PhotoTaskSubmissionStatus,
+  type PhotoTaskSubmissionStatus,
   Prisma,
   StudentTaskStatus,
   StudentUnitStatus,
@@ -19,7 +19,7 @@ import { ObjectStorageService } from '../infra/storage/object-storage.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StudentsService } from '../students/students.service';
 import { LearningAuditLogService } from './learning-audit-log.service';
-import { LearningAvailabilityService, UnitProgressSnapshot } from './learning-availability.service';
+import { LearningAvailabilityService, type UnitProgressSnapshot } from './learning-availability.service';
 import { PhotoTaskPolicyService } from './photo-task-policy.service';
 
 type DbClient = PrismaService | Prisma.TransactionClient;

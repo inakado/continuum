@@ -1,13 +1,13 @@
 import { Body, Controller, Get, HttpCode, Param, Put, Req, UseGuards } from '@nestjs/common';
 import { EventCategory, Role } from '@prisma/client';
-import { AuthRequest } from '../auth/auth.request';
+import { type AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { EventsLogService } from '../events/events-log.service';
 import { LearningRecomputeService } from '../learning/learning-recompute.service';
 import { ContentService } from './content.service';
-import { UpdateSectionGraphDto } from './dto/graph.dto';
+import { type UpdateSectionGraphDto } from './dto/graph.dto';
 
 @Controller('teacher/sections')
 @UseGuards(JwtAuthGuard, RolesGuard)

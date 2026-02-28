@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
-  AttemptKind,
+  type AttemptKind,
   AttemptResult,
   ContentStatus,
   NotificationType,

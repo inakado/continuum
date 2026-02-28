@@ -4,7 +4,7 @@ import {
   PDF_TTL_MAX_SEC,
   STUDENT_PDF_TTL_DEFAULT_SEC,
   TEACHER_PDF_TTL_DEFAULT_SEC,
-  UnitPdfTarget,
+  type UnitPdfTarget,
   UNIT_PDF_TARGETS,
 } from './unit-pdf.constants';
 

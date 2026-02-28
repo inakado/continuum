@@ -1,10 +1,10 @@
 import { Body, Controller, HttpCode, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { Role } from '@prisma/client';
-import { AuthRequest } from '../auth/auth.request';
+import { type AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
-import { TeacherTaskActionDto } from './dto/teacher-task-action.dto';
+import { type TeacherTaskActionDto } from './dto/teacher-task-action.dto';
 import { LearningService } from './learning.service';
 
 @Controller('teacher/students')
