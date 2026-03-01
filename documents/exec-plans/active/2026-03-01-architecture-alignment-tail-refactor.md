@@ -196,8 +196,29 @@ Adjacency candidate:
   - `test`
   - `test:integration`
   - `smoke:auth`
-- Следующий обязательный physical decomposition tail:
-  - `apps/api/src/content/content-write.service.ts`
+- `content-write.service.ts` физически разрезан без изменения `ContentService` и controller contract:
+  - `apps/api/src/content/content-write-course-section.service.ts`
+  - `apps/api/src/content/content-write-unit.service.ts`
+  - `apps/api/src/content/content-write-task.service.ts`
+  - `apps/api/src/content/content-write.service.ts` оставлен facade-слоем с прежним public API.
+- Вынесены отдельные ответственности:
+  - `course/section write lifecycle`
+  - `unit write/update/publish/delete + metadata validation`
+  - `task/revision write lifecycle + solution/statement asset setters`
+- Добавлен service-level safety-net:
+  - `apps/api/test/content-write-course-section.test.ts`
+  - `apps/api/test/content-write-units.test.ts`
+  - `apps/api/test/content-write-tasks.test.ts`
+- Docker verification пройдена:
+  - `tsc --noEmit`
+  - `build`
+  - `test`
+  - `test:integration`
+  - `smoke:auth`
+- По факту первый приоритет Wave 3 закрыт целиком:
+  - `students.service.ts`
+  - `content-write.service.ts`
+- Второй приоритет (`TeacherDashboardScreen.tsx`, `TeacherStudentProfilePanel.tsx`) остаётся only-if-needed хвостом, а не обязательным блокером текущей инициативы.
 
 ## Правила безопасного выполнения
 
