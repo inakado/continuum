@@ -20,6 +20,7 @@ export const learningPhotoQueryKeys = {
 } as const;
 
 export const contentQueryKeys = {
+  teacherMe: () => ["content", "teacher", "me"] as const,
   teacherCourses: () => ["content", "teacher", "courses"] as const,
   teacherCourse: (courseId: string) => ["content", "teacher", "course", courseId] as const,
   teacherSection: (sectionId: string) => ["content", "teacher", "section", sectionId] as const,

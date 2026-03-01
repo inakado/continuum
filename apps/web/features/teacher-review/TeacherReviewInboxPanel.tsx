@@ -45,6 +45,190 @@ const getStudentName = (student: { firstName?: string | null; lastName?: string 
 
 const getTaskDisplayLabel = (task: { sortOrder: number }) => String(task.sortOrder + 1);
 
+type ReviewFilters = ReturnType<typeof readReviewRouteFilters>;
+
+const DEFAULT_REVIEW_FILTERS: Pick<ReviewFilters, "status" | "sort"> = {
+  status: "pending_review",
+  sort: "oldest",
+};
+
+const buildInboxHref = (filters: Partial<ReviewFilters>) => {
+  const search = buildReviewSearch(filters);
+  return `/teacher/review${search ? `?${search}` : ""}`;
+};
+
+const buildSubmissionHref = (submissionId: string, filters: Partial<ReviewFilters>) => {
+  const search = buildReviewSearch(filters);
+  return `/teacher/review/${submissionId}${search ? `?${search}` : ""}`;
+};
+
+const hasCustomFilters = (filters: ReviewFilters) =>
+  Boolean(
+    filters.status !== DEFAULT_REVIEW_FILTERS.status ||
+      filters.sort !== DEFAULT_REVIEW_FILTERS.sort ||
+      filters.studentId ||
+      filters.courseId ||
+      filters.sectionId ||
+      filters.unitId ||
+      filters.taskId,
+  );
+
+type ReviewToolbarProps = {
+  total: number;
+  hasItems: boolean;
+  onRefresh: () => void;
+  onOpenFirst: () => void;
+};
+
+const ReviewToolbar = ({ total, hasItems, onRefresh, onOpenFirst }: ReviewToolbarProps) => (
+  <header className={styles.toolbar}>
+    <div className={styles.totalLine}>
+      <span>В очереди: {total}</span>
+    </div>
+    <div className={styles.headerActions}>
+      <Button variant="ghost" onClick={onRefresh}>
+        Обновить
+      </Button>
+      <Button onClick={onOpenFirst} disabled={!hasItems}>
+        Открыть первую на проверке
+      </Button>
+    </div>
+  </header>
+);
+
+type ReviewFiltersRowProps = {
+  filters: ReviewFilters;
+  students: StudentSummary[];
+  hasAnyCustomFilters: boolean;
+  onStatusChange: (value: TeacherReviewSubmissionStatus) => void;
+  onSortChange: (value: "oldest" | "newest") => void;
+  onStudentChange: (value?: string) => void;
+  onReset: () => void;
+};
+
+const ReviewFiltersRow = ({
+  filters,
+  students,
+  hasAnyCustomFilters,
+  onStatusChange,
+  onSortChange,
+  onStudentChange,
+  onReset,
+}: ReviewFiltersRowProps) => (
+  <section className={styles.filtersRow}>
+    <label className={styles.filterField}>
+      Статус
+      <Select
+        triggerClassName={styles.selectTrigger}
+        value={filters.status}
+        onValueChange={(value) => onStatusChange(value as TeacherReviewSubmissionStatus)}
+        options={[
+          { value: "pending_review", label: "На проверке", section: "В работе" },
+          { value: "accepted", label: "Принято", section: "История" },
+          { value: "rejected", label: "Отклонено", section: "История" },
+        ]}
+        placeholder="Статус"
+      />
+    </label>
+
+    <label className={styles.filterField}>
+      Порядок
+      <Select
+        triggerClassName={styles.selectTrigger}
+        value={filters.sort}
+        onValueChange={(value) => onSortChange(value as "oldest" | "newest")}
+        options={[
+          { value: "oldest", label: sortLabel.oldest },
+          { value: "newest", label: sortLabel.newest },
+        ]}
+        placeholder="Порядок"
+      />
+    </label>
+
+    <label className={styles.filterField}>
+      Ученик
+      <Select
+        triggerClassName={styles.selectTrigger}
+        value={filters.studentId ?? ""}
+        onValueChange={(value) => onStudentChange(value || undefined)}
+        options={[
+          { value: "", label: "Все ученики" },
+          ...students.map((student) => ({
+            value: student.id,
+            label: `${getStudentName(student)} (${student.login})`,
+          })),
+        ]}
+        placeholder="Ученик"
+      />
+    </label>
+
+    {hasAnyCustomFilters ? (
+      <Button variant="ghost" onClick={onReset}>
+        Сбросить фильтры
+      </Button>
+    ) : null}
+  </section>
+);
+
+const ReviewEmptyState = ({ onReset }: { onReset: () => void }) => (
+  <div className={styles.empty}>
+    <p className={styles.emptyTitle}>Нет задач на проверке</p>
+    <p className={styles.emptyHint}>Измените фильтры или дождитесь новых фото-отправок.</p>
+    <Button variant="ghost" onClick={onReset}>
+      Сбросить фильтры
+    </Button>
+  </div>
+);
+
+type ReviewTableProps = {
+  items: TeacherReviewInboxItem[];
+  getSubmissionHref: (submissionId: string) => string;
+};
+
+const ReviewTable = ({ items, getSubmissionHref }: ReviewTableProps) => (
+  <div className={styles.tableWrap}>
+    <table className={styles.table}>
+      <thead>
+        <tr>
+          <th scope="col">Ученик</th>
+          <th scope="col" className={styles.columnCenter}>Задача</th>
+          <th scope="col">Раздел</th>
+          <th scope="col">Отправлено</th>
+          <th scope="col" className={styles.columnCenter}>Статус</th>
+          <th scope="col" className={styles.columnCenter}>Фото</th>
+        </tr>
+      </thead>
+      <tbody>
+        {items.map((item) => (
+          <tr key={item.submissionId}>
+            <td className={styles.studentCell}>
+              <Link
+                href={getSubmissionHref(item.submissionId)}
+                className={styles.rowLink}
+                aria-label={`Открыть отправку ученика ${getStudentName(item.student)}`}
+              >
+                <div className={styles.studentName}>{getStudentName(item.student)}</div>
+                <div className={styles.studentLogin}>@{item.student.login}</div>
+              </Link>
+            </td>
+            <td className={styles.taskCell}>{getTaskDisplayLabel(item.task)}</td>
+            <td className={styles.pathCell}>
+              {item.course.title} / {item.section.title} / {item.unit.title}
+            </td>
+            <td>{formatDateTime(item.submittedAt)}</td>
+            <td className={styles.columnCenter}>
+              <span className={`${styles.status} ${styles[statusClassName[item.status]]}`}>
+                {getPhotoReviewStatusLabel(item.status)}
+              </span>
+            </td>
+            <td className={styles.columnCenter}>{item.assetKeysCount}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+);
+
 export default function TeacherReviewInboxPanel() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -75,130 +259,64 @@ export default function TeacherReviewInboxPanel() {
   const loading = inboxQuery.isPending;
   const error = inboxQuery.isError ? formatApiErrorPayload(inboxQuery.error) : null;
   const students = studentsQuery.data ?? [];
+  const hasAnyCustomFilters = hasCustomFilters(filters);
+
+  const pushInbox = useCallback(
+    (nextFilters: Partial<ReviewFilters>) => {
+      router.push(buildInboxHref(nextFilters));
+    },
+    [router],
+  );
 
   const updateFilters = useCallback(
-    (patch: Partial<typeof filters>) => {
-      const next = {
+    (patch: Partial<ReviewFilters>) => {
+      pushInbox({
         ...filters,
         ...patch,
-      };
-      const search = buildReviewSearch(next);
-      router.push(`/teacher/review${search ? `?${search}` : ""}`);
+      });
     },
-    [filters, router],
+    [filters, pushInbox],
   );
 
   const openSubmission = useCallback(
     (submissionId: string) => {
-      const search = buildReviewSearch(filters);
-      router.push(`/teacher/review/${submissionId}${search ? `?${search}` : ""}`);
+      router.push(buildSubmissionHref(submissionId, filters));
     },
     [filters, router],
   );
 
   const resetFilters = useCallback(() => {
-    const search = buildReviewSearch({ status: "pending_review", sort: "oldest" });
-    router.push(`/teacher/review${search ? `?${search}` : ""}`);
-  }, [router]);
+    pushInbox(DEFAULT_REVIEW_FILTERS);
+  }, [pushInbox]);
 
   const getSubmissionHref = useCallback(
-    (submissionId: string) => {
-      const search = buildReviewSearch(filters);
-      return `/teacher/review/${submissionId}${search ? `?${search}` : ""}`;
-    },
+    (submissionId: string) => buildSubmissionHref(submissionId, filters),
     [filters],
-  );
-
-  const hasAnyCustomFilters = Boolean(
-    filters.status !== "pending_review" ||
-      filters.sort !== "oldest" ||
-      filters.studentId ||
-      filters.courseId ||
-      filters.sectionId ||
-      filters.unitId ||
-      filters.taskId,
   );
 
   return (
     <section className={styles.panel}>
-      <header className={styles.toolbar}>
-        <div className={styles.totalLine}>
-          <span>В очереди: {total}</span>
-        </div>
-        <div className={styles.headerActions}>
-          <Button variant="ghost" onClick={() => void inboxQuery.refetch()}>
-            Обновить
-          </Button>
-          <Button
-            onClick={() => {
-              const first = items[0];
-              if (!first) return;
-              openSubmission(first.submissionId);
-            }}
-            disabled={!items.length}
-          >
-            Открыть первую на проверке
-          </Button>
-        </div>
-      </header>
+      <ReviewToolbar
+        total={total}
+        hasItems={items.length > 0}
+        onRefresh={() => void inboxQuery.refetch()}
+        onOpenFirst={() => {
+          const first = items[0];
+          if (first) {
+            openSubmission(first.submissionId);
+          }
+        }}
+      />
 
-      <section className={styles.filtersRow}>
-        <label className={styles.filterField}>
-          Статус
-          <Select
-            triggerClassName={styles.selectTrigger}
-            value={filters.status}
-            onValueChange={(value) => updateFilters({ status: value as TeacherReviewSubmissionStatus })}
-            options={[
-              { value: "pending_review", label: "На проверке", section: "В работе" },
-              { value: "accepted", label: "Принято", section: "История" },
-              { value: "rejected", label: "Отклонено", section: "История" },
-            ]}
-            placeholder="Статус"
-          />
-        </label>
-
-        <label className={styles.filterField}>
-          Порядок
-          <Select
-            triggerClassName={styles.selectTrigger}
-            value={filters.sort}
-            onValueChange={(value) => updateFilters({ sort: value as "oldest" | "newest" })}
-            options={[
-              { value: "oldest", label: sortLabel.oldest },
-              { value: "newest", label: sortLabel.newest },
-            ]}
-            placeholder="Порядок"
-          />
-        </label>
-
-        <label className={styles.filterField}>
-          Ученик
-          <Select
-            triggerClassName={styles.selectTrigger}
-            value={filters.studentId ?? ""}
-            onValueChange={(value) => {
-              updateFilters({
-                studentId: value || undefined,
-              });
-            }}
-            options={[
-              { value: "", label: "Все ученики" },
-              ...students.map((student) => ({
-                value: student.id,
-                label: `${getStudentName(student)} (${student.login})`,
-              })),
-            ]}
-            placeholder="Ученик"
-          />
-        </label>
-
-        {hasAnyCustomFilters ? (
-          <Button variant="ghost" onClick={resetFilters}>
-            Сбросить фильтры
-          </Button>
-        ) : null}
-      </section>
+      <ReviewFiltersRow
+        filters={filters}
+        students={students}
+        hasAnyCustomFilters={hasAnyCustomFilters}
+        onStatusChange={(status) => updateFilters({ status })}
+        onSortChange={(sort) => updateFilters({ sort })}
+        onStudentChange={(studentId) => updateFilters({ studentId })}
+        onReset={resetFilters}
+      />
 
       {error ? (
         <div className={styles.error} role="status" aria-live="polite">
@@ -208,59 +326,9 @@ export default function TeacherReviewInboxPanel() {
 
       {loading ? <div className={styles.loading}>Загрузка очереди…</div> : null}
 
-      {!loading && !items.length ? (
-        <div className={styles.empty}>
-          <p className={styles.emptyTitle}>Нет задач на проверке</p>
-          <p className={styles.emptyHint}>Измените фильтры или дождитесь новых фото-отправок.</p>
-          <Button variant="ghost" onClick={resetFilters}>
-            Сбросить фильтры
-          </Button>
-        </div>
-      ) : null}
+      {!loading && !items.length ? <ReviewEmptyState onReset={resetFilters} /> : null}
 
-      {!loading && items.length ? (
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th scope="col">Ученик</th>
-                <th scope="col" className={styles.columnCenter}>Задача</th>
-                <th scope="col">Раздел</th>
-                <th scope="col">Отправлено</th>
-                <th scope="col" className={styles.columnCenter}>Статус</th>
-                <th scope="col" className={styles.columnCenter}>Фото</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={item.submissionId}>
-                  <td className={styles.studentCell}>
-                    <Link
-                      href={getSubmissionHref(item.submissionId)}
-                      className={styles.rowLink}
-                      aria-label={`Открыть отправку ученика ${getStudentName(item.student)}`}
-                    >
-                      <div className={styles.studentName}>{getStudentName(item.student)}</div>
-                      <div className={styles.studentLogin}>@{item.student.login}</div>
-                    </Link>
-                  </td>
-                  <td className={styles.taskCell}>{getTaskDisplayLabel(item.task)}</td>
-                  <td className={styles.pathCell}>
-                    {item.course.title} / {item.section.title} / {item.unit.title}
-                  </td>
-                  <td>{formatDateTime(item.submittedAt)}</td>
-                  <td className={styles.columnCenter}>
-                    <span className={`${styles.status} ${styles[statusClassName[item.status]]}`}>
-                      {getPhotoReviewStatusLabel(item.status)}
-                    </span>
-                  </td>
-                  <td className={styles.columnCenter}>{item.assetKeysCount}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : null}
+      {!loading && items.length ? <ReviewTable items={items} getSubmissionHref={getSubmissionHref} /> : null}
     </section>
   );
 }

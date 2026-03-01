@@ -1076,6 +1076,21 @@
 - `Implemented` (анализ причин остатка):
   - после mechanical cleanup все оставшиеся warnings относятся только к `complexity`;
   - это значит, что текущий хвост больше не является косметическим и требует структурного refactor, а не очередного auto-fix pass.
+  - завершён первый цикл `targeted tests -> refactor -> targeted verification` для:
+    - `apps/web/features/teacher-review/TeacherReviewInboxPanel.tsx`;
+    - результат:
+      - добавлен targeted safety-net `TeacherReviewInboxPanel.test.tsx`,
+      - компонент декомпозирован на toolbar/filters/empty/table helpers,
+      - `TanStack Query` дополнительно не внедрялся, так как проблема файла была не в server-state, а в routing/filter/UI shell complexity,
+      - targeted `web` tests и `web` typecheck после refactor проходят.
+  - завершён второй цикл `targeted tests -> refactor -> targeted verification` для:
+    - `apps/web/features/teacher-settings/TeacherSettingsScreen.tsx`;
+    - результат:
+      - добавлен targeted safety-net `TeacherSettingsScreen.test.tsx` для initial load, create teacher и delete teacher flows;
+      - экран переведён на `TanStack Query` для `teacher/me` и `teacher/teachers`, а ручной initial load orchestration удалён;
+      - write-side оставлен локальным, но теперь синхронизирует query cache через `setQueryData` и `invalidateQueries`, чтобы не было повторного tech debt по server-state;
+      - complexity warning снят через перевод read-side на query/cache модель и вынос teacher list section из корневого shell-компонента;
+      - targeted `eslint`, `TeacherSettingsScreen.test.tsx` и `pnpm --filter web typecheck` после refactor проходят.
 
 - Complexity triage по `ARCHITECTURE-PRINCIPLES.md`:
   - критерии обязательного refactor:
@@ -1094,8 +1109,8 @@
   - `apps/web/features/teacher-students/TeacherStudentsPanel.tsx`
   - `apps/web/features/student-dashboard/StudentDashboardScreen.tsx`
   - `apps/web/features/teacher-review/TeacherReviewSubmissionDetailPanel.tsx`
-  - `apps/web/features/teacher-review/TeacherReviewInboxPanel.tsx`
-  - `apps/web/features/teacher-settings/TeacherSettingsScreen.tsx`
+  - `apps/web/features/teacher-review/TeacherReviewInboxPanel.tsx` (`Implemented`)
+  - `apps/web/features/teacher-settings/TeacherSettingsScreen.tsx` (`Implemented`)
   - `apps/web/features/student-content/units/hooks/use-student-task-attempt.ts`
   - `apps/web/features/teacher-content/units/hooks/use-teacher-unit-latex-compile.ts`
   - `apps/api/src/learning/learning-attempts-write.service.ts`
@@ -1111,9 +1126,23 @@
     - complexity здесь реальна, но ответственность локальна и boundary leakage ниже; эти файлы не так сильно ломают архитектурную модель, как Tier A.
 
 - Порядок выполнения Wave 1 дальше:
+  - рабочий цикл фиксируется по каждому файлу/flow:
+    - сначала добавить или расширить минимальный safety-net тестов для текущего behavior этого файла;
+    - перед refactor явно классифицировать источник complexity:
+      - `manual server-state orchestration`,
+      - `mixed read/write orchestration`,
+      - `effect-heavy UI shell`,
+      - `local branching/helper complexity`;
+    - если complexity связана с `manual server-state orchestration` или `mixed read/write orchestration`, перевод на `TanStack Query` входит в scope refactor этого файла;
+    - если complexity локальна и не связана с server-state, `TanStack Query` не внедряется насильно;
+    - затем выполнить refactor только этого файла/flow;
+    - затем прогнать targeted tests + relevant smoke/typecheck/lint checks;
+    - только после стабилизации переходить к следующему файлу;
+  - blanket-покрытие всего проекта до начала refactor не требуется;
+  - blanket-refactor без предварительного targeted safety-net для конкретного файла не допускается;
   - сначала самые дешёвые Tier A точки:
-    - `TeacherReviewInboxPanel.tsx`
-    - `TeacherSettingsScreen.tsx`
+    - `TeacherReviewInboxPanel.tsx` (`Implemented`)
+    - `TeacherSettingsScreen.tsx` (`Implemented`)
     - `StudentDashboardScreen.tsx`
     - `use-student-unit-pdf-preview.ts` (если останется как Tier B helper, можно взять между Tier A экранами как quick win)
   - затем средние product orchestration:
@@ -1132,6 +1161,9 @@
 - Decision:
   - `complexity` warnings не будут suppress/ignore-иться, пока файл попадает в Tier A;
   - `dependency-cruiser` в рамках этой фазы окончательно `Skipped`;
+  - для Phase 6 порядок выполнения фиксированный: `targeted tests -> refactor -> targeted verification -> следующий файл`;
+  - `TanStack Query` внедряется сразу в рамках рефакторинга каждого файла, где источник `complexity` — это `manual server-state orchestration` или `mixed read/write orchestration`; отдельная отложенная волна для таких файлов не допускается;
+  - если файл требует `TanStack Query` по критериям `P4/P9/P10`, refactor считается незавершённым, пока manual server-state не заменён на query/cache/invalidation модель;
   - единственный допустимый fallback для Tier B — отложить refactor, но не переводить правило `complexity` в `error`, пока хвост не снят.
 
 ## Decision log

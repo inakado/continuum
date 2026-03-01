@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 import DashboardShell from "@/components/DashboardShell";
 import AlertDialog from "@/components/ui/AlertDialog";
 import Button from "@/components/ui/Button";
@@ -9,7 +9,8 @@ import Checkbox from "@/components/ui/Checkbox";
 import Input from "@/components/ui/Input";
 import { useTeacherLogout } from "@/features/teacher-content/auth/use-teacher-logout";
 import { getApiErrorMessage, getApiErrorPayload } from "@/features/teacher-content/shared/api-errors";
-import { teacherApi, type TeacherSummary } from "@/lib/api/teacher";
+import { teacherApi, type TeacherMeResponse, type TeacherSummary } from "@/lib/api/teacher";
+import { contentQueryKeys } from "@/lib/query/keys";
 import styles from "./teacher-settings.module.css";
 
 type AsyncState =
@@ -17,6 +18,20 @@ type AsyncState =
   | { state: "saving" }
   | { state: "saved"; message: string }
   | { state: "error"; message: string };
+
+type AsyncStatusMessages = {
+  saving: string;
+};
+
+type TeacherListSectionProps = {
+  currentTeacherId: string;
+  deletingTeacherId: string | null;
+  onDeleteTeacher: (teacher: TeacherSummary) => void;
+  onRefresh: () => void;
+  statusText: string;
+  teachers: TeacherSummary[];
+  teachersLoading: boolean;
+};
 
 const getTeacherDisplayName = (
   firstName?: string | null,
@@ -28,6 +43,18 @@ const getTeacherDisplayName = (
   return login?.trim() || "Преподаватель";
 };
 
+const getAsyncStatusText = (asyncState: AsyncState, messages: AsyncStatusMessages) => {
+  switch (asyncState.state) {
+    case "saving":
+      return messages.saving;
+    case "saved":
+    case "error":
+      return asyncState.message;
+    default:
+      return "";
+  }
+};
+
 const teacherNavItems = [
   { label: "Курсы", href: "/teacher" },
   { label: "Ученики", href: "/teacher/students" },
@@ -35,12 +62,64 @@ const teacherNavItems = [
   { label: "Аналитика", href: "/teacher/analytics" },
 ];
 
-export default function TeacherSettingsScreen() {
-  const router = useRouter();
-  const handleLogout = useTeacherLogout();
+const TeacherListSection = ({
+  currentTeacherId,
+  deletingTeacherId,
+  onDeleteTeacher,
+  onRefresh,
+  statusText,
+  teachers,
+  teachersLoading,
+}: TeacherListSectionProps) => (
+  <section className={styles.card}>
+    <div className={styles.cardTitle}>Список преподавателей</div>
+    <div className={styles.rowActions}>
+      <Button variant="ghost" onClick={onRefresh} disabled={teachersLoading}>
+        Обновить список
+      </Button>
+    </div>
+    {teachersLoading ? (
+      <div className={styles.stub}>Загрузка преподавателей…</div>
+    ) : teachers.length === 0 ? (
+      <div className={styles.stub}>Преподавателей пока нет.</div>
+    ) : (
+      <div className={styles.teacherList}>
+        {teachers.map((teacher) => {
+          const isSelf = teacher.id === currentTeacherId;
+          return (
+            <div key={teacher.id} className={styles.teacherRow}>
+              <div className={styles.teacherMain}>
+                <div className={styles.teacherName}>
+                  {getTeacherDisplayName(teacher.firstName, teacher.lastName, teacher.login)}
+                </div>
+                <div className={styles.teacherLogin}>@{teacher.login}</div>
+              </div>
+              {isSelf ? (
+                <span className={styles.selfBadge}>Вы</span>
+              ) : (
+                <Button
+                  variant="ghost"
+                  onClick={() => onDeleteTeacher(teacher)}
+                  disabled={deletingTeacherId === teacher.id}
+                >
+                  Удалить
+                </Button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    )}
+    <div className={styles.status} role="status" aria-live="polite">
+      {statusText}
+    </div>
+  </section>
+);
 
-  const [currentTeacherId, setCurrentTeacherId] = useState<string>("");
-  const [login, setLogin] = useState<string>("");
+export default function TeacherSettingsScreen() {
+  const handleLogout = useTeacherLogout();
+  const queryClient = useQueryClient();
+
   const [profileForm, setProfileForm] = useState({
     firstName: "",
     lastName: "",
@@ -65,104 +144,88 @@ export default function TeacherSettingsScreen() {
   const [createState, setCreateState] = useState<AsyncState>({ state: "idle" });
   const [createdTeacherPassword, setCreatedTeacherPassword] = useState<string | null>(null);
 
-  const [teachers, setTeachers] = useState<TeacherSummary[]>([]);
-  const [teachersLoading, setTeachersLoading] = useState(false);
   const [teachersState, setTeachersState] = useState<AsyncState>({ state: "idle" });
   const [deletingTeacherId, setDeletingTeacherId] = useState<string | null>(null);
   const [teacherToDelete, setTeacherToDelete] = useState<TeacherSummary | null>(null);
-
-  const [loadingMe, setLoadingMe] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  const loadTeachers = useCallback(async () => {
-    setTeachersLoading(true);
-    try {
-      const list = await teacherApi.listTeachers();
-      setTeachers(list);
-    } catch (error) {
-      const payload = getApiErrorPayload(error);
-      setTeachersState({ state: "error", message: payload.message });
-    } finally {
-      setTeachersLoading(false);
-    }
-  }, []);
+  const meQuery = useQuery({
+    queryKey: contentQueryKeys.teacherMe(),
+    queryFn: () => teacherApi.getTeacherMe(),
+  });
+  const teachersQuery = useQuery({
+    queryKey: contentQueryKeys.teacherTeachers(),
+    queryFn: () => teacherApi.listTeachers(),
+  });
+  const currentTeacherId = meQuery.data?.user.id ?? "";
+  const login = meQuery.data?.user.login ?? "";
+  const teachers = teachersQuery.data ?? [];
+  const teachersLoading = teachersQuery.isFetching;
+  const loadingMe = meQuery.isPending || teachersQuery.isPending;
+  const loadError =
+    (meQuery.isError && !meQuery.data ? getApiErrorMessage(meQuery.error) : null) ??
+    (teachersQuery.isError && !teachersQuery.data ? getApiErrorMessage(teachersQuery.error) : null);
 
   useEffect(() => {
-    let mounted = true;
-
-    const load = async () => {
-      setLoadingMe(true);
-      setLoadError(null);
-      try {
-        const [me, teachersList] = await Promise.all([
-          teacherApi.getTeacherMe(),
-          teacherApi.listTeachers(),
-        ]);
-        if (!mounted) return;
-        setCurrentTeacherId(me.user.id ?? "");
-        setLogin(me.user.login ?? "");
-        setProfileForm({
-          firstName: me.profile?.firstName ?? "",
-          lastName: me.profile?.lastName ?? "",
-          middleName: me.profile?.middleName ?? "",
-        });
-        setTeachers(teachersList);
-      } catch (error) {
-        if (!mounted) return;
-        setLoadError(getApiErrorMessage(error));
-      } finally {
-        if (mounted) {
-          setLoadingMe(false);
-        }
-      }
-    };
-
-    void load();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    if (!meQuery.data) return;
+    setProfileForm({
+      firstName: meQuery.data.profile?.firstName ?? "",
+      lastName: meQuery.data.profile?.lastName ?? "",
+      middleName: meQuery.data.profile?.middleName ?? "",
+    });
+  }, [meQuery.data]);
 
   const displayName = useMemo(
     () => getTeacherDisplayName(profileForm.firstName, profileForm.lastName, login),
     [login, profileForm.firstName, profileForm.lastName],
   );
 
-  const profileStatusText =
-    profileState.state === "saving"
-      ? "Сохранение…"
-      : profileState.state === "saved"
-        ? profileState.message
-        : profileState.state === "error"
-          ? profileState.message
-          : "";
+  const profileStatusText = getAsyncStatusText(profileState, {
+    saving: "Сохранение…",
+  });
 
-  const passwordStatusText =
-    passwordState.state === "saving"
-      ? "Смена пароля…"
-      : passwordState.state === "saved"
-        ? passwordState.message
-        : passwordState.state === "error"
-          ? passwordState.message
-          : "";
+  const passwordStatusText = getAsyncStatusText(passwordState, {
+    saving: "Смена пароля…",
+  });
 
-  const createStatusText =
-    createState.state === "saving"
-      ? "Создание преподавателя…"
-      : createState.state === "saved"
-        ? createState.message
-        : createState.state === "error"
-          ? createState.message
-          : "";
+  const createStatusText = getAsyncStatusText(createState, {
+    saving: "Создание преподавателя…",
+  });
 
-  const teachersStatusText =
-    teachersState.state === "saving"
-      ? "Удаление преподавателя…"
-      : teachersState.state === "saved"
-        ? teachersState.message
-        : teachersState.state === "error"
-          ? teachersState.message
-          : "";
+  const teachersStatusText = getAsyncStatusText(teachersState, {
+    saving: "Удаление преподавателя…",
+  });
+
+  const syncTeacherMeCache = (data: TeacherMeResponse) => {
+    queryClient.setQueryData(contentQueryKeys.teacherMe(), data);
+    queryClient.setQueryData<TeacherSummary[]>(
+      contentQueryKeys.teacherTeachers(),
+      (previous) =>
+        previous?.map((teacher) =>
+          teacher.id === data.user.id
+            ? {
+                ...teacher,
+                login: data.user.login,
+                firstName: data.profile?.firstName ?? "",
+                lastName: data.profile?.lastName ?? "",
+                middleName: data.profile?.middleName ?? null,
+              }
+            : teacher,
+        ) ?? previous,
+    );
+  };
+
+  const refreshTeachers = async () => {
+    const result = await teachersQuery.refetch();
+    if (result.error) {
+      const payload = getApiErrorPayload(result.error);
+      setTeachersState({ state: "error", message: payload.message });
+      return false;
+    }
+    return true;
+  };
+
+  const handleInitialReload = async () => {
+    await Promise.all([meQuery.refetch(), teachersQuery.refetch()]);
+  };
 
   const handleProfileSave = async () => {
     setProfileState({ state: "saving" });
@@ -178,6 +241,7 @@ export default function TeacherSettingsScreen() {
         lastName: result.profile?.lastName ?? "",
         middleName: result.profile?.middleName ?? "",
       });
+      syncTeacherMeCache(result);
       setProfileState({ state: "saved", message: "Профиль сохранён." });
     } catch (error) {
       const payload = getApiErrorPayload(error);
@@ -235,7 +299,11 @@ export default function TeacherSettingsScreen() {
         state: "saved",
         message: `Преподаватель ${result.login} создан.`,
       });
-      await loadTeachers();
+      queryClient.setQueryData<TeacherSummary[]>(
+        contentQueryKeys.teacherTeachers(),
+        (previous) => [...(previous ?? []), result],
+      );
+      await queryClient.invalidateQueries({ queryKey: contentQueryKeys.teacherTeachers() });
     } catch (error) {
       const payload = getApiErrorPayload(error);
       setCreateState({ state: "error", message: payload.message });
@@ -261,7 +329,11 @@ export default function TeacherSettingsScreen() {
 
     try {
       await teacherApi.deleteTeacher(teacherToDelete.id);
-      setTeachers((prev) => prev.filter((item) => item.id !== teacherToDelete.id));
+      queryClient.setQueryData<TeacherSummary[]>(
+        contentQueryKeys.teacherTeachers(),
+        (previous) => previous?.filter((item) => item.id !== teacherToDelete.id) ?? [],
+      );
+      await queryClient.invalidateQueries({ queryKey: contentQueryKeys.teacherTeachers() });
       setTeachersState({
         state: "saved",
         message: `Преподаватель ${teacherToDelete.login} удалён.`,
@@ -301,7 +373,7 @@ export default function TeacherSettingsScreen() {
         <div className={styles.content}>
           <div className={styles.error}>{loadError}</div>
           <div className={styles.rowActions}>
-            <Button variant="ghost" onClick={() => router.refresh()}>
+            <Button variant="ghost" onClick={() => void handleInitialReload()}>
               Обновить
             </Button>
           </div>
@@ -480,49 +552,15 @@ export default function TeacherSettingsScreen() {
           ) : null}
         </section>
 
-        <section className={styles.card}>
-          <div className={styles.cardTitle}>Список преподавателей</div>
-          <div className={styles.rowActions}>
-            <Button variant="ghost" onClick={() => void loadTeachers()} disabled={teachersLoading}>
-              Обновить список
-            </Button>
-          </div>
-          {teachersLoading ? (
-            <div className={styles.stub}>Загрузка преподавателей…</div>
-          ) : teachers.length === 0 ? (
-            <div className={styles.stub}>Преподавателей пока нет.</div>
-          ) : (
-            <div className={styles.teacherList}>
-              {teachers.map((teacher) => {
-                const isSelf = teacher.id === currentTeacherId;
-                return (
-                  <div key={teacher.id} className={styles.teacherRow}>
-                    <div className={styles.teacherMain}>
-                      <div className={styles.teacherName}>
-                        {getTeacherDisplayName(teacher.firstName, teacher.lastName, teacher.login)}
-                      </div>
-                      <div className={styles.teacherLogin}>@{teacher.login}</div>
-                    </div>
-                    {isSelf ? (
-                      <span className={styles.selfBadge}>Вы</span>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        onClick={() => void handleDeleteTeacher(teacher)}
-                        disabled={deletingTeacherId === teacher.id}
-                      >
-                        Удалить
-                      </Button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          <div className={styles.status} role="status" aria-live="polite">
-            {teachersStatusText}
-          </div>
-        </section>
+        <TeacherListSection
+          currentTeacherId={currentTeacherId}
+          deletingTeacherId={deletingTeacherId}
+          onDeleteTeacher={(teacher) => void handleDeleteTeacher(teacher)}
+          onRefresh={() => void refreshTeachers()}
+          statusText={teachersStatusText}
+          teachers={teachers}
+          teachersLoading={teachersLoading}
+        />
         <AlertDialog
           open={Boolean(teacherToDelete)}
           onOpenChange={(open) => {
