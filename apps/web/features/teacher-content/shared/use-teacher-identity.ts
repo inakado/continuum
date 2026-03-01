@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { teacherApi } from "@/lib/api/teacher";
+import { contentQueryKeys } from "@/lib/query/keys";
 
 type IdentityState = {
   login: string | null;
@@ -9,42 +11,20 @@ type IdentityState = {
 };
 
 export const useTeacherIdentity = () => {
-  const [state, setState] = useState<IdentityState>({
-    login: null,
-    firstName: null,
-    lastName: null,
-    middleName: null,
+  const teacherMeQuery = useQuery({
+    queryKey: contentQueryKeys.teacherMe(),
+    queryFn: () => teacherApi.getTeacherMe(),
   });
 
-  useEffect(() => {
-    let mounted = true;
-
-    const load = async () => {
-      try {
-        const data = await teacherApi.getTeacherMe();
-        if (!mounted) return;
-        setState({
-          login: data.user?.login ?? null,
-          firstName: data.profile?.firstName ?? null,
-          lastName: data.profile?.lastName ?? null,
-          middleName: data.profile?.middleName ?? null,
-        });
-      } catch {
-        if (!mounted) return;
-        setState({
-          login: null,
-          firstName: null,
-          lastName: null,
-          middleName: null,
-        });
-      }
+  const state = useMemo<IdentityState>(() => {
+    const data = teacherMeQuery.data;
+    return {
+      login: data?.user?.login ?? null,
+      firstName: data?.profile?.firstName ?? null,
+      lastName: data?.profile?.lastName ?? null,
+      middleName: data?.profile?.middleName ?? null,
     };
-
-    void load();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  }, [teacherMeQuery.data]);
 
   const displayName = useMemo(() => {
     const parts = [state.lastName, state.firstName].filter(Boolean);

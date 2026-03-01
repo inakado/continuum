@@ -21,10 +21,19 @@ export const learningPhotoQueryKeys = {
 
 export const contentQueryKeys = {
   teacherMe: () => ["content", "teacher", "me"] as const,
+  teacherEvents: (params?: {
+    category?: "admin" | "learning" | "system";
+    limit?: number;
+    offset?: number;
+    entityType?: string;
+    entityId?: string;
+  }) => ["content", "teacher", "events", params ?? {}] as const,
   teacherCourses: () => ["content", "teacher", "courses"] as const,
   teacherCourse: (courseId: string) => ["content", "teacher", "course", courseId] as const,
   teacherSection: (sectionId: string) => ["content", "teacher", "section", sectionId] as const,
   teacherUnit: (unitId: string) => ["content", "teacher", "unit", unitId] as const,
+  teacherTaskStatementImagePreview: (taskId: string, assetKey: string) =>
+    ["content", "teacher", "task", taskId, "statement-image", assetKey] as const,
   teacherSectionGraph: (sectionId: string) =>
     ["content", "teacher", "section", sectionId, "graph"] as const,
   teacherStudents: (query?: string) =>

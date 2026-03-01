@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { teacherApi, type Task } from "@/lib/api/teacher";
+import { contentQueryKeys } from "@/lib/query/keys";
 import { getApiErrorMessage } from "../../shared/api-errors";
 
 const STATEMENT_IMAGE_MAX_SIZE_BYTES = 20 * 1024 * 1024;
@@ -29,14 +31,29 @@ type Params = {
 };
 
 export const useTeacherTaskStatementImage = ({ editingTask, fetchUnit }: Params) => {
+  const queryClient = useQueryClient();
   const taskStatementImageInputRef = useRef<HTMLInputElement | null>(null);
   const [taskStatementImageState, setTaskStatementImageState] = useState<TaskStatementImageState>(
     createInitialTaskStatementImageState(),
   );
 
+  const previewQuery = useQuery({
+    queryKey: contentQueryKeys.teacherTaskStatementImagePreview(
+      editingTask?.id ?? "",
+      taskStatementImageState.key ?? "",
+    ),
+    queryFn: () => teacherApi.presignTaskStatementImageView(editingTask!.id, 600),
+    enabled: Boolean(editingTask?.id && taskStatementImageState.key),
+    retry: false,
+  });
+
   const refreshTaskStatementImagePreviewUrl = useCallback(async () => {
-    if (!editingTask?.id) return null;
-    const response = await teacherApi.presignTaskStatementImageView(editingTask.id, 600);
+    if (!editingTask?.id || !taskStatementImageState.key) return null;
+    const response = await queryClient.fetchQuery({
+      queryKey: contentQueryKeys.teacherTaskStatementImagePreview(editingTask.id, taskStatementImageState.key),
+      queryFn: () => teacherApi.presignTaskStatementImageView(editingTask.id, 600),
+      staleTime: 0,
+    });
     const nextUrl = buildPdfPreviewSrc(response.url);
     setTaskStatementImageState((prev) => ({
       ...prev,
@@ -45,7 +62,7 @@ export const useTeacherTaskStatementImage = ({ editingTask, fetchUnit }: Params)
       error: null,
     }));
     return nextUrl;
-  }, [editingTask?.id]);
+  }, [editingTask?.id, queryClient, taskStatementImageState.key]);
 
   useEffect(() => {
     if (!editingTask) {
@@ -53,32 +70,64 @@ export const useTeacherTaskStatementImage = ({ editingTask, fetchUnit }: Params)
       return;
     }
 
-    let cancelled = false;
     setTaskStatementImageState(createInitialTaskStatementImageState(editingTask));
-    if (!editingTask.statementImageAssetKey) return;
-
-    void (async () => {
-      try {
-        const response = await teacherApi.presignTaskStatementImageView(editingTask.id, 600);
-        if (cancelled) return;
-        setTaskStatementImageState((prev) => ({
-          ...prev,
-          key: response.key,
-          previewUrl: buildPdfPreviewSrc(response.url),
-        }));
-      } catch {
-        if (cancelled) return;
-        setTaskStatementImageState((prev) => ({
-          ...prev,
-          previewUrl: null,
-        }));
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
   }, [editingTask?.id, editingTask?.statementImageAssetKey]);
+
+  useEffect(() => {
+    if (!previewQuery.data) return;
+    setTaskStatementImageState((prev) => ({
+      ...prev,
+      key: previewQuery.data.key,
+      previewUrl: buildPdfPreviewSrc(previewQuery.data.url),
+      error: prev.loading ? prev.error : null,
+    }));
+  }, [previewQuery.data]);
+
+  useEffect(() => {
+    if (!previewQuery.error) return;
+    setTaskStatementImageState((prev) => ({
+      ...prev,
+      previewUrl: null,
+    }));
+  }, [previewQuery.error]);
+
+  const uploadTaskStatementImageMutation = useMutation({
+    mutationFn: async ({ taskId, file }: { taskId: string; file: File }) => {
+      const presigned = await teacherApi.presignTaskStatementImageUpload(taskId, {
+        filename: file.name,
+        contentType: file.type,
+        sizeBytes: file.size,
+      });
+      const headers = new Headers(presigned.headers ?? {});
+      if (!headers.has("Content-Type")) {
+        headers.set("Content-Type", file.type);
+      }
+
+      const uploadResponse = await fetch(presigned.uploadUrl, {
+        method: "PUT",
+        headers,
+        body: file,
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error(`Не удалось загрузить файл (${uploadResponse.status}).`);
+      }
+
+      await teacherApi.applyTaskStatementImage(taskId, presigned.assetKey);
+      const view = await teacherApi.presignTaskStatementImageView(taskId, 600);
+      queryClient.setQueryData(
+        contentQueryKeys.teacherTaskStatementImagePreview(taskId, view.key),
+        view,
+      );
+      return view;
+    },
+  });
+
+  const removeTaskStatementImageMutation = useMutation({
+    mutationFn: async (taskId: string) => {
+      await teacherApi.deleteTaskStatementImage(taskId);
+    },
+  });
 
   const handleTaskStatementImageSelected = useCallback(
     async (event: ChangeEvent<HTMLInputElement>) => {
@@ -110,28 +159,10 @@ export const useTeacherTaskStatementImage = ({ editingTask, fetchUnit }: Params)
       }));
 
       try {
-        const presigned = await teacherApi.presignTaskStatementImageUpload(editingTask.id, {
-          filename: file.name,
-          contentType: file.type,
-          sizeBytes: file.size,
+        const view = await uploadTaskStatementImageMutation.mutateAsync({
+          taskId: editingTask.id,
+          file,
         });
-        const headers = new Headers(presigned.headers ?? {});
-        if (!headers.has("Content-Type")) {
-          headers.set("Content-Type", file.type);
-        }
-
-        const uploadResponse = await fetch(presigned.uploadUrl, {
-          method: "PUT",
-          headers,
-          body: file,
-        });
-
-        if (!uploadResponse.ok) {
-          throw new Error(`Не удалось загрузить файл (${uploadResponse.status}).`);
-        }
-
-        await teacherApi.applyTaskStatementImage(editingTask.id, presigned.assetKey);
-        const view = await teacherApi.presignTaskStatementImageView(editingTask.id, 600);
 
         setTaskStatementImageState((prev) => ({
           ...prev,
@@ -151,7 +182,7 @@ export const useTeacherTaskStatementImage = ({ editingTask, fetchUnit }: Params)
         }));
       }
     },
-    [editingTask, fetchUnit],
+    [editingTask, fetchUnit, uploadTaskStatementImageMutation],
   );
 
   const handleTaskStatementImageRemove = useCallback(async () => {
@@ -164,7 +195,7 @@ export const useTeacherTaskStatementImage = ({ editingTask, fetchUnit }: Params)
     }));
 
     try {
-      await teacherApi.deleteTaskStatementImage(editingTask.id);
+      await removeTaskStatementImageMutation.mutateAsync(editingTask.id);
       setTaskStatementImageState((prev) => ({
         ...prev,
         loading: false,
@@ -181,7 +212,7 @@ export const useTeacherTaskStatementImage = ({ editingTask, fetchUnit }: Params)
         error: getApiErrorMessage(err),
       }));
     }
-  }, [editingTask, fetchUnit]);
+  }, [editingTask, fetchUnit, removeTaskStatementImageMutation]);
 
   const handleTaskStatementImagePreviewError = useCallback(() => {
     void refreshTaskStatementImagePreviewUrl().catch((err) => {
@@ -200,12 +231,23 @@ export const useTeacherTaskStatementImage = ({ editingTask, fetchUnit }: Params)
         ? "Изображение сохранено."
         : "Изображение не прикреплено.";
 
-  return {
-    taskStatementImageInputRef,
-    taskStatementImageState,
-    taskStatementImageStatusText,
-    handleTaskStatementImageSelected,
-    handleTaskStatementImageRemove,
-    handleTaskStatementImagePreviewError,
-  };
+  const result = useMemo(
+    () => ({
+      taskStatementImageInputRef,
+      taskStatementImageState,
+      taskStatementImageStatusText,
+      handleTaskStatementImageSelected,
+      handleTaskStatementImageRemove,
+      handleTaskStatementImagePreviewError,
+    }),
+    [
+      handleTaskStatementImagePreviewError,
+      handleTaskStatementImageRemove,
+      handleTaskStatementImageSelected,
+      taskStatementImageState,
+      taskStatementImageStatusText,
+    ],
+  );
+
+  return result;
 };

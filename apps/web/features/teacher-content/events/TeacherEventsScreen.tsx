@@ -1,39 +1,30 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import TeacherShell from "@/components/TeacherShell";
-import { teacherApi, type EventLog } from "@/lib/api/teacher";
+import { teacherApi } from "@/lib/api/teacher";
+import { contentQueryKeys } from "@/lib/query/keys";
 import AuthRequired from "../auth/AuthRequired";
 import { useTeacherLogout } from "../auth/use-teacher-logout";
 import { getApiErrorMessage } from "../shared/api-errors";
 import styles from "./teacher-events.module.css";
 
+const TEACHER_EVENTS_QUERY = {
+  category: "admin" as const,
+  limit: 50,
+  offset: 0,
+};
+
 export default function TeacherEventsScreen() {
   const handleLogout = useTeacherLogout();
-  const [events, setEvents] = useState<EventLog[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [authRequired, setAuthRequired] = useState(false);
-
-  const fetchEvents = useCallback(async () => {
-    if (authRequired) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await teacherApi.listEvents({ category: "admin", limit: 50, offset: 0 });
-      setEvents(data.items);
-    } catch (err) {
-      const message = getApiErrorMessage(err);
-      if (message === "Перелогиньтесь") setAuthRequired(true);
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  }, [authRequired]);
-
-  useEffect(() => {
-    fetchEvents();
-  }, [fetchEvents]);
+  const eventsQuery = useQuery({
+    queryKey: contentQueryKeys.teacherEvents(TEACHER_EVENTS_QUERY),
+    queryFn: () => teacherApi.listEvents(TEACHER_EVENTS_QUERY),
+  });
+  const events = eventsQuery.data?.items ?? [];
+  const error = eventsQuery.error ? getApiErrorMessage(eventsQuery.error) : null;
+  const authRequired = error === "Перелогиньтесь";
 
   const rows = useMemo(() => {
     return events.map((event) => {
@@ -63,7 +54,7 @@ export default function TeacherEventsScreen() {
         </div>
       ) : null}
       <div className={styles.tableWrap}>
-        <table className={styles.table} aria-busy={loading}>
+        <table className={styles.table} aria-busy={eventsQuery.isLoading}>
           <thead>
             <tr className={`${styles.row} ${styles.header}`}>
               <th scope="col">Когда</th>
@@ -86,8 +77,8 @@ export default function TeacherEventsScreen() {
           </tbody>
         </table>
       </div>
-      {loading ? <div className={styles.loading}>Загрузка…</div> : null}
-      {!loading && rows.length === 0 ? (
+      {eventsQuery.isLoading ? <div className={styles.loading}>Загрузка…</div> : null}
+      {!eventsQuery.isLoading && rows.length === 0 ? (
         <div className={styles.empty}>Событий пока нет</div>
       ) : null}
     </TeacherShell>

@@ -135,6 +135,24 @@ Adjacency candidate:
 - лучшее соответствие `P9/P10`;
 - дешевле дальнейший refactor teacher content flows.
 
+Текущий прогресс:
+- `TeacherEventsScreen.tsx` переведён на `useQuery`:
+  - локальные `events/loading/error/authRequired` больше не являются primary source of truth;
+  - read-path идёт через `contentQueryKeys.teacherEvents(...)`;
+  - UX `Перелогиньтесь` сохранён.
+- `use-teacher-identity.ts` переведён на общий `teacherMe` query cache:
+  - чтение `/teacher/me` больше не идёт через локальный `useEffect`;
+  - повторное использование identity в teacher screens теперь переиспользует общий cache.
+- `use-teacher-task-statement-image.ts` переведён на query/mutation model:
+  - preview read-path идёт через `useQuery`;
+  - upload/delete идут через `useMutation`;
+  - `fetchUnit()` оставлен как совместимый sync-point с editor state родителя, чтобы не менять поведение `TeacherUnitDetailScreen` в этой волне.
+- safety-net добавлен:
+  - `apps/web/features/teacher-content/events/TeacherEventsScreen.test.tsx`
+  - `apps/web/features/teacher-content/shared/use-teacher-identity.test.tsx`
+  - `apps/web/features/teacher-content/units/hooks/use-teacher-task-statement-image.test.tsx`
+- `TeacherSectionGraphPanel.tsx` по итогам этого шага остаётся `adjacency candidate`, а не обязательным блокером Wave 2.
+
 ### Wave 3 — Physical decomposition больших модулей
 
 Цель:
