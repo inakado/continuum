@@ -1165,6 +1165,15 @@
       - polling job status, task-asset resolve with retries, preview resolve и compile-error formatting вынесены в отдельные helpers (`pollLatexCompileJob`, `resolveTaskSolutionAfterRefresh`, `resolveTaskSolutionPreview`, `getCompileErrorMessage`);
       - complexity warning снят без изменения fallback semantics (`applyLatexCompileJob`) и error-modal UX;
       - проверка: targeted `vitest` suite, `web typecheck`, полный `pnpm --filter web test` и `pnpm --filter web lint` проходят; остаток `web` warnings сократился до `2`.
+  - завершён двенадцатый цикл `targeted tests -> refactor -> targeted verification` для:
+    - `apps/web/features/student-content/units/StudentUnitDetailScreen.tsx`;
+    - результат:
+      - добавлен targeted safety-net `StudentUnitDetailScreen.test.tsx` для `404 -> StudentNotFound`, `409 UNIT_LOCKED -> locked gate`, `tasks -> theory`, `credited non-photo flow` и `photo task upload/submit` сценариев;
+      - read-path уже был на `useQuery`, поэтому refactor сфокусирован на `P1/P10`: экран разрезан на локальные view-components (`StudentUnitProgressCard`, `StudentUnitTasksPanel`, `StudentUnitTabContent`, `StudentUnitLockedGate`) без изменения существующего data-flow;
+      - derived state и orchestration вынесены в `useStudentUnitScreenState` с дополнительным разделением на query/tabs/task helpers, чтобы root screen остался composition shell;
+      - task action branching вынесен в отдельные controls (`StudentTaskAttemptControls`, `StudentTaskProgressControls`) без изменения UI semantics для numeric/photo/credited flows;
+      - complexity warning снят, внешний contract экрана и соседних hooks/components сохранён;
+      - проверка: targeted `vitest` suite, полный `pnpm --filter web lint` и `pnpm --filter web typecheck` проходят; остаток `web` warnings сократился до `1`.
 
 - Complexity triage по `ARCHITECTURE-PRINCIPLES.md`:
   - критерии обязательного refactor:
@@ -1176,7 +1185,7 @@
     - инфраструктурные или UI-helper функции, где complexity локальна и не размывает архитектурные границы.
 
 - Tier A — обязательный architectural refactor:
-  - `apps/web/features/student-content/units/StudentUnitDetailScreen.tsx`
+  - `apps/web/features/student-content/units/StudentUnitDetailScreen.tsx` (`Implemented`)
   - `apps/web/features/teacher-content/units/TeacherUnitDetailScreen.tsx`
   - `apps/web/features/teacher-dashboard/TeacherDashboardScreen.tsx` (`Implemented`)
   - `apps/web/features/teacher-students/TeacherStudentProfilePanel.tsx` (`Implemented`)
@@ -1225,7 +1234,6 @@
     - `learning-attempts-write.service.ts`
   - затем тяжёлые shells:
     - `TeacherUnitDetailScreen.tsx`
-    - `StudentUnitDetailScreen.tsx`
     - `use-teacher-unit-latex-compile.ts`
     - `learning-availability.service.ts`
 
