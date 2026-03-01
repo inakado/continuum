@@ -1349,3 +1349,58 @@
 - Cross-cutting дубли существенно сокращены.
 - Quality-бюджеты автоматизированы в CI и отражены в SoR.
 - Lint-контур ужесточён после обнуления warning’ов (strict merge-gate).
+
+## Documentation Governance Cleanup (2026-03-01)
+
+- Статус: `Implemented`
+
+- Что очищено:
+  - `AGENTS.md` сокращён до agent contract:
+    - стартовая навигация;
+    - source-of-truth порядок;
+    - границы документов;
+    - обязательная сверка с `documents/ARCHITECTURE-PRINCIPLES.md`;
+    - минимальные docs hygiene rules;
+    - agent install/runtime constraints.
+  - `documents/DOCS-INDEX.md` сведён к чистой карте документов и каталогов без status-модели и governance prose.
+  - `documents/PLANS.md` стал единственным meta-документом про lifecycle execution plans и backlog taxonomy.
+  - `documents/ARCHITECTURE-PRINCIPLES.md` очищен до стабильных принципов, guardrails и approved stack без rollout/backlog/tooling-roadmap drift.
+  - `documents/FRONTEND.md` очищен до текущей frontend architecture / server-state / navigation модели без phase/wave history.
+  - `documents/QUALITY_SCORE.md` очищен до методики оценки без dated snapshots и placeholder backlog.
+  - из `documents/CONTENT.md`, `documents/LEARNING.md`, `documents/SECURITY.md`, `documents/DESIGN.md`, `documents/PRODUCT_SENSE.md` убраны backlog-style planned sections там, где они не соответствовали назначению SoR.
+
+- Новая taxonomy planned items:
+  - active initiative progress / decision log / task-specific troubleshooting:
+    - только `documents/exec-plans/active/*`;
+  - completed history:
+    - только `documents/exec-plans/completed/*`;
+  - неактивные future items, не являющиеся техдолгом:
+    - `documents/exec-plans/deferred-roadmap.md`;
+  - техдолг и deferred engineering work:
+    - `documents/exec-plans/tech-debt-tracker.md`.
+
+- Drift-patterns, которые теперь запрещены:
+  - `Implemented/Planned` в meta/runbook/index документах:
+    - `AGENTS.md`
+    - `documents/DOCS-INDEX.md`
+    - `documents/PLANS.md`
+    - `documents/DEVELOPMENT.md`
+  - phase/wave history и rollout logs в `documents/ARCHITECTURE-PRINCIPLES.md` и `documents/FRONTEND.md`;
+  - generic `Planned / TODO` backlog-sections в SoR-доках, если это не stable future-state policy;
+  - document-boundary policy внутри `documents/DOCS-INDEX.md`.
+
+- Docs governance automation:
+  - `scripts/docs/check-status.mjs` переписан под новую модель и теперь валидирует:
+    - краткий agent contract в `AGENTS.md`;
+    - чистый индекс в `documents/DOCS-INDEX.md`;
+    - lifecycle taxonomy в `documents/PLANS.md`;
+    - отсутствие rollout/backlog drift в `documents/ARCHITECTURE-PRINCIPLES.md` и `documents/FRONTEND.md`;
+    - отсутствие generic planning-sections в очищенных SoR-доках.
+
+- Baseline verification перед cleanup:
+  - `pnpm docs:check` — passed;
+  - `pnpm lint` — passed;
+  - `pnpm typecheck` — passed;
+  - `pnpm test` — passed;
+  - `docker compose exec -T api sh -lc "cd /app/apps/api && pnpm test:integration"` — passed;
+  - `docker compose exec -T api sh -lc "cd /app/apps/api && pnpm smoke:auth"` — passed.

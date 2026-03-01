@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { EventCategory, Role } from '@prisma/client';
 import { EventsLogService } from '../events/events-log.service';
 
 @Injectable()
 export class LearningAuditLogService {
-  constructor(private readonly eventsLogService: EventsLogService) {}
+  constructor(@Inject(EventsLogService) private readonly eventsLogService: EventsLogService) {}
 
   async appendTeacherAdminEvent(input: {
     eventType: string;

@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   HttpCode,
+  Inject,
   Param,
   Patch,
   Post,
@@ -28,10 +29,15 @@ import { UnitPdfPolicyService } from './unit-pdf-policy.service';
 @Roles(Role.teacher)
 export class TeacherUnitsController {
   constructor(
+    @Inject(ContentService)
     private readonly contentService: ContentService,
+    @Inject(EventsLogService)
     private readonly eventsLogService: EventsLogService,
+    @Inject(ObjectStorageService)
     private readonly objectStorageService: ObjectStorageService,
+    @Inject(UnitPdfPolicyService)
     private readonly unitPdfPolicyService: UnitPdfPolicyService,
+    @Inject(LearningRecomputeService)
     private readonly learningRecomputeService: LearningRecomputeService,
   ) {}
 

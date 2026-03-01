@@ -9,9 +9,9 @@
 - Unit availability + progress snapshots
 - Overrides (open unit)
 - Notifications (teacher)
-- Photo tasks (manual review) — частично
+- Photo tasks (manual review)
 
-## Core invariants (`Implemented`)
+## Core Invariants (`Implemented`)
 
 ### Auto-check task types
 
@@ -28,94 +28,88 @@
   - статус задачи становится `credited_without_progress`
   - для required задачи выставляется `required_skipped=true`
   - создаётся notification для lead teacher (`NotificationType.required_task_skipped`)
-  - пишутся domain events `TaskAutoCreditedWithoutProgress` (+ `RequiredTaskSkippedFlagSet` для required)
-- Если задача заблокирована (`locked_until > now`) — Attempt **не создаётся**.
+  - пишутся domain events `TaskAutoCreditedWithoutProgress` и `RequiredTaskSkippedFlagSet` для required-задачи.
+- Если задача заблокирована (`locked_until > now`) — Attempt не создаётся.
 
 ### Task revision switching
 
-- `StudentTaskState.activeRevisionId` должен следовать за `Task.activeRevisionId` для “не засчитанных” задач.
-- Если active revision изменилась, а задача ещё не в credited статусе, state сбрасывается в `not_started` и счётчики обнуляются.
+- `StudentTaskState.activeRevisionId` должен следовать за `Task.activeRevisionId` для не засчитанных задач.
+- Если active revision изменилась, а задача ещё не в credited статусе, state сбрасывается в `not_started`, а счётчики обнуляются.
 
 ### Task navigation inside unit
 
-- Внутри открытого student unit задачи доступны для выбора в любом порядке (нет последовательного UI-lock по индексу задачи).
-- Ограничения остаются только доменные: unit-level availability (`locked/available/in_progress/completed`) и per-task блокировки по 3+3 (`locked_until`).
+- Внутри открытого student unit задачи доступны для выбора в любом порядке.
+- Ограничения остаются доменные: unit-level availability и per-task блокировки по 3+3.
 
-## Progress & availability (`Implemented`)
+## Progress & Availability (`Implemented`)
 
 ### Snapshots model
 
 - Availability считается на уровне section:
-  - загружаются published units/edges/tasks,
-  - используются `StudentTaskState.status` и факт attempts,
+  - загружаются published units/edges/tasks;
+  - используются `StudentTaskState.status` и факт attempts;
   - считается снапшот по каждому unit (`locked|available|in_progress|completed` + counters/percents).
 - Снапшоты persisted в `student_unit_state` через upsert.
 - Пересчёт вызывается:
-  - в student views (например graph, unit view),
-  - перед/внутри submit attempt (в транзакции),
-  - после teacher actions (override/credit/unblock),
-  - после publish/unpublish и graph update (через `LearningRecomputeService`).
+  - в student views;
+  - перед или внутри submit attempt;
+  - после teacher actions;
+  - после publish/unpublish и graph update через `LearningRecomputeService`.
 
 ### Counted vs solved
 
-- `counted` статусы (completion): `correct | accepted | credited_without_progress | teacher_credited`
-- `solved` статусы (solved%): `correct | accepted | teacher_credited`
+- `counted` статусы: `correct | accepted | credited_without_progress | teacher_credited`
+- `solved` статусы: `correct | accepted | teacher_credited`
 
 ### Completion gate
 
 - Required gate: все required задачи должны быть counted.
 - Optional gate: `optionalCountedTasks >= effectiveMinOptionalCountedTasksToComplete`.
-- Guard против “нулевого гейта”: если в unit нет required задач и `minOptionalCountedTasksToComplete=0`, то effective threshold становится “все optional задачи”.
+- Guard против “нулевого гейта”: если в unit нет required задач и `minOptionalCountedTasksToComplete=0`, effective threshold становится “все optional задачи”.
 
 ### Unit status
 
-- `completed` если completion gate выполнен.
+- `completed`, если completion gate выполнен.
 - иначе:
-  - `available` если все prereq units `completed` или есть override
-  - `in_progress` если unit открыт и есть хотя бы 1 attempt в задачах юнита
-  - `locked` иначе
+  - `available`, если все prereq units completed или есть override;
+  - `in_progress`, если unit открыт и есть хотя бы 1 attempt в задачах юнита;
+  - `locked` иначе.
 
-## Teacher actions (`Implemented`)
+## Teacher Actions (`Implemented`)
 
-- Override open unit (навсегда): создаёт `unit_unlock_overrides` и пересчитывает section availability.
-- Teacher credit task: переводит задачу в `teacher_credited` (counted+solved) и пересчитывает availability.
-- Teacher unblock task: снимает `locked_until` (если было) и пересчитывает availability.
+- Override open unit: создаёт `unit_unlock_overrides` и пересчитывает section availability.
+- Teacher credit task: переводит задачу в `teacher_credited` и пересчитывает availability.
+- Teacher unblock task: снимает `locked_until` и пересчитывает availability.
 
 ## Notifications (`Implemented`)
 
 - В БД есть `NotificationType`:
-  - `task_locked`, `required_task_skipped` — реально используются сейчас.
-  - `photo_reviewed`, `unit_override_opened` — есть в enum, но пока не эмитятся кодом.
+  - `task_locked`, `required_task_skipped` — реально используются сейчас;
+  - `photo_reviewed`, `unit_override_opened` — есть в enum.
 
-## Photo tasks (`Implemented` частично)
+## Photo Tasks (`Implemented` частично)
 
 - Student:
-  - presign upload + submit photo попытки
-  - list submissions + presign view
+  - presign upload + submit photo попытки;
+  - list submissions + presign view.
 - Teacher:
-  - inbox + detail
-  - accept/reject (domain events `PhotoAttemptAccepted|Rejected`)
+  - inbox + detail;
+  - accept/reject с domain events `PhotoAttemptAccepted|Rejected`.
 
-## Tech debt / Planned
-
-- Нормализация event payload: сейчас местами дублируются snake_case + camelCase ключи.
-- Review: writes-on-read для `student_unit_state` (решить, оставляем или эволюционируем).
-- Notification coverage для photo review и unit override (если нужно по продукту).
-
-## Source links
+## Source Links
 
 - Availability snapshots:
   - `apps/api/src/learning/learning-availability.service.ts`
   - `apps/api/src/learning/learning-recompute.service.ts`
 - Attempts + teacher actions:
-  - `apps/api/src/learning/learning.service.ts` (facade/orchestration)
+  - `apps/api/src/learning/learning.service.ts`
   - `apps/api/src/learning/learning-attempts-write.service.ts`
   - `apps/api/src/learning/learning-teacher-actions.service.ts`
   - `apps/api/src/learning/learning-audit-log.service.ts`
 - Photo tasks:
-  - `apps/api/src/learning/photo-task.service.ts` (facade)
+  - `apps/api/src/learning/photo-task.service.ts`
   - `apps/api/src/learning/photo-task-read.service.ts`
   - `apps/api/src/learning/photo-task-review-write.service.ts`
   - `apps/api/src/learning/photo-task-policy.service.ts`
 - Prisma models:
-  - `apps/api/prisma/schema.prisma` (`StudentTaskState`, `StudentUnitState`, `Attempt`, `UnitUnlockOverride`, `PhotoTaskSubmission`, `Notification`)
+  - `apps/api/prisma/schema.prisma`

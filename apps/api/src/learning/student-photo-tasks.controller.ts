@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Inject, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import {
   StudentPhotoPresignUploadRequestSchema,
   StudentPhotoPresignViewQuerySchema,
@@ -24,7 +24,7 @@ import { PhotoTaskService } from './photo-task.service';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.student)
 export class StudentPhotoTasksController {
-  constructor(private readonly photoTaskService: PhotoTaskService) {}
+  constructor(@Inject(PhotoTaskService) private readonly photoTaskService: PhotoTaskService) {}
 
   @Post(':taskId/photo/presign-upload')
   @HttpCode(200)

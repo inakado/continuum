@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   HttpCode,
+  Inject,
   NotFoundException,
   Param,
   Patch,
@@ -30,10 +31,15 @@ import { ObjectStorageService } from '../infra/storage/object-storage.service';
 @Roles(Role.teacher)
 export class TeacherTasksController {
   constructor(
+    @Inject(ContentService)
     private readonly contentService: ContentService,
+    @Inject(EventsLogService)
     private readonly eventsLogService: EventsLogService,
+    @Inject(LearningRecomputeService)
     private readonly learningRecomputeService: LearningRecomputeService,
+    @Inject(ObjectStorageService)
     private readonly objectStorageService: ObjectStorageService,
+    @Inject(TaskStatementImagePolicyService)
     private readonly taskStatementImagePolicyService: TaskStatementImagePolicyService,
   ) {}
 

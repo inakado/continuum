@@ -1,10 +1,10 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import {
-  type StudentPhotoPresignViewQuery,
-  type TeacherPhotoInboxQuery,
-  type TeacherPhotoPresignViewQuery,
-  type TeacherPhotoQueueQuery,
-  type TeacherPhotoSubmissionDetailQuery,
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import type {
+  StudentPhotoPresignViewQuery,
+  TeacherPhotoInboxQuery,
+  TeacherPhotoPresignViewQuery,
+  TeacherPhotoQueueQuery,
+  TeacherPhotoSubmissionDetailQuery,
 } from '@continuum/shared';
 import {
   ContentStatus,
@@ -45,10 +45,15 @@ type PublishedPhotoTask = {
 @Injectable()
 export class PhotoTaskReadService {
   constructor(
+    @Inject(PrismaService)
     private readonly prisma: PrismaService,
+    @Inject(StudentsService)
     private readonly studentsService: StudentsService,
+    @Inject(LearningAvailabilityService)
     private readonly learningAvailabilityService: LearningAvailabilityService,
+    @Inject(ObjectStorageService)
     private readonly objectStorageService: ObjectStorageService,
+    @Inject(PhotoTaskPolicyService)
     private readonly photoTaskPolicyService: PhotoTaskPolicyService,
   ) {}
 

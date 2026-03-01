@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -22,7 +23,9 @@ type UnitAttachment = { id: string; name: string; urlOrKey?: string | null };
 @Injectable()
 export class ContentWriteService {
   constructor(
+    @Inject(PrismaService)
     private readonly prisma: PrismaService,
+    @Inject(TaskRevisionPayloadService)
     private readonly taskRevisionPayloadService: TaskRevisionPayloadService,
   ) {}
 

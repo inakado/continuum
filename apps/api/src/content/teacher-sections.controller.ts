@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   HttpCode,
+  Inject,
   Param,
   Patch,
   Post,
@@ -24,7 +25,9 @@ import { type CreateSectionDto, type UpdateSectionDto } from './dto/section.dto'
 @Roles(Role.teacher)
 export class TeacherSectionsController {
   constructor(
+    @Inject(ContentService)
     private readonly contentService: ContentService,
+    @Inject(EventsLogService)
     private readonly eventsLogService: EventsLogService,
   ) {}
 

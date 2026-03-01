@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ContentStatus, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { LearningAvailabilityService } from './learning-availability.service';
@@ -6,7 +6,9 @@ import { LearningAvailabilityService } from './learning-availability.service';
 @Injectable()
 export class LearningRecomputeService {
   constructor(
+    @Inject(PrismaService)
     private readonly prisma: PrismaService,
+    @Inject(LearningAvailabilityService)
     private readonly learningAvailabilityService: LearningAvailabilityService,
   ) {}
 

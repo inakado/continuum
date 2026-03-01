@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { type EventCategory, type Prisma } from '@prisma/client';
+import { Inject, Injectable } from '@nestjs/common';
+import type { EventCategory, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 type AppendEventInput = {
@@ -22,7 +22,7 @@ type ListEventsParams = {
 
 @Injectable()
 export class EventsLogService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async append(input: AppendEventInput) {
     const payload = {

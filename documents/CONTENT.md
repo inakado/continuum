@@ -10,7 +10,7 @@
 - task revisions (active revision)
 - LaTeX → PDF pipeline (unit theory/method, task solution)
 
-## Visibility & publishing (`Implemented`)
+## Visibility & Publishing (`Implemented`)
 
 - Student видит только `published` контент по цепочке:
   - `Course.status=published`
@@ -27,35 +27,35 @@
 
 - **Симптом:** `POST /api/teacher/units/<unitId>/publish` отвечает `409 Conflict`.
 - **Причина:** в `ContentService.publishUnit` срабатывает parent-gate — unit нельзя publish, пока parent section в `draft` (`UNIT_PARENT_SECTION_DRAFT`).
-- **Фикс:** сначала publish для parent section (и parent course при необходимости), затем повторить publish unit.
+- **Фикс:** сначала publish parent section и parent course, затем повторить publish unit.
 - **Проверка:** publish unit возвращает `200`, `unit.status = published`.
 
-## Content entities (`Implemented`)
+## Content Entities (`Implemented`)
 
-- `Course`: содержит `lockDurationMinutes` (используется в Learning для таймера блокировки 3+3).
+- `Course`: содержит `lockDurationMinutes`.
 - `Section`: внутри course, хранит `description`, сортировку и unit graph.
 - `Unit`:
   - контент: `theoryRichLatex`, `methodRichLatex`, `videosJson`, `attachmentsJson`
   - PDF keys: `theoryPdfAssetKey`, `methodPdfAssetKey`
   - completion gate: `minOptionalCountedTasksToComplete`
 - `Task`:
-  - `isRequired` (required gate в Learning)
+  - `isRequired`
   - `activeRevisionId` указывает на `TaskRevision`
 - `TaskRevision`:
   - statement/solution поля
   - auto-check данные: numeric parts / choices / correct choices
 
-## Unit graph (`Implemented`)
+## Unit Graph (`Implemented`)
 
 - Directed edges: `UnitGraphEdge` (A → B означает “A prerequisite для B”).
 - Layout: `UnitGraphLayout` (x/y для UI).
-- В teacher graph node payload приходит `createdAt` (используется UI для меты узла).
+- В teacher graph node payload приходит `createdAt`.
 - Валидации на update:
   - self-loop запрещён
   - duplicate edges запрещены
   - cycles запрещены
 
-## LaTeX → PDF pipeline (`Implemented`)
+## LaTeX → PDF Pipeline (`Implemented`)
 
 ### Compile (teacher)
 
@@ -65,39 +65,34 @@
 ### Job status / apply
 
 - `GET /teacher/latex/jobs/:jobId`:
-  - если `succeeded`, возвращает presigned URL на PDF.
+  - если `succeeded`, возвращает presigned URL на PDF;
   - если `failed`, возвращает `error` с полями:
-    - `code`, `message` (`Implemented`)
-    - `log` (tail compile log, лимит задаётся `LATEX_COMPILE_LOG_TAIL_BYTES`, default 256KB) (`Implemented`)
-    - `logTruncated` (признак, что лог обрезан до tail) (`Implemented`)
-    - `logLimitBytes` (фактический server-side лимит tail-лога) (`Implemented`)
-    - `logSnippet` (legacy-совместимость) (`Implemented`)
+    - `code`, `message`
+    - `log`
+    - `logTruncated`
+    - `logLimitBytes`
+    - `logSnippet` для legacy-совместимости.
 - `POST /teacher/latex/jobs/:jobId/apply`:
   - для unit → пишет `Unit.theoryPdfAssetKey|methodPdfAssetKey`
   - для task solution → пишет `TaskRevision.solutionPdfAssetKey`
-- Worker также делает auto-apply через internal endpoint:
-  - `POST /internal/latex/jobs/:jobId/apply` (auth: `x-internal-token`)
+- Worker делает auto-apply через internal endpoint:
+  - `POST /internal/latex/jobs/:jobId/apply` (`x-internal-token`).
 
 ### Stale protection
 
-- Apply защищается от “stale” ключей (`shouldApplyIncomingPdfKey`): старый результат не должен перезатереть новый.
+- Apply защищается от stale-ключей (`shouldApplyIncomingPdfKey`): старый результат не должен перезатереть новый.
 
 ### Presigned PDF preview (web) (`Implemented`)
 
 - Presigned URL из `GET /teacher/latex/jobs/:jobId` и `.../pdf-presign` рендерятся во фронтенде через `PdfCanvasPreview`.
-- Загрузка PDF по storage URL выполняется без credentials (`withCredentials = false`), чтобы не требовать `Access-Control-Allow-Credentials: true` на S3/MinIO origin.
+- Загрузка PDF по storage URL выполняется без credentials (`withCredentials = false`).
 
-## Planned / TODO
-
-- Унификация assets model (сейчас ключи в доменных сущностях; “entity_assets” пока planned).
-- Документирование формата assetKey (timestamp + randomness) как контракта, если начнём опираться на него вне `shouldApplyIncomingPdfKey`.
-
-## Source links
+## Source Links
 
 - Prisma models:
   - `apps/api/prisma/schema.prisma`
 - Content CRUD + graph:
-  - `apps/api/src/content/content.service.ts` (facade)
+  - `apps/api/src/content/content.service.ts`
   - `apps/api/src/content/content-write.service.ts`
   - `apps/api/src/content/content-graph.service.ts`
   - `apps/api/src/content/task-revision-payload.service.ts`

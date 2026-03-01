@@ -4,7 +4,7 @@
 
 ## Назначение
 
-Высокоуровневые продуктовые и UX-принципы, влияющие на системные решения.
+Высокоуровневые продуктовые и UX-инварианты, влияющие на системные решения.
 
 ## Invariants (`Implemented`, verified in code)
 
@@ -19,32 +19,26 @@
 
 ### Unpublish = “объекта нет”
 
-- При `unpublish` объект пропадает из student UI и не должен учитываться в прогрессе/метриках (история attempts/events остаётся).
+- При `unpublish` объект пропадает из student UI и не должен учитываться в прогрессе и метриках.
 
 ### Два режима проверки задач
 
-- Auto-check (numeric/single_choice/multi_choice).
-- Manual review (photo) — решения принимает lead teacher студента.
+- Auto-check (`numeric`, `single_choice`, `multi_choice`).
+- Manual review (`photo`) — решение принимает lead teacher студента.
 
 ### Прогресс: две метрики
 
-- `completionPercent` и `solvedPercent` — разные метрики и должны отображаться/интерпретироваться отдельно (см. Learning availability).
+- `completionPercent` и `solvedPercent` — разные метрики и должны отображаться и интерпретироваться отдельно.
 
-## Planned / TODO
-
-- Явные UX-джорни teacher/student (happy path + error/empty).
-- Принципы “что считается регрессией” на уровне UI/UX.
-- Визуальные и interaction principles (когда стабилизируем дизайн-систему).
-
-## Source links
+## Source Links
 
 - Published-only queries:
-  - `apps/api/src/content/content.service.ts` (facade)
+  - `apps/api/src/content/content.service.ts`
   - `apps/api/src/content/content-write.service.ts`
-  - `apps/api/src/learning/learning.service.ts` (facade)
+  - `apps/api/src/learning/learning.service.ts`
   - `apps/api/src/learning/learning-attempts-write.service.ts`
 - Photo review policy:
-  - `apps/api/src/learning/photo-task.service.ts` (facade)
+  - `apps/api/src/learning/photo-task.service.ts`
   - `apps/api/src/learning/photo-task-read.service.ts`
   - `apps/api/src/learning/photo-task-review-write.service.ts`
 - Unit progress snapshots:

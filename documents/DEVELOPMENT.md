@@ -1,29 +1,16 @@
 # DEVELOPMENT.md
 
 Назначение: operational runbook для dev/build/test/deploy и повторяемый troubleshooting.
+Краткие правила выбора документов см. `AGENTS.md` и `documents/PLANS.md`.
 
-## Границы документа (`Implemented`)
-
-- Здесь хранятся только команды, prerequisites, environment rules, smoke-проверки и troubleshooting.
-- Архитектурные принципы и quality policy живут в [ARCHITECTURE-PRINCIPLES.md](./ARCHITECTURE-PRINCIPLES.md).
-- Доменная логика и бизнес-инварианты живут в профильных SoR-доках.
-- Планы внедрения, журнал выполнения и история рефакторинга живут только в execution plans.
-
-## Статус-модель (`Implemented`)
-
-- `Implemented`:
-  - команда, ограничение или runbook подтверждены текущим кодом, scripts или compose-конфигурацией.
-- `Planned`:
-  - в этом документе не используется как backlog; если нужен operational change, он сначала описывается в execution plan, а сюда попадает только после внедрения.
-
-## Prerequisites / Env (`Implemented`)
+## Prerequisites / Env
 
 - `API_PORT` — default `3000`
 - `NEXT_PUBLIC_API_BASE_URL` — default `http://localhost:3000`
 - Для backend/Prisma-команд должны быть доступны `DATABASE_URL` или `POSTGRES_*`
 - В агентской sandbox-сессии команда `CI=true pnpm install --frozen-lockfile` не запускается; её должен выполнять пользователь локально
 
-## Dev Runbook (`Implemented`)
+## Dev Runbook
 
 ### Базовый локальный контур
 
@@ -45,7 +32,7 @@
 2. Проверить, что web binary доступны:
    - `ls -l apps/web/node_modules/.bin/next apps/web/node_modules/.bin/tsc`
 
-## Verification Commands (`Implemented`)
+## Verification Commands
 
 ### Build
 
@@ -103,7 +90,7 @@ Auth smoke проверяет:
 - Точечный прогон одного suite:
   - `docker compose exec -T api sh -lc "cd /app/apps/api && pnpm exec vitest run --config vitest.integration.config.ts test/integration/<suite>.integration.test.ts"`
 
-## Prisma / Migrations (`Implemented`)
+## Prisma / Migrations
 
 1. Создать миграцию в контейнере:
    - `docker compose exec -T api sh -lc "DATABASE_URL=postgresql://continuum:continuum@postgres:5432/continuum pnpm --filter @continuum/api exec prisma migrate dev --name <name>"`
@@ -112,7 +99,7 @@ Auth smoke проверяет:
 3. Production manual migration:
    - `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`
 
-## Operational Invariants (`Implemented`)
+## Operational Invariants
 
 ### Backend build/typecheck only in Docker
 
@@ -132,7 +119,7 @@ Auth smoke проверяет:
 - После изменения `package.json` lockfile должен быть актуальным.
 - В репозитории включён `recursive-install=true`, чтобы `pnpm install` ставил все workspace-пакеты.
 
-## Troubleshooting (`Implemented`)
+## Troubleshooting
 
 Границы раздела:
 - здесь фиксируются только повторяемые run/build/test/deploy проблемы;

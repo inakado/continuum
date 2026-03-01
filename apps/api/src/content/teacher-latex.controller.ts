@@ -6,6 +6,7 @@ import {
   ForbiddenException,
   Get,
   HttpCode,
+  Inject,
   NotFoundException,
   Param,
   Post,
@@ -14,7 +15,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { EventCategory, Role } from '@prisma/client';
-import { type Job } from 'bullmq';
+import type { Job } from 'bullmq';
 import { type AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -54,10 +55,15 @@ type TaskSolutionCompileRequestBody = {
 @Roles(Role.teacher)
 export class TeacherLatexController {
   constructor(
+    @Inject(ContentService)
     private readonly contentService: ContentService,
+    @Inject(LatexCompileQueueService)
     private readonly queueService: LatexCompileQueueService,
+    @Inject(ObjectStorageService)
     private readonly objectStorageService: ObjectStorageService,
+    @Inject(UnitPdfPolicyService)
     private readonly unitPdfPolicyService: UnitPdfPolicyService,
+    @Inject(EventsLogService)
     private readonly eventsLogService: EventsLogService,
   ) {}
 

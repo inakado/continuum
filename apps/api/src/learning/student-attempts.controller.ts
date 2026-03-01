@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Inject, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { StudentAttemptRequestSchema, type StudentAttemptRequest } from '@continuum/shared';
 import { Role } from '@prisma/client';
 import { type AuthRequest } from '../auth/auth.request';
@@ -12,7 +12,7 @@ import { LearningService } from './learning.service';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.student)
 export class StudentAttemptsController {
-  constructor(private readonly learningService: LearningService) {}
+  constructor(@Inject(LearningService) private readonly learningService: LearningService) {}
 
   @Post('tasks/:taskId/attempts')
   submit(

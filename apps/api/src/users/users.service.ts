@@ -1,5 +1,5 @@
-import { ConflictException, Injectable } from '@nestjs/common';
-import { type Role, type User } from '@prisma/client';
+import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import type { Role, User } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { type CreateUserInput, type PublicUser } from './users.types';
 
@@ -13,7 +13,7 @@ const authSelect = {
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async findByLogin(login: string) {
     return this.prisma.user.findUnique({

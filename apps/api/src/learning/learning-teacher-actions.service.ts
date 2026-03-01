@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -13,9 +14,13 @@ import { LearningAvailabilityService } from './learning-availability.service';
 @Injectable()
 export class LearningTeacherActionsService {
   constructor(
+    @Inject(PrismaService)
     private readonly prisma: PrismaService,
+    @Inject(LearningAuditLogService)
     private readonly learningAuditLogService: LearningAuditLogService,
+    @Inject(LearningAvailabilityService)
     private readonly learningAvailabilityService: LearningAvailabilityService,
+    @Inject(StudentsService)
     private readonly studentsService: StudentsService,
   ) {}
 

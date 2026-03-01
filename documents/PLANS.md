@@ -1,40 +1,85 @@
 # PLANS
 
-Статус: `Scaffold`.
+Назначение: правила lifecycle для execution plans и связанных backlog-хранилищ.
 
-## Назначение
+## Что считается execution plan
 
-Правила для execution plans как first-class артефактов.
+Execution plan — это first-class артефакт для сложной инициативы, который описывает:
+- цель и контекст;
+- scope;
+- шаги реализации;
+- decision log;
+- риски и rollback;
+- критерии завершения;
+- task-specific troubleshooting.
 
-## Implemented
+## Когда нужен active plan
 
-## Структура
+Active execution plan обязателен, если изменение затрагивает хотя бы одно из условий:
+- несколько доменов или модулей;
+- миграции БД и backfill;
+- изменение доменных инвариантов;
+- существенные изменения API/transport контрактов;
+- крупный refactor, который выполняется волнами.
 
-- Активные: `documents/exec-plans/active/`
-- Завершенные: `documents/exec-plans/completed/`
-- Техдолг: `documents/exec-plans/tech-debt-tracker.md`
+## Lifecycle
 
-## Migrated plans (legacy → exec-plans)
+### Active
 
-- Исторические “vertical slice” планы перенесены в `documents/exec-plans/completed/`.
-- Старые файлы в `documents/` не должны содержать execution plans (иначе карта расползается).
+- Хранилище: `documents/exec-plans/active/`
+- Содержит:
+  - текущую цель;
+  - progress logs;
+  - decision log;
+  - rollout notes;
+  - task-specific troubleshooting.
 
-## Когда план обязателен
+### Completed
 
-- Изменение нескольких доменов/модулей.
-- Миграции БД и backfill.
-- Изменение доменных инвариантов.
-- Существенные изменения API контрактов.
+- Хранилище: `documents/exec-plans/completed/`
+- Содержит:
+  - завершённые инициативы;
+  - исторический контекст;
+  - финальные решения и итоги.
 
-## Минимум для плана
+### Deferred roadmap
 
-- Цель и контекст.
-- Объем (in/out of scope).
-- Шаги реализации.
-- Decision log.
-- Риски и откат.
-- Критерии завершения.
+- Файл: `documents/exec-plans/deferred-roadmap.md`
+- Содержит:
+  - неактивные future items;
+  - направления, к которым хотим вернуться позже;
+  - backlog, который не является техдолгом.
 
-## Planned
+### Tech debt tracker
 
-- CI-валидация: активные/завершенные планы индексированы и не содержат ссылок на удалённые legacy файлы.
+- Файл: `documents/exec-plans/tech-debt-tracker.md`
+- Содержит:
+  - баги;
+  - техдолг;
+  - deferred engineering work;
+  - архитектурные хвосты, которые уже признаны долгом.
+
+## Что куда писать
+
+- Активная инициатива, progress и decisions:
+  - `documents/exec-plans/active/*`
+- Завершённая инициатива:
+  - `documents/exec-plans/completed/*`
+- Неактивная future idea, которая не является долгом:
+  - `documents/exec-plans/deferred-roadmap.md`
+- Техдолг, баг, спорное engineering-решение или известная structural проблема:
+  - `documents/exec-plans/tech-debt-tracker.md`
+- Stable rule и текущая модель системы:
+  - профильный SoR-документ, а не execution plan.
+
+## Минимальная структура плана
+
+Каждый execution plan должен содержать минимум:
+- цель и контекст;
+- in/out of scope;
+- порядок выполнения;
+- decision log;
+- риски;
+- критерии завершения;
+- проверки;
+- при необходимости — task-specific troubleshooting.

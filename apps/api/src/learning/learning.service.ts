@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -8,9 +9,7 @@ import {
   StudentTaskStatus,
   StudentUnitStatus,
 } from '@prisma/client';
-import {
-  type StudentAttemptRequest,
-} from '@continuum/shared';
+import type { StudentAttemptRequest } from '@continuum/shared';
 import { ContentService } from '../content/content.service';
 import { type TaskWithActiveRevision } from '../content/task-revision-payload.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -29,11 +28,17 @@ const TASK_SOLUTION_ALLOWED_STATUSES = new Set<StudentTaskStatus>([
 @Injectable()
 export class LearningService {
   constructor(
+    @Inject(PrismaService)
     private readonly prisma: PrismaService,
+    @Inject(ContentService)
     private readonly contentService: ContentService,
+    @Inject(LearningAvailabilityService)
     private readonly learningAvailabilityService: LearningAvailabilityService,
+    @Inject(StudentsService)
     private readonly studentsService: StudentsService,
+    @Inject(LearningAttemptsWriteService)
     private readonly learningAttemptsWriteService: LearningAttemptsWriteService,
+    @Inject(LearningTeacherActionsService)
     private readonly learningTeacherActionsService: LearningTeacherActionsService,
   ) {}
 

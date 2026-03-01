@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   HttpCode,
+  Inject,
   Param,
   Patch,
   Post,
@@ -24,7 +25,9 @@ import { type CreateCourseDto, type UpdateCourseDto } from './dto/course.dto';
 @Roles(Role.teacher)
 export class TeacherCoursesController {
   constructor(
+    @Inject(ContentService)
     private readonly contentService: ContentService,
+    @Inject(EventsLogService)
     private readonly eventsLogService: EventsLogService,
   ) {}
 

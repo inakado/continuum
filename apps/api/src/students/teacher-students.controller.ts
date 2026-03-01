@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   HttpCode,
+  Inject,
   Param,
   Patch,
   Post,
@@ -29,7 +30,9 @@ import { StudentsService } from './students.service';
 @Roles(Role.teacher)
 export class TeacherStudentsController {
   constructor(
+    @Inject(StudentsService)
     private readonly studentsService: StudentsService,
+    @Inject(EventsLogService)
     private readonly eventsLogService: EventsLogService,
   ) {}
 

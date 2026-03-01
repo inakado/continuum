@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, Param, Query, Req, UseGuards } from '@nestjs/common';
 import {
   TeacherPhotoInboxQuerySchema,
   TeacherPhotoSubmissionDetailQuerySchema,
@@ -18,7 +18,7 @@ import { PhotoTaskService } from './photo-task.service';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.teacher)
 export class TeacherPhotoReviewInboxController {
-  constructor(private readonly photoTaskService: PhotoTaskService) {}
+  constructor(@Inject(PhotoTaskService) private readonly photoTaskService: PhotoTaskService) {}
 
   @Get()
   list(

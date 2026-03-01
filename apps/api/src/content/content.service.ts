@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -11,10 +12,10 @@ import {
   type GraphUpdateNode,
 } from './content-graph.service';
 import { ContentWriteService } from './content-write.service';
+import { type CreateTaskDto, type UpdateTaskDto } from './dto/task.dto';
 import { type CreateCourseDto, type UpdateCourseDto } from './dto/course.dto';
 import { type CreateSectionDto, type UpdateSectionDto } from './dto/section.dto';
 import { type CreateUnitDto, type UpdateUnitDto } from './dto/unit.dto';
-import { type CreateTaskDto, type UpdateTaskDto } from './dto/task.dto';
 import {
   TaskRevisionPayloadService,
   type TaskWithActiveRevision,
@@ -23,9 +24,13 @@ import {
 @Injectable()
 export class ContentService {
   constructor(
+    @Inject(PrismaService)
     private readonly prisma: PrismaService,
+    @Inject(ContentGraphService)
     private readonly contentGraphService: ContentGraphService,
+    @Inject(ContentWriteService)
     private readonly contentWriteService: ContentWriteService,
+    @Inject(TaskRevisionPayloadService)
     private readonly taskRevisionPayloadService: TaskRevisionPayloadService,
   ) {}
 

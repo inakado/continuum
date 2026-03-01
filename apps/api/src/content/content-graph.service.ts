@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { ContentStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -28,7 +28,7 @@ export type GraphUpdateEdge = {
 
 @Injectable()
 export class ContentGraphService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async getSectionGraph(sectionId: string) {
     const section = await this.prisma.section.findUnique({

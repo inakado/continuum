@@ -1,8 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import {
-  type StudentPhotoPresignUploadRequest,
-  type StudentPhotoSubmitRequest,
-  type TeacherPhotoRejectRequest,
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import type {
+  StudentPhotoPresignUploadRequest,
+  StudentPhotoSubmitRequest,
+  TeacherPhotoRejectRequest,
 } from '@continuum/shared';
 import {
   AttemptKind,
@@ -43,11 +43,17 @@ const CREDITED_STATUSES = new Set<StudentTaskStatus>([
 @Injectable()
 export class PhotoTaskReviewWriteService {
   constructor(
+    @Inject(PrismaService)
     private readonly prisma: PrismaService,
+    @Inject(StudentsService)
     private readonly studentsService: StudentsService,
+    @Inject(LearningAvailabilityService)
     private readonly learningAvailabilityService: LearningAvailabilityService,
+    @Inject(LearningAuditLogService)
     private readonly learningAuditLogService: LearningAuditLogService,
+    @Inject(ObjectStorageService)
     private readonly objectStorageService: ObjectStorageService,
+    @Inject(PhotoTaskPolicyService)
     private readonly photoTaskPolicyService: PhotoTaskPolicyService,
   ) {}
 

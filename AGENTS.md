@@ -1,128 +1,81 @@
 # AGENTS.md
 
-Этот файл не энциклопедия. Это навигационная карта для агента.
-Источник истины по поведению системы: **код в репозитории**.
-Документация ниже должна помогать быстро найти нужный контекст и проверить решения.
+Этот файл не энциклопедия. Это короткий контракт работы агента с репозиторием и документацией.
+Источник истины по поведению системы: код и тесты.
 
-## 1) Стартовая точка
+## 1) Стартовая навигация
 
-1. Проверь текущую задачу и затронутые пакеты (`apps/api`, `apps/web`, `apps/worker`, `packages/shared`).
-2. Прочитай верхнеуровневую архитектуру: `documents/ARCHITECTURE.md`.
-3. Для доменной логики используй профильные SoR-доки в `documents/`.
-4. Для активной сложной работы используй execution plan в `documents/exec-plans/active/`.
-5. При конфликте документации и кода доверяй коду, затем обнови доки.
+1. Открыть `AGENTS.md`.
+2. Открыть `documents/DOCS-INDEX.md` и выбрать минимально нужные SoR-доки.
+3. Для текущей архитектурной модели обязательно свериться с `documents/ARCHITECTURE.md` и `documents/ARCHITECTURE-PRINCIPLES.md`.
+4. Для сложной активной работы использовать `documents/PLANS.md` и соответствующий файл в `documents/exec-plans/active/`.
+5. При конфликте документации и кода доверять коду, затем исправлять документацию.
 
-## 1.1) Workflow (как агент работает с доками)
-
-1) Открыть `AGENTS.md` → `documents/DOCS-INDEX.md` и выбрать минимально нужные SoR-доки под задачу.  
-2) Считать **код** источником истины: проверить утверждения по handlers/services/Prisma schema; в доках оставлять только подтверждённое.  
-3) Если работа “сложная” (несколько модулей/миграции/инварианты) — создать/обновить execution plan в `documents/exec-plans/active/` (цель, scope, шаги, риски, decision log).  
-4) Любое изменение поведения в коде → обновить соответствующий SoR-док (и помечать факты как `Implemented` или `Planned`).  
-5) Любые устаревшие утверждения, которые не являются будущим планом, удалить (иначе drift).  
-6) Если добавлен новый документ/каталог — внести его в `documents/DOCS-INDEX.md` (запрет на “сироты”).  
-7) После завершения — перенести план в `documents/exec-plans/completed/` (или закрыть как tech debt в `documents/exec-plans/tech-debt-tracker.md`).  
-8) Если во время выполнения задачи/тестов/смоуков/сборки найдена ошибка или “грабли” — зафиксировать, чтобы следующий агент проходил с 1-й попытки:
-   - где упало (точная команда),
-   - что увидели (короткий фрагмент ошибки),
-   - почему (root cause, если удалось),
-   - как чинить (пошагово),
-   - как проверить (команда/критерий).  
-   Куда писать: в execution plan (если специфично задаче) и/или в `documents/DEVELOPMENT.md` → Troubleshooting (если повторяемая проблема), и/или в `documents/exec-plans/tech-debt-tracker.md` (если это реальный техдолг/баг).  
-
-### 1.2) Границы документов (обязательно)
-
-1) `documents/ARCHITECTURE-PRINCIPLES.md`:
-   - хранит только стабильные инженерные принципы, quality budgets, enforced practices и архитектурные ограничения;
-   - не хранит phase/wave history, progress logs, пошаговые планы внедрения и migration backlog.
-2) `documents/DEVELOPMENT.md`:
-   - хранит только runbook/команды/окружение/troubleshooting для dev, test, build, deploy;
-   - не хранит архитектурные rationale, продуктовые решения и историю рефакторинга.
-3) Execution plans:
-   - единственное место для phase/wave planning, progress logs, decision log и task-specific troubleshooting.
-4) `documents/DOCS-INDEX.md`:
-   - хранит карту документов и их назначение;
-   - если назначение документа меняется, сначала обновить индекс, потом сам документ.
-5) При сомнении:
-   - stable rule → SoR;
-   - временный план/прогресс → execution plan;
-   - команда/окружение/грабли → `documents/DEVELOPMENT.md`.
-
-### Agent install policy (`Implemented`)
-
-- В агентской/sandbox-сессии агент **не запускает** команду `CI=true pnpm install --frozen-lockfile`.
-- Если нужна эта команда, агент обязан попросить пользователя выполнить её локально и прислать результат.
-
-## 2) Где что лежит
-
-- Архитектура: `documents/ARCHITECTURE.md`
-- Безопасность: `documents/SECURITY.md`
-- Надежность и эксплуатация: `documents/RELIABILITY.md`
-- Качество продукта: `documents/QUALITY_SCORE.md`
-- Планирование и execution plans: `documents/PLANS.md`, `documents/exec-plans/`
-- Content (публикация/граф/LaTeX): `documents/CONTENT.md`
-- Learning (attempts/progress/availability): `documents/LEARNING.md`
-- Продуктовые спецификации: `documents/product-specs/`
-- Дизайн-решения и принципы: `documents/DESIGN.md`, `documents/FRONTEND.md`, `documents/design-docs/`
-- Генерируемые артефакты: `documents/generated/`
-- Справочные LLM-friendly материалы: `documents/references/`
-- Индекс документации: `documents/DOCS-INDEX.md`
-
-## 3) Правила работы с документацией
-
-1. Документация ведется на русском языке.
-2. Имена сущностей, API, env-переменных, таблиц и полей пишутся как в коде (English identifiers).
-3. Любой документ должен явно помечать статус факта:
-   - `Implemented` — уже в коде.
-   - `Planned` — запланировано, но не реализовано.
-4. Нельзя смешивать `Implemented` и `Planned` без явной маркировки в разделе.
-5. Если описание устарело и не относится к будущим фичам, его нужно удалить или переписать.
-6. Нельзя записывать progress/history внедрения в SoR-документ, если для этого уже существует execution plan.
-7. Перед правкой документа агент обязан коротко сверить его назначение по `documents/DOCS-INDEX.md` и не выходить за эти границы.
-
-## 4) Source of Truth порядок
+## 2) Source of Truth порядок
 
 1. Код и тесты.
 2. Prisma schema / runtime-контракты / API handlers.
 3. Генерируемые документы (`documents/generated/*`).
 4. Остальная markdown-документация.
 
-## 5) Известные доменные решения (зафиксировано)
+## 3) Как выбирать документ
 
-- API без versioning (`/v1` не используется).
-- Auth: cookie-first (httpOnly cookies) + refresh rotation (Bearer access token допускается кодом, но не является целевым UI-паттерном).
-- Event payload хранит `actorRole` в payload.
-- Learning progression и unlock-логика фиксируются по текущему коду.
-- Поле порога optional-задач: `minOptionalCountedTasksToComplete`.
-- LaTeX pipeline: auto-apply worker является default.
-- Assets: текущий runtime через object storage (MinIO), хранение ключей в сущностях; возможна эволюция для новых типов файлов.
-- `concepts`, `concept_aliases`, `unit_concepts` — это `Planned` доменная ветка.
+- Архитектурная карта и bounded contexts: `documents/ARCHITECTURE.md`
+- Инженерные принципы и guardrails: `documents/ARCHITECTURE-PRINCIPLES.md`
+- Dev/test/build/deploy runbook: `documents/DEVELOPMENT.md`
+- Доменный SoR: профильные документы в `documents/`
+- Правила lifecycle для execution plans и backlog-хранилищ: `documents/PLANS.md`
+- Активный прогресс, decision log, task-specific troubleshooting: `documents/exec-plans/active/*`
+- Неактивные future items: `documents/exec-plans/deferred-roadmap.md`
+- Техдолг и баги: `documents/exec-plans/tech-debt-tracker.md`
 
-## 6) Структура execution plans
+## 4) Границы документов
 
-- Активные: `documents/exec-plans/active/`
-- Завершенные: `documents/exec-plans/completed/`
-- Техдолг: `documents/exec-plans/tech-debt-tracker.md`
+- `documents/ARCHITECTURE-PRINCIPLES.md`:
+  - хранит только стабильные инженерные принципы, budgets, enforced practices и архитектурные ограничения;
+  - не хранит phase/wave history, rollout logs и implementation backlog.
+- `documents/DEVELOPMENT.md`:
+  - хранит только runbook, команды, окружение, troubleshooting и операционные инварианты;
+  - не хранит архитектурные rationale, продуктовые решения и историю рефакторинга.
+- `documents/DOCS-INDEX.md`:
+  - хранит только карту документов и их назначение;
+  - не хранит policy, planning и status-модель.
+- `documents/PLANS.md`:
+  - хранит только правила lifecycle для execution plans, deferred roadmap и tech debt;
+  - не дублирует SoR-контент.
+- Execution plans:
+  - единственное место для progress logs, decision log, rollout notes и task-specific troubleshooting.
+- `documents/exec-plans/deferred-roadmap.md`:
+  - хранит неактивные future items, которые не являются техдолгом.
+- `documents/exec-plans/tech-debt-tracker.md`:
+  - хранит только техдолг, баги и engineering debt.
 
-План обязателен для сложных изменений (несколько модулей, миграции, изменение доменных инвариантов).
+## 5) Обязательное соблюдение архитектурных принципов
 
-## 7) Проверки качества документации (целевой минимум)
+Перед изменением кода агент обязан свериться с `documents/ARCHITECTURE-PRINCIPLES.md`.
 
-CI должен валидировать:
+Решения по коду должны сохранять и усиливать:
+- SRP и complexity budget;
+- contract-first и fail-fast boundary validation;
+- read/write separation;
+- typed mapping без бесконтрольного `any` и `unknown`;
+- policy-as-code для TTL, asset rules и аналогичных ограничений;
+- server-state discipline во frontend;
+- effect isolation и декларативный UI.
 
-1. Все ссылки в markdown валидны.
-2. Все документы из индекса реально существуют.
-3. Для ключевых SoR-доков есть пометки `Implemented/Planned`.
-4. Нет файлов-сирот, не включенных в `documents/DOCS-INDEX.md`.
+Если изменение осознанно отклоняется от этих правил, причина фиксируется в active execution plan.
 
-## 8) Что не делать
+## 6) Гигиена документации
 
-- Не превращать `AGENTS.md` в длинный мануал.
-- Не хранить критичные архитектурные решения только в чатах/внешних документах.
-- Не оставлять в SoR-доках неподтвержденные утверждения без ссылки на код.
+1. Документация ведётся на русском языке.
+2. Имена сущностей, API, env-переменных, таблиц и полей писать как в коде.
+3. Любое изменение поведения в коде должно отражаться в соответствующем SoR-доке.
+4. Устаревшие утверждения, не являющиеся активным планом или отложенным future item, удалять.
+5. Новый документ или каталог обязательно добавлять в `documents/DOCS-INDEX.md`.
+6. Не хранить backlog и progress в SoR-доках.
+7. Перед правкой документа коротко сверять его назначение по `documents/DOCS-INDEX.md`.
 
-## 9) Быстрый чеклист перед merge
+## 7) Ограничения агента
 
-1. Изменения в коде отражены в релевантных SoR-доках.
-2. Новый сложный scope имеет execution plan (или обновление существующего).
-3. Устаревшие утверждения удалены/исправлены.
-4. `documents/DOCS-INDEX.md` обновлен.
+- В агентской/sandbox-сессии агент не запускает `CI=true pnpm install --frozen-lockfile`.
+- Если нужна эта команда, агент просит пользователя выполнить её локально и прислать результат.

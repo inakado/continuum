@@ -4,13 +4,14 @@ import {
   Controller,
   Headers,
   HttpCode,
+  Inject,
   NotFoundException,
   Param,
   Post,
   UnauthorizedException,
 } from '@nestjs/common';
 import { EventCategory, Role } from '@prisma/client';
-import { type Job } from 'bullmq';
+import type { Job } from 'bullmq';
 import { EventsLogService } from '../events/events-log.service';
 import { ContentService } from './content.service';
 import { LatexCompileQueueService } from './latex-compile-queue.service';
@@ -29,8 +30,11 @@ import {
 @Controller('internal/latex/jobs')
 export class InternalLatexController {
   constructor(
+    @Inject(ContentService)
     private readonly contentService: ContentService,
+    @Inject(LatexCompileQueueService)
     private readonly queueService: LatexCompileQueueService,
+    @Inject(EventsLogService)
     private readonly eventsLogService: EventsLogService,
   ) {}
 

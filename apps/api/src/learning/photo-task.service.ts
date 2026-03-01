@@ -1,13 +1,13 @@
-import { Injectable } from '@nestjs/common';
-import {
-  type StudentPhotoPresignUploadRequest,
-  type StudentPhotoPresignViewQuery,
-  type StudentPhotoSubmitRequest,
-  type TeacherPhotoInboxQuery,
-  type TeacherPhotoPresignViewQuery,
-  type TeacherPhotoQueueQuery,
-  type TeacherPhotoRejectRequest,
-  type TeacherPhotoSubmissionDetailQuery,
+import { Inject, Injectable } from '@nestjs/common';
+import type {
+  StudentPhotoPresignUploadRequest,
+  StudentPhotoPresignViewQuery,
+  StudentPhotoSubmitRequest,
+  TeacherPhotoInboxQuery,
+  TeacherPhotoPresignViewQuery,
+  TeacherPhotoQueueQuery,
+  TeacherPhotoRejectRequest,
+  TeacherPhotoSubmissionDetailQuery,
 } from '@continuum/shared';
 import { PhotoTaskReadService } from './photo-task-read.service';
 import { PhotoTaskReviewWriteService } from './photo-task-review-write.service';
@@ -15,7 +15,9 @@ import { PhotoTaskReviewWriteService } from './photo-task-review-write.service';
 @Injectable()
 export class PhotoTaskService {
   constructor(
+    @Inject(PhotoTaskReadService)
     private readonly photoTaskReadService: PhotoTaskReadService,
+    @Inject(PhotoTaskReviewWriteService)
     private readonly photoTaskReviewWriteService: PhotoTaskReviewWriteService,
   ) {}
 
