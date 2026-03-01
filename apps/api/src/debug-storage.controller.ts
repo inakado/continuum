@@ -8,6 +8,7 @@ import {
   Query,
   Res,
   UseGuards,
+  Inject,
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { type Response } from 'express';
@@ -26,7 +27,10 @@ type DebugPutRequest = {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.teacher)
 export class DebugStorageController {
-  constructor(private readonly objectStorageService: ObjectStorageService) {}
+  constructor(
+    @Inject(ObjectStorageService)
+    private readonly objectStorageService: ObjectStorageService,
+  ) {}
 
   @Post('put')
   @HttpCode(200)

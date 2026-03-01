@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, Query, UseGuards } from '@nestjs/common';
 import { EventCategory, Role } from '@prisma/client';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -9,7 +9,7 @@ import { EventsLogService } from './events-log.service';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.teacher)
 export class TeacherEventsController {
-  constructor(private readonly eventsLogService: EventsLogService) {}
+  constructor(@Inject(EventsLogService) private readonly eventsLogService: EventsLogService) {}
 
   @Get()
   list(

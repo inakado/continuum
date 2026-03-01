@@ -1,4 +1,12 @@
-import { BadRequestException, Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  HttpCode,
+  Inject,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { createHash } from 'node:crypto';
 import { Roles } from './auth/decorators/roles.decorator';
@@ -20,7 +28,9 @@ type LatexTarget = 'theory' | 'method';
 @Roles(Role.teacher)
 export class DebugLatexController {
   constructor(
+    @Inject(LatexCompileService)
     private readonly latexCompileService: LatexCompileService,
+    @Inject(ObjectStorageService)
     private readonly objectStorageService: ObjectStorageService,
   ) {}
 

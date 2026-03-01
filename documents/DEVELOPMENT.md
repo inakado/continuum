@@ -77,11 +77,24 @@
 
 - `pnpm smoke`
 
+### API auth smoke (Docker only)
+
+- Полный auth smoke для cookie-first login/refresh/role routing:
+  - `docker compose exec -T api sh -lc "cd /app/apps/api && pnpm smoke:auth"`
+
 Smoke проверяет:
 1. `GET /health`
 2. `GET /ready`
 3. `POST /debug/enqueue-ping`
 4. `GET /login`
+
+Auth smoke проверяет:
+1. `POST /auth/login`
+2. `GET /auth/me`
+3. `GET /teacher/me`
+4. refresh rotation + stale replay handling
+5. teacher-only / student-only guards
+6. `GET /courses = 403` для teacher-session
 
 ### API integration tests (Docker only)
 
@@ -233,6 +246,12 @@ Smoke проверяет:
 - **Проверка:**
   - `docker compose exec -T api sh -lc "wget -qO- http://localhost:3000/health || curl -s -i http://localhost:3000/health"`
   - `docker compose exec -T api sh -lc "curl -s -i -X POST http://localhost:3000/auth/login -H 'Content-Type: application/json' -d '{\"login\":\"teacher1\",\"password\":\"Pass123!\"}'"`
+
+- **Симптом:** teacher login проходит, но `GET /courses` возвращает `403`, и это ошибочно воспринимается как поломка auth.
+- **Команда:** `docker compose exec -T api sh -lc "cd /app/apps/api && pnpm smoke:auth"`
+- **Причина:** `/courses` — student-only endpoint; для teacher корректные read-paths начинаются с `/teacher/*`, а базовая cookie-сессия проверяется через `/auth/me` и `/teacher/me`.
+- **Фикс:** не использовать `GET /courses` как teacher smoke; проверять `GET /auth/me`, `GET /teacher/me`, `GET /debug/teacher-only` и ожидать `GET /courses = 403`.
+- **Проверка:** `pnpm smoke:auth` внутри контейнера `api` проходит целиком
 
 - **Симптом:** PDF compile из UI запускается, но результат долго не появляется и явной ошибки нет.
 - **Команда:** `docker compose logs --no-color --tail=120 worker`

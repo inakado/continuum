@@ -10,6 +10,7 @@
     "typecheck": "node ../../scripts/ensure-docker-build.cjs && pnpm exec tsc -p tsconfig.json --noEmit",
     "test": "pnpm exec vitest run --config vitest.config.ts",
     "test:integration": "node ../../scripts/ensure-docker-build.cjs && pnpm exec vitest run --config vitest.integration.config.ts",
+    "smoke:auth": "sh scripts/smoke-auth-refresh.sh",
     "start": "node dist/main.js"
   },
   "dependencies": {

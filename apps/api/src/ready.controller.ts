@@ -1,10 +1,10 @@
-import { Controller, Get, Res } from '@nestjs/common';
+import { Controller, Get, Inject, Res } from '@nestjs/common';
 import { type Response } from 'express';
 import { ReadyService } from './ready.service';
 
 @Controller()
 export class ReadyController {
-  constructor(private readonly readyService: ReadyService) {}
+  constructor(@Inject(ReadyService) private readonly readyService: ReadyService) {}
 
   @Get('ready')
   async ready(@Res({ passthrough: true }) res: Response) {

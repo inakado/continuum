@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Inject, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { EventCategory, Role } from '@prisma/client';
 import { type AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -16,7 +16,9 @@ import { StudentsService } from './students.service';
 @Roles(Role.teacher)
 export class TeacherMeController {
   constructor(
+    @Inject(StudentsService)
     private readonly studentsService: StudentsService,
+    @Inject(EventsLogService)
     private readonly eventsLogService: EventsLogService,
   ) {}
 

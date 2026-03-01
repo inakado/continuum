@@ -67,6 +67,9 @@ echo "OK   login cookies set"
 status=$(curl -sS -o "$BODY_FILE" -w "%{http_code}" -b "$COOKIE_JAR" "$API_URL/auth/me")
 expect_success "$status" "me after login"
 
+status=$(curl -sS -o "$BODY_FILE" -w "%{http_code}" -b "$COOKIE_JAR" "$API_URL/teacher/me")
+expect_success "$status" "teacher me after login"
+
 status=$(curl -sS -o "$BODY_FILE" -w "%{http_code}" -b "$COOKIE_JAR" -c "$COOKIE_JAR" -X POST "$API_URL/auth/refresh")
 expect_success "$status" "refresh"
 
@@ -97,6 +100,9 @@ expect_success "$status" "teacher-only endpoint"
 
 status=$(curl -sS -o "$BODY_FILE" -w "%{http_code}" -b "$COOKIE_JAR" "$API_URL/debug/student-only")
 expect_status "$status" "403" "student-only endpoint for teacher"
+
+status=$(curl -sS -o "$BODY_FILE" -w "%{http_code}" -b "$COOKIE_JAR" "$API_URL/courses")
+expect_status "$status" "403" "student courses endpoint forbidden for teacher"
 
 status=$(curl -sS -o "$BODY_FILE" -w "%{http_code}" -b "$COOKIE_JAR" -X POST "$API_URL/auth/logout" -H "Origin: https://evil.example")
 expect_status "$status" "403" "logout blocked by foreign origin"

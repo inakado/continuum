@@ -1277,6 +1277,12 @@
     - результат:
       - сервисные зависимости контроллеров переведены на явный `@Inject(...)`, route behavior и response shape не менялись;
       - проверки: targeted `eslint`, Docker `pnpm test`, Docker `tsc --noEmit`, Docker `build`, внутренний student smoke `GET /courses = 200` после login проходит.
+  - отдельный auth-debugging блок после cleanup показал:
+    - базовый teacher cookie-auth не сломан;
+    - `POST /auth/login`, `GET /auth/me`, `GET /teacher/me` проходят для `teacher1`;
+    - прежний сигнал `teacher -> /courses` нельзя использовать как auth smoke, потому что `/courses` — student-only endpoint и для teacher корректный ожидаемый статус `403`, а не `200`;
+    - чтобы не ловить ложные auth-regression alarms, auth smoke расширен проверками `GET /teacher/me` и явным `GET /courses = 403` для teacher-session;
+    - operational runbook обновлён командой `docker compose exec -T api sh -lc "cd /app/apps/api && pnpm smoke:auth"`.
 
 - Порядок выполнения Wave 1 дальше:
   - рабочий цикл фиксируется по каждому файлу/flow:
