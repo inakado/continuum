@@ -1183,6 +1183,36 @@
       - write-side orchestration экрана вынесен в отдельный hook `useTeacherUnitScreenActions`, а root screen разрезан на composition pieces (`TeacherUnitHeader`, `TeacherUnitTabContent`, `TeacherUnitDeleteDialog`, layout hook);
       - complexity warning по `TeacherUnitDetailScreen.tsx` снят без изменения UI semantics, publish/delete/task CRUD flows и compile modal contract;
       - проверка: targeted `TeacherUnitDetailScreen.test.tsx`, полный `pnpm --filter web test`, `pnpm --filter web lint` и `pnpm --filter web typecheck` проходят; `web` warning tail обнулён.
+  - завершён четырнадцатый цикл `targeted tests -> refactor -> targeted verification` для:
+    - `apps/api/src/learning/learning-attempts-write.service.ts`;
+    - результат:
+      - safety-net `learning-attempts-write.service.test.ts` расширен сценарием reset state при смене `activeRevisionId`, поверх уже существующих correct/third wrong/sixth wrong сценариев;
+      - unit-test сделан независимым от локального Prisma runtime через `vi.mock('@prisma/client')`, поэтому он воспроизводимо проходит на хосте и не требует Docker только ради enum/runtime imports;
+      - `submitAttempt` декомпозирован по шагам `load task -> load/create/reset state -> guards -> transition -> persist -> notifications -> audit`, без изменения публичного response shape и существующих `error.code`;
+      - DI-зависимости (`PrismaService`, `LearningAuditLogService`, `LearningAvailabilityService`) переведены на явный `@Inject(...)`, чтобы снять `consistent-type-imports` warning без повторения прошлой runtime-regression с type-only imports в Nest;
+      - complexity warning по transaction callback снят без изменения attempt numbering, notification semantics, availability recompute и audit tail;
+      - в Docker-контуре первый `tsc --noEmit` дополнительно поймал narrow-type regression в `resolveAttemptStateTransition` (`status = StudentTaskStatus.blocked`), после чего добавлена явная аннотация `let status: StudentTaskStatus`;
+      - проверка: targeted `eslint`, direct `learning-attempts-write.service.test.ts`, полный `pnpm --filter @continuum/api test`, а также Docker `eslint`, `tsc --noEmit`, `build` и `test` проходят.
+  - завершён пятнадцатый цикл `targeted tests -> refactor -> targeted verification` для:
+    - `apps/api/src/learning/learning-availability.service.ts`;
+    - результат:
+      - добавлен targeted safety-net `learning-availability.service.test.ts` для prerequisite unlock chain, optional-only zero-gate completion rule и override-open persistence/timestamps;
+      - `recomputeSectionAvailability()` сохранён как публичный contract для тестов, чтобы safety-net покрывал реальную доменную семантику, а не private helper internals;
+      - `computeSnapshots` декомпозирован на чистые helper’ы (`groupTasksByUnitId`, `buildHasAttemptByUnitId`, `buildPrereqByUnitId`, `computeUnitTaskMetrics`, `resolveEffectiveMinOptionalCountedTasksToComplete`, `resolveUnitStatus`) без изменения unlock/progress правил;
+      - `PrismaService` переведён на явный `@Inject(PrismaService)`, чтобы снять локальный `consistent-type-imports` warning без риска повторить прошлую Nest DI regression;
+      - локальный complexity warning снят без изменения `studentUnitState.upsert` semantics, `becameAvailableAt/startedAt/completedAt` persistence и completion gate для optional-only units;
+      - проверка: targeted host test, Docker targeted test, Docker полный `pnpm test`, Docker `eslint`, Docker `tsc --noEmit` и Docker `build` проходят.
+  - завершён шестнадцатый цикл `targeted tests -> refactor -> targeted verification` для:
+    - `apps/api/src/infra/latex/latex-compile.service.ts`;
+    - результат:
+      - добавлен targeted safety-net `latex-compile.service.test.ts` для Unicode fallback retry, xcolor fallback retry, timeout mapping, legacy T2A failure message и early reject по пустому input;
+      - compile pipeline декомпозирован без изменения публичного contract `compileToPdf()`: выделены `createWorkingState`, `compileWithFallbacks`, `retryWithFallbackIfNeeded`, `assertSuccessfulAttempt`;
+      - источник complexity локализован в fallback/error orchestration; `runTectonic` и filesystem cleanup semantics не менялись;
+      - при подготовке tests зафиксирована и исправлена две harness-грабли:
+        - `vi.mock('node:fs')` требовал `vi.hoisted(...)`, иначе падал до импорта сервиса;
+        - fixture для “fallback does not change source” должен уже содержать `fontspec + defaultfontfeatures + setmainfont`, иначе сервис корректно считает, что preamble ещё можно патчить;
+      - локальный complexity warning снят без изменения timeout code, fallback retry order, legacy T2A error message и cleanup через `fs.rm(..., { recursive: true, force: true })`;
+      - проверка: targeted host test, Docker targeted test, Docker полный `pnpm test`, targeted host/Docker `eslint`, Docker `tsc --noEmit` и Docker `build` проходят.
 
 - Complexity triage по `ARCHITECTURE-PRINCIPLES.md`:
   - критерии обязательного refactor:
@@ -1203,10 +1233,10 @@
   - `apps/web/features/teacher-review/TeacherReviewSubmissionDetailPanel.tsx` (`Implemented`)
   - `apps/web/features/teacher-review/TeacherReviewInboxPanel.tsx` (`Implemented`)
   - `apps/web/features/teacher-settings/TeacherSettingsScreen.tsx` (`Implemented`)
-  - `apps/web/features/student-content/units/hooks/use-student-task-attempt.ts`
-  - `apps/web/features/teacher-content/units/hooks/use-teacher-unit-latex-compile.ts`
-  - `apps/api/src/learning/learning-attempts-write.service.ts`
-  - `apps/api/src/learning/learning-availability.service.ts`
+  - `apps/web/features/student-content/units/hooks/use-student-task-attempt.ts` (`Implemented`)
+  - `apps/web/features/teacher-content/units/hooks/use-teacher-unit-latex-compile.ts` (`Implemented`)
+  - `apps/api/src/learning/learning-attempts-write.service.ts` (`Implemented`)
+  - `apps/api/src/learning/learning-availability.service.ts` (`Implemented`)
   - rationale:
     - это product-facing orchestration surfaces, где текущая complexity прямо конфликтует с `P1/P4/P9/P10`.
 
@@ -1216,6 +1246,11 @@
   - `apps/api/src/infra/latex/latex-compile.service.ts`
   - rationale:
     - complexity здесь реальна, но ответственность локальна и boundary leakage ниже; эти файлы не так сильно ломают архитектурную модель, как Tier A.
+
+- Уточнение после локального/full-package lint анализа:
+  - после закрытия `learning-attempts-write.service.ts`, `learning-availability.service.ts` и `latex-compile.service.ts` Phase 6 `complexity` tail по `api/web` закрыт;
+  - при этом в `apps/api` всё ещё остаётся отдельный baseline хвост из `@typescript-eslint/consistent-type-imports` warnings по многим файлам;
+  - этот baseline относится к общей финальной lint-hardening cleanup работе и не должен маскироваться под “последний complexity файл”.
 
 - Порядок выполнения Wave 1 дальше:
   - рабочий цикл фиксируется по каждому файлу/flow:

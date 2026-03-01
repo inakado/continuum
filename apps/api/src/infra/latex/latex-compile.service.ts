@@ -21,6 +21,12 @@ type CompileAttempt = {
   logSnippet?: string;
 };
 
+type CompileWorkingState = {
+  tex: string;
+  unicodeFallbackApplied: boolean;
+  xcolorFallbackApplied: boolean;
+};
+
 const MAX_TEX_LENGTH = 200_000;
 const DEFAULT_TIMEOUT_MS = 120_000;
 const OUTPUT_SNIPPET_LIMIT = 4_000;
@@ -39,74 +45,21 @@ export class LatexCompileService {
     try {
       const texBytes = Buffer.byteLength(tex, 'utf8');
       this.logger.log(`LaTeX compile started (texBytes=${texBytes}, timeoutMs=${timeoutMs})`);
-      let workingTex = tex;
-      await fs.writeFile(texFilePath, workingTex, 'utf8');
-
-      let attempt = await this.executeCompileAttempt({ cwd: tempDir, timeoutMs });
-      let unicodeFallbackApplied = false;
-      let xcolorFallbackApplied = false;
-
-      if (!attempt.timedOut && attempt.code !== 0 && this.isT2AMetricError(attempt.logSnippet)) {
-        const fallbackTex = this.buildUnicodeCyrillicFallback(workingTex);
-        if (fallbackTex !== workingTex) {
-          unicodeFallbackApplied = true;
-          this.logger.warn(
-            'Detected T2A metric font error. Retrying with Unicode font fallback preamble.',
-          );
-          workingTex = fallbackTex;
-          await fs.writeFile(texFilePath, workingTex, 'utf8');
-          attempt = await this.executeCompileAttempt({ cwd: tempDir, timeoutMs });
-        }
-      }
-
-      if (!attempt.timedOut && attempt.code !== 0 && this.isUnknownTikzColorError(attempt.logSnippet)) {
-        const fallbackTex = this.buildXcolorNamesFallback(workingTex);
-        if (fallbackTex !== workingTex) {
-          xcolorFallbackApplied = true;
-          this.logger.warn(
-            'Detected unknown TikZ color key. Retrying with xcolor named color options.',
-          );
-          workingTex = fallbackTex;
-          await fs.writeFile(texFilePath, fallbackTex, 'utf8');
-          attempt = await this.executeCompileAttempt({ cwd: tempDir, timeoutMs });
-        }
-      }
-
-      if (attempt.timedOut) {
-        this.logger.error(
-          `LaTeX compile timeout after ${timeoutMs}ms. ${this.formatSnippetForLog(attempt.logSnippet)}`,
-        );
-        throw new ConflictException({
-          code: 'LATEX_COMPILE_TIMEOUT',
-          message: `LaTeX compilation exceeded ${timeoutMs}ms`,
-          ...(attempt.logSnippet ? { logSnippet: attempt.logSnippet } : null),
-        });
-      }
-
-      if (attempt.code !== 0) {
-        const isLegacyT2aFailure = this.isT2AMetricError(attempt.logSnippet);
-        const errorMessage =
-          isLegacyT2aFailure && !unicodeFallbackApplied
-            ? 'LaTeX compilation failed: legacy T2A fonts are unavailable in runtime. Remove cmap/fontenc/inputenc and use Unicode fontspec preamble.'
-            : 'LaTeX compilation failed';
-
-        this.logger.error(
-          `LaTeX compile failed with exit code ${attempt.code ?? 'null'}. ${this.formatSnippetForLog(attempt.logSnippet)}`,
-        );
-        throw new ConflictException({
-          code: 'LATEX_COMPILE_FAILED',
-          message: errorMessage,
-          ...(attempt.logSnippet ? { logSnippet: attempt.logSnippet } : null),
-        });
-      }
-
+      const workingState = await this.createWorkingState(texFilePath, tex);
+      const attempt = await this.compileWithFallbacks({
+        texFilePath,
+        timeoutMs,
+        cwd: tempDir,
+        workingState,
+      });
+      this.assertSuccessfulAttempt(attempt, timeoutMs, workingState);
       const pdfBytes = await fs.readFile(pdfPath);
       if (pdfBytes.length === 0) {
         this.logger.error('LaTeX compile produced empty PDF');
         throw new InternalServerErrorException('LaTeX compilation produced an empty PDF');
       }
 
-      if (unicodeFallbackApplied || xcolorFallbackApplied) {
+      if (workingState.unicodeFallbackApplied || workingState.xcolorFallbackApplied) {
         this.logger.warn('LaTeX compile succeeded after compatibility fallback patch(es).');
       }
       this.logger.log(`LaTeX compile succeeded (pdfBytes=${pdfBytes.length})`);
@@ -137,6 +90,130 @@ export class LatexCompileService {
     } finally {
       await fs.rm(tempDir, { recursive: true, force: true });
     }
+  }
+
+  private async createWorkingState(texFilePath: string, tex: string): Promise<CompileWorkingState> {
+    const workingState: CompileWorkingState = {
+      tex,
+      unicodeFallbackApplied: false,
+      xcolorFallbackApplied: false,
+    };
+
+    await fs.writeFile(texFilePath, workingState.tex, 'utf8');
+    return workingState;
+  }
+
+  private async compileWithFallbacks(params: {
+    texFilePath: string;
+    timeoutMs: number;
+    cwd: string;
+    workingState: CompileWorkingState;
+  }): Promise<CompileAttempt> {
+    const { texFilePath, timeoutMs, cwd, workingState } = params;
+
+    let attempt = await this.executeCompileAttempt({ cwd, timeoutMs });
+    attempt = await this.retryWithFallbackIfNeeded({
+      attempt,
+      texFilePath,
+      timeoutMs,
+      cwd,
+      workingState,
+      shouldApplyFallback: (logSnippet) => this.isT2AMetricError(logSnippet),
+      buildFallbackTex: (tex) => this.buildUnicodeCyrillicFallback(tex),
+      markApplied: () => {
+        workingState.unicodeFallbackApplied = true;
+      },
+      message: 'Detected T2A metric font error. Retrying with Unicode font fallback preamble.',
+    });
+    attempt = await this.retryWithFallbackIfNeeded({
+      attempt,
+      texFilePath,
+      timeoutMs,
+      cwd,
+      workingState,
+      shouldApplyFallback: (logSnippet) => this.isUnknownTikzColorError(logSnippet),
+      buildFallbackTex: (tex) => this.buildXcolorNamesFallback(tex),
+      markApplied: () => {
+        workingState.xcolorFallbackApplied = true;
+      },
+      message: 'Detected unknown TikZ color key. Retrying with xcolor named color options.',
+    });
+
+    return attempt;
+  }
+
+  private async retryWithFallbackIfNeeded(params: {
+    attempt: CompileAttempt;
+    texFilePath: string;
+    timeoutMs: number;
+    cwd: string;
+    workingState: CompileWorkingState;
+    shouldApplyFallback: (logSnippet?: string) => boolean;
+    buildFallbackTex: (tex: string) => string;
+    markApplied: () => void;
+    message: string;
+  }) {
+    const {
+      attempt,
+      texFilePath,
+      timeoutMs,
+      cwd,
+      workingState,
+      shouldApplyFallback,
+      buildFallbackTex,
+      markApplied,
+      message,
+    } = params;
+
+    if (attempt.timedOut || attempt.code === 0 || !shouldApplyFallback(attempt.logSnippet)) {
+      return attempt;
+    }
+
+    const fallbackTex = buildFallbackTex(workingState.tex);
+    if (fallbackTex === workingState.tex) {
+      return attempt;
+    }
+
+    markApplied();
+    this.logger.warn(message);
+    workingState.tex = fallbackTex;
+    await fs.writeFile(texFilePath, fallbackTex, 'utf8');
+    return this.executeCompileAttempt({ cwd, timeoutMs });
+  }
+
+  private assertSuccessfulAttempt(
+    attempt: CompileAttempt,
+    timeoutMs: number,
+    workingState: CompileWorkingState,
+  ) {
+    if (attempt.timedOut) {
+      this.logger.error(
+        `LaTeX compile timeout after ${timeoutMs}ms. ${this.formatSnippetForLog(attempt.logSnippet)}`,
+      );
+      throw new ConflictException({
+        code: 'LATEX_COMPILE_TIMEOUT',
+        message: `LaTeX compilation exceeded ${timeoutMs}ms`,
+        ...(attempt.logSnippet ? { logSnippet: attempt.logSnippet } : null),
+      });
+    }
+
+    if (attempt.code === 0) {
+      return;
+    }
+
+    const errorMessage =
+      this.isT2AMetricError(attempt.logSnippet) && !workingState.unicodeFallbackApplied
+        ? 'LaTeX compilation failed: legacy T2A fonts are unavailable in runtime. Remove cmap/fontenc/inputenc and use Unicode fontspec preamble.'
+        : 'LaTeX compilation failed';
+
+    this.logger.error(
+      `LaTeX compile failed with exit code ${attempt.code ?? 'null'}. ${this.formatSnippetForLog(attempt.logSnippet)}`,
+    );
+    throw new ConflictException({
+      code: 'LATEX_COMPILE_FAILED',
+      message: errorMessage,
+      ...(attempt.logSnippet ? { logSnippet: attempt.logSnippet } : null),
+    });
   }
 
   private normalizeTex(texSource: string): string {

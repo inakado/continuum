@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { ContentStatus, type Prisma, StudentTaskStatus, StudentUnitStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -34,6 +34,18 @@ type SectionComputationContext = {
   overrideOpenedUnitIds: Set<string>;
 };
 
+type UnitTaskMetrics = {
+  totalTasks: number;
+  countedTasks: number;
+  optionalCountedTasks: number;
+  solvedTasks: number;
+  requiredTasksCount: number;
+  effectiveMinOptionalCountedTasksToComplete: number;
+  isCompleted: boolean;
+  completionPercent: number;
+  solvedPercent: number;
+};
+
 export type UnitProgressSnapshot = {
   unitId: string;
   status: StudentUnitStatus;
@@ -64,7 +76,7 @@ const SOLVED_STATUSES = new Set<StudentTaskStatus>([
 
 @Injectable()
 export class LearningAvailabilityService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async computeUnitMetrics(
     studentId: string,
@@ -253,115 +265,188 @@ export class LearningAvailabilityService {
   }
 
   private computeSnapshots(context: SectionComputationContext): Map<string, UnitProgressSnapshot> {
-    const tasksByUnitId = new Map<string, PublishedTask[]>();
-    for (const task of context.tasks) {
-      const list = tasksByUnitId.get(task.unitId) ?? [];
-      list.push(task);
-      tasksByUnitId.set(task.unitId, list);
-    }
-
+    const unitsById = new Map(context.units.map((unit) => [unit.id, unit]));
+    const tasksByUnitId = this.groupTasksByUnitId(context.tasks);
     const taskStatusByTaskId = new Map(context.taskStates.map((state) => [state.taskId, state.status]));
-
-    const hasAttemptByUnitId = new Map<string, boolean>();
-    for (const unit of context.units) {
-      const tasks = tasksByUnitId.get(unit.id) ?? [];
-      hasAttemptByUnitId.set(
-        unit.id,
-        tasks.some((task) => context.attemptedTaskIds.has(task.id)),
-      );
-    }
-
-    const prereqByUnitId = new Map<string, string[]>();
-    for (const unit of context.units) {
-      prereqByUnitId.set(unit.id, []);
-    }
-    for (const edge of context.edges) {
-      const list = prereqByUnitId.get(edge.unitId);
-      if (list) list.push(edge.prereqUnitId);
-    }
-
+    const hasAttemptByUnitId = this.buildHasAttemptByUnitId(
+      context.units,
+      tasksByUnitId,
+      context.attemptedTaskIds,
+    );
+    const prereqByUnitId = this.buildPrereqByUnitId(context.units, context.edges);
     const orderedUnitIds = this.sortUnitIdsTopologically(context.units, context.edges);
     const snapshots = new Map<string, UnitProgressSnapshot>();
 
     for (const unitId of orderedUnitIds) {
-      const unit = context.units.find((item) => item.id === unitId);
+      const unit = unitsById.get(unitId);
       if (!unit) continue;
 
       const unitTasks = tasksByUnitId.get(unitId) ?? [];
-      const totalTasks = unitTasks.length;
-      let countedTasks = 0;
-      let optionalCountedTasks = 0;
-      let solvedTasks = 0;
-      let requiredCountedTasks = 0;
-      let requiredTasksCount = 0;
-
-      for (const task of unitTasks) {
-        const taskStatus = taskStatusByTaskId.get(task.id);
-        const isCounted = Boolean(taskStatus && COUNTED_STATUSES.has(taskStatus));
-        const isSolved = Boolean(taskStatus && SOLVED_STATUSES.has(taskStatus));
-
-        if (isCounted) countedTasks += 1;
-        if (isSolved) solvedTasks += 1;
-
-        if (task.isRequired) {
-          requiredTasksCount += 1;
-          if (isCounted) requiredCountedTasks += 1;
-        } else if (isCounted) {
-          optionalCountedTasks += 1;
-        }
-      }
-
-      const completionPercent =
-        totalTasks === 0 ? 0 : Math.floor((countedTasks * 100) / totalTasks);
-      const solvedPercent = totalTasks === 0 ? 0 : Math.floor((solvedTasks * 100) / totalTasks);
-
-      const optionalTasksCount = totalTasks - requiredTasksCount;
-      const hasExplicitCompletionGate =
-        requiredTasksCount > 0 || unit.minOptionalCountedTasksToComplete > 0;
-      // Guard against zero-gate configuration:
-      // if unit has only optional tasks and minOptional = 0,
-      // require all optional tasks to be counted before marking unit completed.
-      const effectiveMinOptionalCountedTasksToComplete = hasExplicitCompletionGate
-        ? unit.minOptionalCountedTasksToComplete
-        : optionalTasksCount;
-      const requiredGateSatisfied = requiredCountedTasks === requiredTasksCount;
-      const isCompleted =
-        requiredGateSatisfied && optionalCountedTasks >= effectiveMinOptionalCountedTasksToComplete;
-
+      const metrics = this.computeUnitTaskMetrics(unitTasks, taskStatusByTaskId, unit);
       const prereqIds = prereqByUnitId.get(unitId) ?? [];
       const prereqsCompleted = prereqIds.every(
         (prereqId) => snapshots.get(prereqId)?.status === StudentUnitStatus.completed,
       );
       const overrideOpened = context.overrideOpenedUnitIds.has(unitId);
-      const canOpen = prereqsCompleted || overrideOpened;
-
       const hasAttempt = hasAttemptByUnitId.get(unitId) ?? false;
-
-      const status = isCompleted
-        ? StudentUnitStatus.completed
-        : canOpen
-          ? hasAttempt
-            ? StudentUnitStatus.in_progress
-            : StudentUnitStatus.available
-          : StudentUnitStatus.locked;
+      const status = this.resolveUnitStatus({
+        isCompleted: metrics.isCompleted,
+        prereqsCompleted,
+        overrideOpened,
+        hasAttempt,
+      });
 
       snapshots.set(unitId, {
         unitId,
         status,
-        totalTasks,
-        countedTasks,
-        optionalCountedTasks,
-        solvedTasks,
-        completionPercent,
-        solvedPercent,
+        totalTasks: metrics.totalTasks,
+        countedTasks: metrics.countedTasks,
+        optionalCountedTasks: metrics.optionalCountedTasks,
+        solvedTasks: metrics.solvedTasks,
+        completionPercent: metrics.completionPercent,
+        solvedPercent: metrics.solvedPercent,
         hasAttempt,
-        isCompleted,
-        requiredTasksCount,
-        effectiveMinOptionalCountedTasksToComplete,
+        isCompleted: metrics.isCompleted,
+        requiredTasksCount: metrics.requiredTasksCount,
+        effectiveMinOptionalCountedTasksToComplete: metrics.effectiveMinOptionalCountedTasksToComplete,
       });
     }
 
     return snapshots;
+  }
+
+  private groupTasksByUnitId(tasks: PublishedTask[]) {
+    const tasksByUnitId = new Map<string, PublishedTask[]>();
+
+    for (const task of tasks) {
+      const list = tasksByUnitId.get(task.unitId) ?? [];
+      list.push(task);
+      tasksByUnitId.set(task.unitId, list);
+    }
+
+    return tasksByUnitId;
+  }
+
+  private buildHasAttemptByUnitId(
+    units: PublishedUnit[],
+    tasksByUnitId: Map<string, PublishedTask[]>,
+    attemptedTaskIds: Set<string>,
+  ) {
+    const hasAttemptByUnitId = new Map<string, boolean>();
+
+    for (const unit of units) {
+      const tasks = tasksByUnitId.get(unit.id) ?? [];
+      hasAttemptByUnitId.set(unit.id, tasks.some((task) => attemptedTaskIds.has(task.id)));
+    }
+
+    return hasAttemptByUnitId;
+  }
+
+  private buildPrereqByUnitId(
+    units: PublishedUnit[],
+    edges: { prereqUnitId: string; unitId: string }[],
+  ) {
+    const prereqByUnitId = new Map<string, string[]>();
+
+    for (const unit of units) {
+      prereqByUnitId.set(unit.id, []);
+    }
+
+    for (const edge of edges) {
+      const list = prereqByUnitId.get(edge.unitId);
+      if (list) list.push(edge.prereqUnitId);
+    }
+
+    return prereqByUnitId;
+  }
+
+  private computeUnitTaskMetrics(
+    unitTasks: PublishedTask[],
+    taskStatusByTaskId: Map<string, StudentTaskStatus>,
+    unit: PublishedUnit,
+  ): UnitTaskMetrics {
+    let countedTasks = 0;
+    let optionalCountedTasks = 0;
+    let solvedTasks = 0;
+    let requiredCountedTasks = 0;
+    let requiredTasksCount = 0;
+
+    for (const task of unitTasks) {
+      const taskStatus = taskStatusByTaskId.get(task.id);
+      const isCounted = Boolean(taskStatus && COUNTED_STATUSES.has(taskStatus));
+      const isSolved = Boolean(taskStatus && SOLVED_STATUSES.has(taskStatus));
+
+      if (isCounted) countedTasks += 1;
+      if (isSolved) solvedTasks += 1;
+
+      if (task.isRequired) {
+        requiredTasksCount += 1;
+        if (isCounted) requiredCountedTasks += 1;
+        continue;
+      }
+
+      if (isCounted) {
+        optionalCountedTasks += 1;
+      }
+    }
+
+    const totalTasks = unitTasks.length;
+    const completionPercent =
+      totalTasks === 0 ? 0 : Math.floor((countedTasks * 100) / totalTasks);
+    const solvedPercent = totalTasks === 0 ? 0 : Math.floor((solvedTasks * 100) / totalTasks);
+    const effectiveMinOptionalCountedTasksToComplete =
+      this.resolveEffectiveMinOptionalCountedTasksToComplete(totalTasks, requiredTasksCount, unit);
+    const requiredGateSatisfied = requiredCountedTasks === requiredTasksCount;
+    const isCompleted =
+      requiredGateSatisfied && optionalCountedTasks >= effectiveMinOptionalCountedTasksToComplete;
+
+    return {
+      totalTasks,
+      countedTasks,
+      optionalCountedTasks,
+      solvedTasks,
+      requiredTasksCount,
+      effectiveMinOptionalCountedTasksToComplete,
+      isCompleted,
+      completionPercent,
+      solvedPercent,
+    };
+  }
+
+  private resolveEffectiveMinOptionalCountedTasksToComplete(
+    totalTasks: number,
+    requiredTasksCount: number,
+    unit: PublishedUnit,
+  ) {
+    const optionalTasksCount = totalTasks - requiredTasksCount;
+    const hasExplicitCompletionGate =
+      requiredTasksCount > 0 || unit.minOptionalCountedTasksToComplete > 0;
+
+    // Guard against zero-gate configuration:
+    // if unit has only optional tasks and minOptional = 0,
+    // require all optional tasks to be counted before marking unit completed.
+    return hasExplicitCompletionGate
+      ? unit.minOptionalCountedTasksToComplete
+      : optionalTasksCount;
+  }
+
+  private resolveUnitStatus(args: {
+    isCompleted: boolean;
+    prereqsCompleted: boolean;
+    overrideOpened: boolean;
+    hasAttempt: boolean;
+  }) {
+    const { isCompleted, prereqsCompleted, overrideOpened, hasAttempt } = args;
+
+    if (isCompleted) {
+      return StudentUnitStatus.completed;
+    }
+
+    if (!prereqsCompleted && !overrideOpened) {
+      return StudentUnitStatus.locked;
+    }
+
+    return hasAttempt ? StudentUnitStatus.in_progress : StudentUnitStatus.available;
   }
 
   private async persistSnapshots(
