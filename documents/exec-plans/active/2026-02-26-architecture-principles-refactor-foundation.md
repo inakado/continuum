@@ -1251,6 +1251,32 @@
   - после закрытия `learning-attempts-write.service.ts`, `learning-availability.service.ts` и `latex-compile.service.ts` Phase 6 `complexity` tail по `api/web` закрыт;
   - при этом в `apps/api` всё ещё остаётся отдельный baseline хвост из `@typescript-eslint/consistent-type-imports` warnings по многим файлам;
   - этот baseline относится к общей финальной lint-hardening cleanup работе и не должен маскироваться под “последний complexity файл”.
+  - для cleanup этого baseline зафиксирована отдельная стратегия:
+    - не использовать mass-fix/auto-fix по всему `apps/api`;
+    - двигаться маленькими кластерами файлов;
+    - для Nest runtime imports, которые нужны только через constructor metadata, использовать явный `@Inject(...)`, а не слепой `import type`;
+    - после каждого batch прогонять Docker `pnpm test`, Docker `tsc --noEmit`, Docker `build`;
+    - для runtime-sensitive кластеров добавлять живой smoke (`/health`, login, student/teacher read endpoint), чтобы ловить DI-regression до следующего batch.
+  - первый cleanup batch после complexity-refactor закрыт для auth runtime:
+    - `apps/api/src/auth/auth.controller.ts`
+    - `apps/api/src/auth/auth.service.ts`
+    - `apps/api/src/auth/guards/roles.guard.ts`
+    - `apps/api/src/auth/strategies/jwt.strategy.ts`
+    - `apps/api/src/auth/strategies/local.strategy.ts`
+    - результат:
+      - зависимости `AuthService`, `PrismaService`, `UsersService`, `JwtService`, `Reflector` переведены на явный `@Inject(...)`, логика не менялась;
+      - проверки: targeted `eslint`, Docker `pnpm test`, Docker `tsc --noEmit`, Docker `build`, внутренний `/health = 200` и `POST /auth/login = 201` проходят.
+  - второй cleanup batch закрыт для student read controllers:
+    - `apps/api/src/content/student-courses.controller.ts`
+    - `apps/api/src/content/student-sections.controller.ts`
+    - `apps/api/src/content/student-units.controller.ts`
+    - `apps/api/src/learning/student-section-graph.controller.ts`
+    - `apps/api/src/learning/student-task-solutions.controller.ts`
+    - `apps/api/src/learning/student-task-statement-image.controller.ts`
+    - `apps/api/src/learning/student-units.controller.ts`
+    - результат:
+      - сервисные зависимости контроллеров переведены на явный `@Inject(...)`, route behavior и response shape не менялись;
+      - проверки: targeted `eslint`, Docker `pnpm test`, Docker `tsc --noEmit`, Docker `build`, внутренний student smoke `GET /courses = 200` после login проходит.
 
 - Порядок выполнения Wave 1 дальше:
   - рабочий цикл фиксируется по каждому файлу/flow:

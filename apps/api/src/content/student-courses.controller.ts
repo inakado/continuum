@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, Param, UseGuards } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -9,7 +9,7 @@ import { ContentService } from './content.service';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.student)
 export class StudentCoursesController {
-  constructor(private readonly contentService: ContentService) {}
+  constructor(@Inject(ContentService) private readonly contentService: ContentService) {}
 
   @Get()
   list() {

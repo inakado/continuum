@@ -2,6 +2,7 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  Inject,
   Logger,
   Post,
   Req,
@@ -31,7 +32,9 @@ export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
   constructor(
+    @Inject(AuthService)
     private readonly authService: AuthService,
+    @Inject(PrismaService)
     private readonly prisma: PrismaService,
   ) {}
 

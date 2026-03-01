@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'crypto';
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { type Prisma, type Role } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import argon2 from 'argon2';
@@ -43,8 +43,11 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
   constructor(
+    @Inject(PrismaService)
     private readonly prisma: PrismaService,
+    @Inject(UsersService)
     private readonly usersService: UsersService,
+    @Inject(JwtService)
     private readonly jwtService: JwtService,
   ) {}
 
