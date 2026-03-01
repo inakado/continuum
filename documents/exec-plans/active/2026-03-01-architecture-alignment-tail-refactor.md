@@ -177,6 +177,28 @@ Adjacency candidate:
 - ниже стоимость следующих изменений;
 - проще targeted testing и code review.
 
+Текущий прогресс:
+- `students.service.ts` физически разрезан без изменения controller contract:
+  - `apps/api/src/students/teacher-accounts.service.ts`
+  - `apps/api/src/students/teacher-students.service.ts`
+  - `apps/api/src/students/students.shared.ts`
+  - `apps/api/src/students/students.service.ts` оставлен facade-слоем с прежним public API для контроллеров.
+- Вынесены отдельные ответственности:
+  - `teacher self-management`
+  - `teacher roster / student lifecycle`
+  - общие helpers для имён/паролей/state normalization
+- Добавлен service-level safety-net:
+  - `apps/api/test/students-teacher-accounts.service.test.ts`
+  - `apps/api/test/students-teacher-students.service.test.ts`
+- Docker verification пройдена:
+  - `tsc --noEmit`
+  - `build`
+  - `test`
+  - `test:integration`
+  - `smoke:auth`
+- Следующий обязательный physical decomposition tail:
+  - `apps/api/src/content/content-write.service.ts`
+
 ## Правила безопасного выполнения
 
 ### 1) Порядок работы по каждому файлу
