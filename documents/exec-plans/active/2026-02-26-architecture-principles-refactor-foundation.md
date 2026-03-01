@@ -1174,6 +1174,15 @@
       - task action branching вынесен в отдельные controls (`StudentTaskAttemptControls`, `StudentTaskProgressControls`) без изменения UI semantics для numeric/photo/credited flows;
       - complexity warning снят, внешний contract экрана и соседних hooks/components сохранён;
       - проверка: targeted `vitest` suite, полный `pnpm --filter web lint` и `pnpm --filter web typecheck` проходят; остаток `web` warnings сократился до `1`.
+  - завершён тринадцатый цикл `targeted tests -> refactor -> targeted verification` для:
+    - `apps/web/features/teacher-content/units/TeacherUnitDetailScreen.tsx`;
+    - результат:
+      - добавлен targeted safety-net `TeacherUnitDetailScreen.test.tsx` для `load unit + breadcrumb context`, `publish unit`, `create+publish task` и `delete unit -> back to section` сценариев;
+      - `useTeacherUnitFetchSave` переведён с manual `useEffect + fetch + cancelled flags` на `TanStack Query + mutations`, при этом сохранён внешний hook contract (`unit`, `setUnit`, `fetchUnit`, editable local state) для compile/image flows;
+      - в `contentQueryKeys` добавлен `teacherUnit(unitId)` как source of truth для unit read-path и refresh cache;
+      - write-side orchestration экрана вынесен в отдельный hook `useTeacherUnitScreenActions`, а root screen разрезан на composition pieces (`TeacherUnitHeader`, `TeacherUnitTabContent`, `TeacherUnitDeleteDialog`, layout hook);
+      - complexity warning по `TeacherUnitDetailScreen.tsx` снят без изменения UI semantics, publish/delete/task CRUD flows и compile modal contract;
+      - проверка: targeted `TeacherUnitDetailScreen.test.tsx`, полный `pnpm --filter web test`, `pnpm --filter web lint` и `pnpm --filter web typecheck` проходят; `web` warning tail обнулён.
 
 - Complexity triage по `ARCHITECTURE-PRINCIPLES.md`:
   - критерии обязательного refactor:
@@ -1186,7 +1195,7 @@
 
 - Tier A — обязательный architectural refactor:
   - `apps/web/features/student-content/units/StudentUnitDetailScreen.tsx` (`Implemented`)
-  - `apps/web/features/teacher-content/units/TeacherUnitDetailScreen.tsx`
+  - `apps/web/features/teacher-content/units/TeacherUnitDetailScreen.tsx` (`Implemented`)
   - `apps/web/features/teacher-dashboard/TeacherDashboardScreen.tsx` (`Implemented`)
   - `apps/web/features/teacher-students/TeacherStudentProfilePanel.tsx` (`Implemented`)
   - `apps/web/features/teacher-students/TeacherStudentsPanel.tsx` (`Implemented`)
@@ -1233,7 +1242,6 @@
     - `TeacherStudentsPanel.tsx` (`Implemented`)
     - `learning-attempts-write.service.ts`
   - затем тяжёлые shells:
-    - `TeacherUnitDetailScreen.tsx`
     - `use-teacher-unit-latex-compile.ts`
     - `learning-availability.service.ts`
 

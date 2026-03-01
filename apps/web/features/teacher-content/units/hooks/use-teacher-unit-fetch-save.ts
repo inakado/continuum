@@ -1,5 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type MutableRefObject,
+  type SetStateAction,
+} from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { teacherApi, type Task, type UnitVideo, type UnitWithTasks } from "@/lib/api/teacher";
+import { contentQueryKeys } from "@/lib/query/keys";
 import { getApiErrorMessage } from "../../shared/api-errors";
 
 const AUTOSAVE_DEBOUNCE_MS = 1000;
@@ -36,15 +46,51 @@ const toProgressErrorMessage = (error: unknown) => {
   return rawMessage;
 };
 
+const applyEditableUnitState = ({
+  data,
+  setTheoryText,
+  setMethodText,
+  setVideos,
+  setTaskOrder,
+  setSaveState,
+  setMinCountedInput,
+  setIsOptionalMinEditing,
+  setProgressSaveState,
+  snapshotRef,
+}: {
+  data: UnitWithTasks;
+  setTheoryText: Dispatch<SetStateAction<string>>;
+  setMethodText: Dispatch<SetStateAction<string>>;
+  setVideos: Dispatch<SetStateAction<UnitVideo[]>>;
+  setTaskOrder: Dispatch<SetStateAction<Task[]>>;
+  setSaveState: Dispatch<SetStateAction<SaveState>>;
+  setMinCountedInput: Dispatch<SetStateAction<string>>;
+  setIsOptionalMinEditing: Dispatch<SetStateAction<boolean>>;
+  setProgressSaveState: Dispatch<SetStateAction<ProgressSaveState>>;
+  snapshotRef: MutableRefObject<ReturnType<typeof buildSnapshot> | null>;
+}) => {
+  const nextTheory = data.theoryRichLatex ?? "";
+  const nextMethod = data.methodRichLatex ?? "";
+  const nextVideos = data.videosJson ?? [];
+
+  setTheoryText(nextTheory);
+  setMethodText(nextMethod);
+  setVideos(nextVideos);
+  setTaskOrder(sortTasks(data.tasks));
+  snapshotRef.current = buildSnapshot(nextTheory, nextMethod, nextVideos);
+  setSaveState({ state: "idle" });
+  setMinCountedInput(String(data.minOptionalCountedTasksToComplete ?? 0));
+  setIsOptionalMinEditing(data.minOptionalCountedTasksToComplete === null);
+  setProgressSaveState({ state: "idle" });
+};
+
 type Params = {
   unitId: string;
 };
 
 export const useTeacherUnitFetchSave = ({ unitId }: Params) => {
-  const [unit, setUnit] = useState<UnitWithTasks | null>(null);
-  const [courseTitle, setCourseTitle] = useState<string | null>(null);
-  const [sectionTitle, setSectionTitle] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const [errorOverride, setErrorOverride] = useState<string | null>(null);
   const [theoryText, setTheoryText] = useState("");
   const [methodText, setMethodText] = useState("");
   const [videos, setVideos] = useState<UnitVideo[]>([]);
@@ -58,71 +104,82 @@ export const useTeacherUnitFetchSave = ({ unitId }: Params) => {
   const timerRef = useRef<number | null>(null);
   const inflightRef = useRef(0);
 
+  const unitQuery = useQuery<UnitWithTasks>({
+    queryKey: contentQueryKeys.teacherUnit(unitId),
+    queryFn: () => teacherApi.getUnit(unitId),
+  });
+
+  const unit = unitQuery.data ?? null;
+
+  useEffect(() => {
+    if (!unitQuery.data) return;
+    applyEditableUnitState({
+      data: unitQuery.data,
+      setTheoryText,
+      setMethodText,
+      setVideos,
+      setTaskOrder,
+      setSaveState,
+      setMinCountedInput,
+      setIsOptionalMinEditing,
+      setProgressSaveState,
+      snapshotRef,
+    });
+    setErrorOverride(null);
+  }, [unitQuery.data]);
+
+  const sectionQuery = useQuery({
+    queryKey: contentQueryKeys.teacherSection(unit?.sectionId ?? ""),
+    queryFn: () => teacherApi.getSection(unit?.sectionId ?? ""),
+    enabled: Boolean(unit?.sectionId),
+    retry: false,
+  });
+
+  const courseQuery = useQuery({
+    queryKey: contentQueryKeys.teacherCourse(sectionQuery.data?.courseId ?? ""),
+    queryFn: () => teacherApi.getCourse(sectionQuery.data?.courseId ?? ""),
+    enabled: Boolean(sectionQuery.data?.courseId),
+    retry: false,
+  });
+
+  const updateUnitMutation = useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: {
+        theoryRichLatex?: string | null;
+        methodRichLatex?: string | null;
+        videosJson?: UnitVideo[] | null;
+        minOptionalCountedTasksToComplete?: number;
+      };
+    }) => teacherApi.updateUnit(id, payload),
+  });
+
   const fetchUnit = useCallback(async (): Promise<UnitWithTasks | null> => {
-    setError(null);
+    setErrorOverride(null);
     try {
-      const data = await teacherApi.getUnit(unitId);
-
-      const nextTheory = data.theoryRichLatex ?? "";
-      const nextMethod = data.methodRichLatex ?? "";
-      const nextVideos = data.videosJson ?? [];
-
-      setUnit(data);
-      setTheoryText(nextTheory);
-      setMethodText(nextMethod);
-      setVideos(nextVideos);
-      setTaskOrder(sortTasks(data.tasks));
-      snapshotRef.current = buildSnapshot(nextTheory, nextMethod, nextVideos);
-
-      setSaveState({ state: "idle" });
-      setMinCountedInput(String(data.minOptionalCountedTasksToComplete ?? 0));
-      setIsOptionalMinEditing(data.minOptionalCountedTasksToComplete === null);
-      setProgressSaveState({ state: "idle" });
-
+      const data = await queryClient.fetchQuery({
+        queryKey: contentQueryKeys.teacherUnit(unitId),
+        queryFn: () => teacherApi.getUnit(unitId),
+        staleTime: 0,
+      });
       return data;
     } catch (err) {
-      setError(getApiErrorMessage(err));
+      setErrorOverride(getApiErrorMessage(err));
       return null;
     }
-  }, [unitId]);
+  }, [queryClient, unitId]);
 
-  useEffect(() => {
-    void fetchUnit();
-  }, [fetchUnit]);
-
-  useEffect(() => {
-    if (!unit?.sectionId) {
-      setCourseTitle(null);
-      setSectionTitle(null);
-      return;
-    }
-
-    let cancelled = false;
-    void (async () => {
-      try {
-        const section = await teacherApi.getSection(unit.sectionId);
-        if (cancelled) return;
-        setSectionTitle(section.title);
-
-        try {
-          const course = await teacherApi.getCourse(section.courseId);
-          if (cancelled) return;
-          setCourseTitle(course.title);
-        } catch {
-          if (cancelled) return;
-          setCourseTitle(null);
-        }
-      } catch {
-        if (cancelled) return;
-        setSectionTitle(null);
-        setCourseTitle(null);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [unit?.sectionId]);
+  const setUnit = useCallback<Dispatch<SetStateAction<UnitWithTasks | null>>>(
+    (nextValue) => {
+      queryClient.setQueryData<UnitWithTasks | null>(contentQueryKeys.teacherUnit(unitId), (prev) =>
+        typeof nextValue === "function" ? (nextValue as (prev: UnitWithTasks | null) => UnitWithTasks | null)(prev ?? null) : nextValue,
+      );
+    },
+    [queryClient, unitId],
+  );
 
   const scheduleAutosave = useCallback(() => {
     if (!unit) return;
@@ -155,7 +212,7 @@ export const useTeacherUnitFetchSave = ({ unitId }: Params) => {
       const requestId = inflightRef.current;
 
       try {
-        const updated = await teacherApi.updateUnit(unit.id, payload);
+        const updated = await updateUnitMutation.mutateAsync({ id: unit.id, payload });
         if (requestId !== inflightRef.current) return;
 
         setUnit((prev) =>
@@ -176,7 +233,7 @@ export const useTeacherUnitFetchSave = ({ unitId }: Params) => {
         setSaveState({ state: "error", message: getApiErrorMessage(err) });
       }
     }, AUTOSAVE_DEBOUNCE_MS);
-  }, [methodText, theoryText, unit, videos]);
+  }, [methodText, theoryText, unit, updateUnitMutation, videos, setUnit]);
 
   useEffect(() => {
     scheduleAutosave();
@@ -197,8 +254,9 @@ export const useTeacherUnitFetchSave = ({ unitId }: Params) => {
 
     setProgressSaveState({ state: "saving" });
     try {
-      const updated = await teacherApi.updateUnit(unit.id, {
-        minOptionalCountedTasksToComplete: parsed,
+      const updated = await updateUnitMutation.mutateAsync({
+        id: unit.id,
+        payload: { minOptionalCountedTasksToComplete: parsed },
       });
       setUnit((prev) => (prev ? { ...prev, ...updated } : prev));
       setMinCountedInput(String(updated.minOptionalCountedTasksToComplete ?? parsed));
@@ -208,15 +266,19 @@ export const useTeacherUnitFetchSave = ({ unitId }: Params) => {
       setProgressSaveState({ state: "error", message: toProgressErrorMessage(err) });
       return false;
     }
-  }, [minCountedInput, unit]);
+  }, [minCountedInput, setUnit, unit, updateUnitMutation]);
+
+  const error =
+    errorOverride ??
+    (unitQuery.isError ? getApiErrorMessage(unitQuery.error) : null);
 
   return {
     unit,
     setUnit,
-    courseTitle,
-    sectionTitle,
+    courseTitle: courseQuery.data?.title ?? null,
+    sectionTitle: sectionQuery.data?.title ?? null,
     error,
-    setError,
+    setError: setErrorOverride,
     theoryText,
     setTheoryText,
     methodText,

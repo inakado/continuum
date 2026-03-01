@@ -24,6 +24,7 @@ export const contentQueryKeys = {
   teacherCourses: () => ["content", "teacher", "courses"] as const,
   teacherCourse: (courseId: string) => ["content", "teacher", "course", courseId] as const,
   teacherSection: (sectionId: string) => ["content", "teacher", "section", sectionId] as const,
+  teacherUnit: (unitId: string) => ["content", "teacher", "unit", unitId] as const,
   teacherSectionGraph: (sectionId: string) =>
     ["content", "teacher", "section", sectionId, "graph"] as const,
   teacherStudents: (query?: string) =>
