@@ -14,11 +14,25 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import {
+  TaskStatementImageApplyRequestSchema,
+  type TaskStatementImageApplyRequest,
+  TaskStatementImagePresignViewQuerySchema,
+  type TaskStatementImagePresignViewQuery,
+  TeacherTaskStatementImagePresignUploadRequestSchema,
+  type TeacherTaskStatementImagePresignUploadRequest,
+} from '@continuum/shared';
 import { EventCategory, Role } from '@prisma/client';
 import { type AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import {
+  taskStatementImageApplyExceptionFactory,
+  taskStatementImageUploadExceptionFactory,
+  taskStatementImageViewExceptionFactory,
+} from '../common/validation/zod-exception-factories';
 import { EventsLogService } from '../events/events-log.service';
 import { LearningRecomputeService } from '../learning/learning-recompute.service';
 import { ContentService } from './content.service';
@@ -176,13 +190,19 @@ export class TeacherTasksController {
 
   @Post(':taskId/statement-image/presign-upload')
   @HttpCode(200)
-  async presignStatementImageUpload(@Param('taskId') taskId: string, @Body() body: unknown) {
+  async presignStatementImageUpload(
+    @Param('taskId') taskId: string,
+    @Body(
+      new ZodValidationPipe(
+        TeacherTaskStatementImagePresignUploadRequestSchema,
+        taskStatementImageUploadExceptionFactory,
+      ),
+    )
+    body: TeacherTaskStatementImagePresignUploadRequest,
+  ) {
     const state = await this.contentService.getTaskStatementImageState(taskId);
-    const payload = this.asRecord(body);
-    const file = this.taskStatementImagePolicyService.parseUploadFile(
-      this.asRecord(payload.file).filename ? payload.file : body,
-    );
-    const ttlSec = this.taskStatementImagePolicyService.resolveUploadTtl(payload.ttlSec);
+    const file = body.file;
+    const ttlSec = this.taskStatementImagePolicyService.resolveUploadTtl(body.ttlSec);
     const assetKey = this.taskStatementImagePolicyService.createAssetKey(
       state.taskId,
       state.activeRevisionId,
@@ -200,10 +220,18 @@ export class TeacherTasksController {
 
   @Post(':taskId/statement-image/apply')
   @HttpCode(200)
-  async applyStatementImage(@Param('taskId') taskId: string, @Body() body: unknown) {
+  async applyStatementImage(
+    @Param('taskId') taskId: string,
+    @Body(
+      new ZodValidationPipe(
+        TaskStatementImageApplyRequestSchema,
+        taskStatementImageApplyExceptionFactory,
+      ),
+    )
+    body: TaskStatementImageApplyRequest,
+  ) {
     const state = await this.contentService.getTaskStatementImageState(taskId);
-    const payload = this.asRecord(body);
-    const assetKey = this.taskStatementImagePolicyService.parseAssetKey(payload.assetKey);
+    const assetKey = body.assetKey;
     const prefix = this.taskStatementImagePolicyService.buildAssetPrefix(
       state.taskId,
       state.activeRevisionId,
@@ -248,9 +276,15 @@ export class TeacherTasksController {
   @Get(':taskId/statement-image/presign-view')
   async presignStatementImageView(
     @Param('taskId') taskId: string,
-    @Query('ttlSec') ttlRaw: string | undefined,
+    @Query(
+      new ZodValidationPipe(
+        TaskStatementImagePresignViewQuerySchema,
+        taskStatementImageViewExceptionFactory,
+      ),
+    )
+    query: TaskStatementImagePresignViewQuery,
   ) {
-    const ttlSec = this.taskStatementImagePolicyService.resolveViewTtl(Role.teacher, ttlRaw);
+    const ttlSec = this.taskStatementImagePolicyService.resolveViewTtl(Role.teacher, query.ttlSec);
     const state = await this.contentService.getTaskStatementImageState(taskId);
     if (!state.statementImageAssetKey) {
       throw new NotFoundException({
@@ -276,9 +310,5 @@ export class TeacherTasksController {
       expiresInSec: ttlSec,
       url,
     };
-  }
-
-  private asRecord(value: unknown): Record<string, unknown> {
-    return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
   }
 }

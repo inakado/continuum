@@ -1,12 +1,8 @@
-export const TASK_STATEMENT_IMAGE_MAX_SIZE_BYTES = 20 * 1024 * 1024;
-
-export const TASK_STATEMENT_IMAGE_ALLOWED_CONTENT_TYPES = [
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-] as const;
-
-export const TASK_STATEMENT_IMAGE_UPLOAD_TTL_DEFAULT_SEC = 300;
-export const TASK_STATEMENT_IMAGE_VIEW_TTL_STUDENT_DEFAULT_SEC = 180;
-export const TASK_STATEMENT_IMAGE_VIEW_TTL_TEACHER_DEFAULT_SEC = 600;
-export const TASK_STATEMENT_IMAGE_TTL_MAX_SEC = 600;
+export {
+  TaskStatementImageAllowedContentTypes as TASK_STATEMENT_IMAGE_ALLOWED_CONTENT_TYPES,
+  TaskStatementImageMaxSizeBytes as TASK_STATEMENT_IMAGE_MAX_SIZE_BYTES,
+  TaskStatementImageTtlMaxSec as TASK_STATEMENT_IMAGE_TTL_MAX_SEC,
+  TaskStatementImageUploadTtlDefaultSec as TASK_STATEMENT_IMAGE_UPLOAD_TTL_DEFAULT_SEC,
+  TaskStatementImageViewTtlStudentDefaultSec as TASK_STATEMENT_IMAGE_VIEW_TTL_STUDENT_DEFAULT_SEC,
+  TaskStatementImageViewTtlTeacherDefaultSec as TASK_STATEMENT_IMAGE_VIEW_TTL_TEACHER_DEFAULT_SEC,
+} from '@continuum/shared';

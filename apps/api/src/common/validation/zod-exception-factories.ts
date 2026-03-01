@@ -237,3 +237,205 @@ export const teacherInboxQueryExceptionFactory: ZodExceptionFactory = (error) =>
     message: 'status must be one of: pending_review, accepted, rejected',
   });
 };
+
+export const taskStatementImageUploadExceptionFactory: ZodExceptionFactory = (error) => {
+  const issue = firstIssue(error);
+  const issuePath = Array.isArray(issue?.path) ? issue.path : [];
+
+  if (issueAt(issue, 'ttlSec')) {
+    if (isTtlTooLarge(issue)) {
+      return createBadRequestException({
+        code: 'TTL_TOO_LARGE',
+        message: 'ttlSec must be <= 600',
+      });
+    }
+
+    return createBadRequestException({
+      code: 'INVALID_TTL',
+      message: 'ttlSec must be a positive integer',
+    });
+  }
+
+  if (issueAt(issue, 'file')) {
+    if (issuePath[1] === 'filename') {
+      return createBadRequestException({
+        code: 'INVALID_FILE_TYPE',
+        message: 'filename is required',
+      });
+    }
+
+    if (issuePath[1] === 'contentType') {
+      return createBadRequestException({
+        code: 'INVALID_FILE_TYPE',
+        message: 'contentType must be one of: image/jpeg, image/png, image/webp',
+      });
+    }
+
+    if (issuePath[1] === 'sizeBytes') {
+      if (isTooBig(issue)) {
+        return createBadRequestException({
+          code: 'FILE_TOO_LARGE',
+          message: 'max file size is 20971520 bytes',
+        });
+      }
+
+      return createBadRequestException({
+        code: 'FILE_TOO_LARGE',
+        message: 'sizeBytes must be a positive integer',
+      });
+    }
+
+    return createBadRequestException({
+      code: 'INVALID_FILE_TYPE',
+      message: 'file payload is invalid',
+    });
+  }
+
+  return createBadRequestException({
+    code: 'INVALID_FILE_TYPE',
+    message: 'file payload is invalid',
+  });
+};
+
+export const taskStatementImageApplyExceptionFactory: ZodExceptionFactory = (error) => {
+  const issue = firstIssue(error);
+
+  if (issueAt(issue, 'assetKey')) {
+    if (isMissingIssue(issue)) {
+      return createConflictException({
+        code: 'INVALID_ASSET_KEY',
+        message: 'assetKey is required',
+      });
+    }
+
+    return createConflictException({
+      code: 'INVALID_ASSET_KEY',
+      message: 'assetKey format is invalid',
+    });
+  }
+
+  return createConflictException({
+    code: 'INVALID_ASSET_KEY',
+    message: 'assetKey format is invalid',
+  });
+};
+
+export const taskStatementImageViewExceptionFactory: ZodExceptionFactory = (error) => {
+  const issue = firstIssue(error);
+
+  if (issueAt(issue, 'ttlSec')) {
+    if (isTtlTooLarge(issue)) {
+      return createBadRequestException({
+        code: 'TTL_TOO_LARGE',
+        message: 'ttlSec must be <= 600',
+      });
+    }
+
+    return createBadRequestException({
+      code: 'INVALID_TTL',
+      message: 'ttlSec must be a positive integer',
+    });
+  }
+
+  return createBadRequestException({
+    code: 'INVALID_TTL',
+    message: 'ttlSec must be a positive integer',
+  });
+};
+
+export const teacherUnitLatexCompileExceptionFactory: ZodExceptionFactory = (error) => {
+  const issue = firstIssue(error);
+
+  if (issueAt(issue, 'target')) {
+    return createBadRequestException({
+      code: 'INVALID_PDF_TARGET',
+      message: 'target must be one of: theory | method',
+    });
+  }
+
+  if (issueAt(issue, 'tex')) {
+    if (isTooBig(issue)) {
+      return createBadRequestException({
+        code: 'LATEX_TOO_LARGE',
+        message: 'tex exceeds max length (200000)',
+      });
+    }
+
+    return createBadRequestException({
+      code: 'INVALID_LATEX_INPUT',
+      message: 'tex must be a non-empty string',
+    });
+  }
+
+  if (issueAt(issue, 'ttlSec')) {
+    if (isTtlTooLarge(issue)) {
+      return createBadRequestException({
+        code: 'TTL_TOO_LARGE',
+        message: 'ttlSec must be <= 3600',
+      });
+    }
+
+    return createBadRequestException({
+      code: 'INVALID_TTL',
+      message: 'ttlSec must be a positive integer',
+    });
+  }
+
+  return createBadRequestException({
+    code: 'INVALID_PDF_TARGET',
+    message: 'target must be one of: theory | method',
+  });
+};
+
+export const teacherTaskSolutionLatexCompileExceptionFactory: ZodExceptionFactory = (error) => {
+  const issue = firstIssue(error);
+
+  if (issueAt(issue, 'latex')) {
+    if (isTooBig(issue)) {
+      return createBadRequestException({
+        code: 'LATEX_TOO_LARGE',
+        message: 'latex exceeds max length (200000)',
+      });
+    }
+
+    return createBadRequestException({
+      code: 'INVALID_LATEX_INPUT',
+      message: 'latex must be a non-empty string',
+    });
+  }
+
+  if (issueAt(issue, 'ttlSec')) {
+    if (isTtlTooLarge(issue)) {
+      return createBadRequestException({
+        code: 'TTL_TOO_LARGE',
+        message: 'ttlSec must be <= 3600',
+      });
+    }
+
+    return createBadRequestException({
+      code: 'INVALID_TTL',
+      message: 'ttlSec must be a positive integer',
+    });
+  }
+
+  return createBadRequestException({
+    code: 'INVALID_LATEX_INPUT',
+    message: 'latex must be a non-empty string',
+  });
+};
+
+export const teacherLatexTtlQueryExceptionFactory: ZodExceptionFactory = (error) => {
+  const issue = firstIssue(error);
+
+  if (issueAt(issue, 'ttlSec') && isTtlTooLarge(issue)) {
+    return createBadRequestException({
+      code: 'TTL_TOO_LARGE',
+      message: 'ttlSec must be <= 3600',
+    });
+  }
+
+  return createBadRequestException({
+    code: 'INVALID_TTL',
+    message: 'ttlSec must be a positive integer',
+  });
+};

@@ -72,6 +72,44 @@
 - меньше дублирования;
 - чище соответствие `P2/P3/P8`.
 
+Текущий прогресс:
+- `teacher-tasks.controller.ts` statement-image endpoints переведены на `ZodValidationPipe` + shared contracts:
+  - `POST /teacher/tasks/:taskId/statement-image/presign-upload`
+  - `POST /teacher/tasks/:taskId/statement-image/apply`
+  - `GET /teacher/tasks/:taskId/statement-image/presign-view`
+- для этого среза добавлены shared contracts:
+  - `packages/shared/src/contracts/content-assets.ts`
+- API boundary safety-net добавлен:
+  - `apps/api/test/integration/task-statement-image-boundary.integration.test.ts`
+- exact error compatibility сохранена для:
+  - `INVALID_TTL`
+  - `TTL_TOO_LARGE`
+  - `INVALID_FILE_TYPE`
+  - `FILE_TOO_LARGE`
+  - `INVALID_ASSET_KEY`
+- `task-statement-image-policy.constants.ts` переведён на shared constants, чтобы убрать дубли лимитов внутри API boundary.
+- `teacher-latex.controller.ts` и `internal-latex.controller.ts` переведены на общий LaTeX boundary/helper слой:
+  - `POST /teacher/units/:id/latex/compile`
+  - `POST /teacher/tasks/:taskId/solution/latex/compile`
+  - `GET /teacher/tasks/:taskId/solution/pdf-presign`
+  - `GET /teacher/latex/jobs/:jobId`
+  - `POST /internal/latex/jobs/:jobId/apply`
+- добавлен API-local contract/helper слой:
+  - `apps/api/src/content/latex-boundary.contracts.ts`
+- в `teacher-latex.controller.ts` внешний boundary переведён на `ZodValidationPipe`;
+- дубли `parseJobPayload/parseJobResult` убраны из `teacher-latex.controller.ts` и `internal-latex.controller.ts`, обе ветки используют общий helper;
+- API boundary safety-net добавлен:
+  - `apps/api/test/integration/latex-boundary.integration.test.ts`
+- exact error compatibility сохранена для:
+  - `INVALID_PDF_TARGET`
+  - `INVALID_LATEX_INPUT`
+  - `LATEX_TOO_LARGE`
+  - `INVALID_TTL`
+  - `TTL_TOO_LARGE`
+  - `LATEX_JOB_PAYLOAD_INVALID`
+  - `LATEX_JOB_RESULT_INVALID`
+- По факту Wave 1 закрыта целиком: остаточный manual boundary parsing в API ветках `statement-image` и `latex` удалён без изменения response shape и legacy error semantics.
+
 ### Wave 2 — Manual server-state во frontend вне migration-срезов
 
 Цель:

@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   ConflictException,
   Controller,
@@ -20,35 +19,37 @@ import { type AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import {
+  teacherLatexTtlQueryExceptionFactory,
+  teacherTaskSolutionLatexCompileExceptionFactory,
+  teacherUnitLatexCompileExceptionFactory,
+} from '../common/validation/zod-exception-factories';
 import { EventsLogService } from '../events/events-log.service';
 import { ObjectStorageService } from '../infra/storage/object-storage.service';
 import { ContentService } from './content.service';
+import {
+  isTaskSolutionLatexCompileJobPayload,
+  isTaskSolutionLatexCompileJobResult,
+  isUnitLatexCompileJobPayload,
+  isUnitLatexCompileJobResult,
+  parseLatexCompileJobPayloadOrThrow,
+  parseLatexCompileJobResultOrThrow,
+  TeacherLatexTtlQuerySchema,
+  TeacherTaskSolutionLatexCompileRequestSchema,
+  TeacherUnitLatexCompileRequestSchema,
+  type TeacherLatexTtlQuery,
+  type TeacherTaskSolutionLatexCompileRequest,
+  type TeacherUnitLatexCompileRequest,
+} from './latex-boundary.contracts';
 import { LatexCompileQueueService } from './latex-compile-queue.service';
 import {
-  LATEX_MAX_SOURCE_LENGTH,
   type LatexCompileJobError,
-  type LatexCompileJobResult,
   type LatexCompileQueuePayload,
-  type TaskSolutionLatexCompileJobResult,
-  type TaskSolutionLatexCompileQueuePayload,
   TASK_SOLUTION_PDF_TARGET,
-  type UnitLatexCompileJobResult,
-  type UnitLatexCompileQueuePayload,
   shouldApplyIncomingPdfKey,
-  type UnitPdfTarget,
 } from './unit-pdf.constants';
 import { UnitPdfPolicyService } from './unit-pdf-policy.service';
-
-type CompileRequestBody = {
-  target?: unknown;
-  tex?: unknown;
-  ttlSec?: unknown;
-};
-
-type TaskSolutionCompileRequestBody = {
-  latex?: unknown;
-  ttlSec?: unknown;
-};
 
 @Controller('teacher')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -72,17 +73,22 @@ export class TeacherLatexController {
   async enqueueCompile(
     @Param('id') unitId: string,
     @Req() req: AuthRequest,
-    @Body() body: CompileRequestBody,
+    @Body(
+      new ZodValidationPipe(
+        TeacherUnitLatexCompileRequestSchema,
+        teacherUnitLatexCompileExceptionFactory,
+      ),
+    )
+    body: TeacherUnitLatexCompileRequest,
   ) {
     await this.contentService.getUnit(unitId);
-    const target = this.unitPdfPolicyService.parseTargetOrThrow(body?.target);
-    const tex = this.parseTexOrThrow(body?.tex);
-    const ttlSec = this.unitPdfPolicyService.resolveTtlForRole(Role.teacher, body?.ttlSec);
+    const target = this.unitPdfPolicyService.parseTargetOrThrow(body.target);
+    const ttlSec = this.unitPdfPolicyService.resolveTtlForRole(Role.teacher, body.ttlSec);
 
     const jobId = await this.queueService.enqueueUnitPdfCompile({
       unitId,
       target,
-      tex,
+      tex: body.tex,
       requestedByUserId: req.user.id,
       requestedByRole: Role.teacher,
       ttlSec,
@@ -96,18 +102,23 @@ export class TeacherLatexController {
   async enqueueTaskSolutionCompile(
     @Param('taskId') taskId: string,
     @Req() req: AuthRequest,
-    @Body() body: TaskSolutionCompileRequestBody,
+    @Body(
+      new ZodValidationPipe(
+        TeacherTaskSolutionLatexCompileRequestSchema,
+        teacherTaskSolutionLatexCompileExceptionFactory,
+      ),
+    )
+    body: TeacherTaskSolutionLatexCompileRequest,
   ) {
     const task = await this.contentService.getTaskForSolutionPdfCompile(taskId);
-    const latex = this.parseLatexOrThrow(body?.latex);
-    const ttlSec = this.unitPdfPolicyService.resolveTtlForRole(Role.teacher, body?.ttlSec);
-    await this.contentService.updateTaskRevisionSolutionRichLatex(task.activeRevisionId, latex);
+    const ttlSec = this.unitPdfPolicyService.resolveTtlForRole(Role.teacher, body.ttlSec);
+    await this.contentService.updateTaskRevisionSolutionRichLatex(task.activeRevisionId, body.latex);
 
     const jobId = await this.queueService.enqueueTaskSolutionPdfCompile({
       taskId: task.id,
       taskRevisionId: task.activeRevisionId,
       target: TASK_SOLUTION_PDF_TARGET,
-      tex: latex,
+      tex: body.latex,
       requestedByUserId: req.user.id,
       requestedByRole: Role.teacher,
       ttlSec,
@@ -119,9 +130,15 @@ export class TeacherLatexController {
   @Get('tasks/:taskId/solution/pdf-presign')
   async getTaskSolutionPdfPresignedUrl(
     @Param('taskId') taskId: string,
-    @Query('ttlSec') ttlRaw: string | undefined,
+    @Query(
+      new ZodValidationPipe(
+        TeacherLatexTtlQuerySchema,
+        teacherLatexTtlQueryExceptionFactory,
+      ),
+    )
+    query: TeacherLatexTtlQuery,
   ) {
-    const ttlSec = this.unitPdfPolicyService.resolveTtlForRole(Role.teacher, ttlRaw);
+    const ttlSec = this.unitPdfPolicyService.resolveTtlForRole(Role.teacher, query.ttlSec);
     const state = await this.contentService.getTaskSolutionPdfState(taskId);
     if (!state.solutionPdfAssetKey) {
       throw new NotFoundException({
@@ -150,18 +167,24 @@ export class TeacherLatexController {
   async getCompileJob(
     @Param('jobId') jobId: string,
     @Req() req: AuthRequest,
-    @Query('ttlSec') ttlRaw: string | undefined,
+    @Query(
+      new ZodValidationPipe(
+        TeacherLatexTtlQuerySchema,
+        teacherLatexTtlQueryExceptionFactory,
+      ),
+    )
+    query: TeacherLatexTtlQuery,
   ) {
-    const ttlSec = this.unitPdfPolicyService.resolveTtlForRole(Role.teacher, ttlRaw);
+    const ttlSec = this.unitPdfPolicyService.resolveTtlForRole(Role.teacher, query.ttlSec);
     const job = await this.requireJob(jobId);
-    const payload = this.parseJobPayload(job.data);
+    const payload = parseLatexCompileJobPayloadOrThrow(job.data);
     this.assertTeacherOwnsJob(payload, req.user.id);
 
     const rawState = await job.getState();
     const status = this.mapJobState(rawState);
 
     if (status === 'succeeded') {
-      const result = this.parseJobResult(job.returnvalue);
+      const result = parseLatexCompileJobResultOrThrow(job.returnvalue);
       const presignedUrl = await this.objectStorageService.getPresignedGetUrl(
         result.assetKey,
         ttlSec,
@@ -193,7 +216,7 @@ export class TeacherLatexController {
   @HttpCode(200)
   async applyCompileJob(@Param('jobId') jobId: string, @Req() req: AuthRequest) {
     const job = await this.requireJob(jobId);
-    const payload = this.parseJobPayload(job.data);
+    const payload = parseLatexCompileJobPayloadOrThrow(job.data);
     this.assertTeacherOwnsJob(payload, req.user.id);
 
     const rawState = await job.getState();
@@ -205,9 +228,9 @@ export class TeacherLatexController {
       });
     }
 
-    const result = this.parseJobResult(job.returnvalue);
+    const result = parseLatexCompileJobResultOrThrow(job.returnvalue);
 
-    if (this.isUnitPayload(payload) && this.isUnitResult(result)) {
+    if (isUnitLatexCompileJobPayload(payload) && isUnitLatexCompileJobResult(result)) {
       const unit = await this.contentService.getUnit(payload.unitId);
       const currentKey = payload.target === 'theory' ? unit.theoryPdfAssetKey : unit.methodPdfAssetKey;
       if (currentKey === result.assetKey) {
@@ -246,7 +269,7 @@ export class TeacherLatexController {
       };
     }
 
-    if (this.isTaskSolutionPayload(payload) && this.isTaskSolutionResult(result)) {
+    if (isTaskSolutionLatexCompileJobPayload(payload) && isTaskSolutionLatexCompileJobResult(result)) {
       const state = await this.contentService.getTaskSolutionPdfState(payload.taskId);
       if (state.activeRevisionId !== payload.taskRevisionId) {
         return {
@@ -343,196 +366,6 @@ export class TeacherLatexController {
     return 'queued';
   }
 
-  private parseTexOrThrow(value: unknown): string {
-    if (typeof value !== 'string' || !value.trim()) {
-      throw new BadRequestException({
-        code: 'INVALID_LATEX_INPUT',
-        message: 'tex must be a non-empty string',
-      });
-    }
-
-    if (value.length > LATEX_MAX_SOURCE_LENGTH) {
-      throw new BadRequestException({
-        code: 'LATEX_TOO_LARGE',
-        message: `tex exceeds max length (${LATEX_MAX_SOURCE_LENGTH})`,
-      });
-    }
-
-    return value;
-  }
-
-  private parseLatexOrThrow(value: unknown): string {
-    if (typeof value !== 'string' || !value.trim()) {
-      throw new BadRequestException({
-        code: 'INVALID_LATEX_INPUT',
-        message: 'latex must be a non-empty string',
-      });
-    }
-
-    if (value.length > LATEX_MAX_SOURCE_LENGTH) {
-      throw new BadRequestException({
-        code: 'LATEX_TOO_LARGE',
-        message: `latex exceeds max length (${LATEX_MAX_SOURCE_LENGTH})`,
-      });
-    }
-
-    return value;
-  }
-
-  private parseJobPayload(raw: unknown): LatexCompileQueuePayload {
-    if (!raw || typeof raw !== 'object') {
-      throw new ConflictException({
-        code: 'LATEX_JOB_PAYLOAD_INVALID',
-        message: 'Job payload is missing or malformed',
-      });
-    }
-
-    const payload = raw as Record<string, unknown>;
-    const requestedByUserId = typeof payload.requestedByUserId === 'string' ? payload.requestedByUserId : null;
-    const requestedByRole = payload.requestedByRole;
-    const tex = typeof payload.tex === 'string' ? payload.tex : null;
-    const ttlSec = payload.ttlSec;
-
-    if (!requestedByUserId || requestedByRole !== Role.teacher) {
-      throw new ConflictException({
-        code: 'LATEX_JOB_PAYLOAD_INVALID',
-        message: 'Job payload is missing required fields',
-      });
-    }
-
-    if (typeof ttlSec !== 'number' || !Number.isInteger(ttlSec) || ttlSec <= 0) {
-      throw new ConflictException({
-        code: 'LATEX_JOB_PAYLOAD_INVALID',
-        message: 'Job payload ttlSec is invalid',
-      });
-    }
-
-    if (!tex || !tex.trim()) {
-      throw new ConflictException({
-        code: 'LATEX_JOB_PAYLOAD_INVALID',
-        message: 'Job payload tex is invalid',
-      });
-    }
-
-    if (this.isUnitTarget(payload.target)) {
-      const unitId = typeof payload.unitId === 'string' ? payload.unitId : '';
-      if (!unitId) {
-        throw new ConflictException({
-          code: 'LATEX_JOB_PAYLOAD_INVALID',
-          message: 'Job payload unitId is invalid',
-        });
-      }
-      return {
-        target: payload.target,
-        unitId,
-        tex,
-        requestedByUserId,
-        requestedByRole: Role.teacher,
-        ttlSec,
-      };
-    }
-
-    if (payload.target === TASK_SOLUTION_PDF_TARGET) {
-      const taskId = typeof payload.taskId === 'string' ? payload.taskId : '';
-      const taskRevisionId = typeof payload.taskRevisionId === 'string' ? payload.taskRevisionId : '';
-      if (
-        !taskId ||
-        !taskRevisionId
-      ) {
-        throw new ConflictException({
-          code: 'LATEX_JOB_PAYLOAD_INVALID',
-          message: 'Job payload task fields are invalid',
-        });
-      }
-      return {
-        target: TASK_SOLUTION_PDF_TARGET,
-        taskId,
-        taskRevisionId,
-        tex,
-        requestedByUserId,
-        requestedByRole: Role.teacher,
-        ttlSec,
-      };
-    }
-
-    throw new ConflictException({
-      code: 'LATEX_JOB_PAYLOAD_INVALID',
-      message: 'Job payload target is invalid',
-    });
-  }
-
-  private parseJobResult(raw: unknown): LatexCompileJobResult {
-    if (!raw || typeof raw !== 'object') {
-      throw new ConflictException({
-        code: 'LATEX_JOB_RESULT_INVALID',
-        message: 'Job result is missing or malformed',
-      });
-    }
-
-    const result = raw as Record<string, unknown>;
-    const assetKey = typeof result.assetKey === 'string' ? result.assetKey : '';
-    const sizeBytes = result.sizeBytes;
-    const compileLogSnippet = typeof result.compileLogSnippet === 'string' ? result.compileLogSnippet : undefined;
-
-    if (!assetKey) {
-      throw new ConflictException({
-        code: 'LATEX_JOB_RESULT_INVALID',
-        message: 'Job result is missing required fields',
-      });
-    }
-
-    if (typeof sizeBytes !== 'number' || sizeBytes <= 0) {
-      throw new ConflictException({
-        code: 'LATEX_JOB_RESULT_INVALID',
-        message: 'Job result sizeBytes is invalid',
-      });
-    }
-
-    if (this.isUnitTarget(result.target)) {
-      const unitId = typeof result.unitId === 'string' ? result.unitId : '';
-      if (!unitId) {
-        throw new ConflictException({
-          code: 'LATEX_JOB_RESULT_INVALID',
-          message: 'Job result unitId is invalid',
-        });
-      }
-      return {
-        target: result.target,
-        unitId,
-        assetKey,
-        sizeBytes,
-        ...(compileLogSnippet ? { compileLogSnippet } : null),
-      };
-    }
-
-    if (result.target === TASK_SOLUTION_PDF_TARGET) {
-      const taskId = typeof result.taskId === 'string' ? result.taskId : '';
-      const taskRevisionId = typeof result.taskRevisionId === 'string' ? result.taskRevisionId : '';
-      if (
-        !taskId ||
-        !taskRevisionId
-      ) {
-        throw new ConflictException({
-          code: 'LATEX_JOB_RESULT_INVALID',
-          message: 'Job result task fields are invalid',
-        });
-      }
-      return {
-        target: TASK_SOLUTION_PDF_TARGET,
-        taskId,
-        taskRevisionId,
-        assetKey,
-        sizeBytes,
-        ...(compileLogSnippet ? { compileLogSnippet } : null),
-      };
-    }
-
-    throw new ConflictException({
-      code: 'LATEX_JOB_RESULT_INVALID',
-      message: 'Job result target is invalid',
-    });
-  }
-
   private parseFailedReason(raw: unknown): LatexCompileJobError {
     if (typeof raw === 'string' && raw.trim()) {
       try {
@@ -582,27 +415,4 @@ export class TeacherLatexController {
     };
   }
 
-  private isUnitTarget(value: unknown): value is UnitPdfTarget {
-    return value === 'theory' || value === 'method';
-  }
-
-  private isUnitPayload(payload: LatexCompileQueuePayload): payload is UnitLatexCompileQueuePayload {
-    return this.isUnitTarget(payload.target);
-  }
-
-  private isTaskSolutionPayload(
-    payload: LatexCompileQueuePayload,
-  ): payload is TaskSolutionLatexCompileQueuePayload {
-    return payload.target === TASK_SOLUTION_PDF_TARGET;
-  }
-
-  private isUnitResult(result: LatexCompileJobResult): result is UnitLatexCompileJobResult {
-    return this.isUnitTarget(result.target);
-  }
-
-  private isTaskSolutionResult(
-    result: LatexCompileJobResult,
-  ): result is TaskSolutionLatexCompileJobResult {
-    return result.target === TASK_SOLUTION_PDF_TARGET;
-  }
 }

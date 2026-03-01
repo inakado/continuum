@@ -20,6 +20,11 @@
       "require": "./dist/contracts/content-non-learning.js",
       "default": "./dist/contracts/content-non-learning.js"
     },
+    "./contracts/content-assets": {
+      "types": "./dist/contracts/content-assets.d.ts",
+      "require": "./dist/contracts/content-assets.js",
+      "default": "./dist/contracts/content-assets.js"
+    },
     "./storage-core": {
       "types": "./dist/storage-core",
       "require": "./dist/storage-core.js",
