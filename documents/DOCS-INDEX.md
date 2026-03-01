@@ -32,7 +32,7 @@
 - `documents/design-docs/core-beliefs.md` — core beliefs для design-doc ветки.
 - `documents/product-specs/index.md` — индекс продуктовых спецификаций.
 - `documents/exec-plans/active/` — активные execution plans.
-- `documents/exec-plans/active/2026-02-26-architecture-principles-refactor-foundation.md` — текущий активный план архитектурного refactor.
+- `documents/exec-plans/active/2026-03-01-architecture-alignment-tail-refactor.md` — текущий активный план следующей волны архитектурного refactor.
 - `documents/exec-plans/completed/` — завершённые execution plans.
 - `documents/exec-plans/completed/index.md` — индекс завершённых планов.
 - `documents/exec-plans/deferred-roadmap.md` — отложенные future items, которые не являются техдолгом.

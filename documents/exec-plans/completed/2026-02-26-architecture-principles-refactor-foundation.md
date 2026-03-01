@@ -1,6 +1,6 @@
 # 2026-02-26 — Architecture principles refactor foundation
 
-Статус: `Active`
+Статус: `Completed`
 
 ## Цель
 
@@ -1349,6 +1349,18 @@
 - Cross-cutting дубли существенно сокращены.
 - Quality-бюджеты автоматизированы в CI и отражены в SoR.
 - Lint-контур ужесточён после обнуления warning’ов (strict merge-gate).
+
+## Финальный статус закрытия (2026-03-01)
+
+- Инициатива завершена.
+- Фактический результат:
+  - `schema-first` boundary validation внедрён на целевых migration-срезах;
+  - backend/frontend decomposition waves выполнены;
+  - `@tanstack/react-query` и runtime parsing внедрены на целевых read/write flow;
+  - test safety-net и docs governance checks добавлены;
+  - `apps/api`, `apps/web`, `packages/shared`, `apps/worker` проходят lint без warnings;
+  - документация разведена по назначениям, а planned items вынесены в `deferred-roadmap` и `tech-debt-tracker`.
+- Остаток работ не относится к foundation cleanup и вынесен в отдельный active execution plan следующей волны.
 
 ## Documentation Governance Cleanup (2026-03-01)
 
