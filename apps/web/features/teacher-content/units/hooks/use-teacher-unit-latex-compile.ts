@@ -57,6 +57,9 @@ const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve,
 
 const buildPdfPreviewSrc = (url: string): string => url;
 
+const getCompileErrorMessage = (error: unknown) =>
+  error instanceof Error && error.message ? error.message : getApiErrorMessage(error);
+
 export const compileTargetLabels: Record<CompileErrorModalTarget, string> = {
   theory: "Теория",
   method: "Методика",
@@ -70,6 +73,72 @@ export const formatLogTailLimit = (bytes: number): string => {
   }
   const kb = Math.max(1, Math.round(bytes / 1024));
   return `${kb}KB`;
+};
+
+const updateTaskSolutionCompileStatus = (
+  setTaskSolutionCompileState: Dispatch<SetStateAction<TaskSolutionCompileState>>,
+  status: TaskSolutionCompileStatus,
+  loading: boolean,
+) => {
+  setTaskSolutionCompileState((prev) => ({
+    ...prev,
+    status,
+    loading,
+  }));
+};
+
+const pollLatexCompileJob = async ({
+  jobId,
+  onStatus,
+}: {
+  jobId: string;
+  onStatus?: (status: LatexCompileJobStatusResponse["status"]) => void;
+}) => {
+  const startedAt = Date.now();
+  let finalStatus = await teacherApi.getLatexCompileJob(jobId, 600);
+
+  while (finalStatus.status === "queued" || finalStatus.status === "running") {
+    if (Date.now() - startedAt > COMPILE_POLL_TIMEOUT_MS) {
+      throw new Error("Истекло время ожидания компиляции.");
+    }
+    onStatus?.(finalStatus.status);
+    await wait(COMPILE_POLL_INTERVAL_MS);
+    finalStatus = await teacherApi.getLatexCompileJob(jobId, 600);
+  }
+
+  return finalStatus;
+};
+
+const findTaskInUnit = (unit: UnitWithTasks | null, taskId: string) =>
+  unit?.tasks.find((task) => task.id === taskId) ?? null;
+
+const resolveTaskSolutionAfterRefresh = async ({
+  taskId,
+  fetchUnit,
+}: {
+  taskId: string;
+  fetchUnit: () => Promise<UnitWithTasks | null>;
+}) => {
+  let refreshedTask: Task | null = null;
+  for (let attempt = 0; attempt <= APPLY_RACE_RETRY_COUNT; attempt += 1) {
+    const refreshedUnit = await fetchUnit();
+    refreshedTask = findTaskInUnit(refreshedUnit, taskId);
+    if (refreshedTask?.solutionPdfAssetKey) break;
+    if (attempt < APPLY_RACE_RETRY_COUNT) {
+      await wait(APPLY_RACE_DELAY_MS);
+    }
+  }
+  return refreshedTask;
+};
+
+const resolveTaskSolutionPreview = async (taskId: string, task: Task | null) => {
+  if (!task?.solutionPdfAssetKey) return null;
+  try {
+    const preview = await teacherApi.getTaskSolutionPdfPresignedUrl(taskId, 600);
+    return buildPdfPreviewSrc(preview.url);
+  } catch {
+    return null;
+  }
 };
 
 type Params = {
@@ -427,21 +496,10 @@ export const useTeacherUnitLatexCompile = ({
 
     try {
       const queued = await teacherApi.compileTaskSolutionLatex(taskId, { latex, ttlSec: 600 });
-      const startedAt = Date.now();
-      let finalStatus = await teacherApi.getLatexCompileJob(queued.jobId, 600);
-
-      while (finalStatus.status === "queued" || finalStatus.status === "running") {
-        if (Date.now() - startedAt > COMPILE_POLL_TIMEOUT_MS) {
-          throw new Error("Истекло время ожидания компиляции.");
-        }
-        setTaskSolutionCompileState((prev) => ({
-          ...prev,
-          status: finalStatus.status,
-          loading: true,
-        }));
-        await wait(COMPILE_POLL_INTERVAL_MS);
-        finalStatus = await teacherApi.getLatexCompileJob(queued.jobId, 600);
-      }
+      const finalStatus = await pollLatexCompileJob({
+        jobId: queued.jobId,
+        onStatus: (status) => updateTaskSolutionCompileStatus(setTaskSolutionCompileState, status, true),
+      });
 
       if (finalStatus.status === "failed") {
         openCompileErrorModal({
@@ -462,15 +520,7 @@ export const useTeacherUnitLatexCompile = ({
         throw new Error("Компиляция завершилась без валидного результата.");
       }
 
-      let refreshedTask: Task | null = null;
-      for (let attempt = 0; attempt <= APPLY_RACE_RETRY_COUNT; attempt += 1) {
-        const refreshedUnit = await fetchUnit();
-        refreshedTask = refreshedUnit?.tasks.find((task) => task.id === taskId) ?? null;
-        if (refreshedTask?.solutionPdfAssetKey) break;
-        if (attempt < APPLY_RACE_RETRY_COUNT) {
-          await wait(APPLY_RACE_DELAY_MS);
-        }
-      }
+      let refreshedTask = await resolveTaskSolutionAfterRefresh({ taskId, fetchUnit });
 
       if (!refreshedTask?.solutionPdfAssetKey) {
         try {
@@ -478,25 +528,10 @@ export const useTeacherUnitLatexCompile = ({
         } catch {
           // auto-apply остаётся основным путём; fallback тихий
         }
-        for (let attempt = 0; attempt <= APPLY_RACE_RETRY_COUNT; attempt += 1) {
-          const refreshedUnit = await fetchUnit();
-          refreshedTask = refreshedUnit?.tasks.find((task) => task.id === taskId) ?? null;
-          if (refreshedTask?.solutionPdfAssetKey) break;
-          if (attempt < APPLY_RACE_RETRY_COUNT) {
-            await wait(APPLY_RACE_DELAY_MS);
-          }
-        }
+        refreshedTask = await resolveTaskSolutionAfterRefresh({ taskId, fetchUnit });
       }
 
-      let previewUrl: string | null = null;
-      if (refreshedTask?.solutionPdfAssetKey) {
-        try {
-          const preview = await teacherApi.getTaskSolutionPdfPresignedUrl(taskId, 600);
-          previewUrl = buildPdfPreviewSrc(preview.url);
-        } catch {
-          previewUrl = null;
-        }
-      }
+      const previewUrl = await resolveTaskSolutionPreview(taskId, refreshedTask);
       const resolvedAssetKey = refreshedTask?.solutionPdfAssetKey ?? finalStatus.assetKey ?? null;
 
       setTaskSolutionCompileState((prev) => ({
@@ -509,13 +544,11 @@ export const useTeacherUnitLatexCompile = ({
         previewUrl,
       }));
     } catch (err) {
-      const compileErrorMessage =
-        err instanceof Error && err.message ? err.message : getApiErrorMessage(err);
       setTaskSolutionCompileState((prev) => ({
         ...prev,
         status: "failed",
         loading: false,
-        error: compileErrorMessage,
+        error: getCompileErrorMessage(err),
       }));
     }
   }, [editingTask, fetchUnit, openCompileErrorModal, taskSolutionLatex]);

@@ -1132,6 +1132,39 @@
       - bulky render branches вынесены в локальные explicit components (`TeacherCourseCreateForm`, `TeacherSectionCreateForm`, `TeacherCourseListPanel`, `TeacherSectionListPanel`, `TeacherEditDialogPanel`, карточки курса/раздела);
       - complexity warning снят без изменения history-state semantics, graph navigation и invalidate behavior;
       - проверка: targeted `vitest` suite для `TeacherDashboardScreen`, targeted `eslint`, `web typecheck` проходят.
+  - завершён восьмой цикл `targeted tests -> refactor -> targeted verification` для:
+    - `apps/web/features/student-content/units/hooks/use-student-task-attempt.ts`;
+    - результат:
+      - добавлен targeted safety-net `use-student-task-attempt.test.tsx` для numeric payload/per-part map, incorrect single/multi reset, credited prefill и blocked timer;
+      - `TanStack Query` уже использовался через mutation/invalidation, поэтому refactor сфокусирован на декомпозиции hook, а не на смене server-state модели;
+      - hook разделён по ответственностям: `useAttemptAnswerState`, `useAttemptFeedbackState`, `useAttemptSubmission`, а credited-prefill, block-state, payload construction и incorrect-choice feedback вынесены в отдельные helpers;
+      - complexity warning снят без изменения payload shape, invalidation semantics и UI contract с `StudentUnitDetailScreen`;
+      - проверка: targeted `vitest` suite, targeted `eslint` и `web typecheck` проходят; остаток `web` warnings сократился до `5`.
+  - завершён девятый цикл `targeted tests -> refactor -> targeted verification` для:
+    - `apps/web/features/student-content/units/hooks/use-student-unit-pdf-preview.ts`;
+    - результат:
+      - добавлен targeted safety-net `use-student-unit-pdf-preview.test.tsx` для theory/method query load, disabled state без asset key, refresh через query cache и zoom clamping;
+      - file classified как `manual duplicated server-state helper`, поэтому refactor выполнен через общий `usePdfPreviewTargetQuery`, а не через косметический split;
+      - theory/method preview логика сведена в единый target-based helper, а `refreshPreviewUrl` теперь принудительно обновляет presigned URL через invalidate + fetch, вместо возврата stale cache;
+      - complexity warning снят без изменения внешнего hook contract для `StudentUnitDetailScreen`;
+      - проверка: targeted `vitest` suite, targeted `eslint` и `web typecheck` проходят; остаток `web` warnings сократился до `4`.
+  - завершён десятый цикл `targeted tests -> refactor -> targeted verification` для:
+    - `apps/web/components/PdfCanvasPreview.tsx`;
+    - результат:
+      - добавлен targeted safety-net `PdfCanvasPreview.test.tsx` для успешной загрузки страниц, retry по expired presigned URL и отображения refresh-error без потери сообщения;
+      - component classified как `effect-heavy UI helper`, поэтому refactor сфокусирован на декомпозиции `loadPdf`, а не на изменении публичных props;
+      - подготовка pdfjs, retry-policy, refresh flow и error formatting вынесены в отдельные helpers (`ensurePdfWorkerSrc`, `startPdfLoadingTask`, `canRetryWithFreshUrl`, `getLoadErrorMessage`);
+      - после refactor сохранено поведение retry по fresh URL и дополнительно подтверждено тестом, что refresh-error больше не перетирается общим fallback message;
+      - complexity warning снят без изменения contract для student/teacher PDF preview consumers;
+      - проверка: targeted `vitest` suite, targeted `eslint`, полный `pnpm --filter web test` и `pnpm --filter web lint` проходят; остаток `web` warnings сократился до `3`.
+  - завершён одиннадцатый цикл `targeted tests -> refactor -> targeted verification` для:
+    - `apps/web/features/teacher-content/units/hooks/use-teacher-unit-latex-compile.ts`;
+    - результат:
+      - добавлен targeted safety-net `use-teacher-unit-latex-compile.test.tsx` для `failed -> compile error modal` и `succeeded -> apply fallback -> preview refresh` сценариев task solution compile;
+      - complexity была локализована в `runTaskSolutionCompile`, поэтому refactor сфокусирован на декомпозиции compile pipeline без изменения публичного hook contract;
+      - polling job status, task-asset resolve with retries, preview resolve и compile-error formatting вынесены в отдельные helpers (`pollLatexCompileJob`, `resolveTaskSolutionAfterRefresh`, `resolveTaskSolutionPreview`, `getCompileErrorMessage`);
+      - complexity warning снят без изменения fallback semantics (`applyLatexCompileJob`) и error-modal UX;
+      - проверка: targeted `vitest` suite, `web typecheck`, полный `pnpm --filter web test` и `pnpm --filter web lint` проходят; остаток `web` warnings сократился до `2`.
 
 - Complexity triage по `ARCHITECTURE-PRINCIPLES.md`:
   - критерии обязательного refactor:
@@ -1189,7 +1222,6 @@
   - затем средние product orchestration:
     - `TeacherReviewSubmissionDetailPanel.tsx` (`Implemented`)
     - `TeacherStudentsPanel.tsx` (`Implemented`)
-    - `use-student-task-attempt.ts`
     - `learning-attempts-write.service.ts`
   - затем тяжёлые shells:
     - `TeacherUnitDetailScreen.tsx`

@@ -7,6 +7,7 @@ import type {
   PDFDocumentProxy,
   RenderTask,
 } from "pdfjs-dist/types/src/display/api";
+import type * as PdfJsModule from "pdfjs-dist";
 import styles from "./pdf-canvas-preview.module.css";
 
 type Props = {
@@ -51,6 +52,49 @@ const INERTIA_DECAY = 0.9;
 const INERTIA_INPUT_SCALE = 0.18;
 const INERTIA_EDGE_DAMP = 0.4;
 const INERTIA_STOP_EPSILON = 0.08;
+
+const ensurePdfWorkerSrc = (pdfjs: typeof PdfJsModule) => {
+  if (typeof window === "undefined" || pdfjs.GlobalWorkerOptions.workerSrc) return;
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+};
+
+const createDocumentParams = (url: string, withCredentials: boolean): DocumentInitParameters => ({
+  url,
+  withCredentials,
+});
+
+const startPdfLoadingTask = async ({
+  url,
+  withCredentials,
+}: {
+  url: string;
+  withCredentials: boolean;
+}) => {
+  const pdfjs = await import("pdfjs-dist");
+  ensurePdfWorkerSrc(pdfjs);
+  return pdfjs.getDocument(createDocumentParams(url, withCredentials));
+};
+
+const getRetryToken = (refreshKey: string | undefined, currentUrl: string) => refreshKey || currentUrl;
+
+const canRetryWithFreshUrl = ({
+  error,
+  getFreshUrl,
+  retryToken,
+  attemptedToken,
+}: {
+  error: unknown;
+  getFreshUrl?: () => Promise<string | null>;
+  retryToken: string | null;
+  attemptedToken: string | null;
+}) =>
+  Boolean(getFreshUrl) &&
+  isPresignedExpiredError(error) &&
+  Boolean(retryToken) &&
+  attemptedToken !== retryToken;
+
+const getLoadErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
 
 export default function PdfCanvasPreview({
   url,
@@ -215,6 +259,35 @@ export default function PdfCanvasPreview({
     let disposed = false;
     let loadingTask: PDFDocumentLoadingTask | null = null;
 
+    const assignPdfDocument = (doc: PDFDocumentProxy) => {
+      if (disposed) return;
+      setPdfDoc(doc);
+      setPageCount(doc.numPages);
+    };
+
+    const refreshExpiredUrl = async (retryToken: string) => {
+      if (!getFreshUrl) return "miss";
+
+      refreshAttemptedKeyRef.current = retryToken;
+      setRefreshing(true);
+      try {
+        const freshUrl = await getFreshUrl();
+        if (!disposed && freshUrl && freshUrl !== currentUrl) {
+          setCurrentUrl(freshUrl);
+          return "updated";
+        }
+      } catch (refreshError) {
+        if (!disposed) {
+          setError(getLoadErrorMessage(refreshError, "Не удалось обновить ссылку на PDF"));
+        }
+        return "failed";
+      } finally {
+        if (!disposed) setRefreshing(false);
+      }
+
+      return "miss";
+    };
+
     const loadPdf = async () => {
       setLoading(true);
       setRefreshing(false);
@@ -224,53 +297,26 @@ export default function PdfCanvasPreview({
       canvasRefs.current = [];
 
       try {
-        const pdfjs = await import("pdfjs-dist");
-        if (typeof window !== "undefined" && !pdfjs.GlobalWorkerOptions.workerSrc) {
-          pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
-        }
-        const documentParams: DocumentInitParameters = {
-          url: currentUrl,
-          withCredentials,
-        };
-        loadingTask = pdfjs.getDocument(documentParams);
+        loadingTask = await startPdfLoadingTask({ url: currentUrl, withCredentials });
         const doc = await loadingTask.promise;
-        if (disposed) return;
-        setPdfDoc(doc);
-        setPageCount(doc.numPages);
+        assignPdfDocument(doc);
       } catch (err) {
         if (disposed) return;
-        const retryToken = refreshKey || currentUrl;
-        const canRetry =
-          Boolean(getFreshUrl) &&
-          isPresignedExpiredError(err) &&
-          Boolean(retryToken) &&
-          refreshAttemptedKeyRef.current !== retryToken;
-
-        if (canRetry && getFreshUrl && retryToken) {
-          refreshAttemptedKeyRef.current = retryToken;
-          setRefreshing(true);
-          try {
-            const freshUrl = await getFreshUrl();
-            if (!disposed && freshUrl && freshUrl !== currentUrl) {
-              setCurrentUrl(freshUrl);
-              return;
-            }
-          } catch (refreshError) {
-            if (!disposed) {
-              const message =
-                refreshError instanceof Error
-                  ? refreshError.message
-                  : "Не удалось обновить ссылку на PDF";
-              setError(message);
-            }
-            return;
-          } finally {
-            if (!disposed) setRefreshing(false);
-          }
+        const retryToken = getRetryToken(refreshKey, currentUrl);
+        if (
+          canRetryWithFreshUrl({
+            error: err,
+            getFreshUrl,
+            retryToken,
+            attemptedToken: refreshAttemptedKeyRef.current,
+          }) &&
+          retryToken
+        ) {
+          const refreshResult = await refreshExpiredUrl(retryToken);
+          if (refreshResult !== "miss") return;
         }
 
-        const message = err instanceof Error ? err.message : "Не удалось загрузить PDF";
-        setError(message);
+        setError(getLoadErrorMessage(err, "Не удалось загрузить PDF"));
       } finally {
         if (!disposed) setLoading(false);
       }

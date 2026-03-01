@@ -16,72 +16,72 @@ type Params = {
   unitId: string;
 };
 
-export const useStudentUnitPdfPreview = ({ unit, unitId }: Params) => {
+const buildPreviewQueryKey = (
+  target: PdfPreviewTarget,
+  unit: UnitWithTasks | null,
+  unitId: string,
+) =>
+  [
+    ...learningPhotoQueryKeys.studentUnitPdfPreview(unit?.id ?? unitId, target),
+    target === "theory" ? (unit?.theoryPdfAssetKey ?? null) : (unit?.methodPdfAssetKey ?? null),
+  ] as const;
+
+const hasPreviewAsset = (target: PdfPreviewTarget, unit: UnitWithTasks | null) =>
+  Boolean(target === "theory" ? unit?.theoryPdfAssetKey : unit?.methodPdfAssetKey);
+
+const loadPreviewUrl = async (unitId: string, target: PdfPreviewTarget) => {
+  const response = await studentApi.getUnitPdfPresignedUrl(unitId, target, 180);
+  return response.url ?? null;
+};
+
+const usePdfPreviewTargetQuery = ({
+  target,
+  unit,
+  unitId,
+}: {
+  target: PdfPreviewTarget;
+  unit: UnitWithTasks | null;
+  unitId: string;
+}) => {
   const queryClient = useQueryClient();
+  const queryKey = useMemo(() => buildPreviewQueryKey(target, unit, unitId), [target, unit?.id, unit?.theoryPdfAssetKey, unit?.methodPdfAssetKey, unitId]);
+  const enabled = Boolean(unit?.id && hasPreviewAsset(target, unit));
+
+  const previewQuery = useQuery({
+    queryKey,
+    enabled,
+    queryFn: async () => {
+      if (!unit?.id) return null;
+      return loadPreviewUrl(unit.id, target);
+    },
+  });
+
+  const refreshPreviewUrl = useCallback(async () => {
+    if (!unit?.id || !hasPreviewAsset(target, unit)) return null;
+    await queryClient.invalidateQueries({ queryKey, exact: true });
+    return queryClient.fetchQuery({
+      queryKey,
+      queryFn: () => loadPreviewUrl(unit.id, target),
+      staleTime: 0,
+    });
+  }, [queryClient, queryKey, target, unit]);
+
+  return {
+    previewUrl: previewQuery.data ?? null,
+    previewLoading: enabled && previewQuery.isPending,
+    previewError: previewQuery.isError ? getStudentErrorMessage(previewQuery.error) : null,
+    refreshPreviewUrl,
+  };
+};
+
+export const useStudentUnitPdfPreview = ({ unit, unitId }: Params) => {
   const [pdfZoomByTarget, setPdfZoomByTarget] = useState<Record<PdfPreviewTarget, number>>({
     theory: PDF_ZOOM_DEFAULT,
     method: PDF_ZOOM_DEFAULT,
   });
 
-  const theoryPreviewQueryKey = useMemo(
-    () => [
-      ...learningPhotoQueryKeys.studentUnitPdfPreview(unit?.id ?? unitId, "theory"),
-      unit?.theoryPdfAssetKey ?? null,
-    ] as const,
-    [unit?.id, unit?.theoryPdfAssetKey, unitId],
-  );
-
-  const methodPreviewQueryKey = useMemo(
-    () => [
-      ...learningPhotoQueryKeys.studentUnitPdfPreview(unit?.id ?? unitId, "method"),
-      unit?.methodPdfAssetKey ?? null,
-    ] as const,
-    [unit?.id, unit?.methodPdfAssetKey, unitId],
-  );
-
-  const theoryPreviewQuery = useQuery({
-    queryKey: theoryPreviewQueryKey,
-    enabled: Boolean(unit?.id && unit?.theoryPdfAssetKey),
-    queryFn: async () => {
-      if (!unit?.id) return null;
-      const response = await studentApi.getUnitPdfPresignedUrl(unit.id, "theory", 180);
-      return response.url ?? null;
-    },
-  });
-
-  const methodPreviewQuery = useQuery({
-    queryKey: methodPreviewQueryKey,
-    enabled: Boolean(unit?.id && unit?.methodPdfAssetKey),
-    queryFn: async () => {
-      if (!unit?.id) return null;
-      const response = await studentApi.getUnitPdfPresignedUrl(unit.id, "method", 180);
-      return response.url ?? null;
-    },
-  });
-
-  const refreshTheoryPreviewUrl = useCallback(async () => {
-    if (!unit?.id || !unit?.theoryPdfAssetKey) return null;
-    const nextUrl = await queryClient.fetchQuery({
-      queryKey: theoryPreviewQueryKey,
-      queryFn: async () => {
-        const response = await studentApi.getUnitPdfPresignedUrl(unit.id, "theory", 180);
-        return response.url ?? null;
-      },
-    });
-    return nextUrl;
-  }, [queryClient, theoryPreviewQueryKey, unit?.id, unit?.theoryPdfAssetKey]);
-
-  const refreshMethodPreviewUrl = useCallback(async () => {
-    if (!unit?.id || !unit?.methodPdfAssetKey) return null;
-    const nextUrl = await queryClient.fetchQuery({
-      queryKey: methodPreviewQueryKey,
-      queryFn: async () => {
-        const response = await studentApi.getUnitPdfPresignedUrl(unit.id, "method", 180);
-        return response.url ?? null;
-      },
-    });
-    return nextUrl;
-  }, [methodPreviewQueryKey, queryClient, unit?.id, unit?.methodPdfAssetKey]);
+  const theoryPreview = usePdfPreviewTargetQuery({ target: "theory", unit, unitId });
+  const methodPreview = usePdfPreviewTargetQuery({ target: "method", unit, unitId });
 
   const setPdfZoom = useCallback((target: PdfPreviewTarget, zoom: number) => {
     const clamped = Math.max(PDF_ZOOM_MIN, Math.min(PDF_ZOOM_MAX, zoom));
@@ -91,13 +91,13 @@ export const useStudentUnitPdfPreview = ({ unit, unitId }: Params) => {
   return {
     pdfZoomByTarget,
     setPdfZoom,
-    theoryPreviewUrl: theoryPreviewQuery.data ?? null,
-    methodPreviewUrl: methodPreviewQuery.data ?? null,
-    theoryPreviewLoading: Boolean(unit?.theoryPdfAssetKey) && theoryPreviewQuery.isPending,
-    methodPreviewLoading: Boolean(unit?.methodPdfAssetKey) && methodPreviewQuery.isPending,
-    theoryPreviewError: theoryPreviewQuery.isError ? getStudentErrorMessage(theoryPreviewQuery.error) : null,
-    methodPreviewError: methodPreviewQuery.isError ? getStudentErrorMessage(methodPreviewQuery.error) : null,
-    refreshTheoryPreviewUrl,
-    refreshMethodPreviewUrl,
+    theoryPreviewUrl: theoryPreview.previewUrl,
+    methodPreviewUrl: methodPreview.previewUrl,
+    theoryPreviewLoading: theoryPreview.previewLoading,
+    methodPreviewLoading: methodPreview.previewLoading,
+    theoryPreviewError: theoryPreview.previewError,
+    methodPreviewError: methodPreview.previewError,
+    refreshTheoryPreviewUrl: theoryPreview.refreshPreviewUrl,
+    refreshMethodPreviewUrl: methodPreview.refreshPreviewUrl,
   };
 };
