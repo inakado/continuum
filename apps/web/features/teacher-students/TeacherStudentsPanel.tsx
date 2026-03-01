@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MoreHorizontal } from "lucide-react";
@@ -33,6 +33,361 @@ type StudentConfirmState =
 
 type Props = {
   studentId?: string;
+};
+
+type CreateStudentFormProps = {
+  createError: string | null;
+  createFirstName: string;
+  createLastName: string;
+  createLogin: string;
+  creating: boolean;
+  onCancel: () => void;
+  onCreate: () => void;
+  onFirstNameChange: (value: string) => void;
+  onLastNameChange: (value: string) => void;
+  onLoginChange: (value: string) => void;
+};
+
+type PasswordRevealPanelProps = {
+  onCopyPassword: () => void;
+  onHide: () => void;
+  passwordReveal: PasswordReveal;
+};
+
+type StudentCardProps = {
+  availableTeachers: TeacherSummary[];
+  deleteBusyId: string | null;
+  editBusy: boolean;
+  editError: string | null;
+  editFirstName: string;
+  editLastName: string;
+  editStudentId: string | null;
+  getDisplayName: (student: StudentSummary) => string;
+  handleStartEdit: (student: StudentSummary) => void;
+  handleStartTransfer: (student: StudentSummary) => void;
+  onDeleteStudent: (student: StudentSummary) => void;
+  onEditCancel: () => void;
+  onEditFirstNameChange: (value: string) => void;
+  onEditLastNameChange: (value: string) => void;
+  onOpenActionsChange: (open: boolean, studentId: string) => void;
+  onOpenProfile: (studentId: string) => void;
+  onOpenReviewInbox: (studentId: string) => void;
+  onResetPassword: (student: StudentSummary) => void;
+  onSaveEdit: (student: StudentSummary) => void;
+  onTransfer: (student: StudentSummary) => void;
+  onTransferCancel: () => void;
+  onTransferTeacherChange: (teacherId: string) => void;
+  openActionsStudentId: string | null;
+  resetBusyId: string | null;
+  student: StudentSummary;
+  transferBusy: boolean;
+  transferSelectDisabled: boolean;
+  transferError: string | null;
+  transferStudentId: string | null;
+  transferTeacherId: string;
+};
+
+type ConfirmDialogState = {
+  actionText: string;
+  busy: boolean;
+  description: string;
+  destructive: boolean;
+  title: string;
+};
+
+const CreateStudentForm = ({
+  createError,
+  createFirstName,
+  createLastName,
+  createLogin,
+  creating,
+  onCancel,
+  onCreate,
+  onFirstNameChange,
+  onLastNameChange,
+  onLoginChange,
+}: CreateStudentFormProps) => (
+  <div className={styles.form}>
+    <label className={styles.label}>
+      Логин ученика
+      <Input
+        value={createLogin}
+        placeholder="student_login"
+        onChange={(event) => onLoginChange(event.target.value)}
+      />
+    </label>
+    <div className={styles.inlineRow}>
+      <label className={styles.label}>
+        Имя
+        <Input
+          value={createFirstName}
+          placeholder="Имя (необязательно)"
+          onChange={(event) => onFirstNameChange(event.target.value)}
+        />
+      </label>
+      <label className={styles.label}>
+        Фамилия
+        <Input
+          value={createLastName}
+          placeholder="Фамилия (необязательно)"
+          onChange={(event) => onLastNameChange(event.target.value)}
+        />
+      </label>
+    </div>
+    {createError ? <div className={styles.formError}>{createError}</div> : null}
+    <div className={styles.formActions}>
+      <Button onClick={onCreate} disabled={creating || !createLogin.trim()}>
+        Создать
+      </Button>
+      <Button variant="ghost" onClick={onCancel}>
+        Отмена
+      </Button>
+    </div>
+  </div>
+);
+
+const PasswordRevealPanel = ({
+  onCopyPassword,
+  onHide,
+  passwordReveal,
+}: PasswordRevealPanelProps) => (
+  <div className={styles.passwordReveal}>
+    <div className={styles.passwordTitle}>{passwordReveal.label}</div>
+    <div className={styles.passwordRow}>
+      <div>
+        <div className={styles.passwordLabel}>Логин</div>
+        <div className={styles.passwordValue}>{passwordReveal.login}</div>
+      </div>
+      <div>
+        <div className={styles.passwordLabel}>Пароль</div>
+        <div className={styles.passwordValue}>{passwordReveal.password}</div>
+      </div>
+      <div className={styles.passwordActions}>
+        <Button variant="ghost" onClick={onCopyPassword}>
+          Скопировать
+        </Button>
+        <Button variant="ghost" onClick={onHide}>
+          Скрыть
+        </Button>
+      </div>
+    </div>
+    <div className={styles.passwordHint}>Пароль показывается один раз. Сохраните его.</div>
+  </div>
+);
+
+const getConfirmDialogState = (
+  confirmState: StudentConfirmState,
+  deleteBusyId: string | null,
+  resetBusyId: string | null,
+): ConfirmDialogState => {
+  if (!confirmState) {
+    return {
+      actionText: "Подтвердить",
+      busy: false,
+      description: "",
+      destructive: false,
+      title: "",
+    };
+  }
+
+  if (confirmState.kind === "reset_password") {
+    return {
+      actionText: "Сбросить пароль",
+      busy: resetBusyId === confirmState.student.id,
+      description: "Ученику будет выдан новый пароль.",
+      destructive: false,
+      title: `Сбросить пароль для ${confirmState.student.login}?`,
+    };
+  }
+
+  return {
+    actionText: "Удалить",
+    busy: deleteBusyId === confirmState.student.id,
+    description: "Действие необратимо. Ученик и связанные данные будут удалены.",
+    destructive: true,
+    title: `Удалить ученика ${confirmState.student.login}?`,
+  };
+};
+
+const StudentCard = ({
+  availableTeachers,
+  deleteBusyId,
+  editBusy,
+  editError,
+  editFirstName,
+  editLastName,
+  editStudentId,
+  getDisplayName,
+  handleStartEdit,
+  handleStartTransfer,
+  onDeleteStudent,
+  onEditCancel,
+  onEditFirstNameChange,
+  onEditLastNameChange,
+  onOpenActionsChange,
+  onOpenProfile,
+  onOpenReviewInbox,
+  onResetPassword,
+  onSaveEdit,
+  onTransfer,
+  onTransferCancel,
+  onTransferTeacherChange,
+  openActionsStudentId,
+  resetBusyId,
+  student,
+  transferBusy,
+  transferSelectDisabled,
+  transferError,
+  transferStudentId,
+  transferTeacherId,
+}: StudentCardProps) => {
+  const isTransferActive = transferStudentId === student.id;
+  const isActionsMenuOpen = openActionsStudentId === student.id;
+  const hasPendingReview = student.pendingPhotoReviewCount > 0;
+
+  return (
+    <article
+      key={student.id}
+      className={`${styles.card} ${isTransferActive ? styles.cardActive : ""} ${
+        isActionsMenuOpen ? styles.cardMenuOpen : ""
+      }`}
+      onClick={() => onOpenProfile(student.id)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpenProfile(student.id);
+        }
+      }}
+      role="button"
+      tabIndex={0}
+    >
+      <div className={styles.cardHeader}>
+        <div className={styles.identity}>
+          <div className={styles.studentName}>{getDisplayName(student)}</div>
+          <div className={styles.studentMeta}>Логин: {student.login}</div>
+          <div className={styles.studentMeta}>
+            Ведущий: {student.leadTeacherDisplayName ?? student.leadTeacherLogin}
+          </div>
+        </div>
+        <div className={styles.actionsMenu} onClick={(event) => event.stopPropagation()}>
+          <DropdownMenu
+            open={isActionsMenuOpen}
+            onOpenChange={(open: boolean) => onOpenActionsChange(open, student.id)}
+          >
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className={styles.actionsMenuTrigger}
+                aria-label={`Действия для ученика ${getDisplayName(student)}`}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <MoreHorizontal className={styles.actionsMenuIcon} aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className={styles.actionsMenuList}>
+              {hasPendingReview ? (
+                <DropdownMenuItem
+                  className={styles.actionsMenuItem}
+                  onSelect={() => onOpenReviewInbox(student.id)}
+                >
+                  К проверке фото
+                </DropdownMenuItem>
+              ) : null}
+              <DropdownMenuItem
+                className={styles.actionsMenuItem}
+                onSelect={() => onResetPassword(student)}
+                disabled={resetBusyId === student.id}
+              >
+                Сбросить пароль
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className={styles.actionsMenuItem}
+                onSelect={() => handleStartEdit(student)}
+              >
+                Редактировать
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className={styles.actionsMenuItem}
+                onSelect={() => handleStartTransfer(student)}
+              >
+                Передать
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className={`${styles.actionsMenuItem} ${styles.actionsMenuItemDanger}`}
+                onSelect={() => onDeleteStudent(student)}
+                disabled={deleteBusyId === student.id}
+              >
+                Удалить
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      {editStudentId === student.id ? (
+        <div className={styles.editPanel} onClick={(event) => event.stopPropagation()}>
+          <div className={styles.inlineRow}>
+            <label className={styles.label}>
+              Имя
+              <Input
+                value={editFirstName}
+                placeholder="Имя"
+                onChange={(event) => onEditFirstNameChange(event.target.value)}
+              />
+            </label>
+            <label className={styles.label}>
+              Фамилия
+              <Input
+                value={editLastName}
+                placeholder="Фамилия"
+                onChange={(event) => onEditLastNameChange(event.target.value)}
+              />
+            </label>
+          </div>
+          {editError ? <div className={styles.formError}>{editError}</div> : null}
+          <div className={styles.formActions}>
+            <Button onClick={() => onSaveEdit(student)} disabled={editBusy}>
+              Сохранить
+            </Button>
+            <Button variant="ghost" onClick={onEditCancel}>
+              Отмена
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      {isTransferActive ? (
+        <div className={styles.transferPanel} onClick={(event) => event.stopPropagation()}>
+          <label className={styles.label}>
+            Новый ведущий
+            <Select
+              triggerClassName={styles.selectTrigger}
+              value={transferTeacherId}
+              onValueChange={onTransferTeacherChange}
+              disabled={transferSelectDisabled}
+              options={[
+                { value: "", label: "Выберите преподавателя" },
+                ...availableTeachers.map((teacher) => ({
+                  value: teacher.id,
+                  label: teacher.login,
+                })),
+              ]}
+              placeholder="Выберите преподавателя"
+            />
+          </label>
+          {transferError ? <div className={styles.formError}>{transferError}</div> : null}
+          <div className={styles.formActions}>
+            <Button onClick={() => onTransfer(student)} disabled={!transferTeacherId || transferBusy}>
+              Подтвердить
+            </Button>
+            <Button variant="ghost" onClick={onTransferCancel}>
+              Отмена
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </article>
+  );
 };
 
 export default function TeacherStudentsPanel({ studentId }: Props) {
@@ -86,6 +441,27 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
     if (studentId) return;
     await queryClient.invalidateQueries({ queryKey: contentQueryKeys.teacherStudentsList() });
   }, [queryClient, studentId]);
+  const createStudentMutation = useMutation({
+    mutationFn: (input: { login: string; firstName: string | null; lastName: string | null }) =>
+      teacherApi.createStudent(input),
+  });
+  const resetPasswordMutation = useMutation({
+    mutationFn: (targetStudentId: string) => teacherApi.resetStudentPassword(targetStudentId),
+  });
+  const transferStudentMutation = useMutation({
+    mutationFn: (input: { studentId: string; leaderTeacherId: string }) =>
+      teacherApi.transferStudent(input.studentId, { leaderTeacherId: input.leaderTeacherId }),
+  });
+  const updateStudentMutation = useMutation({
+    mutationFn: (input: { studentId: string; firstName: string | null; lastName: string | null }) =>
+      teacherApi.updateStudentProfile(input.studentId, {
+        firstName: input.firstName,
+        lastName: input.lastName,
+      }),
+  });
+  const deleteStudentMutation = useMutation({
+    mutationFn: (targetStudentId: string) => teacherApi.deleteStudent(targetStudentId),
+  });
 
   useEffect(() => {
     if (studentId) return;
@@ -101,13 +477,13 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
     setOpenActionsStudentId(null);
   }, [openActionsStudentId, students]);
 
-  const handleCreate = async () => {
+  const handleCreate = useCallback(async () => {
     const trimmed = createLogin.trim();
     if (!trimmed || creating) return;
     setCreateError(null);
     setCreating(true);
     try {
-      const created = await teacherApi.createStudent({
+      const created = await createStudentMutation.mutateAsync({
         login: trimmed,
         firstName: createFirstName.trim() || null,
         lastName: createLastName.trim() || null,
@@ -127,14 +503,14 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
     } finally {
       setCreating(false);
     }
-  };
+  }, [createFirstName, createLastName, createLogin, createStudentMutation, creating, refreshStudents]);
 
   const handleResetPassword = async (student: StudentSummary) => {
     if (resetBusyId) return;
     setResetBusyId(student.id);
     setError(null);
     try {
-      const data = await teacherApi.resetStudentPassword(student.id);
+      const data = await resetPasswordMutation.mutateAsync(student.id);
       setPasswordReveal({
         login: data.login,
         password: data.password,
@@ -163,7 +539,10 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
     setTransferBusy(true);
     setTransferError(null);
     try {
-      await teacherApi.transferStudent(student.id, { leaderTeacherId: transferTeacherId });
+      await transferStudentMutation.mutateAsync({
+        studentId: student.id,
+        leaderTeacherId: transferTeacherId,
+      });
       setTransferStudentId(null);
       setTransferTeacherId("");
       await refreshStudents();
@@ -192,7 +571,8 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
     setEditBusy(true);
     setEditError(null);
     try {
-      await teacherApi.updateStudentProfile(student.id, {
+      await updateStudentMutation.mutateAsync({
+        studentId: student.id,
         firstName: editFirstName.trim() || null,
         lastName: editLastName.trim() || null,
       });
@@ -212,7 +592,7 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
     setDeleteBusyId(student.id);
     setError(null);
     try {
-      await teacherApi.deleteStudent(student.id);
+      await deleteStudentMutation.mutateAsync(student.id);
       setOpenActionsStudentId((prev) => (prev === student.id ? null : prev));
       if (editStudentId === student.id) {
         setEditStudentId(null);
@@ -231,30 +611,62 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
     }
   };
 
-  const confirmTitle = confirmState
-    ? confirmState.kind === "reset_password"
-      ? `Сбросить пароль для ${confirmState.student.login}?`
-      : `Удалить ученика ${confirmState.student.login}?`
-    : "";
+  const handleCreateCancel = useCallback(() => {
+    setShowCreateForm(false);
+    setCreateLogin("");
+    setCreateFirstName("");
+    setCreateLastName("");
+    setCreateError(null);
+  }, []);
 
-  const confirmDescription = confirmState
-    ? confirmState.kind === "reset_password"
-      ? "Ученику будет выдан новый пароль."
-      : "Действие необратимо. Ученик и связанные данные будут удалены."
-    : "";
+  const handleEditCancel = useCallback(() => {
+    setEditStudentId(null);
+    setEditFirstName("");
+    setEditLastName("");
+    setEditError(null);
+  }, []);
 
-  const confirmActionText = confirmState
-    ? confirmState.kind === "reset_password"
-      ? "Сбросить пароль"
-      : "Удалить"
-    : "Подтвердить";
+  const handleTransferCancel = useCallback(() => {
+    setTransferStudentId(null);
+    setTransferTeacherId("");
+    setTransferError(null);
+  }, []);
 
-  const confirmBusy =
-    confirmState?.kind === "reset_password"
-      ? resetBusyId === confirmState.student.id
-      : confirmState?.kind === "delete_student"
-        ? deleteBusyId === confirmState.student.id
-        : false;
+  const openStudentProfile = useCallback(
+    (targetStudentId: string) => {
+      router.push(`/teacher/students/${targetStudentId}`);
+    },
+    [router],
+  );
+
+  const openStudentReviewInbox = useCallback(
+    (targetStudentId: string) => {
+      setOpenActionsStudentId(null);
+      router.push(`/teacher/review?status=pending_review&sort=oldest&studentId=${targetStudentId}`);
+    },
+    [router],
+  );
+
+  const handleResetPasswordConfirm = useCallback(
+    (student: StudentSummary) => {
+      setOpenActionsStudentId(null);
+      setConfirmState({ kind: "reset_password", student });
+    },
+    [],
+  );
+
+  const handleDeleteConfirm = useCallback(
+    (student: StudentSummary) => {
+      setOpenActionsStudentId(null);
+      setConfirmState({ kind: "delete_student", student });
+    },
+    [],
+  );
+
+  const confirmDialogState = useMemo(
+    () => getConfirmDialogState(confirmState, deleteBusyId, resetBusyId),
+    [confirmState, deleteBusyId, resetBusyId],
+  );
 
   const handleConfirmAction = async () => {
     if (!confirmState) return;
@@ -337,77 +749,26 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
       </div>
 
       {showCreateForm ? (
-        <div className={styles.form}>
-          <label className={styles.label}>
-            Логин ученика
-            <Input
-              value={createLogin}
-              placeholder="student_login"
-              onChange={(event) => setCreateLogin(event.target.value)}
-            />
-          </label>
-          <div className={styles.inlineRow}>
-            <label className={styles.label}>
-              Имя
-              <Input
-                value={createFirstName}
-                placeholder="Имя (необязательно)"
-                onChange={(event) => setCreateFirstName(event.target.value)}
-              />
-            </label>
-            <label className={styles.label}>
-              Фамилия
-              <Input
-                value={createLastName}
-                placeholder="Фамилия (необязательно)"
-                onChange={(event) => setCreateLastName(event.target.value)}
-              />
-            </label>
-          </div>
-          {createError ? <div className={styles.formError}>{createError}</div> : null}
-          <div className={styles.formActions}>
-            <Button onClick={handleCreate} disabled={creating || !createLogin.trim()}>
-              Создать
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setShowCreateForm(false);
-                setCreateLogin("");
-                setCreateFirstName("");
-                setCreateLastName("");
-                setCreateError(null);
-              }}
-            >
-              Отмена
-            </Button>
-          </div>
-        </div>
+        <CreateStudentForm
+          createError={createError}
+          createFirstName={createFirstName}
+          createLastName={createLastName}
+          createLogin={createLogin}
+          creating={creating}
+          onCancel={handleCreateCancel}
+          onCreate={() => void handleCreate()}
+          onFirstNameChange={setCreateFirstName}
+          onLastNameChange={setCreateLastName}
+          onLoginChange={setCreateLogin}
+        />
       ) : null}
 
       {passwordReveal ? (
-        <div className={styles.passwordReveal}>
-          <div className={styles.passwordTitle}>{passwordReveal.label}</div>
-          <div className={styles.passwordRow}>
-            <div>
-              <div className={styles.passwordLabel}>Логин</div>
-              <div className={styles.passwordValue}>{passwordReveal.login}</div>
-            </div>
-            <div>
-              <div className={styles.passwordLabel}>Пароль</div>
-              <div className={styles.passwordValue}>{passwordReveal.password}</div>
-            </div>
-            <div className={styles.passwordActions}>
-              <Button variant="ghost" onClick={handleCopyPassword}>
-                Скопировать
-              </Button>
-              <Button variant="ghost" onClick={() => setPasswordReveal(null)}>
-                Скрыть
-              </Button>
-            </div>
-          </div>
-          <div className={styles.passwordHint}>Пароль показывается один раз. Сохраните его.</div>
-        </div>
+        <PasswordRevealPanel
+          onCopyPassword={() => void handleCopyPassword()}
+          onHide={() => setPasswordReveal(null)}
+          passwordReveal={passwordReveal}
+        />
       ) : null}
 
       {visibleError ? (
@@ -422,189 +783,44 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
           {listState === "empty" ? <div className={styles.empty}>Ученики отсутствуют</div> : null}
           {listState === "ready"
             ? students.map((student) => {
-                const isTransferActive = transferStudentId === student.id;
-                const isActionsMenuOpen = openActionsStudentId === student.id;
                 const availableTeachers =
                   availableTeachersByLeadTeacherId.get(student.leadTeacherId) ?? teachers;
-                const hasPendingReview = student.pendingPhotoReviewCount > 0;
-
                 return (
-                  <article
+                  <StudentCard
                     key={student.id}
-                    className={`${styles.card} ${isTransferActive ? styles.cardActive : ""} ${
-                      isActionsMenuOpen ? styles.cardMenuOpen : ""
-                    }`}
-                    onClick={() => router.push(`/teacher/students/${student.id}`)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        router.push(`/teacher/students/${student.id}`);
-                      }
-                    }}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <div className={styles.cardHeader}>
-                      <div className={styles.identity}>
-                        <div className={styles.studentName}>{getDisplayName(student)}</div>
-                        <div className={styles.studentMeta}>Логин: {student.login}</div>
-                        <div className={styles.studentMeta}>
-                          Ведущий: {student.leadTeacherDisplayName ?? student.leadTeacherLogin}
-                        </div>
-                      </div>
-                      <div className={styles.actionsMenu} onClick={(event) => event.stopPropagation()}>
-                        <DropdownMenu
-                          open={isActionsMenuOpen}
-                          onOpenChange={(open: boolean) => setOpenActionsStudentId(open ? student.id : null)}
-                        >
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              className={styles.actionsMenuTrigger}
-                              aria-label={`Действия для ученика ${getDisplayName(student)}`}
-                              onClick={(event) => event.stopPropagation()}
-                            >
-                              <MoreHorizontal className={styles.actionsMenuIcon} aria-hidden="true" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className={styles.actionsMenuList}>
-                            {hasPendingReview ? (
-                              <DropdownMenuItem
-                                className={styles.actionsMenuItem}
-                                onSelect={() => {
-                                  setOpenActionsStudentId(null);
-                                  router.push(
-                                    `/teacher/review?status=pending_review&sort=oldest&studentId=${student.id}`,
-                                  );
-                                }}
-                              >
-                                К проверке фото
-                              </DropdownMenuItem>
-                            ) : null}
-                            <DropdownMenuItem
-                              className={styles.actionsMenuItem}
-                              onSelect={() => {
-                                setOpenActionsStudentId(null);
-                                setConfirmState({ kind: "reset_password", student });
-                              }}
-                              disabled={resetBusyId === student.id}
-                            >
-                              Сбросить пароль
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className={styles.actionsMenuItem}
-                              onSelect={() => {
-                                setOpenActionsStudentId(null);
-                                handleStartEdit(student);
-                              }}
-                            >
-                              Редактировать
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className={styles.actionsMenuItem}
-                              onSelect={() => {
-                                setOpenActionsStudentId(null);
-                                handleStartTransfer(student);
-                              }}
-                            >
-                              Передать
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className={`${styles.actionsMenuItem} ${styles.actionsMenuItemDanger}`}
-                              onSelect={() => {
-                                setOpenActionsStudentId(null);
-                                setConfirmState({ kind: "delete_student", student });
-                              }}
-                              disabled={deleteBusyId === student.id}
-                            >
-                              Удалить
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
-
-                    {editStudentId === student.id ? (
-                      <div className={styles.editPanel} onClick={(event) => event.stopPropagation()}>
-                        <div className={styles.inlineRow}>
-                          <label className={styles.label}>
-                            Имя
-                            <Input
-                              value={editFirstName}
-                              placeholder="Имя"
-                              onChange={(event) => setEditFirstName(event.target.value)}
-                            />
-                          </label>
-                          <label className={styles.label}>
-                            Фамилия
-                            <Input
-                              value={editLastName}
-                              placeholder="Фамилия"
-                              onChange={(event) => setEditLastName(event.target.value)}
-                            />
-                          </label>
-                        </div>
-                        {editError ? <div className={styles.formError}>{editError}</div> : null}
-                        <div className={styles.formActions}>
-                          <Button onClick={() => void handleSaveEdit(student)} disabled={editBusy}>
-                            Сохранить
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            onClick={() => {
-                              setEditStudentId(null);
-                              setEditFirstName("");
-                              setEditLastName("");
-                              setEditError(null);
-                            }}
-                          >
-                            Отмена
-                          </Button>
-                        </div>
-                      </div>
-                    ) : null}
-
-                    {isTransferActive ? (
-                      <div className={styles.transferPanel} onClick={(event) => event.stopPropagation()}>
-                        <label className={styles.label}>
-                          Новый ведущий
-                          <Select
-                            triggerClassName={styles.selectTrigger}
-                            value={transferTeacherId}
-                            onValueChange={(value) => setTransferTeacherId(value)}
-                            disabled={loadingTeachers}
-                            options={[
-                              { value: "", label: "Выберите преподавателя" },
-                              ...availableTeachers.map((teacher) => ({
-                                value: teacher.id,
-                                label: teacher.login,
-                              })),
-                            ]}
-                            placeholder="Выберите преподавателя"
-                          />
-                        </label>
-                        {transferError ? <div className={styles.formError}>{transferError}</div> : null}
-                        <div className={styles.formActions}>
-                          <Button
-                            onClick={() => void handleTransfer(student)}
-                            disabled={!transferTeacherId || transferBusy}
-                          >
-                            Подтвердить
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            onClick={() => {
-                              setTransferStudentId(null);
-                              setTransferTeacherId("");
-                              setTransferError(null);
-                            }}
-                          >
-                            Отмена
-                          </Button>
-                        </div>
-                      </div>
-                    ) : null}
-                  </article>
+                    availableTeachers={availableTeachers}
+                    deleteBusyId={deleteBusyId}
+                    editBusy={editBusy}
+                    editError={editError}
+                    editFirstName={editFirstName}
+                    editLastName={editLastName}
+                    editStudentId={editStudentId}
+                    getDisplayName={getDisplayName}
+                    handleStartEdit={handleStartEdit}
+                    handleStartTransfer={handleStartTransfer}
+                    onDeleteStudent={handleDeleteConfirm}
+                    onEditCancel={handleEditCancel}
+                    onEditFirstNameChange={setEditFirstName}
+                    onEditLastNameChange={setEditLastName}
+                    onOpenActionsChange={(open, targetStudentId) =>
+                      setOpenActionsStudentId(open ? targetStudentId : null)
+                    }
+                    onOpenProfile={openStudentProfile}
+                    onOpenReviewInbox={openStudentReviewInbox}
+                    onResetPassword={handleResetPasswordConfirm}
+                    onSaveEdit={(targetStudent) => void handleSaveEdit(targetStudent)}
+                    onTransfer={(targetStudent) => void handleTransfer(targetStudent)}
+                    onTransferCancel={handleTransferCancel}
+                    onTransferTeacherChange={setTransferTeacherId}
+                    openActionsStudentId={openActionsStudentId}
+                    resetBusyId={resetBusyId}
+                    student={student}
+                    transferBusy={transferBusy || loadingTeachers}
+                    transferSelectDisabled={loadingTeachers}
+                    transferError={transferError}
+                    transferStudentId={transferStudentId}
+                    transferTeacherId={transferTeacherId}
+                  />
                 );
               })
             : null}
@@ -615,12 +831,12 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
         onOpenChange={(open) => {
           if (!open) setConfirmState(null);
         }}
-        title={confirmTitle}
-        description={confirmDescription}
-        confirmText={confirmActionText}
+        title={confirmDialogState.title}
+        description={confirmDialogState.description}
+        confirmText={confirmDialogState.actionText}
         cancelText="Отмена"
-        confirmDisabled={confirmBusy}
-        destructive={confirmState?.kind === "delete_student"}
+        confirmDisabled={confirmDialogState.busy}
+        destructive={confirmDialogState.destructive}
         onConfirm={() => void handleConfirmAction()}
       />
     </section>

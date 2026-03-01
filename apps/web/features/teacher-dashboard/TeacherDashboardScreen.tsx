@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
@@ -142,6 +142,495 @@ function TeacherAnalyticsMode({ content }: { content: ContentConfig }) {
   );
 }
 
+type TeacherCourseCreateFormProps = {
+  title: string;
+  description: string;
+  error: string | null;
+  saving: boolean;
+  onTitleChange: (value: string) => void;
+  onDescriptionChange: (value: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+};
+
+function TeacherCourseCreateForm({
+  title,
+  description,
+  error,
+  saving,
+  onTitleChange,
+  onDescriptionChange,
+  onSave,
+  onCancel,
+}: TeacherCourseCreateFormProps) {
+  return (
+    <div className={styles.inlineForm}>
+      <label className={styles.label}>
+        Название курса
+        <Input
+          value={title}
+          onChange={(event) => onTitleChange(event.target.value)}
+          name="courseTitle"
+          autoComplete="off"
+          placeholder="Например, Математика 7 класс…"
+        />
+      </label>
+      <label className={styles.label}>
+        Описание курса
+        <Textarea
+          value={description}
+          onChange={(event) => onDescriptionChange(event.target.value)}
+          name="courseDescription"
+          rows={3}
+          placeholder="Коротко опишите курс..."
+        />
+      </label>
+      {error ? <div className={styles.formError}>{error}</div> : null}
+      <div className={styles.actions}>
+        <Button onClick={onSave} disabled={!title.trim() || saving}>
+          Сохранить курс
+        </Button>
+        <Button variant="ghost" onClick={onCancel}>
+          Отмена
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+type TeacherSectionCreateFormProps = {
+  title: string;
+  description: string;
+  error: string | null;
+  saving: boolean;
+  onTitleChange: (value: string) => void;
+  onDescriptionChange: (value: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+};
+
+function TeacherSectionCreateForm({
+  title,
+  description,
+  error,
+  saving,
+  onTitleChange,
+  onDescriptionChange,
+  onSave,
+  onCancel,
+}: TeacherSectionCreateFormProps) {
+  return (
+    <div className={styles.inlineForm}>
+      <label className={styles.label}>
+        Название раздела
+        <Input
+          value={title}
+          onChange={(event) => onTitleChange(event.target.value)}
+          name="sectionTitle"
+          autoComplete="off"
+          placeholder="Например, Дроби и проценты…"
+        />
+      </label>
+      <label className={styles.label}>
+        Описание раздела
+        <Textarea
+          value={description}
+          onChange={(event) => onDescriptionChange(event.target.value)}
+          name="sectionDescription"
+          rows={3}
+          placeholder="Коротко опишите, что изучают в этом разделе..."
+        />
+      </label>
+      {error ? <div className={styles.formError}>{error}</div> : null}
+      <div className={styles.actions}>
+        <Button onClick={onSave} disabled={!title.trim() || saving}>
+          Сохранить раздел
+        </Button>
+        <Button variant="ghost" onClick={onCancel}>
+          Отмена
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+type TeacherCourseCardProps = {
+  course: Course;
+  isActive: boolean;
+  onOpen: (courseId: string) => void;
+  onPublishToggle: (course: Course) => void;
+  onEdit: (course: Course) => void;
+  onDelete: (course: Course) => void;
+  formatCreatedAt: (value: string) => string;
+};
+
+function TeacherCourseCard({
+  course,
+  isActive,
+  onOpen,
+  onPublishToggle,
+  onEdit,
+  onDelete,
+  formatCreatedAt,
+}: TeacherCourseCardProps) {
+  return (
+    <div key={course.id} className={`${styles.card} ${isActive ? styles.cardActive : ""}`}>
+      <button type="button" className={styles.cardMain} onClick={() => onOpen(course.id)}>
+        <div className={styles.cardTitleRow}>
+          <div className={styles.cardTitle}>{course.title}</div>
+        </div>
+        <div className={styles.cardMetaGroup}>
+          <div className={styles.cardMeta}>{course.description ? course.description : "Без описания"}</div>
+          <div className={styles.cardMetaMuted}>Создан: {formatCreatedAt(course.createdAt)}</div>
+        </div>
+      </button>
+      <div className={styles.cardControls}>
+        <span className={styles.status} data-status={course.status}>
+          {getContentStatusLabel(course.status)}
+        </span>
+        <div className={styles.cardActions}>
+          <Button
+            variant="ghost"
+            className={styles.cardIconAction}
+            title={course.status === "published" ? "Снять с публикации" : "Опубликовать"}
+            aria-label={course.status === "published" ? "Снять курс с публикации" : "Опубликовать курс"}
+            onClick={() => onPublishToggle(course)}
+          >
+            {course.status === "published" ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+          </Button>
+          <Button
+            variant="ghost"
+            className={styles.cardIconAction}
+            title="Редактировать курс"
+            aria-label="Редактировать курс"
+            onClick={() => onEdit(course)}
+          >
+            <Pencil size={16} aria-hidden="true" />
+          </Button>
+          <Button
+            variant="ghost"
+            className={styles.cardIconAction}
+            title="Удалить курс"
+            aria-label="Удалить курс"
+            onClick={() => onDelete(course)}
+          >
+            <Trash2 size={16} aria-hidden="true" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type TeacherSectionCardProps = {
+  section: Section;
+  onOpen: (section: Section) => void;
+  onPublishToggle: (section: Section) => void;
+  onEdit: (section: Section) => void;
+  onDelete: (section: Section) => void;
+  formatCreatedAt: (value: string) => string;
+};
+
+function TeacherSectionCard({
+  section,
+  onOpen,
+  onPublishToggle,
+  onEdit,
+  onDelete,
+  formatCreatedAt,
+}: TeacherSectionCardProps) {
+  return (
+    <div key={section.id} className={styles.card}>
+      <button type="button" className={styles.cardMain} onClick={() => onOpen(section)}>
+        <div className={styles.cardTitleRow}>
+          <div className={styles.cardTitle}>{section.title}</div>
+        </div>
+        <div className={styles.cardMetaGroup}>
+          <div className={styles.cardMeta}>{section.description ? section.description : "Без описания"}</div>
+          <div className={styles.cardMetaMuted}>Создан: {formatCreatedAt(section.createdAt)}</div>
+        </div>
+      </button>
+      <div className={styles.cardControls}>
+        <span className={styles.status} data-status={section.status}>
+          {getContentStatusLabel(section.status)}
+        </span>
+        <div className={styles.cardActions}>
+          <Button
+            variant="ghost"
+            className={styles.cardIconAction}
+            title={section.status === "published" ? "Снять с публикации" : "Опубликовать"}
+            aria-label={section.status === "published" ? "Снять раздел с публикации" : "Опубликовать раздел"}
+            onClick={() => onPublishToggle(section)}
+          >
+            {section.status === "published" ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+          </Button>
+          <Button
+            variant="ghost"
+            className={styles.cardIconAction}
+            title="Редактировать раздел"
+            aria-label="Редактировать раздел"
+            onClick={() => onEdit(section)}
+          >
+            <Pencil size={16} aria-hidden="true" />
+          </Button>
+          <Button
+            variant="ghost"
+            className={styles.cardIconAction}
+            title="Удалить раздел"
+            aria-label="Удалить раздел"
+            onClick={() => onDelete(section)}
+          >
+            <Trash2 size={16} aria-hidden="true" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type TeacherEditDialogPanelProps = {
+  title: string;
+  description: string;
+  error: string | null;
+  saving: boolean;
+  onTitleChange: (value: string) => void;
+  onDescriptionChange: (value: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+};
+
+function TeacherEditDialogPanel({
+  title,
+  description,
+  error,
+  saving,
+  onTitleChange,
+  onDescriptionChange,
+  onSave,
+  onCancel,
+}: TeacherEditDialogPanelProps) {
+  return (
+    <div className={styles.inlineForm} role="dialog" aria-label="Редактирование">
+      <label className={styles.label}>
+        Название
+        <Input
+          value={title}
+          onChange={(event) => onTitleChange(event.target.value)}
+          name="editTitle"
+          autoComplete="off"
+          placeholder="Введите название..."
+        />
+      </label>
+      <label className={styles.label}>
+        Описание
+        <Textarea
+          value={description}
+          onChange={(event) => onDescriptionChange(event.target.value)}
+          name="editDescription"
+          rows={3}
+          placeholder="Введите описание..."
+        />
+      </label>
+      {error ? <div className={styles.formError}>{error}</div> : null}
+      <div className={styles.actions}>
+        <Button onClick={onSave} disabled={!title.trim() || saving}>
+          {saving ? "Сохранение..." : "Сохранить изменения"}
+        </Button>
+        <Button variant="ghost" onClick={onCancel}>
+          Отмена
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+type TeacherCourseListPanelProps = {
+  courses: Course[];
+  selectedCourseId: string | null;
+  loadingCourses: boolean;
+  showCourseForm: boolean;
+  courseTitle: string;
+  courseDescription: string;
+  courseFormError: string | null;
+  creatingCourse: boolean;
+  formatCreatedAt: (value: string) => string;
+  onToggleCourseForm: () => void;
+  onCourseTitleChange: (value: string) => void;
+  onCourseDescriptionChange: (value: string) => void;
+  onCreateCourse: () => void;
+  onCancelCourseForm: () => void;
+  onOpenCourse: (courseId: string) => void;
+  onPublishCourseToggle: (course: Course) => void;
+  onEditCourse: (course: Course) => void;
+  onDeleteCourse: (course: Course) => void;
+};
+
+function TeacherCourseListPanel({
+  courses,
+  selectedCourseId,
+  loadingCourses,
+  showCourseForm,
+  courseTitle,
+  courseDescription,
+  courseFormError,
+  creatingCourse,
+  formatCreatedAt,
+  onToggleCourseForm,
+  onCourseTitleChange,
+  onCourseDescriptionChange,
+  onCreateCourse,
+  onCancelCourseForm,
+  onOpenCourse,
+  onPublishCourseToggle,
+  onEditCourse,
+  onDeleteCourse,
+}: TeacherCourseListPanelProps) {
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div className={styles.breadcrumbs}>
+          <span className={styles.breadcrumbCurrent}>Курсы</span>
+        </div>
+        <div className={styles.panelActions}>
+          <Button onClick={onToggleCourseForm}>Создать курс</Button>
+        </div>
+      </div>
+
+      <div className={styles.panelBody}>
+        {showCourseForm ? (
+          <TeacherCourseCreateForm
+            title={courseTitle}
+            description={courseDescription}
+            error={courseFormError}
+            saving={creatingCourse}
+            onTitleChange={onCourseTitleChange}
+            onDescriptionChange={onCourseDescriptionChange}
+            onSave={onCreateCourse}
+            onCancel={onCancelCourseForm}
+          />
+        ) : null}
+
+        {loadingCourses ? (
+          <div className={styles.empty}>Загрузка курсов…</div>
+        ) : courses.length === 0 ? (
+          <div className={styles.empty}>Пока нет курсов. Создайте первый.</div>
+        ) : (
+          <div className={styles.cardGrid}>
+            {courses.map((course) => (
+              <TeacherCourseCard
+                key={course.id}
+                course={course}
+                isActive={selectedCourseId === course.id}
+                onOpen={onOpenCourse}
+                onPublishToggle={onPublishCourseToggle}
+                onEdit={onEditCourse}
+                onDelete={onDeleteCourse}
+                formatCreatedAt={formatCreatedAt}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+type TeacherSectionListPanelProps = {
+  selectedCourse: CourseWithSections;
+  sortedSections: Section[];
+  loadingSections: boolean;
+  showSectionForm: boolean;
+  sectionTitle: string;
+  sectionDescription: string;
+  sectionFormError: string | null;
+  creatingSection: boolean;
+  formatCreatedAt: (value: string) => string;
+  onBackToCourses: () => void;
+  onToggleSectionForm: () => void;
+  onSectionTitleChange: (value: string) => void;
+  onSectionDescriptionChange: (value: string) => void;
+  onCreateSection: () => void;
+  onCancelSectionForm: () => void;
+  onOpenSection: (section: Section) => void;
+  onPublishSectionToggle: (section: Section) => void;
+  onEditSection: (section: Section) => void;
+  onDeleteSection: (section: Section) => void;
+};
+
+function TeacherSectionListPanel({
+  selectedCourse,
+  sortedSections,
+  loadingSections,
+  showSectionForm,
+  sectionTitle,
+  sectionDescription,
+  sectionFormError,
+  creatingSection,
+  formatCreatedAt,
+  onBackToCourses,
+  onToggleSectionForm,
+  onSectionTitleChange,
+  onSectionDescriptionChange,
+  onCreateSection,
+  onCancelSectionForm,
+  onOpenSection,
+  onPublishSectionToggle,
+  onEditSection,
+  onDeleteSection,
+}: TeacherSectionListPanelProps) {
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div className={styles.breadcrumbs}>
+          <button type="button" className={styles.breadcrumbLink} onClick={onBackToCourses}>
+            Курсы
+          </button>
+          <span className={styles.breadcrumbDivider}>/</span>
+          <span className={styles.breadcrumbCurrent}>{selectedCourse.title}</span>
+        </div>
+        <div className={styles.panelActions}>
+          <Button onClick={onToggleSectionForm}>Новый раздел</Button>
+        </div>
+      </div>
+
+      <div className={styles.panelBody}>
+        {showSectionForm ? (
+          <TeacherSectionCreateForm
+            title={sectionTitle}
+            description={sectionDescription}
+            error={sectionFormError}
+            saving={creatingSection}
+            onTitleChange={onSectionTitleChange}
+            onDescriptionChange={onSectionDescriptionChange}
+            onSave={onCreateSection}
+            onCancel={onCancelSectionForm}
+          />
+        ) : null}
+
+        {loadingSections ? (
+          <div className={styles.empty}>Загрузка разделов…</div>
+        ) : sortedSections.length === 0 ? (
+          <div className={styles.empty}>Разделов пока нет.</div>
+        ) : (
+          <div className={styles.cardGrid}>
+            {sortedSections.map((section) => (
+              <TeacherSectionCard
+                key={section.id}
+                section={section}
+                onOpen={onOpenSection}
+                onPublishToggle={onPublishSectionToggle}
+                onEdit={onEditSection}
+                onDelete={onDeleteSection}
+                formatCreatedAt={formatCreatedAt}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -155,15 +644,12 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
   const [sectionDescription, setSectionDescription] = useState("");
   const [courseFormError, setCourseFormError] = useState<string | null>(null);
   const [sectionFormError, setSectionFormError] = useState<string | null>(null);
-  const [creatingCourse, setCreatingCourse] = useState(false);
-  const [creatingSection, setCreatingSection] = useState(false);
   const [showCourseForm, setShowCourseForm] = useState(false);
   const [showSectionForm, setShowSectionForm] = useState(false);
   const [editDialog, setEditDialog] = useState<EditDialogState | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
-  const [savingEdit, setSavingEdit] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState>(null);
   const [historyReady, setHistoryReady] = useState(Boolean(initialSectionId));
   const coursesQuery = useQuery({
@@ -232,6 +718,19 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
     });
   }, [queryClient]);
 
+  const resetCourseSelection = useCallback(
+    (mode: "push" | "replace" = "push") => {
+      setSelectedCourseId(null);
+      setShowSectionForm(false);
+      setSectionTitle("");
+      setSectionDescription("");
+      setSelectedSectionId(null);
+      setSelectedSectionTitle(null);
+      writeHistoryState({ courseId: null, sectionId: null, sectionTitle: null }, mode);
+    },
+    [writeHistoryState],
+  );
+
   const handleOpenCourse = useCallback(
     async (courseId: string, mode: HistoryUpdateMode = "push") => {
       setError(null);
@@ -244,7 +743,7 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
       setShowSectionForm(false);
       setSectionFormError(null);
       try {
-        await queryClient.fetchQuery({
+        await queryClient.ensureQueryData({
           queryKey: contentQueryKeys.teacherCourse(courseId),
           queryFn: () => teacherApi.getCourse(courseId),
         });
@@ -321,12 +820,52 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
     };
   }, [handleOpenCourse, initialSectionId]);
 
+  const createCourseMutation = useMutation({
+    mutationFn: teacherApi.createCourse,
+  });
+  const createSectionMutation = useMutation({
+    mutationFn: teacherApi.createSection,
+  });
+  const toggleCoursePublishMutation = useMutation({
+    mutationFn: async (course: Course) => {
+      if (course.status === "published") {
+        return teacherApi.unpublishCourse(course.id);
+      }
+      return teacherApi.publishCourse(course.id);
+    },
+  });
+  const toggleSectionPublishMutation = useMutation({
+    mutationFn: async (section: Section) => {
+      if (section.status === "published") {
+        return teacherApi.unpublishSection(section.id);
+      }
+      return teacherApi.publishSection(section.id);
+    },
+  });
+  const updateCourseMutation = useMutation({
+    mutationFn: ({ id, title, description }: { id: string; title: string; description: string | null }) =>
+      teacherApi.updateCourse(id, { title, description }),
+  });
+  const updateSectionMutation = useMutation({
+    mutationFn: ({ id, title, description }: { id: string; title: string; description: string | null }) =>
+      teacherApi.updateSection(id, { title, description }),
+  });
+  const deleteCourseMutation = useMutation({
+    mutationFn: (courseId: string) => teacherApi.deleteCourse(courseId),
+  });
+  const deleteSectionMutation = useMutation({
+    mutationFn: (sectionId: string) => teacherApi.deleteSection(sectionId),
+  });
+
+  const creatingCourse = createCourseMutation.isPending;
+  const creatingSection = createSectionMutation.isPending;
+  const savingEdit = updateCourseMutation.isPending || updateSectionMutation.isPending;
+
   const handleCreateCourse = async () => {
     if (!courseTitle.trim() || creatingCourse) return;
     setCourseFormError(null);
-    setCreatingCourse(true);
     try {
-      const created = await teacherApi.createCourse({
+      const created = await createCourseMutation.mutateAsync({
         title: courseTitle.trim(),
         description: normalizeDescription(courseDescription),
       });
@@ -337,17 +876,14 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
       await handleOpenCourse(created.id, "none");
     } catch (err) {
       setCourseFormError(getApiErrorMessage(err));
-    } finally {
-      setCreatingCourse(false);
     }
   };
 
   const handleCreateSection = async () => {
     if (!selectedCourse || !sectionTitle.trim() || creatingSection) return;
     setSectionFormError(null);
-    setCreatingSection(true);
     try {
-      await teacherApi.createSection({
+      await createSectionMutation.mutateAsync({
         courseId: selectedCourse.id,
         title: sectionTitle.trim(),
         description: normalizeDescription(sectionDescription),
@@ -359,19 +895,13 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
       await refreshSelectedCourse(selectedCourse.id);
     } catch (err) {
       setSectionFormError(getApiErrorMessage(err));
-    } finally {
-      setCreatingSection(false);
     }
   };
 
   const handlePublishCourseToggle = async (course: Course) => {
     setError(null);
     try {
-      if (course.status === "published") {
-        await teacherApi.unpublishCourse(course.id);
-      } else {
-        await teacherApi.publishCourse(course.id);
-      }
+      await toggleCoursePublishMutation.mutateAsync(course);
       await refreshCourses();
       if (selectedCourseId === course.id) {
         await refreshSelectedCourse(course.id);
@@ -388,12 +918,9 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
   const confirmDeleteCourse = async (course: Course) => {
     setError(null);
     try {
-      await teacherApi.deleteCourse(course.id);
+      await deleteCourseMutation.mutateAsync(course.id);
       if (selectedCourseId === course.id) {
-        setSelectedCourseId(null);
-        setSelectedSectionId(null);
-        setSelectedSectionTitle(null);
-        writeHistoryState({ courseId: null, sectionId: null, sectionTitle: null }, "replace");
+        resetCourseSelection("replace");
       }
       await refreshCourses();
     } catch (err) {
@@ -405,11 +932,7 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
     if (!selectedCourse) return;
     setError(null);
     try {
-      if (section.status === "published") {
-        await teacherApi.unpublishSection(section.id);
-      } else {
-        await teacherApi.publishSection(section.id);
-      }
+      await toggleSectionPublishMutation.mutateAsync(section);
       await refreshSelectedCourse(selectedCourse.id);
     } catch (err) {
       setError(getApiErrorMessage(err));
@@ -425,7 +948,7 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
     if (!selectedCourse) return;
     setError(null);
     try {
-      await teacherApi.deleteSection(section.id);
+      await deleteSectionMutation.mutateAsync(section.id);
       await refreshSelectedCourse(selectedCourse.id);
     } catch (err) {
       setError(getApiErrorMessage(err));
@@ -474,10 +997,10 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
     const title = editTitle.trim();
     if (!title || savingEdit) return;
     setEditError(null);
-    setSavingEdit(true);
     try {
       if (editDialog.kind === "course") {
-        await teacherApi.updateCourse(editDialog.id, {
+        await updateCourseMutation.mutateAsync({
+          id: editDialog.id,
           title,
           description: normalizeDescription(editDescription),
         });
@@ -486,7 +1009,8 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
           await refreshSelectedCourse(editDialog.id);
         }
       } else if (selectedCourse) {
-        const updated = await teacherApi.updateSection(editDialog.id, {
+        const updated = await updateSectionMutation.mutateAsync({
+          id: editDialog.id,
           title,
           description: normalizeDescription(editDescription),
         });
@@ -498,8 +1022,6 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
       setEditDialog(null);
     } catch (err) {
       setEditError(getApiErrorMessage(err));
-    } finally {
-      setSavingEdit(false);
     }
   };
 
@@ -521,13 +1043,7 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
   };
 
   const handleBackToCoursesRoot = () => {
-    setSelectedCourseId(null);
-    setShowSectionForm(false);
-    setSectionTitle("");
-    setSectionDescription("");
-    setSelectedSectionId(null);
-    setSelectedSectionTitle(null);
-    writeHistoryState({ courseId: null, sectionId: null, sectionTitle: null }, "push");
+    resetCourseSelection("push");
   };
 
   return (
@@ -550,300 +1066,70 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
           onBackToSections={handleBackToList}
           onBackToCourses={handleBackToCoursesRoot}
         />
+      ) : selectedCourse ? (
+        <TeacherSectionListPanel
+          selectedCourse={selectedCourse}
+          sortedSections={sortedSections}
+          loadingSections={loadingSections}
+          showSectionForm={showSectionForm}
+          sectionTitle={sectionTitle}
+          sectionDescription={sectionDescription}
+          sectionFormError={sectionFormError}
+          creatingSection={creatingSection}
+          formatCreatedAt={formatCreatedAt}
+          onBackToCourses={handleBackToCoursesRoot}
+          onToggleSectionForm={() => {
+            setShowSectionForm((prev) => !prev);
+            setSectionFormError(null);
+            setSectionDescription("");
+          }}
+          onSectionTitleChange={setSectionTitle}
+          onSectionDescriptionChange={setSectionDescription}
+          onCreateSection={handleCreateSection}
+          onCancelSectionForm={() => setShowSectionForm(false)}
+          onOpenSection={handleSectionClick}
+          onPublishSectionToggle={(section) => void handlePublishSectionToggle(section)}
+          onEditSection={handleStartEditSection}
+          onDeleteSection={(section) => void handleDeleteSection(section)}
+        />
       ) : (
-        <section className={styles.panel}>
-          <div className={styles.panelHeader}>
-            <div className={styles.breadcrumbs}>
-              {selectedCourse ? (
-                <>
-                  <button
-                    type="button"
-                    className={styles.breadcrumbLink}
-                    onClick={handleBackToCoursesRoot}
-                  >
-                    Курсы
-                  </button>
-                  <span className={styles.breadcrumbDivider}>/</span>
-                  <span className={styles.breadcrumbCurrent}>{selectedCourse.title}</span>
-                </>
-              ) : (
-                <span className={styles.breadcrumbCurrent}>Курсы</span>
-              )}
-            </div>
-            <div className={styles.panelActions}>
-              {selectedCourse ? (
-                <Button
-                  onClick={() => {
-                    setShowSectionForm((prev) => !prev);
-                    setSectionFormError(null);
-                    setSectionDescription("");
-                  }}
-                >
-                  Новый раздел
-                </Button>
-              ) : (
-                <Button
-                  onClick={() => {
-                    setShowCourseForm((prev) => !prev);
-                    setCourseFormError(null);
-                    setCourseDescription("");
-                  }}
-                >
-                  Создать курс
-                </Button>
-              )}
-            </div>
-          </div>
-
-          <div className={styles.panelBody}>
-            {selectedCourse ? (
-              <>
-                {showSectionForm ? (
-                  <div className={styles.inlineForm}>
-                    <label className={styles.label}>
-                      Название раздела
-                      <Input
-                        value={sectionTitle}
-                        onChange={(event) => setSectionTitle(event.target.value)}
-                        name="sectionTitle"
-                        autoComplete="off"
-                        placeholder="Например, Дроби и проценты…"
-                      />
-                    </label>
-                    <label className={styles.label}>
-                      Описание раздела
-                      <Textarea
-                        value={sectionDescription}
-                        onChange={(event) => setSectionDescription(event.target.value)}
-                        name="sectionDescription"
-                        rows={3}
-                        placeholder="Коротко опишите, что изучают в этом разделе..."
-                      />
-                    </label>
-                    {sectionFormError ? (
-                      <div className={styles.formError}>{sectionFormError}</div>
-                    ) : null}
-                    <div className={styles.actions}>
-                      <Button onClick={handleCreateSection} disabled={!sectionTitle.trim() || creatingSection}>
-                        Сохранить раздел
-                      </Button>
-                      <Button variant="ghost" onClick={() => setShowSectionForm(false)}>
-                        Отмена
-                      </Button>
-                    </div>
-                  </div>
-                ) : null}
-
-                {loadingSections ? (
-                  <div className={styles.empty}>Загрузка разделов…</div>
-                ) : sortedSections.length === 0 ? (
-                  <div className={styles.empty}>Разделов пока нет.</div>
-                ) : (
-                  <div className={styles.cardGrid}>
-                    {sortedSections.map((section) => (
-                      <div key={section.id} className={styles.card}>
-                        <button type="button" className={styles.cardMain} onClick={() => handleSectionClick(section)}>
-                          <div className={styles.cardTitleRow}>
-                            <div className={styles.cardTitle}>{section.title}</div>
-                          </div>
-                          <div className={styles.cardMetaGroup}>
-                            <div className={styles.cardMeta}>
-                              {section.description ? section.description : "Без описания"}
-                            </div>
-                            <div className={styles.cardMetaMuted}>Создан: {formatCreatedAt(section.createdAt)}</div>
-                          </div>
-                        </button>
-                        <div className={styles.cardControls}>
-                          <span className={styles.status} data-status={section.status}>
-                            {getContentStatusLabel(section.status)}
-                          </span>
-                          <div className={styles.cardActions}>
-                            <Button
-                              variant="ghost"
-                              className={styles.cardIconAction}
-                              title={section.status === "published" ? "Снять с публикации" : "Опубликовать"}
-                              aria-label={
-                                section.status === "published"
-                                  ? "Снять раздел с публикации"
-                                  : "Опубликовать раздел"
-                              }
-                              onClick={() => handlePublishSectionToggle(section)}
-                            >
-                              {section.status === "published" ? (
-                                <EyeOff size={16} aria-hidden="true" />
-                              ) : (
-                                <Eye size={16} aria-hidden="true" />
-                              )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              className={styles.cardIconAction}
-                              title="Редактировать раздел"
-                              aria-label="Редактировать раздел"
-                              onClick={() => handleStartEditSection(section)}
-                            >
-                              <Pencil size={16} aria-hidden="true" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              className={styles.cardIconAction}
-                              title="Удалить раздел"
-                              aria-label="Удалить раздел"
-                              onClick={() => handleDeleteSection(section)}
-                            >
-                              <Trash2 size={16} aria-hidden="true" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            ) : (
-              <>
-                {showCourseForm ? (
-                  <div className={styles.inlineForm}>
-                    <label className={styles.label}>
-                      Название курса
-                      <Input
-                        value={courseTitle}
-                        onChange={(event) => setCourseTitle(event.target.value)}
-                        name="courseTitle"
-                        autoComplete="off"
-                        placeholder="Например, Математика 7 класс…"
-                      />
-                    </label>
-                    <label className={styles.label}>
-                      Описание курса
-                      <Textarea
-                        value={courseDescription}
-                        onChange={(event) => setCourseDescription(event.target.value)}
-                        name="courseDescription"
-                        rows={3}
-                        placeholder="Коротко опишите курс..."
-                      />
-                    </label>
-                    {courseFormError ? <div className={styles.formError}>{courseFormError}</div> : null}
-                    <div className={styles.actions}>
-                      <Button onClick={handleCreateCourse} disabled={!courseTitle.trim() || creatingCourse}>
-                        Сохранить курс
-                      </Button>
-                      <Button variant="ghost" onClick={() => setShowCourseForm(false)}>
-                        Отмена
-                      </Button>
-                    </div>
-                  </div>
-                ) : null}
-
-                {loadingCourses ? (
-                  <div className={styles.empty}>Загрузка курсов…</div>
-                ) : courses.length === 0 ? (
-                  <div className={styles.empty}>Пока нет курсов. Создайте первый.</div>
-                ) : (
-                  <div className={styles.cardGrid}>
-                    {courses.map((course) => (
-                      <div
-                        key={course.id}
-                        className={`${styles.card} ${selectedCourseId === course.id ? styles.cardActive : ""}`}
-                      >
-                        <button
-                          type="button"
-                          className={styles.cardMain}
-                          onClick={() => void handleOpenCourse(course.id, "push")}
-                        >
-                          <div className={styles.cardTitleRow}>
-                            <div className={styles.cardTitle}>{course.title}</div>
-                          </div>
-                          <div className={styles.cardMetaGroup}>
-                            <div className={styles.cardMeta}>
-                              {course.description ? course.description : "Без описания"}
-                            </div>
-                            <div className={styles.cardMetaMuted}>Создан: {formatCreatedAt(course.createdAt)}</div>
-                          </div>
-                        </button>
-                        <div className={styles.cardControls}>
-                          <span className={styles.status} data-status={course.status}>
-                            {getContentStatusLabel(course.status)}
-                          </span>
-                          <div className={styles.cardActions}>
-                            <Button
-                              variant="ghost"
-                              className={styles.cardIconAction}
-                              title={course.status === "published" ? "Снять с публикации" : "Опубликовать"}
-                              aria-label={
-                                course.status === "published" ? "Снять курс с публикации" : "Опубликовать курс"
-                              }
-                              onClick={() => void handlePublishCourseToggle(course)}
-                            >
-                              {course.status === "published" ? (
-                                <EyeOff size={16} aria-hidden="true" />
-                              ) : (
-                                <Eye size={16} aria-hidden="true" />
-                              )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              className={styles.cardIconAction}
-                              title="Редактировать курс"
-                              aria-label="Редактировать курс"
-                              onClick={() => handleStartEditCourse(course)}
-                            >
-                              <Pencil size={16} aria-hidden="true" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              className={styles.cardIconAction}
-                              title="Удалить курс"
-                              aria-label="Удалить курс"
-                              onClick={() => void handleDeleteCourse(course)}
-                            >
-                              <Trash2 size={16} aria-hidden="true" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </section>
+        <TeacherCourseListPanel
+          courses={courses}
+          selectedCourseId={selectedCourseId}
+          loadingCourses={loadingCourses}
+          showCourseForm={showCourseForm}
+          courseTitle={courseTitle}
+          courseDescription={courseDescription}
+          courseFormError={courseFormError}
+          creatingCourse={creatingCourse}
+          formatCreatedAt={formatCreatedAt}
+          onToggleCourseForm={() => {
+            setShowCourseForm((prev) => !prev);
+            setCourseFormError(null);
+            setCourseDescription("");
+          }}
+          onCourseTitleChange={setCourseTitle}
+          onCourseDescriptionChange={setCourseDescription}
+          onCreateCourse={handleCreateCourse}
+          onCancelCourseForm={() => setShowCourseForm(false)}
+          onOpenCourse={(courseId) => void handleOpenCourse(courseId, "push")}
+          onPublishCourseToggle={(course) => void handlePublishCourseToggle(course)}
+          onEditCourse={handleStartEditCourse}
+          onDeleteCourse={(course) => void handleDeleteCourse(course)}
+        />
       )}
 
       {editDialog ? (
-        <div className={styles.inlineForm} role="dialog" aria-label="Редактирование">
-          <label className={styles.label}>
-            Название
-            <Input
-              value={editTitle}
-              onChange={(event) => setEditTitle(event.target.value)}
-              name="editTitle"
-              autoComplete="off"
-              placeholder="Введите название..."
-            />
-          </label>
-          <label className={styles.label}>
-            Описание
-            <Textarea
-              value={editDescription}
-              onChange={(event) => setEditDescription(event.target.value)}
-              name="editDescription"
-              rows={3}
-              placeholder="Введите описание..."
-            />
-          </label>
-          {editError ? <div className={styles.formError}>{editError}</div> : null}
-          <div className={styles.actions}>
-            <Button onClick={handleSaveEdit} disabled={!editTitle.trim() || savingEdit}>
-              {savingEdit ? "Сохранение..." : "Сохранить изменения"}
-            </Button>
-            <Button variant="ghost" onClick={() => setEditDialog(null)}>
-              Отмена
-            </Button>
-          </div>
-        </div>
+        <TeacherEditDialogPanel
+          title={editTitle}
+          description={editDescription}
+          error={editError}
+          saving={savingEdit}
+          onTitleChange={setEditTitle}
+          onDescriptionChange={setEditDescription}
+          onSave={handleSaveEdit}
+          onCancel={() => setEditDialog(null)}
+        />
       ) : null}
       <AlertDialog
         open={Boolean(deleteDialog)}

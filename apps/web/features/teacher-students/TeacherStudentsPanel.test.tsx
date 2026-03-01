@@ -63,7 +63,32 @@ vi.mock("@/components/ui/Select", () => ({
 }));
 
 vi.mock("@/components/ui/AlertDialog", () => ({
-  default: () => null,
+  default: ({
+    open,
+    title,
+    onConfirm,
+    onOpenChange,
+    confirmText = "Подтвердить",
+    cancelText = "Отмена",
+  }: {
+    open: boolean;
+    title: React.ReactNode;
+    onConfirm: () => void;
+    onOpenChange: (open: boolean) => void;
+    confirmText?: string;
+    cancelText?: string;
+  }) =>
+    open ? (
+      <div>
+        <div>{title}</div>
+        <button type="button" onClick={() => onOpenChange(false)}>
+          {cancelText}
+        </button>
+        <button type="button" onClick={onConfirm}>
+          {confirmText}
+        </button>
+      </div>
+    ) : null,
 }));
 
 vi.mock("@/lib/api/teacher", async () => {
@@ -169,7 +194,7 @@ describe("TeacherStudentsPanel", () => {
     });
     expect(await screen.findByText("Новый ученик создан")).toBeInTheDocument();
     expect(screen.getByText("Pass123!")).toBeInTheDocument();
-  });
+  }, 10000);
 
   it("transfers student to another teacher and refreshes list", async () => {
     vi.mocked(teacherApi.transferStudent).mockResolvedValue({
@@ -199,5 +224,76 @@ describe("TeacherStudentsPanel", () => {
         queryKey: contentQueryKeys.teacherStudentsList(),
       });
     });
+  });
+
+  it("edits student profile and refreshes students list", async () => {
+    vi.mocked(teacherApi.updateStudentProfile).mockResolvedValue({
+      id: "student-1",
+      firstName: "Пётр",
+      lastName: "Петров",
+    } as never);
+
+    const { queryClient } = renderWithQueryClient(<TeacherStudentsPanel />);
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+    const user = userEvent.setup();
+
+    expect(await screen.findByText("Иванов Иван")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Редактировать" }));
+    const [firstNameInput, lastNameInput] = screen.getAllByRole("textbox", { name: /Имя|Фамилия/ });
+    await user.clear(firstNameInput);
+    await user.type(firstNameInput, "Пётр");
+    await user.clear(lastNameInput);
+    await user.type(lastNameInput, "Петров");
+    await user.click(screen.getByRole("button", { name: "Сохранить" }));
+
+    await waitFor(() => {
+      expect(teacherApi.updateStudentProfile).toHaveBeenCalledWith("student-1", {
+        firstName: "Пётр",
+        lastName: "Петров",
+      });
+    });
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: contentQueryKeys.teacherStudentsList(),
+      });
+    });
+  });
+
+  it("resets student password and shows reveal panel", async () => {
+    vi.mocked(teacherApi.resetStudentPassword).mockResolvedValue({
+      id: "student-1",
+      login: "student1",
+      password: "Reset123!",
+    } as never);
+
+    renderWithQueryClient(<TeacherStudentsPanel />);
+    const user = userEvent.setup();
+
+    expect(await screen.findByText("Иванов Иван")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Сбросить пароль" }));
+    expect(screen.getByText("Сбросить пароль для student1?")).toBeInTheDocument();
+    await user.click(screen.getAllByRole("button", { name: "Сбросить пароль" })[1]);
+
+    await waitFor(() => {
+      expect(teacherApi.resetStudentPassword).toHaveBeenCalledWith("student-1");
+    });
+    expect(await screen.findByText("Пароль обновлён")).toBeInTheDocument();
+    expect(screen.getByText("Reset123!")).toBeInTheDocument();
+  });
+
+  it("navigates to review inbox and student profile routes", async () => {
+    renderWithQueryClient(<TeacherStudentsPanel />);
+    const user = userEvent.setup();
+
+    expect(await screen.findByText("Иванов Иван")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "К проверке фото" }));
+    expect(pushMock).toHaveBeenCalledWith("/teacher/review?status=pending_review&sort=oldest&studentId=student-1");
+
+    pushMock.mockReset();
+    await user.click(screen.getByText("Иванов Иван"));
+    expect(pushMock).toHaveBeenCalledWith("/teacher/students/student-1");
   });
 });

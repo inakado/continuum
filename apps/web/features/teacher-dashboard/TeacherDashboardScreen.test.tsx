@@ -13,7 +13,24 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("next/dynamic", () => ({
-  default: () => () => <div data-testid="teacher-graph-panel" />,
+  default: () => (props: {
+    sectionId: string;
+    sectionTitle: string | null;
+    courseTitle: string | null;
+    onBackToSections: () => void;
+    onBackToCourses: () => void;
+  }) => (
+    <div data-testid="teacher-graph-panel">
+      <div>{props.courseTitle}</div>
+      <div>{props.sectionTitle}</div>
+      <button type="button" onClick={props.onBackToSections}>
+        Назад к разделам
+      </button>
+      <button type="button" onClick={props.onBackToCourses}>
+        Назад к курсам
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock("@/components/DashboardShell", () => ({
@@ -21,7 +38,27 @@ vi.mock("@/components/DashboardShell", () => ({
 }));
 
 vi.mock("@/components/ui/AlertDialog", () => ({
-  default: () => null,
+  default: ({
+    open,
+    title,
+    onConfirm,
+    onOpenChange,
+  }: {
+    open: boolean;
+    title: string;
+    onConfirm: () => void;
+    onOpenChange: (open: boolean) => void;
+  }) =>
+    open ? (
+      <div role="dialog" aria-label={title}>
+        <button type="button" onClick={onConfirm}>
+          Подтвердить
+        </button>
+        <button type="button" onClick={() => onOpenChange(false)}>
+          Отмена
+        </button>
+      </div>
+    ) : null,
 }));
 
 vi.mock("@/features/teacher-content/auth/use-teacher-logout", () => ({
@@ -55,6 +92,8 @@ vi.mock("@/lib/api/teacher", async () => {
       listCourses: vi.fn(),
       getCourse: vi.fn(),
       createCourse: vi.fn(),
+      createSection: vi.fn(),
+      publishSection: vi.fn(),
     },
   };
 });
@@ -70,6 +109,8 @@ describe("TeacherDashboardScreen", () => {
     vi.mocked(teacherApi.listCourses).mockReset();
     vi.mocked(teacherApi.getCourse).mockReset();
     vi.mocked(teacherApi.createCourse).mockReset();
+    vi.mocked(teacherApi.createSection).mockReset();
+    vi.mocked(teacherApi.publishSection).mockReset();
     window.history.replaceState(null, "", "/teacher");
   });
 
@@ -123,7 +164,7 @@ describe("TeacherDashboardScreen", () => {
     await user.click(screen.getByRole("button", { name: "Сохранить курс" }));
 
     await waitFor(() => {
-      expect(teacherApi.createCourse).toHaveBeenCalledWith({
+      expect(vi.mocked(teacherApi.createCourse).mock.calls[0]?.[0]).toEqual({
         title: "Геометрия",
         description: "Новый курс",
       });
@@ -131,6 +172,173 @@ describe("TeacherDashboardScreen", () => {
     await waitFor(() => {
       expect(invalidateSpy).toHaveBeenCalledWith({
         queryKey: contentQueryKeys.teacherCourses(),
+      });
+    });
+  });
+
+  it("opens course, creates section and invalidates selected course query", async () => {
+    vi.mocked(teacherApi.listCourses).mockResolvedValueOnce([
+      {
+        id: "course-1",
+        title: "Алгебра",
+        description: "Базовый курс",
+        status: "draft",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-02T00:00:00.000Z",
+      },
+    ]);
+    vi.mocked(teacherApi.getCourse).mockResolvedValue({
+      id: "course-1",
+      title: "Алгебра",
+      description: "Базовый курс",
+      status: "draft",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+      sections: [],
+    } as never);
+    vi.mocked(teacherApi.createSection).mockResolvedValue({
+      id: "section-1",
+      courseId: "course-1",
+      title: "Линейные уравнения",
+      description: "Новый раздел",
+      status: "draft",
+      sortOrder: 0,
+      createdAt: "2026-01-03T00:00:00.000Z",
+      updatedAt: "2026-01-03T00:00:00.000Z",
+    } as never);
+
+    const { queryClient } = renderWithQueryClient(<TeacherDashboardScreen active="edit" />);
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: /Алгебра/ }));
+    expect(await screen.findByText("Разделов пока нет.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Новый раздел" }));
+    await user.type(screen.getByLabelText("Название раздела"), "Линейные уравнения");
+    await user.type(screen.getByLabelText("Описание раздела"), "Новый раздел");
+    await user.click(screen.getByRole("button", { name: "Сохранить раздел" }));
+
+    await waitFor(() => {
+      expect(vi.mocked(teacherApi.createSection).mock.calls[0]?.[0]).toEqual({
+        courseId: "course-1",
+        title: "Линейные уравнения",
+        description: "Новый раздел",
+        sortOrder: 0,
+      });
+    });
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: contentQueryKeys.teacherCourse("course-1"),
+      });
+    });
+  });
+
+  it("opens section graph and supports back navigation", async () => {
+    vi.mocked(teacherApi.listCourses).mockResolvedValueOnce([
+      {
+        id: "course-1",
+        title: "Алгебра",
+        description: "Базовый курс",
+        status: "draft",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-02T00:00:00.000Z",
+      },
+    ]);
+    vi.mocked(teacherApi.getCourse).mockResolvedValue({
+      id: "course-1",
+      title: "Алгебра",
+      description: "Базовый курс",
+      status: "draft",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+      sections: [
+        {
+          id: "section-1",
+          courseId: "course-1",
+          title: "Линейные уравнения",
+          description: "Раздел",
+          status: "draft",
+          sortOrder: 0,
+          createdAt: "2026-01-03T00:00:00.000Z",
+          updatedAt: "2026-01-03T00:00:00.000Z",
+        },
+      ],
+    } as never);
+
+    renderWithQueryClient(<TeacherDashboardScreen active="edit" />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: /Алгебра/ }));
+    await user.click(await screen.findByRole("button", { name: /Линейные уравнения/ }));
+
+    expect(await screen.findByTestId("teacher-graph-panel")).toBeInTheDocument();
+    expect(screen.getByText("Алгебра")).toBeInTheDocument();
+    expect(screen.getByText("Линейные уравнения")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Назад к разделам" }));
+    expect(await screen.findByText("Линейные уравнения")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Курсы" }));
+    expect(await screen.findByText("Алгебра")).toBeInTheDocument();
+    expect(screen.queryByTestId("teacher-graph-panel")).not.toBeInTheDocument();
+  });
+
+  it("publishes section and invalidates selected course query", async () => {
+    vi.mocked(teacherApi.listCourses).mockResolvedValueOnce([
+      {
+        id: "course-1",
+        title: "Алгебра",
+        description: "Базовый курс",
+        status: "draft",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-02T00:00:00.000Z",
+      },
+    ]);
+    vi.mocked(teacherApi.getCourse).mockResolvedValue({
+      id: "course-1",
+      title: "Алгебра",
+      description: "Базовый курс",
+      status: "draft",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+      sections: [
+        {
+          id: "section-1",
+          courseId: "course-1",
+          title: "Линейные уравнения",
+          description: "Раздел",
+          status: "draft",
+          sortOrder: 0,
+          createdAt: "2026-01-03T00:00:00.000Z",
+          updatedAt: "2026-01-03T00:00:00.000Z",
+        },
+      ],
+    } as never);
+    vi.mocked(teacherApi.publishSection).mockResolvedValue({
+      id: "section-1",
+      courseId: "course-1",
+      title: "Линейные уравнения",
+      description: "Раздел",
+      status: "published",
+      sortOrder: 0,
+      createdAt: "2026-01-03T00:00:00.000Z",
+      updatedAt: "2026-01-03T00:00:00.000Z",
+    } as never);
+
+    const { queryClient } = renderWithQueryClient(<TeacherDashboardScreen active="edit" />);
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: /Алгебра/ }));
+    await user.click(screen.getByRole("button", { name: "Опубликовать раздел" }));
+
+    await waitFor(() => {
+      expect(teacherApi.publishSection).toHaveBeenCalledWith("section-1");
+    });
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: contentQueryKeys.teacherCourse("course-1"),
       });
     });
   });

@@ -31,6 +31,32 @@ type StudentDashboardHistoryState = {
   sectionTitle: string | null;
 };
 
+type DashboardHeaderState = {
+  title: string;
+  subtitle: string;
+  showBackToCourses: boolean;
+};
+
+type StudentDashboardPanelProps = {
+  boot: Boot;
+  courses: Course[];
+  loadingCourses: boolean;
+  onCourseClick: (courseId: string) => void;
+  onGraphNotFound: () => void;
+  onSectionClick: (section: Section) => void;
+  onSectionsBack: () => void;
+  sections: Section[];
+  selectedCourseId: string | null;
+  selectedSectionId: string | null;
+  selectedSectionTitle: string | null;
+  view: View;
+};
+
+type QueryErrorState = {
+  error: Error | null;
+  isError: boolean;
+};
+
 const isStudentDashboardHistoryState = (value: unknown): value is StudentDashboardHistoryState => {
   if (!value || typeof value !== "object") return false;
   const candidate = value as Partial<StudentDashboardHistoryState>;
@@ -46,6 +72,347 @@ const StudentSectionGraphPanel = dynamic(() => import("./StudentSectionGraphPane
   ),
 });
 
+const buildHistoryState = (
+  view: View,
+  courseId: string | null,
+  sectionId: string | null,
+  sectionTitle: string | null,
+): Omit<StudentDashboardHistoryState, "__continuumStudentNav"> => ({
+  view,
+  courseId,
+  sectionId,
+  sectionTitle,
+});
+
+const getDashboardHeaderState = (
+  view: View,
+  courseTitle: string | null | undefined,
+  sectionTitle: string | null,
+): DashboardHeaderState => {
+  if (view === "courses") {
+    return {
+      title: "Курсы",
+      subtitle: "Выберите курс",
+      showBackToCourses: false,
+    };
+  }
+
+  if (view === "sections") {
+    return {
+      title: courseTitle ?? "Курс",
+      subtitle: "Выберите раздел",
+      showBackToCourses: true,
+    };
+  }
+
+  return {
+    title: `Раздел: ${sectionTitle ?? "Раздел"}`,
+    subtitle: "",
+    showBackToCourses: false,
+  };
+};
+
+const getRequestError = (
+  coursesQuery: QueryErrorState,
+  selectedCourseQuery: QueryErrorState,
+  view: View,
+) => {
+  if (coursesQuery.isError) {
+    return coursesQuery.error instanceof Error ? coursesQuery.error.message : "Ошибка загрузки курсов";
+  }
+  if (selectedCourseQuery.isError && view === "sections") {
+    return selectedCourseQuery.error instanceof Error ? selectedCourseQuery.error.message : "Ошибка загрузки курса";
+  }
+  return null;
+};
+
+const StudentDashboardPanel = ({
+  boot,
+  courses,
+  loadingCourses,
+  onCourseClick,
+  onGraphNotFound,
+  onSectionClick,
+  onSectionsBack,
+  sections,
+  selectedCourseId,
+  selectedSectionId,
+  selectedSectionTitle,
+  view,
+}: StudentDashboardPanelProps) => {
+  if (boot !== "ready") {
+    return <div className={styles.empty}>Загрузка…</div>;
+  }
+
+  if (view === "graph" && selectedSectionId) {
+    return (
+      <StudentSectionGraphPanel
+        sectionId={selectedSectionId}
+        sectionTitle={selectedSectionTitle}
+        onBack={onSectionsBack}
+        onNotFound={onGraphNotFound}
+      />
+    );
+  }
+
+  if (view === "sections") {
+    return (
+      <div className={styles.panel}>
+        <div className={styles.cardGrid}>
+          {sections.length === 0 ? (
+            <div className={styles.empty}>Разделов пока нет</div>
+          ) : (
+            sections.map((section) => (
+              <button
+                key={section.id}
+                type="button"
+                className={styles.card}
+                onClick={() => onSectionClick(section)}
+              >
+                <div className={styles.cardTitleRow}>
+                  <div className={styles.cardTitle}>{section.title}</div>
+                  <span className={styles.status}>{getContentStatusLabel(section.status)}</span>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.panel}>
+      <div className={styles.cardGrid}>
+        {loadingCourses ? (
+          <div className={styles.empty}>Загрузка курсов…</div>
+        ) : courses.length === 0 ? (
+          <div className={styles.empty}>Пока нет опубликованных курсов</div>
+        ) : (
+          courses.map((course) => (
+            <button
+              key={course.id}
+              type="button"
+              className={`${styles.card} ${selectedCourseId === course.id ? styles.cardActive : ""}`}
+              onClick={() => onCourseClick(course.id)}
+            >
+              <div className={styles.cardTitleRow}>
+                <div className={styles.cardTitle}>{course.title}</div>
+                <span className={styles.status}>Курс</span>
+              </div>
+              <div className={styles.cardMeta}>{course.description ?? "Без описания"}</div>
+            </button>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
+const useStudentDashboardBoot = ({
+  forceShowCourses,
+  queryOverride,
+  router,
+  setBoot,
+  setSelectedSectionId,
+  setSelectedSectionTitle,
+  setView,
+  writeHistoryState,
+}: {
+  forceShowCourses: () => void;
+  queryOverride: boolean;
+  router: ReturnType<typeof useRouter>;
+  setBoot: (boot: Boot) => void;
+  setSelectedSectionId: (sectionId: string | null) => void;
+  setSelectedSectionTitle: (title: string | null) => void;
+  setView: (view: View) => void;
+  writeHistoryState: (
+    next: Omit<StudentDashboardHistoryState, "__continuumStudentNav">,
+    mode?: Exclude<HistoryMode, "none">,
+  ) => void;
+}) => {
+  const skipAutoRestoreOnceRef = useRef(false);
+
+  useEffect(() => {
+    const hashOverride = typeof window !== "undefined" && window.location.hash === COURSES_HASH;
+    if (queryOverride || hashOverride) {
+      forceShowCourses();
+      setBoot("ready");
+
+      if (queryOverride) {
+        skipAutoRestoreOnceRef.current = true;
+        writeHistoryState(buildHistoryState("courses", null, null, null), "replace");
+        router.replace("/student");
+      }
+      if (hashOverride) {
+        window.history.replaceState(
+          {
+            __continuumStudentNav: true,
+            ...buildHistoryState("courses", null, null, null),
+          } satisfies StudentDashboardHistoryState,
+          "",
+          "/student",
+        );
+      }
+      return;
+    }
+
+    if (skipAutoRestoreOnceRef.current) {
+      skipAutoRestoreOnceRef.current = false;
+      writeHistoryState(buildHistoryState("courses", null, null, null), "replace");
+      setBoot("ready");
+      return;
+    }
+
+    let initialState = buildHistoryState("courses", null, null, null);
+
+    try {
+      const stored = window.localStorage.getItem(LAST_SECTION_KEY);
+      if (stored) {
+        setSelectedSectionId(stored);
+        setSelectedSectionTitle(null);
+        setView("graph");
+        initialState = buildHistoryState("graph", null, stored, null);
+      }
+    } catch {
+      // ignore localStorage errors (private mode/etc.)
+    } finally {
+      writeHistoryState(initialState, "replace");
+      setBoot("ready");
+    }
+  }, [
+    forceShowCourses,
+    queryOverride,
+    router,
+    setBoot,
+    setSelectedSectionId,
+    setSelectedSectionTitle,
+    setView,
+    writeHistoryState,
+  ]);
+};
+
+const useStudentDashboardSectionRestore = ({
+  boot,
+  handleGraphNotFound,
+  selectedSectionId,
+  selectedSectionQuery,
+  selectedSectionTitle,
+  setSelectedCourseId,
+  setSelectedSectionTitle,
+  view,
+  writeHistoryState,
+}: {
+  boot: Boot;
+  handleGraphNotFound: () => void;
+  selectedSectionId: string | null;
+  selectedSectionQuery: ReturnType<typeof useQuery<Section>>;
+  selectedSectionTitle: string | null;
+  setSelectedCourseId: (courseId: string | null) => void;
+  setSelectedSectionTitle: (title: string | null) => void;
+  view: View;
+  writeHistoryState: (
+    next: Omit<StudentDashboardHistoryState, "__continuumStudentNav">,
+    mode?: Exclude<HistoryMode, "none">,
+  ) => void;
+}) => {
+  useEffect(() => {
+    if (boot !== "ready" || view !== "graph" || !selectedSectionId || selectedSectionTitle) {
+      return;
+    }
+    if (selectedSectionQuery.isSuccess) {
+      const section = selectedSectionQuery.data;
+      setSelectedSectionTitle(section.title);
+      setSelectedCourseId(section.courseId);
+      writeHistoryState(buildHistoryState("graph", section.courseId, section.id, section.title), "replace");
+      return;
+    }
+    if (selectedSectionQuery.isError) {
+      handleGraphNotFound();
+    }
+  }, [
+    boot,
+    handleGraphNotFound,
+    selectedSectionId,
+    selectedSectionQuery.data,
+    selectedSectionQuery.isError,
+    selectedSectionQuery.isSuccess,
+    selectedSectionTitle,
+    setSelectedCourseId,
+    setSelectedSectionTitle,
+    view,
+    writeHistoryState,
+  ]);
+};
+
+const useStudentDashboardPopState = ({
+  boot,
+  forceShowCourses,
+  openCourse,
+  setError,
+  setSelectedCourseId,
+  setSelectedSectionId,
+  setSelectedSectionTitle,
+  setView,
+}: {
+  boot: Boot;
+  forceShowCourses: () => void;
+  openCourse: (courseId: string, mode?: HistoryMode) => Promise<boolean>;
+  setError: (error: string | null) => void;
+  setSelectedCourseId: (courseId: string | null) => void;
+  setSelectedSectionId: (sectionId: string | null) => void;
+  setSelectedSectionTitle: (title: string | null) => void;
+  setView: (view: View) => void;
+}) => {
+  useEffect(() => {
+    if (boot !== "ready") return;
+
+    const onPopState = (event: PopStateEvent) => {
+      if (!isStudentDashboardHistoryState(event.state)) return;
+
+      const next = event.state;
+      if (next.view === "courses") {
+        forceShowCourses();
+        return;
+      }
+
+      if (next.view === "sections") {
+        if (!next.courseId) {
+          forceShowCourses();
+          return;
+        }
+        void openCourse(next.courseId, "none");
+        return;
+      }
+
+      if (!next.sectionId) {
+        forceShowCourses();
+        return;
+      }
+
+      setError(null);
+      setSelectedSectionId(next.sectionId);
+      setSelectedSectionTitle(next.sectionTitle);
+      setSelectedCourseId(next.courseId);
+      setView("graph");
+    };
+
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+    };
+  }, [
+    boot,
+    forceShowCourses,
+    openCourse,
+    setError,
+    setSelectedCourseId,
+    setSelectedSectionId,
+    setSelectedSectionTitle,
+    setView,
+  ]);
+};
+
 type StudentDashboardScreenProps = {
   queryOverride?: boolean;
 };
@@ -55,7 +422,6 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
   const queryClient = useQueryClient();
   const handleLogout = useStudentLogout();
   const identity = useStudentIdentity();
-  const skipAutoRestoreOnceRef = useRef(false);
   const [boot, setBoot] = useState<Boot>("checking_last");
   const [view, setView] = useState<View>("courses");
   const [error, setError] = useState<string | null>(null);
@@ -116,22 +482,21 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
     if (!selectedCourse) return [];
     return [...selectedCourse.sections].sort((a, b) => a.sortOrder - b.sortOrder);
   }, [selectedCourse]);
-  const requestError = useMemo(() => {
-    if (coursesQuery.isError) {
-      return coursesQuery.error instanceof Error ? coursesQuery.error.message : "Ошибка загрузки курсов";
-    }
-    if (selectedCourseQuery.isError && view === "sections") {
-      return selectedCourseQuery.error instanceof Error ? selectedCourseQuery.error.message : "Ошибка загрузки курса";
-    }
-    return null;
-  }, [coursesQuery.error, coursesQuery.isError, selectedCourseQuery.error, selectedCourseQuery.isError, view]);
+  const requestError = useMemo(
+    () => getRequestError(coursesQuery, selectedCourseQuery, view),
+    [coursesQuery, selectedCourseQuery, view],
+  );
   const visibleError = error ?? requestError;
+  const headerState = useMemo(
+    () => getDashboardHeaderState(view, selectedCourse?.title, selectedSectionTitle),
+    [selectedCourse?.title, selectedSectionTitle, view],
+  );
 
   const openCourse = useCallback(
     async (courseId: string, mode: HistoryMode = "push") => {
       setError(null);
       try {
-        const data = await queryClient.fetchQuery({
+        const data = await queryClient.ensureQueryData({
           queryKey: contentQueryKeys.studentCourse(courseId),
           queryFn: () => studentApi.getCourse(courseId),
         });
@@ -140,10 +505,7 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
         setSelectedSectionTitle(null);
         setView("sections");
         if (mode !== "none") {
-          writeHistoryState(
-            { view: "sections", courseId: data.id, sectionId: null, sectionTitle: null },
-            mode,
-          );
+          writeHistoryState(buildHistoryState("sections", data.id, null, null), mode);
         }
         return true;
       } catch (err) {
@@ -172,153 +534,42 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
     setSelectedSectionTitle(null);
     setSelectedCourseId(null);
     setView("courses");
-    writeHistoryState({ view: "courses", courseId: null, sectionId: null, sectionTitle: null }, "replace");
+    writeHistoryState(buildHistoryState("courses", null, null, null), "replace");
   }, [writeHistoryState]);
 
-  useEffect(() => {
-    const hashOverride = typeof window !== "undefined" && window.location.hash === COURSES_HASH;
-    if (queryOverride || hashOverride) {
-      // User explicitly asked to see courses (e.g. from unit page sidebar).
-      // We must not auto-restore the last graph.
-      forceShowCourses();
-      setBoot("ready");
+  useStudentDashboardBoot({
+    forceShowCourses,
+    queryOverride,
+    router,
+    setBoot,
+    setSelectedSectionId,
+    setSelectedSectionTitle,
+    setView,
+    writeHistoryState,
+  });
 
-      // Canonicalize URL back to `/student` (no query/hash) without losing state.
-      // Note: router.replace will re-run this effect with an empty query, so we must
-      // skip the auto-restore once on the next run.
-      if (queryOverride) {
-        skipAutoRestoreOnceRef.current = true;
-        writeHistoryState({ view: "courses", courseId: null, sectionId: null, sectionTitle: null }, "replace");
-        router.replace("/student");
-      }
-      if (hashOverride) {
-        window.history.replaceState(
-          {
-            __continuumStudentNav: true,
-            view: "courses",
-            courseId: null,
-            sectionId: null,
-            sectionTitle: null,
-          } satisfies StudentDashboardHistoryState,
-          "",
-          "/student",
-        );
-      }
-      return;
-    }
-
-    if (skipAutoRestoreOnceRef.current) {
-      skipAutoRestoreOnceRef.current = false;
-      writeHistoryState({ view: "courses", courseId: null, sectionId: null, sectionTitle: null }, "replace");
-      setBoot("ready");
-      return;
-    }
-
-    let initialState: Omit<StudentDashboardHistoryState, "__continuumStudentNav"> = {
-      view: "courses",
-      courseId: null,
-      sectionId: null,
-      sectionTitle: null,
-    };
-
-    try {
-      const stored = window.localStorage.getItem(LAST_SECTION_KEY);
-      if (stored) {
-        setSelectedSectionId(stored);
-        setSelectedSectionTitle(null);
-        setView("graph");
-        initialState = {
-          view: "graph",
-          courseId: null,
-          sectionId: stored,
-          sectionTitle: null,
-        };
-      }
-    } catch {
-      // ignore localStorage errors (private mode/etc.)
-    } finally {
-      writeHistoryState(initialState, "replace");
-      setBoot("ready");
-    }
-  }, [forceShowCourses, queryOverride, router, writeHistoryState]);
-
-  useEffect(() => {
-    // If we restored a section graph (or landed here without section title),
-    // fetch the section to display its title and allow back-navigation to sections.
-    if (boot !== "ready") return;
-    if (view !== "graph") return;
-    if (!selectedSectionId) return;
-    if (selectedSectionTitle) return;
-    if (selectedSectionQuery.isSuccess) {
-      const section = selectedSectionQuery.data;
-      setSelectedSectionTitle(section.title);
-      setSelectedCourseId(section.courseId);
-      writeHistoryState(
-        {
-          view: "graph",
-          courseId: section.courseId,
-          sectionId: section.id,
-          sectionTitle: section.title,
-        },
-        "replace",
-      );
-      return;
-    }
-    if (selectedSectionQuery.isError) {
-      handleGraphNotFound();
-    }
-  }, [
+  useStudentDashboardSectionRestore({
     boot,
     handleGraphNotFound,
     selectedSectionId,
-    selectedSectionQuery.data,
-    selectedSectionQuery.isError,
-    selectedSectionQuery.isSuccess,
+    selectedSectionQuery,
     selectedSectionTitle,
+    setSelectedCourseId,
+    setSelectedSectionTitle,
     view,
     writeHistoryState,
-  ]);
+  });
 
-  useEffect(() => {
-    if (boot !== "ready") return;
-
-    const onPopState = (event: PopStateEvent) => {
-      if (!isStudentDashboardHistoryState(event.state)) return;
-
-      const next = event.state;
-      if (next.view === "courses") {
-        forceShowCourses();
-        return;
-      }
-
-      if (next.view === "sections") {
-        if (!next.courseId) {
-          forceShowCourses();
-          return;
-        }
-        void openCourse(next.courseId, "none");
-        return;
-      }
-
-      if (!next.sectionId) {
-        forceShowCourses();
-        return;
-      }
-
-      setError(null);
-      setSelectedSectionId(next.sectionId);
-      setSelectedSectionTitle(next.sectionTitle);
-      setSelectedCourseId(next.courseId);
-      setView("graph");
-      if (!next.courseId) return;
-      setSelectedCourseId(next.courseId);
-    };
-
-    window.addEventListener("popstate", onPopState);
-    return () => {
-      window.removeEventListener("popstate", onPopState);
-    };
-  }, [boot, forceShowCourses, openCourse]);
+  useStudentDashboardPopState({
+    boot,
+    forceShowCourses,
+    openCourse,
+    setError,
+    setSelectedCourseId,
+    setSelectedSectionId,
+    setSelectedSectionTitle,
+    setView,
+  });
 
   const handleCourseClick = useCallback(
     async (courseId: string) => {
@@ -331,15 +582,7 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
     setSelectedSectionId(section.id);
     setSelectedSectionTitle(section.title);
     setView("graph");
-    writeHistoryState(
-      {
-        view: "graph",
-        courseId: selectedCourseId,
-        sectionId: section.id,
-        sectionTitle: section.title,
-      },
-      "push",
-    );
+    writeHistoryState(buildHistoryState("graph", selectedCourseId, section.id, section.title), "push");
     try {
       window.localStorage.setItem(LAST_SECTION_KEY, section.id);
     } catch {
@@ -349,13 +592,13 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
 
   const handleBackToCourses = useCallback(() => {
     forceShowCourses();
-    writeHistoryState({ view: "courses", courseId: null, sectionId: null, sectionTitle: null }, "push");
+    writeHistoryState(buildHistoryState("courses", null, null, null), "push");
   }, [forceShowCourses, writeHistoryState]);
 
   const handleBackToSections = useCallback(async () => {
     if (selectedCourse) {
       setView("sections");
-      writeHistoryState({ view: "sections", courseId: selectedCourse.id, sectionId: null, sectionTitle: null }, "push");
+      writeHistoryState(buildHistoryState("sections", selectedCourse.id, null, null), "push");
       return;
     }
     if (selectedCourseId) {
@@ -366,7 +609,7 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
     }
     // If we restored a graph without knowing its course context, go back to courses.
     forceShowCourses();
-    writeHistoryState({ view: "courses", courseId: null, sectionId: null, sectionTitle: null }, "push");
+    writeHistoryState(buildHistoryState("courses", null, null, null), "push");
   }, [forceShowCourses, openCourse, selectedCourse, selectedCourseId, writeHistoryState]);
 
   return (
@@ -379,23 +622,11 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
       <div className={styles.content}>
         <div className={styles.header}>
           <div>
-            <h1 className={styles.title}>
-              {view === "courses"
-                ? "Курсы"
-                : view === "sections"
-                  ? selectedCourse?.title ?? "Курс"
-                  : `Раздел: ${selectedSectionTitle ?? "Раздел"}`}
-            </h1>
-            <p className={styles.subtitle}>
-              {view === "courses"
-                ? "Выберите курс"
-                : view === "sections"
-                  ? "Выберите раздел"
-                  : ""}
-            </p>
+            <h1 className={styles.title}>{headerState.title}</h1>
+            <p className={styles.subtitle}>{headerState.subtitle}</p>
           </div>
           <div className={styles.actions}>
-            {view === "sections" ? (
+            {headerState.showBackToCourses ? (
               <Button variant="ghost" onClick={handleBackToCourses}>
                 ← Курсы
               </Button>
@@ -409,63 +640,20 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
           </div>
         ) : null}
 
-        {boot !== "ready" ? (
-          <div className={styles.empty}>Загрузка…</div>
-        ) : view === "graph" && selectedSectionId ? (
-          <StudentSectionGraphPanel
-            sectionId={selectedSectionId}
-            sectionTitle={selectedSectionTitle}
-            onBack={handleBackToSections}
-            onNotFound={handleGraphNotFound}
-          />
-        ) : view === "sections" ? (
-          <div className={styles.panel}>
-            <div className={styles.cardGrid}>
-              {sortedSections.length === 0 ? (
-                <div className={styles.empty}>Разделов пока нет</div>
-              ) : (
-                sortedSections.map((section) => (
-                  <button
-                    key={section.id}
-                    type="button"
-                    className={styles.card}
-                    onClick={() => handleSectionClick(section)}
-                  >
-                    <div className={styles.cardTitleRow}>
-                      <div className={styles.cardTitle}>{section.title}</div>
-                      <span className={styles.status}>{getContentStatusLabel(section.status)}</span>
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className={styles.panel}>
-            <div className={styles.cardGrid}>
-              {loadingCourses ? (
-                <div className={styles.empty}>Загрузка курсов…</div>
-              ) : courses.length === 0 ? (
-                <div className={styles.empty}>Пока нет опубликованных курсов</div>
-              ) : (
-                courses.map((course) => (
-                  <button
-                    key={course.id}
-                    type="button"
-                    className={`${styles.card} ${selectedCourseId === course.id ? styles.cardActive : ""}`}
-                    onClick={() => handleCourseClick(course.id)}
-                  >
-                    <div className={styles.cardTitleRow}>
-                      <div className={styles.cardTitle}>{course.title}</div>
-                      <span className={styles.status}>Курс</span>
-                    </div>
-                    <div className={styles.cardMeta}>{course.description ?? "Без описания"}</div>
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-        )}
+        <StudentDashboardPanel
+          boot={boot}
+          courses={courses}
+          loadingCourses={loadingCourses}
+          onCourseClick={handleCourseClick}
+          onGraphNotFound={handleGraphNotFound}
+          onSectionClick={handleSectionClick}
+          onSectionsBack={handleBackToSections}
+          sections={sortedSections}
+          selectedCourseId={selectedCourseId}
+          selectedSectionId={selectedSectionId}
+          selectedSectionTitle={selectedSectionTitle}
+          view={view}
+        />
       </div>
     </DashboardShell>
   );

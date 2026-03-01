@@ -1091,6 +1091,47 @@
       - write-side оставлен локальным, но теперь синхронизирует query cache через `setQueryData` и `invalidateQueries`, чтобы не было повторного tech debt по server-state;
       - complexity warning снят через перевод read-side на query/cache модель и вынос teacher list section из корневого shell-компонента;
       - targeted `eslint`, `TeacherSettingsScreen.test.tsx` и `pnpm --filter web typecheck` после refactor проходят.
+  - завершён третий цикл `targeted tests -> refactor -> targeted verification` для:
+    - `apps/web/features/student-dashboard/StudentDashboardScreen.tsx`;
+    - результат:
+      - расширен safety-net `StudentDashboardScreen.test.tsx`: restore graph из `localStorage`, `queryOverride`, ошибка открытия курса и возврат `graph -> sections`;
+      - `TanStack Query` уже присутствовал в файле, поэтому refactor сфокусирован на устранении ручного orchestration поверх query-слоя, а не на повторном внедрении библиотеки;
+      - `queryClient.fetchQuery` заменён на `ensureQueryData`, чтобы navigation flow опирался на query cache как на primary source of truth;
+      - эффекты `boot/restore`, hydration section context и `popstate` вынесены в отдельные hooks/helpers, а render-branching — в `StudentDashboardPanel`;
+      - complexity warning снят без изменения UI-поведения и без возврата к manual server-state;
+      - проверка: direct `vitest` suite для `StudentDashboardScreen`, `pnpm --filter web test`, `pnpm --filter web typecheck` и `pnpm --filter web lint` проходят; в `web lint` остаются только warnings по следующим файлам из очереди.
+  - завершён четвёртый цикл `targeted tests -> refactor -> targeted verification` для:
+    - `apps/web/features/teacher-review/TeacherReviewSubmissionDetailPanel.tsx`;
+    - результат:
+      - добавлен targeted safety-net `TeacherReviewSubmissionDetailPanel.test.tsx` для detail render, `accept -> next submission`, `reject -> inbox` и перехода в профиль ученика;
+      - `TanStack Query` уже был внедрён, поэтому refactor сфокусирован на устранении смешения preview/action/navigation orchestration внутри одного shell-компонента;
+      - preview queries вынесены в `usePhotoPreviewState`, accept/reject flow — в `useReviewSubmissionAction`, а bulky viewer/sidebar render — в `SubmissionViewer` и `SubmissionSidebar`;
+      - complexity warning снят без изменения payload semantics, query invalidation и route behavior;
+      - проверка: direct `vitest` suite, targeted `eslint` и `web typecheck` проходят; в `pnpm --filter web lint` warning по этому файлу больше не присутствует.
+  - завершён пятый цикл `targeted tests -> refactor -> targeted verification` для:
+    - `apps/web/features/teacher-students/TeacherStudentsPanel.tsx`;
+    - результат:
+      - safety-net `TeacherStudentsPanel.test.tsx` расширен для edit profile, reset password reveal и routing в review inbox / profile, поверх уже существующих create + transfer сценариев;
+      - file classified как `mixed read/write orchestration`, поэтому read-side оставлен на existing `TanStack Query`, а write-side переведён на `useMutation` (`create`, `reset password`, `transfer`, `update profile`, `delete`);
+      - bulky UI ветви вынесены в `CreateStudentForm`, `PasswordRevealPanel`, `StudentCard`, а confirm dialog branching — в `getConfirmDialogState`;
+      - complexity warning снят без потери текущих UI flows и invalidate semantics;
+      - проверка: direct `TeacherStudentsPanel` suite, `pnpm --filter web test`, `pnpm --filter web typecheck` и `pnpm --filter web lint` проходят; остаток `web` warnings сократился до `8`.
+  - завершён шестой цикл `targeted tests -> refactor -> targeted verification` для:
+    - `apps/web/features/teacher-students/TeacherStudentProfilePanel.tsx`;
+    - результат:
+      - safety-net `TeacherStudentProfilePanel.test.tsx` расширен для `override open unit`, route drilldown sync и toggle task statement, поверх уже существующих review-inbox и `creditTask` сценариев;
+      - file classified как `mixed read/write orchestration`, поэтому read-side оставлен на existing `TanStack Query`, а write-side (`creditTask`, `overrideOpenUnit`) переведён на `useMutation`;
+      - drilldown/render ветки вынесены в отдельные stage-компоненты (`CoursesStage`, `SectionsStage`, `UnitsStage`, `TasksStage`), а action-orchestration — в `useStudentProfileActions`;
+      - complexity warning снят без изменения route semantics, profile invalidation и notice behavior;
+      - проверка: direct `TeacherStudentProfilePanel` suite, targeted `eslint`, `web typecheck` и затем полный `pnpm --filter web lint` проходят; остаток `web` warnings сократился до `7`.
+  - завершён седьмой цикл `targeted tests -> refactor -> targeted verification` для:
+    - `apps/web/features/teacher-dashboard/TeacherDashboardScreen.tsx`;
+    - результат:
+      - safety-net `TeacherDashboardScreen.test.tsx` расширен для `create section`, navigation `course -> section -> graph -> sections -> courses` и publish section flow, поверх уже существующих course list + create course сценариев;
+      - file classified как `mixed read/write orchestration`, поэтому read-side сохранён на `TanStack Query`, `handleOpenCourse` переведён на `ensureQueryData`, а write-side (`create`, `publish/unpublish`, `update`, `delete`) переведён на `useMutation`;
+      - bulky render branches вынесены в локальные explicit components (`TeacherCourseCreateForm`, `TeacherSectionCreateForm`, `TeacherCourseListPanel`, `TeacherSectionListPanel`, `TeacherEditDialogPanel`, карточки курса/раздела);
+      - complexity warning снят без изменения history-state semantics, graph navigation и invalidate behavior;
+      - проверка: targeted `vitest` suite для `TeacherDashboardScreen`, targeted `eslint`, `web typecheck` проходят.
 
 - Complexity triage по `ARCHITECTURE-PRINCIPLES.md`:
   - критерии обязательного refactor:
@@ -1104,11 +1145,11 @@
 - Tier A — обязательный architectural refactor:
   - `apps/web/features/student-content/units/StudentUnitDetailScreen.tsx`
   - `apps/web/features/teacher-content/units/TeacherUnitDetailScreen.tsx`
-  - `apps/web/features/teacher-dashboard/TeacherDashboardScreen.tsx`
-  - `apps/web/features/teacher-students/TeacherStudentProfilePanel.tsx`
-  - `apps/web/features/teacher-students/TeacherStudentsPanel.tsx`
-  - `apps/web/features/student-dashboard/StudentDashboardScreen.tsx`
-  - `apps/web/features/teacher-review/TeacherReviewSubmissionDetailPanel.tsx`
+  - `apps/web/features/teacher-dashboard/TeacherDashboardScreen.tsx` (`Implemented`)
+  - `apps/web/features/teacher-students/TeacherStudentProfilePanel.tsx` (`Implemented`)
+  - `apps/web/features/teacher-students/TeacherStudentsPanel.tsx` (`Implemented`)
+  - `apps/web/features/student-dashboard/StudentDashboardScreen.tsx` (`Implemented`)
+  - `apps/web/features/teacher-review/TeacherReviewSubmissionDetailPanel.tsx` (`Implemented`)
   - `apps/web/features/teacher-review/TeacherReviewInboxPanel.tsx` (`Implemented`)
   - `apps/web/features/teacher-settings/TeacherSettingsScreen.tsx` (`Implemented`)
   - `apps/web/features/student-content/units/hooks/use-student-task-attempt.ts`
@@ -1143,16 +1184,14 @@
   - сначала самые дешёвые Tier A точки:
     - `TeacherReviewInboxPanel.tsx` (`Implemented`)
     - `TeacherSettingsScreen.tsx` (`Implemented`)
-    - `StudentDashboardScreen.tsx`
+    - `StudentDashboardScreen.tsx` (`Implemented`)
     - `use-student-unit-pdf-preview.ts` (если останется как Tier B helper, можно взять между Tier A экранами как quick win)
   - затем средние product orchestration:
-    - `TeacherReviewSubmissionDetailPanel.tsx`
-    - `TeacherStudentsPanel.tsx`
+    - `TeacherReviewSubmissionDetailPanel.tsx` (`Implemented`)
+    - `TeacherStudentsPanel.tsx` (`Implemented`)
     - `use-student-task-attempt.ts`
     - `learning-attempts-write.service.ts`
   - затем тяжёлые shells:
-    - `TeacherStudentProfilePanel.tsx`
-    - `TeacherDashboardScreen.tsx`
     - `TeacherUnitDetailScreen.tsx`
     - `StudentUnitDetailScreen.tsx`
     - `use-teacher-unit-latex-compile.ts`

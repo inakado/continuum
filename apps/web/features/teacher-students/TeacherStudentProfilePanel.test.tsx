@@ -177,4 +177,94 @@ describe("TeacherStudentProfilePanel", () => {
       "Задача зачтена. Прогресс и доступность пересчитаны.",
     );
   });
+
+  it("opens unit manually, invalidates queries and shows notice", async () => {
+    const onRefreshStudents = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(teacherApi.getStudentProfile).mockResolvedValue({
+      ...profileResponse,
+      courseTree: {
+        ...profileResponse.courseTree,
+        sections: [
+          {
+            ...profileResponse.courseTree.sections[0],
+            units: [
+              {
+                ...profileResponse.courseTree.sections[0].units[0],
+                state: {
+                  ...profileResponse.courseTree.sections[0].units[0].state,
+                  status: "locked",
+                },
+              },
+            ],
+          },
+        ],
+      },
+    } as never);
+    const { queryClient } = renderWithQueryClient(
+      <TeacherStudentProfilePanel
+        studentId="student-1"
+        fallbackName="student1"
+        onRefreshStudents={onRefreshStudents}
+      />,
+    );
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+    const user = userEvent.setup();
+
+    vi.mocked(teacherApi.overrideOpenUnit).mockResolvedValue({
+      ok: true,
+      unitId: "unit-1",
+      status: "available",
+    } as never);
+
+    await user.click(await screen.findByRole("button", { name: /Алгебра/i }));
+    await user.click(await screen.findByRole("button", { name: /Линейные уравнения/i }));
+    await user.click(screen.getByRole("button", { name: "Открыть вручную" }));
+
+    await waitFor(() => {
+      expect(teacherApi.overrideOpenUnit).toHaveBeenCalledWith("student-1", "unit-1");
+    });
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: contentQueryKeys.teacherStudentProfileRoot("student-1"),
+      });
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: contentQueryKeys.teacherStudentReviewPendingTotal("student-1"),
+    });
+    expect(onRefreshStudents).toHaveBeenCalled();
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Доступ к юниту открыт вручную. Статусы обновлены.",
+    );
+  });
+
+  it("syncs drilldown context to route and toggles task statement", async () => {
+    renderWithQueryClient(
+      <TeacherStudentProfilePanel studentId="student-1" fallbackName="student1" />,
+    );
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: /Алгебра/i }));
+    expect(replaceMock).toHaveBeenLastCalledWith("/teacher/students/student-1?courseId=course-1");
+
+    await user.click(await screen.findByRole("button", { name: /Линейные уравнения/i }));
+    expect(replaceMock).toHaveBeenLastCalledWith(
+      "/teacher/students/student-1?courseId=course-1&sectionId=section-1",
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Юнит 1" }));
+    expect(replaceMock).toHaveBeenLastCalledWith(
+      "/teacher/students/student-1?courseId=course-1&sectionId=section-1&unitId=unit-1",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Показать условие" }));
+    expect(replaceMock).toHaveBeenLastCalledWith(
+      "/teacher/students/student-1?courseId=course-1&sectionId=section-1&unitId=unit-1&taskId=task-1",
+    );
+    expect(await screen.findByText("x + 1 = 2")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Скрыть условие" }));
+    expect(replaceMock).toHaveBeenLastCalledWith(
+      "/teacher/students/student-1?courseId=course-1&sectionId=section-1&unitId=unit-1",
+    );
+  });
 });

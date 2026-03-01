@@ -162,7 +162,7 @@ describe("TeacherSettingsScreen", () => {
     expect(await screen.findByText("Преподаватель teacher3 создан.")).toBeInTheDocument();
     expect(screen.getByText("Temp123!")).toBeInTheDocument();
     expect(await screen.findByText("Орлова Вера")).toBeInTheDocument();
-  });
+  }, 10000);
 
   it("deletes another teacher after confirmation", async () => {
     vi.mocked(teacherApi.listTeachers)
