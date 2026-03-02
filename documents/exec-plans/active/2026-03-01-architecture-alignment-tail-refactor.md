@@ -392,6 +392,25 @@ Adjacency candidate:
    - Что делаем:
      - разделяем student submission write и teacher review write;
      - сохраняем текущие `error.code`, response shape и side-effects.
+   - Статус:
+     - `Implemented`
+   - Что сделано:
+     - добавлен service-level safety-net:
+       - `apps/api/test/photo-task-review-write.service.test.ts`
+     - student write-path вынесен в:
+       - `apps/api/src/learning/photo-task-student-write.ts`
+     - teacher review write-path вынесен в:
+       - `apps/api/src/learning/photo-task-teacher-review-write.ts`
+     - shared write helpers вынесены в:
+       - `apps/api/src/learning/photo-task-write.shared.ts`
+     - `PhotoTaskReviewWriteService` оставлен фасадом с прежним public API для `PhotoTaskService`.
+   - Проверки:
+     - `pnpm --filter @continuum/api test -- test/photo-task-review-write.service.test.ts`
+     - `docker compose exec -T api sh -lc "cd /app/apps/api && pnpm exec tsc -p tsconfig.json --noEmit"`
+     - `docker compose exec -T api sh -lc "cd /app/apps/api && pnpm build"`
+     - `docker compose exec -T api sh -lc "cd /app/apps/api && pnpm test"`
+     - `docker compose exec -T api sh -lc "cd /app/apps/api && pnpm test:integration"`
+     - `docker compose exec -T api sh -lc "cd /app/apps/api && pnpm smoke:auth"`
 
 #### Priority B — beneficial physical split, но не блокер
 
