@@ -363,7 +363,7 @@ export class LatexCompileService {
     const injectLines: string[] = [];
     if (!hasFontspec) injectLines.push('\\usepackage{fontspec}');
     if (!hasDefaultFontFeatures) injectLines.push('\\defaultfontfeatures{Ligatures=TeX}');
-    if (!hasSetMainFont) injectLines.push('\\setmainfont{DejaVu Serif}');
+    if (!hasSetMainFont) injectLines.push('\\setmainfont{Noto Serif}');
 
     if (injectLines.length > 0) {
       const block = `${injectLines.join('\n')}\n`;

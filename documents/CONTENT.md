@@ -82,6 +82,14 @@
 
 - Apply защищается от stale-ключей (`shouldApplyIncomingPdfKey`): старый результат не должен перезатереть новый.
 
+### Compile compatibility fallback (`Implemented`)
+
+- При T2A/font metric ошибках compile retry переписывает legacy encoding preamble на Unicode-вариант:
+  - убирает `cmap`, `fontenc`, `inputenc`;
+  - переключает `\fontencoding{TU}`;
+  - добавляет `\usepackage{fontspec}` и `\defaultfontfeatures{Ligatures=TeX}`;
+  - использует `\setmainfont{Noto Serif}` как runtime fallback для учебных PDF.
+
 ### Presigned PDF preview (web) (`Implemented`)
 
 - Presigned URL из `GET /teacher/latex/jobs/:jobId` и `.../pdf-presign` рендерятся во фронтенде через `PdfCanvasPreview`.

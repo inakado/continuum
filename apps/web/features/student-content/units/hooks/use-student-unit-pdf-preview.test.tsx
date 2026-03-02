@@ -9,6 +9,7 @@ import {
   PDF_ZOOM_DEFAULT,
   PDF_ZOOM_MAX,
   PDF_ZOOM_MIN,
+  PDF_ZOOM_UNIT_DEFAULT,
   useStudentUnitPdfPreview,
 } from "./use-student-unit-pdf-preview";
 
@@ -133,7 +134,8 @@ describe("useStudentUnitPdfPreview", () => {
       { wrapper: Wrapper },
     );
 
-    expect(result.current.pdfZoomByTarget.theory).toBe(PDF_ZOOM_DEFAULT);
+    expect(result.current.pdfZoomByTarget.theory).toBe(PDF_ZOOM_UNIT_DEFAULT);
+    expect(result.current.pdfZoomByTarget.method).toBe(PDF_ZOOM_UNIT_DEFAULT);
 
     act(() => {
       result.current.setPdfZoom("theory", PDF_ZOOM_MAX + 1);

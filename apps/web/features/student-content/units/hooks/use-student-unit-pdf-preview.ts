@@ -8,6 +8,7 @@ export const PDF_ZOOM_MIN = 0.5;
 export const PDF_ZOOM_MAX = 1.4;
 export const PDF_ZOOM_STEP = 0.1;
 export const PDF_ZOOM_DEFAULT = 0.8;
+export const PDF_ZOOM_UNIT_DEFAULT = 0.5;
 
 export type PdfPreviewTarget = "theory" | "method";
 
@@ -33,6 +34,8 @@ const loadPreviewUrl = async (unitId: string, target: PdfPreviewTarget) => {
   const response = await studentApi.getUnitPdfPresignedUrl(unitId, target, 180);
   return response.url ?? null;
 };
+
+const getDefaultPdfZoom = (_target: PdfPreviewTarget) => PDF_ZOOM_UNIT_DEFAULT;
 
 const usePdfPreviewTargetQuery = ({
   target,
@@ -76,8 +79,8 @@ const usePdfPreviewTargetQuery = ({
 
 export const useStudentUnitPdfPreview = ({ unit, unitId }: Params) => {
   const [pdfZoomByTarget, setPdfZoomByTarget] = useState<Record<PdfPreviewTarget, number>>({
-    theory: PDF_ZOOM_DEFAULT,
-    method: PDF_ZOOM_DEFAULT,
+    theory: getDefaultPdfZoom("theory"),
+    method: getDefaultPdfZoom("method"),
   });
 
   const theoryPreview = usePdfPreviewTargetQuery({ target: "theory", unit, unitId });
@@ -90,6 +93,7 @@ export const useStudentUnitPdfPreview = ({ unit, unitId }: Params) => {
 
   return {
     pdfZoomByTarget,
+    getDefaultPdfZoom,
     setPdfZoom,
     theoryPreviewUrl: theoryPreview.previewUrl,
     methodPreviewUrl: methodPreview.previewUrl,

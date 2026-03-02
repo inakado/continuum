@@ -268,6 +268,7 @@ describe("StudentUnitDetailScreen", () => {
       refreshTheoryPreviewUrl: vi.fn(),
       refreshMethodPreviewUrl: vi.fn(),
       pdfZoomByTarget: { theory: 1, method: 1 },
+      getDefaultPdfZoom: () => 0.5,
       setPdfZoom: vi.fn(),
     });
 

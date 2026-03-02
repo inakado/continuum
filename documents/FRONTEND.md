@@ -69,6 +69,7 @@
 
 - Presigned PDF/asset preview из object storage рендерится без credentials (`withCredentials = false`).
 - Это исключает отправку auth-cookie на внешний storage origin и предотвращает CORS-блокировку при `credentials: include`.
+- В student unit PDF tabs zoom хранится отдельно по target; теория и методика открываются с масштабом `50%`.
 
 ## UI Primitives and Motion
 

@@ -123,7 +123,7 @@ describe('LatexCompileService', () => {
 
     await expect(
       service.compileToPdf(
-        '\\documentclass{article}\n\\usepackage{fontspec}\n\\defaultfontfeatures{Ligatures=TeX}\n\\setmainfont{DejaVu Serif}\n\\begin{document}ok\\end{document}',
+        '\\documentclass{article}\n\\usepackage{fontspec}\n\\defaultfontfeatures{Ligatures=TeX}\n\\setmainfont{Noto Serif}\n\\begin{document}ok\\end{document}',
       ),
     ).rejects.toMatchObject({
       response: expect.objectContaining({

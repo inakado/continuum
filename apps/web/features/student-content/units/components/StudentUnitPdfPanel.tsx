@@ -1,7 +1,6 @@
 import dynamic from "next/dynamic";
 import styles from "../student-unit-detail.module.css";
 import {
-  PDF_ZOOM_DEFAULT,
   PDF_ZOOM_MAX,
   PDF_ZOOM_MIN,
   PDF_ZOOM_STEP,
@@ -62,13 +61,6 @@ export function StudentUnitPdfPanel({
             +
           </button>
         </span>
-        <button
-          type="button"
-          className={styles.pdfZoomReset}
-          onClick={() => onZoomChange(PDF_ZOOM_DEFAULT)}
-        >
-          100%
-        </button>
       </div>
 
       <div className={styles.pdfViewport}>
