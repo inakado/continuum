@@ -365,6 +365,25 @@ Adjacency candidate:
        - teacher inbox/detail reads,
        - preview/presign reads;
      - сохраняем текущие response shape и query semantics.
+   - Статус:
+     - `Implemented`
+   - Что сделано:
+     - добавлен service-level safety-net:
+       - `apps/api/test/photo-task-read.service.test.ts`
+     - student read-model вынесен в:
+       - `apps/api/src/learning/photo-task-student-read.ts`
+     - teacher read-model вынесен в:
+       - `apps/api/src/learning/photo-task-teacher-read.ts`
+     - shared helpers/types вынесены в:
+       - `apps/api/src/learning/photo-task-read.shared.ts`
+     - `PhotoTaskReadService` оставлен фасадом с прежним public API для `PhotoTaskService`.
+   - Проверки:
+     - `pnpm --filter @continuum/api test -- test/photo-task-read.service.test.ts`
+     - `docker compose exec -T api sh -lc "cd /app/apps/api && pnpm exec tsc -p tsconfig.json --noEmit"`
+     - `docker compose exec -T api sh -lc "cd /app/apps/api && pnpm build"`
+     - `docker compose exec -T api sh -lc "cd /app/apps/api && pnpm test"`
+     - `docker compose exec -T api sh -lc "cd /app/apps/api && pnpm test:integration"`
+     - `docker compose exec -T api sh -lc "cd /app/apps/api && pnpm smoke:auth"`
 
 5. `apps/api/src/learning/photo-task-review-write.service.ts`
    - Причина:
@@ -390,8 +409,7 @@ Adjacency candidate:
 
 #### Порядок работы на следующую итерацию
 
-1. `photo-task-read.service.ts`
-2. `photo-task-review-write.service.ts`
+1. `photo-task-review-write.service.ts`
 
 Этот порядок выбран так, чтобы:
 - сначала убрать самые дорогие frontend orchestration tails;
