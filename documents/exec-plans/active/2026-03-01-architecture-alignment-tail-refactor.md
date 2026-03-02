@@ -279,6 +279,97 @@ Adjacency candidate:
 
 ## Initial file triage
 
+### Архитектурный приоритет после закрытия обязательных API-хвостов
+
+Следующие файлы выбраны не по line-count сам по себе, а по остаточному drift относительно `P1/P4/P8/P9/P10`.
+
+#### Priority A — следующий обязательный frontend/API хвост
+
+1. `apps/web/features/teacher-dashboard/TeacherSectionGraphPanel.tsx`
+   - Причина:
+     - query data зеркалится в локальный editable graph state через каскад `useEffect`;
+     - в одном модуле смешаны read-path, локальная graph-модель, selection state, autosave/error orchestration;
+     - это одновременно architecture tail и будущий perf hotspot.
+   - Что делаем:
+     - выделяем явный adapter между server graph и editable graph state;
+     - уменьшаем количество sync-эффектов;
+     - оставляем query/cache как source of truth для server snapshot.
+   - Статус:
+     - `Implemented`
+   - Что сделано:
+     - read/query orchestration и auth-guard вынесены в отдельные hooks внутри среза;
+     - local editable graph state оформлен отдельным editor-hook;
+     - save/create flows переведены на mutation-oriented orchestration вместо ручных async handlers;
+     - добавлен safety-net:
+       - `apps/web/features/teacher-dashboard/TeacherSectionGraphPanel.test.tsx`
+     - проверки пройдены:
+       - `pnpm --filter web test -- TeacherSectionGraphPanel.test.tsx`
+       - `pnpm --filter web typecheck`
+       - `pnpm --filter web lint`
+
+2. `apps/web/features/teacher-dashboard/TeacherDashboardScreen.tsx`
+   - Причина:
+     - `TeacherEditMode` всё ещё совмещает route shell, history/navigation orchestration, read/write query flow и bulky UI stages;
+     - это прямой остаток по `P1/P10`, несмотря на снятый lint tail.
+   - Что делаем:
+     - выносим edit navigation/history в отдельный hook;
+     - отделяем action-orchestration от render shell;
+     - уменьшаем ответственность корневого экрана до composition.
+
+3. `apps/web/features/teacher-students/TeacherStudentProfilePanel.tsx`
+   - Причина:
+     - в одном файле живут drilldown state machine, search param sync, profile queries, review-preview query и teacher actions;
+     - физическая композиция всё ещё слишком тяжёлая для `P1/P10`.
+   - Что делаем:
+     - выносим drilldown/navigation state;
+     - отделяем query/actions от stage-components;
+     - оставляем текущий UX и URL semantics без изменения.
+
+4. `apps/api/src/learning/photo-task-read.service.ts`
+   - Причина:
+     - один read-service обслуживает сразу student reads, teacher queue, teacher inbox/detail и preview-presign ветки;
+     - это mixed read-model surface, а не одна главная ответственность.
+   - Что делаем:
+     - режем по read-моделям:
+       - student photo reads,
+       - teacher inbox/detail reads,
+       - preview/presign reads;
+     - сохраняем текущие response shape и query semantics.
+
+5. `apps/api/src/learning/photo-task-review-write.service.ts`
+   - Причина:
+     - в одном write-service смешаны student upload/submit и teacher accept/reject;
+     - это акторно-смешанный write-path и хвост по `P4`.
+   - Что делаем:
+     - разделяем student submission write и teacher review write;
+     - сохраняем текущие `error.code`, response shape и side-effects.
+
+#### Priority B — beneficial physical split, но не блокер
+
+1. `apps/web/features/teacher-students/TeacherStudentsPanel.tsx`
+   - Уже переведён на query/mutation model и не является критичным drift.
+   - Дальнейший split нужен только если будем выравнивать file composition до более мелких UI slices.
+
+2. `apps/web/features/student-content/units/StudentUnitDetailScreen.tsx`
+   - Основной complexity-tail уже снят.
+   - Остаток — физический split локальных subcomponents/hooks, а не срочная архитектурная проблема.
+
+3. `apps/api/src/learning/learning.service.ts`
+   - Это широкий фасад, но не самый опасный хвост после уже выполненного выделения write/read helpers.
+   - Трогать имеет смысл только если adjacent refactor в photo/teacher actions покажет новый устойчивый поддомен для выноса.
+
+#### Порядок работы на следующую итерацию
+
+1. `TeacherDashboardScreen.tsx`
+2. `TeacherStudentProfilePanel.tsx`
+3. `photo-task-read.service.ts`
+4. `photo-task-review-write.service.ts`
+
+Этот порядок выбран так, чтобы:
+- сначала убрать самые дорогие frontend orchestration tails;
+- затем закрыть оставшийся API split по photo learning ветке;
+- только после этого переходить к profiling/optimization этапу, уже на более чистой архитектурной базе.
+
 ### API: manual boundary parsing
 
 - `teacher-tasks.controller.ts`

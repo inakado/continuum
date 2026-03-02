@@ -1,7 +1,7 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { memo, useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useRouter } from "next/navigation";
 import ReactFlow, {
   addEdge,
@@ -103,6 +103,22 @@ const buildFlowEdges = (edges: GraphEdge[]): Edge[] =>
     style: { stroke: "var(--border-primary)" },
   }));
 
+const buildFlowNode = (
+  unit: {
+    id: string;
+    title: string;
+    status: "draft" | "published";
+    createdAt: string;
+  },
+  position: { x: number; y: number },
+): Node<UnitNodeData> => ({
+  id: unit.id,
+  type: "unit",
+  position,
+  style: { border: "none", background: "transparent", padding: 0 },
+  data: { title: unit.title, status: unit.status, createdAt: unit.createdAt },
+});
+
 const getNextPosition = (count: number) => {
   const columns = 4;
   const stepX = 240;
@@ -110,6 +126,244 @@ const getNextPosition = (count: number) => {
   const col = count % columns;
   const row = Math.floor(count / columns);
   return { x: col * stepX, y: row * stepY };
+};
+
+const useTeacherSectionGraphEditor = (graph: SectionGraphResponse | undefined) => {
+  const [nodes, setNodes, onNodesChange] = useNodesState<UnitNodeData>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+
+  const applyGraph = useCallback(
+    (nextGraph: SectionGraphResponse) => {
+      setNodes(buildFlowNodes(nextGraph.nodes));
+      setEdges(buildFlowEdges(nextGraph.edges));
+      setSelectedEdgeId(null);
+    },
+    [setEdges, setNodes],
+  );
+
+  useEffect(() => {
+    if (!graph) return;
+    applyGraph(graph);
+  }, [applyGraph, graph]);
+
+  const appendLocalUnit = useCallback(
+    (unit: { id: string; title: string; status: "draft" | "published"; createdAt: string }) => {
+      setNodes((current: Node<UnitNodeData>[]) =>
+        current.concat(buildFlowNode(unit, getNextPosition(current.length))),
+      );
+    },
+    [setNodes],
+  );
+
+  const deleteSelectedEdge = useCallback(() => {
+    if (!selectedEdgeId) return false;
+    setEdges((current: Edge[]) => current.filter((edge: Edge) => edge.id !== selectedEdgeId));
+    setSelectedEdgeId(null);
+    return true;
+  }, [selectedEdgeId, setEdges]);
+
+  const graphPayload = useMemo(
+    () => ({
+      nodes: nodes.map((node) => ({ unitId: node.id, position: node.position })),
+      edges: edges.map((edge) => ({ fromUnitId: edge.source, toUnitId: edge.target })),
+    }),
+    [edges, nodes],
+  );
+
+  return {
+    nodes,
+    edges,
+    selectedEdgeId,
+    onNodesChange,
+    onEdgesChange,
+    setEdges,
+    setSelectedEdgeId,
+    applyGraph,
+    appendLocalUnit,
+    deleteSelectedEdge,
+    graphPayload,
+  };
+};
+
+const useTeacherSectionGraphActions = ({
+  authRequired,
+  queryClient,
+  sectionId,
+  editor,
+  setAuthRequired,
+  setIsCreatePopupOpen,
+  setNewUnitTitle,
+}: {
+  authRequired: boolean;
+  queryClient: ReturnType<typeof useQueryClient>;
+  sectionId: string;
+  editor: ReturnType<typeof useTeacherSectionGraphEditor>;
+  setAuthRequired: (value: boolean) => void;
+  setIsCreatePopupOpen: (value: boolean) => void;
+  setNewUnitTitle: (value: string) => void;
+}) => {
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+
+  const handleApiError = useCallback(
+    (err: unknown) => {
+      const message = getApiErrorMessage(err);
+      if (message === "Перелогиньтесь") {
+        setAuthRequired(true);
+      }
+      setError(message);
+    },
+    [setAuthRequired],
+  );
+
+  const saveGraphMutation = useMutation({
+    mutationFn: () => teacherApi.updateSectionGraph(sectionId, editor.graphPayload),
+    onSuccess: (graph) => {
+      editor.applyGraph(graph);
+      queryClient.setQueryData(contentQueryKeys.teacherSectionGraph(sectionId), graph);
+      setStatus("Граф сохранён");
+      setError(null);
+    },
+    onError: handleApiError,
+  });
+
+  const createUnitMutation = useMutation({
+    mutationFn: (title: string) =>
+      teacherApi.createUnit({
+        sectionId,
+        title,
+        sortOrder: editor.nodes.length,
+      }),
+    onSuccess: (unit) => {
+      editor.appendLocalUnit(unit);
+      setNewUnitTitle("");
+      setIsCreatePopupOpen(false);
+      setStatus("Юнит создан. Не забудьте сохранить граф.");
+      setError(null);
+    },
+    onError: handleApiError,
+  });
+
+  const saveGraph = useCallback(async () => {
+    if (authRequired) return;
+    setStatus(null);
+    setError(null);
+    await saveGraphMutation.mutateAsync();
+  }, [authRequired, saveGraphMutation]);
+
+  const createUnit = useCallback(
+    async (title: string) => {
+      if (authRequired) return;
+      const normalizedTitle = title.trim();
+      if (!normalizedTitle) return;
+      setStatus(null);
+      setError(null);
+      await createUnitMutation.mutateAsync(normalizedTitle);
+    },
+    [authRequired, createUnitMutation],
+  );
+
+  const deleteSelectedEdge = useCallback(() => {
+    setStatus(null);
+    setError(null);
+    if (!editor.deleteSelectedEdge()) return;
+    setStatus("Ребро удалено локально. Не забудьте сохранить граф.");
+  }, [editor]);
+
+  const clearFeedback = useCallback(() => {
+    setStatus(null);
+    setError(null);
+  }, []);
+
+  const setLocalError = useCallback((message: string) => {
+    setStatus(null);
+    setError(message);
+  }, []);
+
+  return {
+    error,
+    status,
+    saveGraph,
+    createUnit,
+    deleteSelectedEdge,
+    clearFeedback,
+    setLocalError,
+    savePending: saveGraphMutation.isPending,
+    createPending: createUnitMutation.isPending,
+  };
+};
+
+const useTeacherSectionGraphQueries = ({
+  authRequired,
+  courseTitle,
+  sectionId,
+  sectionTitle,
+}: {
+  authRequired: boolean;
+  courseTitle?: string | null;
+  sectionId: string;
+  sectionTitle?: string | null;
+}) => {
+  const graphQuery = useQuery({
+    queryKey: contentQueryKeys.teacherSectionGraph(sectionId),
+    queryFn: () => teacherApi.getSectionGraph(sectionId),
+    enabled: !authRequired,
+  });
+  const sectionQuery = useQuery({
+    queryKey: contentQueryKeys.teacherSection(sectionId),
+    queryFn: () => teacherApi.getSection(sectionId),
+    enabled: !authRequired,
+  });
+  const sectionCourseId = sectionQuery.data?.courseId;
+  const courseQuery = useQuery({
+    queryKey: contentQueryKeys.teacherCourse(sectionCourseId ?? ""),
+    queryFn: () => teacherApi.getCourse(sectionCourseId as string),
+    enabled: !authRequired && !courseTitle && Boolean(sectionCourseId),
+  });
+
+  return {
+    graphQuery,
+    sectionQuery,
+    courseQuery,
+    loading: graphQuery.isPending,
+    resolvedCourseTitle: courseTitle ?? courseQuery.data?.title ?? null,
+    resolvedSectionTitle: sectionTitle ?? sectionQuery.data?.title ?? null,
+  };
+};
+
+const useTeacherSectionGraphAuthGuard = ({
+  courseQuery,
+  graphQuery,
+  sectionQuery,
+  setAuthRequired,
+}: {
+  courseQuery: ReturnType<typeof useTeacherSectionGraphQueries>["courseQuery"];
+  graphQuery: ReturnType<typeof useTeacherSectionGraphQueries>["graphQuery"];
+  sectionQuery: ReturnType<typeof useTeacherSectionGraphQueries>["sectionQuery"];
+  setAuthRequired: (value: boolean) => void;
+}) => {
+  useEffect(() => {
+    const message =
+      graphQuery.isError
+        ? getApiErrorMessage(graphQuery.error)
+        : sectionQuery.isError
+          ? getApiErrorMessage(sectionQuery.error)
+          : courseQuery.isError
+            ? getApiErrorMessage(courseQuery.error)
+            : null;
+    if (message === "Перелогиньтесь") {
+      setAuthRequired(true);
+    }
+  }, [
+    courseQuery.error,
+    courseQuery.isError,
+    graphQuery.error,
+    graphQuery.isError,
+    sectionQuery.error,
+    sectionQuery.isError,
+    setAuthRequired,
+  ]);
 };
 
 type GraphCanvasProps = {
@@ -171,89 +425,19 @@ export default function TeacherSectionGraphPanel({
 }: Props) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [nodes, setNodes, onNodesChange] = useNodesState<UnitNodeData>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
   const [authRequired, setAuthRequired] = useState(false);
   const [isCreatePopupOpen, setIsCreatePopupOpen] = useState(false);
   const [newUnitTitle, setNewUnitTitle] = useState("");
-  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
-  const [resolvedCourseTitle, setResolvedCourseTitle] = useState<string | null>(courseTitle ?? null);
-  const [resolvedSectionTitle, setResolvedSectionTitle] = useState<string | null>(sectionTitle ?? null);
   const createTitleInputRef = useRef<HTMLInputElement | null>(null);
-
-  const applyGraph = useCallback(
-    (graph: SectionGraphResponse) => {
-      setNodes(buildFlowNodes(graph.nodes));
-      setEdges(buildFlowEdges(graph.edges));
-      setSelectedEdgeId(null);
-    },
-    [setEdges, setNodes, setSelectedEdgeId],
-  );
-
-  const graphQuery = useQuery({
-    queryKey: contentQueryKeys.teacherSectionGraph(sectionId),
-    queryFn: () => teacherApi.getSectionGraph(sectionId),
-    enabled: !authRequired,
-  });
-  const sectionQuery = useQuery({
-    queryKey: contentQueryKeys.teacherSection(sectionId),
-    queryFn: () => teacherApi.getSection(sectionId),
-    enabled: !authRequired,
-  });
-  const sectionCourseId = sectionQuery.data?.courseId;
-  const courseQuery = useQuery({
-    queryKey: contentQueryKeys.teacherCourse(sectionCourseId ?? ""),
-    queryFn: () => teacherApi.getCourse(sectionCourseId as string),
-    enabled: !authRequired && !courseTitle && Boolean(sectionCourseId),
-  });
-  const loading = graphQuery.isPending;
-
-  useEffect(() => {
-    setResolvedCourseTitle(courseTitle ?? null);
-  }, [courseTitle]);
-
-  useEffect(() => {
-    setResolvedSectionTitle(sectionTitle ?? null);
-  }, [sectionTitle]);
-
-  useEffect(() => {
-    if (!graphQuery.data) return;
-    applyGraph(graphQuery.data);
-  }, [applyGraph, graphQuery.data]);
-
-  useEffect(() => {
-    const message = graphQuery.isError
-      ? getApiErrorMessage(graphQuery.error)
-      : sectionQuery.isError
-        ? getApiErrorMessage(sectionQuery.error)
-        : null;
-    if (message === "Перелогиньтесь") {
-      setAuthRequired(true);
-    }
-  }, [graphQuery.error, graphQuery.isError, sectionQuery.error, sectionQuery.isError]);
-
-  useEffect(() => {
-    if (sectionQuery.data?.title) {
-      setResolvedSectionTitle(sectionQuery.data.title);
-      return;
-    }
-    if (sectionQuery.isError && !sectionTitle) {
-      setResolvedSectionTitle(null);
-    }
-  }, [sectionQuery.data?.title, sectionQuery.isError, sectionTitle]);
-
-  useEffect(() => {
-    if (courseTitle) return;
-    if (courseQuery.data?.title) {
-      setResolvedCourseTitle(courseQuery.data.title);
-      return;
-    }
-    if (courseQuery.isError) {
-      setResolvedCourseTitle(null);
-    }
-  }, [courseQuery.data?.title, courseQuery.isError, courseTitle]);
+  const { graphQuery, sectionQuery, courseQuery, loading, resolvedCourseTitle, resolvedSectionTitle } =
+    useTeacherSectionGraphQueries({
+      authRequired,
+      courseTitle,
+      sectionId,
+      sectionTitle,
+    });
+  const editor = useTeacherSectionGraphEditor(graphQuery.data);
+  useTeacherSectionGraphAuthGuard({ courseQuery, graphQuery, sectionQuery, setAuthRequired });
 
   useEffect(() => {
     if (!isCreatePopupOpen) return;
@@ -261,14 +445,34 @@ export default function TeacherSectionGraphPanel({
     return () => window.clearTimeout(id);
   }, [isCreatePopupOpen]);
 
+  const {
+    error,
+    status,
+    saveGraph,
+    createUnit,
+    deleteSelectedEdge,
+    clearFeedback,
+    setLocalError,
+    savePending,
+    createPending,
+  } = useTeacherSectionGraphActions({
+    authRequired,
+    queryClient,
+    sectionId,
+    editor,
+    setAuthRequired,
+    setIsCreatePopupOpen,
+    setNewUnitTitle,
+  });
+
   const handleConnect = useCallback(
     (connection: Connection) => {
       if (!connection.source || !connection.target) return;
-      setStatus(null);
-      setError(null);
+      clearFeedback();
+      editor.setSelectedEdgeId(null);
 
       if (connection.source === connection.target) {
-        setError("GraphSelfLoopNotAllowed");
+        setLocalError("GraphSelfLoopNotAllowed");
         return;
       }
 
@@ -281,78 +485,20 @@ export default function TeacherSectionGraphPanel({
         style: { stroke: "var(--border-primary)" },
       };
 
-      setEdges((current: Edge[]) => {
+      editor.setEdges((current: Edge[]) => {
         if (current.some((edge: Edge) => edge.source === connection.source && edge.target === connection.target)) {
-          setError("GraphDuplicateEdgeNotAllowed");
+          setLocalError("GraphDuplicateEdgeNotAllowed");
           return current;
         }
         return addEdge(nextEdge, current);
       });
     },
-    [setEdges],
+    [clearFeedback, editor, setLocalError],
   );
 
-  const handleSave = async () => {
-    if (authRequired) return;
-    setStatus(null);
-    setError(null);
-    try {
-      const payload = {
-        nodes: nodes.map((node) => ({ unitId: node.id, position: node.position })),
-        edges: edges.map((edge) => ({ fromUnitId: edge.source, toUnitId: edge.target })),
-      };
-      const graph = await teacherApi.updateSectionGraph(sectionId, payload);
-      applyGraph(graph);
-      queryClient.setQueryData(contentQueryKeys.teacherSectionGraph(sectionId), graph);
-      setStatus("Граф сохранён");
-    } catch (err) {
-      const message = getApiErrorMessage(err);
-      if (message === "Перелогиньтесь") setAuthRequired(true);
-      setError(message);
-    }
-  };
-
-  const handleCreateUnit = async () => {
-    if (authRequired) return;
-    if (!newUnitTitle.trim()) return;
-    setStatus(null);
-    setError(null);
-    try {
-      const unit = await teacherApi.createUnit({
-        sectionId,
-        title: newUnitTitle.trim(),
-        sortOrder: nodes.length,
-      });
-      const position = getNextPosition(nodes.length);
-      setNodes((current: Node<UnitNodeData>[]) =>
-        current.concat({
-          id: unit.id,
-          type: "unit",
-          position,
-          style: { border: "none", background: "transparent", padding: 0 },
-          data: { title: unit.title, status: unit.status, createdAt: unit.createdAt },
-        }),
-      );
-      setNewUnitTitle("");
-      setIsCreatePopupOpen(false);
-      setStatus("Юнит создан. Не забудьте сохранить граф.");
-    } catch (err) {
-      const message = getApiErrorMessage(err);
-      if (message === "Перелогиньтесь") setAuthRequired(true);
-      setError(message);
-    }
-  };
-
-  const handleDeleteSelectedEdge = () => {
-    if (!selectedEdgeId) return;
-    setEdges((current: Edge[]) => current.filter((edge: Edge) => edge.id !== selectedEdgeId));
-    setSelectedEdgeId(null);
-    setStatus("Ребро удалено локально. Не забудьте сохранить граф.");
-  };
-
   const handleSelectionChange = useCallback((selection: { edges?: Edge[]; nodes?: Node[] }) => {
-    setSelectedEdgeId(selection.edges?.[0]?.id ?? null);
-  }, []);
+    editor.setSelectedEdgeId(selection.edges?.[0]?.id ?? null);
+  }, [editor]);
 
   const handleNodeClick = useCallback(
     (_: ReactMouseEvent, node: Node<UnitNodeData>) => {
@@ -408,10 +554,10 @@ export default function TeacherSectionGraphPanel({
       <div className={styles.graphPanel} aria-busy={loading}>
         <div className={styles.graphToolbar}>
           <Button onClick={() => setIsCreatePopupOpen(true)}>Создать юнит</Button>
-          <Button variant="ghost" onClick={handleSave}>
+          <Button variant="ghost" onClick={() => void saveGraph()} disabled={savePending}>
             Сохранить граф
           </Button>
-          <Button variant="ghost" onClick={handleDeleteSelectedEdge} disabled={!selectedEdgeId}>
+          <Button variant="ghost" onClick={deleteSelectedEdge} disabled={!editor.selectedEdgeId}>
             Удалить ребро
           </Button>
         </div>
@@ -431,7 +577,7 @@ export default function TeacherSectionGraphPanel({
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
                   event.preventDefault();
-                  void handleCreateUnit();
+                  void createUnit(newUnitTitle);
                 }
                 if (event.key === "Escape") {
                   event.preventDefault();
@@ -444,7 +590,7 @@ export default function TeacherSectionGraphPanel({
             />
           </label>
           <div className={styles.popupActions}>
-            <Button onClick={() => void handleCreateUnit()} disabled={!newUnitTitle.trim()}>
+            <Button onClick={() => void createUnit(newUnitTitle)} disabled={!newUnitTitle.trim() || createPending}>
               Создать
             </Button>
             <Button variant="ghost" onClick={() => setIsCreatePopupOpen(false)}>
@@ -453,7 +599,7 @@ export default function TeacherSectionGraphPanel({
           </div>
         </Dialog>
 
-        {selectedEdgeId ? (
+        {editor.selectedEdgeId ? (
           <div className={styles.selectionHint}>Выбрано ребро. Можно удалить и затем сохранить граф.</div>
         ) : null}
 
@@ -463,16 +609,16 @@ export default function TeacherSectionGraphPanel({
           <>
             <div className={styles.graphCanvas}>
               <GraphCanvas
-                nodes={nodes}
-                edges={edges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
+                nodes={editor.nodes}
+                edges={editor.edges}
+                onNodesChange={editor.onNodesChange}
+                onEdgesChange={editor.onEdgesChange}
                 onConnect={handleConnect}
                 onNodeClick={handleNodeClick}
                 onSelectionChange={handleSelectionChange}
               />
             </div>
-            {nodes.length === 0 ? (
+            {editor.nodes.length === 0 ? (
               <div className={styles.empty}>В разделе нет юнитов. Создайте первый юнит вверху графа.</div>
             ) : null}
           </>
