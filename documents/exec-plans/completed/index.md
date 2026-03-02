@@ -20,6 +20,7 @@
 
 ## Native exec-plans
 
+- `2026-03-01-architecture-alignment-tail-refactor.md`
 - `2026-02-26-architecture-principles-refactor-foundation.md`
 - `2026-02-20-production-deploy-cicd.md`
 - `2026-02-21-teacher-dashboard-editing-ux.md`
