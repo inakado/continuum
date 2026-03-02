@@ -337,6 +337,23 @@ Adjacency candidate:
      - выносим drilldown/navigation state;
      - отделяем query/actions от stage-components;
      - оставляем текущий UX и URL semantics без изменения.
+   - Статус:
+     - `Implemented`
+   - Что сделано:
+     - добавлен safety-net:
+       - `apps/web/features/teacher-students/TeacherStudentProfilePanel.test.tsx`
+     - покрыты deep-link hydration и breadcrumb navigation поверх уже существующих review/credit/override сценариев;
+     - route/drilldown state вынесен в:
+       - `apps/web/features/teacher-students/hooks/use-teacher-student-profile-route-state.ts`
+     - teacher actions/invalidation вынесены в:
+       - `apps/web/features/teacher-students/hooks/use-teacher-student-profile-actions.ts`
+     - общие profile types/helpers вынесены в:
+       - `apps/web/features/teacher-students/teacher-student-profile.shared.ts`
+     - сохранены текущие URL semantics и query-driven behavior панели.
+   - Проверки:
+     - `pnpm --filter web exec vitest run --config vitest.config.ts features/teacher-students/TeacherStudentProfilePanel.test.tsx`
+     - `pnpm --filter web typecheck`
+     - `pnpm --filter web lint`
 
 4. `apps/api/src/learning/photo-task-read.service.ts`
    - Причина:
@@ -373,9 +390,8 @@ Adjacency candidate:
 
 #### Порядок работы на следующую итерацию
 
-1. `TeacherStudentProfilePanel.tsx`
-2. `photo-task-read.service.ts`
-3. `photo-task-review-write.service.ts`
+1. `photo-task-read.service.ts`
+2. `photo-task-review-write.service.ts`
 
 Этот порядок выбран так, чтобы:
 - сначала убрать самые дорогие frontend orchestration tails;

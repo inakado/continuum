@@ -267,4 +267,53 @@ describe("TeacherStudentProfilePanel", () => {
       "/teacher/students/student-1?courseId=course-1&sectionId=section-1&unitId=unit-1",
     );
   });
+
+  it("hydrates drilldown state from search params", async () => {
+    vi.mocked(useSearchParams).mockReturnValue(
+      createSearchParams({
+        courseId: "course-1",
+        sectionId: "section-1",
+        unitId: "unit-1",
+        taskId: "task-1",
+      }) as never,
+    );
+
+    renderWithQueryClient(
+      <TeacherStudentProfilePanel studentId="student-1" fallbackName="student1" />,
+    );
+
+    expect(
+      await screen.findByText((_, element) => element?.textContent === "Задачи юнита: Юнит 1"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("x + 1 = 2")).toBeInTheDocument();
+  });
+
+  it("navigates back through breadcrumb drilldown", async () => {
+    vi.mocked(useSearchParams).mockReturnValue(
+      createSearchParams({
+        courseId: "course-1",
+        sectionId: "section-1",
+        unitId: "unit-1",
+      }) as never,
+    );
+    renderWithQueryClient(
+      <TeacherStudentProfilePanel studentId="student-1" fallbackName="student1" />,
+    );
+    const user = userEvent.setup();
+
+    expect(
+      await screen.findByText((_, element) => element?.textContent === "Задачи юнита: Юнит 1"),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Линейные уравнения" }));
+    expect(replaceMock).toHaveBeenLastCalledWith(
+      "/teacher/students/student-1?courseId=course-1&sectionId=section-1",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Алгебра" }));
+    expect(replaceMock).toHaveBeenLastCalledWith("/teacher/students/student-1?courseId=course-1");
+
+    await user.click(screen.getByRole("button", { name: "Курсы" }));
+    expect(replaceMock).toHaveBeenLastCalledWith("/teacher/students/student-1");
+  });
 });
