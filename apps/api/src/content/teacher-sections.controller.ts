@@ -36,6 +36,11 @@ export class TeacherSectionsController {
     return this.contentService.getSection(id);
   }
 
+  @Get(':id/meta')
+  getMeta(@Param('id') id: string) {
+    return this.contentService.getSectionMeta(id);
+  }
+
   @Post()
   async create(@Body() dto: CreateSectionDto, @Req() req: AuthRequest) {
     const section = await this.contentService.createSection(dto);

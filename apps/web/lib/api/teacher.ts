@@ -11,6 +11,7 @@ import {
   TeacherReviewInboxResponseSchema,
   TeacherReviewSubmissionDetailResponseSchema,
   TeacherSectionDetailResponseSchema,
+  TeacherSectionMetaSchema,
   TeacherSectionGraphResponseSchema,
   TeacherSectionSchema,
   TeacherStudentPhotoQueueResponseSchema,
@@ -40,6 +41,7 @@ import {
   type TeacherReviewSubmissionDetailResponse as SharedTeacherReviewSubmissionDetailResponse,
   type TeacherSection as SharedTeacherSection,
   type TeacherSectionDetailResponse as SharedTeacherSectionDetailResponse,
+  type TeacherSectionMeta as SharedTeacherSectionMeta,
   type TeacherSectionGraphResponse as SharedTeacherSectionGraphResponse,
   type TeacherSectionGraphUpdateRequest as SharedTeacherSectionGraphUpdateRequest,
   type TeacherStudentPhotoQueueResponse as SharedTeacherStudentPhotoQueueResponse,
@@ -69,6 +71,7 @@ export type Choice = { key: string; textLite: string };
 export type CorrectAnswer = { key?: string; keys?: string[] };
 
 export type Section = SharedTeacherSection;
+export type SectionMeta = SharedTeacherSectionMeta;
 
 export type Unit = SharedTeacherUnit & {
   theoryRichLatex?: string | null;
@@ -77,6 +80,11 @@ export type Unit = SharedTeacherUnit & {
   methodPdfAssetKey?: string | null;
   videosJson?: UnitVideo[] | null;
   attachmentsJson?: UnitAttachment[] | null;
+  section?: {
+    id: string;
+    title: string;
+    courseId: string;
+  } | null;
 };
 
 export type Task = {
@@ -453,6 +461,10 @@ export const teacherApi = {
 
   getSection(id: string) {
     return apiRequestParsed(`/teacher/sections/${id}`, TeacherSectionDetailResponseSchema);
+  },
+
+  getSectionMeta(id: string) {
+    return apiRequestParsed(`/teacher/sections/${id}/meta`, TeacherSectionMetaSchema);
   },
 
   getSectionGraph(id: string) {

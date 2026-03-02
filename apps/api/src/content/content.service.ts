@@ -99,6 +99,20 @@ export class ContentService {
     return section;
   }
 
+  async getSectionMeta(id: string) {
+    const section = await this.prisma.section.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        courseId: true,
+        title: true,
+        status: true,
+      },
+    });
+    if (!section) throw new NotFoundException('Section not found');
+    return section;
+  }
+
   async getPublishedSection(id: string) {
     const section = await this.prisma.section.findFirst({
       where: {
@@ -157,6 +171,13 @@ export class ContentService {
     const unit = await this.prisma.unit.findUnique({
       where: { id },
       include: {
+        section: {
+          select: {
+            id: true,
+            title: true,
+            courseId: true,
+          },
+        },
         tasks: {
           orderBy: { sortOrder: 'asc' },
           include: {

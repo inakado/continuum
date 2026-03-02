@@ -3,6 +3,7 @@ import {
   StudentCourseListResponseSchema,
   StudentSectionGraphResponseSchema,
   TeacherCreateStudentRequestSchema,
+  TeacherSectionMetaSchema,
   TeacherStudentProfileQuerySchema,
   TeacherStudentProfileResponseSchema,
   TeacherStudentsListQuerySchema,
@@ -60,6 +61,19 @@ describe("content non-learning contracts", () => {
 
     expect(TeacherStudentProfileQuerySchema.parse({ courseId: "course-1" })).toEqual({
       courseId: "course-1",
+    });
+
+    expect(
+      TeacherSectionMetaSchema.parse({
+        id: "section-1",
+        courseId: "course-1",
+        title: "Раздел 1",
+        status: "draft",
+      }),
+    ).toMatchObject({
+      id: "section-1",
+      courseId: "course-1",
+      title: "Раздел 1",
     });
   });
 

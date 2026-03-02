@@ -197,9 +197,9 @@ vi.mock("@/lib/api/teacher", async () => {
   return {
     ...actual,
     teacherApi: {
-      ...actual.teacherApi,
+    ...actual.teacherApi,
       getUnit: vi.fn(),
-      getSection: vi.fn(),
+      getSectionMeta: vi.fn(),
       getCourse: vi.fn(),
       createTask: vi.fn(),
       publishTask: vi.fn(),
@@ -248,6 +248,11 @@ const buildUnit = (overrides: Partial<UnitWithTasks> = {}): UnitWithTasks => ({
   methodPdfAssetKey: null,
   videosJson: [],
   attachmentsJson: [],
+  section: {
+    id: "section-1",
+    title: "Раздел 1",
+    courseId: "course-1",
+  },
   tasks: [buildTask()],
   ...overrides,
 });
@@ -262,7 +267,7 @@ describe("TeacherUnitDetailScreen", () => {
     vi.mocked(useRouter).mockReturnValue({ push: pushMock, back: backMock } as never);
 
     vi.mocked(teacherApi.getUnit).mockReset();
-    vi.mocked(teacherApi.getSection).mockReset();
+    vi.mocked(teacherApi.getSectionMeta).mockReset();
     vi.mocked(teacherApi.getCourse).mockReset();
     vi.mocked(teacherApi.createTask).mockReset();
     vi.mocked(teacherApi.publishTask).mockReset();
@@ -276,17 +281,6 @@ describe("TeacherUnitDetailScreen", () => {
 
   it("loads unit and breadcrumb context", async () => {
     vi.mocked(teacherApi.getUnit).mockResolvedValueOnce(buildUnit());
-    vi.mocked(teacherApi.getSection).mockResolvedValueOnce({
-      id: "section-1",
-      courseId: "course-1",
-      title: "Раздел 1",
-      description: null,
-      status: "draft",
-      sortOrder: 1,
-      createdAt: "2026-01-01T00:00:00.000Z",
-      updatedAt: "2026-01-02T00:00:00.000Z",
-      units: [],
-    } as never);
     vi.mocked(teacherApi.getCourse).mockResolvedValueOnce({
       id: "course-1",
       title: "Алгебра",
@@ -303,21 +297,37 @@ describe("TeacherUnitDetailScreen", () => {
     expect(await screen.findByRole("button", { name: "Курсы" })).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Алгебра" })).toBeInTheDocument();
     expect(screen.getByTestId("latex-panel-Теория")).toBeInTheDocument();
+    expect(teacherApi.getSectionMeta).not.toHaveBeenCalled();
+  });
+
+  it("falls back to section meta when unit payload has no embedded section", async () => {
+    vi.mocked(teacherApi.getUnit).mockResolvedValueOnce(buildUnit({ section: null }));
+    vi.mocked(teacherApi.getSectionMeta).mockResolvedValueOnce({
+      id: "section-1",
+      courseId: "course-1",
+      title: "Раздел 1",
+      status: "draft",
+    } as never);
+    vi.mocked(teacherApi.getCourse).mockResolvedValueOnce({
+      id: "course-1",
+      title: "Алгебра",
+      description: null,
+      status: "draft",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+      sections: [],
+    } as never);
+
+    renderWithQueryClient(<TeacherUnitDetailScreen unitId="unit-1" />);
+
+    expect(await screen.findByRole("button", { name: "Алгебра" })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(teacherApi.getSectionMeta).toHaveBeenCalledWith("section-1");
+    });
   });
 
   it("publishes unit from header toggle", async () => {
     vi.mocked(teacherApi.getUnit).mockResolvedValueOnce(buildUnit());
-    vi.mocked(teacherApi.getSection).mockResolvedValueOnce({
-      id: "section-1",
-      courseId: "course-1",
-      title: "Раздел 1",
-      description: null,
-      status: "draft",
-      sortOrder: 1,
-      createdAt: "2026-01-01T00:00:00.000Z",
-      updatedAt: "2026-01-02T00:00:00.000Z",
-      units: [],
-    } as never);
     vi.mocked(teacherApi.getCourse).mockResolvedValueOnce({
       id: "course-1",
       title: "Алгебра",
@@ -352,17 +362,6 @@ describe("TeacherUnitDetailScreen", () => {
     vi.mocked(teacherApi.getUnit)
       .mockResolvedValueOnce(buildUnit())
       .mockResolvedValueOnce(buildUnit({ tasks: [buildTask(), buildTask({ id: "task-2", title: "Задача 2" })] }));
-    vi.mocked(teacherApi.getSection).mockResolvedValue({
-      id: "section-1",
-      courseId: "course-1",
-      title: "Раздел 1",
-      description: null,
-      status: "draft",
-      sortOrder: 1,
-      createdAt: "2026-01-01T00:00:00.000Z",
-      updatedAt: "2026-01-02T00:00:00.000Z",
-      units: [],
-    } as never);
     vi.mocked(teacherApi.getCourse).mockResolvedValue({
       id: "course-1",
       title: "Алгебра",
@@ -404,17 +403,6 @@ describe("TeacherUnitDetailScreen", () => {
 
   it("deletes unit after confirmation and returns to section route", async () => {
     vi.mocked(teacherApi.getUnit).mockResolvedValueOnce(buildUnit());
-    vi.mocked(teacherApi.getSection).mockResolvedValueOnce({
-      id: "section-1",
-      courseId: "course-1",
-      title: "Раздел 1",
-      description: null,
-      status: "draft",
-      sortOrder: 1,
-      createdAt: "2026-01-01T00:00:00.000Z",
-      updatedAt: "2026-01-02T00:00:00.000Z",
-      units: [],
-    } as never);
     vi.mocked(teacherApi.getCourse).mockResolvedValueOnce({
       id: "course-1",
       title: "Алгебра",

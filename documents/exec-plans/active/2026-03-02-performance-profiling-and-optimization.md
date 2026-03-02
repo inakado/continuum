@@ -500,9 +500,8 @@
 - Risk of change: `3/5`
 - Статус: `Deferred until first two hotspots are re-measured`
 
-## Точный план следующей optimization wave (`Planned`)
-
-### Slice 1 — Teacher unit editor initial load
+## Точный план optimization wave
+### Slice 1 — Teacher unit editor initial load (`Implemented`)
 
 #### Почему этот slice первый
 - это самый дорогой подтверждённый hot-path;
@@ -594,13 +593,27 @@ Web:
 - section/course titles не теряются;
 - unit editor больше не требует full `teacher section` payload.
 
-#### Acceptance criteria для Slice 1
-1. unit editor не зависит от full `GET /teacher/sections/:id` payload;
-2. новый lightweight `section meta` read-model используется только там, где он нужен;
-3. UX и breadcrumbs остаются прежними;
-4. повторный baseline показывает снижение initial load cost.
+#### Post-change measurement (`Implemented`)
+- Новый unit editor read-path:
+  - `GET /teacher/units/:id`
+  - `GET /teacher/sections/:id/meta`
+  - `GET /teacher/courses/:id`
+- Post-change baseline:
+  - `GET /teacher/units/:id` ≈ `38 ms`, `53419 B`
+  - `GET /teacher/sections/:id/meta` ≈ `6 ms`, `143 B`
+  - `GET /teacher/courses/:id` ≈ `5 ms`, `525 B`
+- Подтверждённый эффект:
+  - unit editor больше не зависит от полного `GET /teacher/sections/:id` с payload около `50 KB`;
+  - overfetch устранён через отдельный `section meta` read-model;
+  - waterfall сокращён с `unit -> section -> course` до `unit -> course`, а `section meta` остаётся только fallback-path для совместимости.
 
-### Slice 2 — Student dashboard graph read-path
+#### Acceptance criteria для Slice 1 (`Implemented`)
+1. unit editor не зависит от full `GET /teacher/sections/:id` payload;
+2. новый lightweight `section meta` read-model доступен как safe fallback и отдельный cheap endpoint;
+3. UX, breadcrumbs и autosave остались прежними;
+4. повторный baseline подтвердил устранение `teacher section` overfetch на hot-path.
+
+### Slice 2 — Student dashboard graph read-path (`Planned`)
 
 #### Почему этот slice второй
 - hotspot подтверждён измерениями;
@@ -655,13 +668,13 @@ Web:
 4. Не добавляем кэш/мемоизацию без повторного измерения.
 5. Не возвращаемся к `playwright`/browser-side automation до тех пор, пока не закроем два уже подтверждённых hotspot.
 
-## Порядок реализации (`Planned`)
+## Порядок реализации
 
-### Этап 1. Slice 1
-1. Добавить `teacher section meta` read-model.
-2. Перевести `teacher unit editor` на него.
-3. Прогнать safety-net.
-4. Повторно снять baseline по unit editor.
+### Этап 1. Slice 1 (`Implemented`)
+1. Добавлен `teacher section meta` read-model.
+2. `teacher unit editor` переведён с full `section detail` на metadata/fallback модель.
+3. Safety-net и общий verification contour пройдены.
+4. Post-change baseline снят и зафиксирован.
 
 ### Этап 2. Slice 2
 1. Добавить узкий graph snapshot path.

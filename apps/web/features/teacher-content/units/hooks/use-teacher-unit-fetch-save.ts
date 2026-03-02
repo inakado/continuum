@@ -88,6 +88,39 @@ type Params = {
   unitId: string;
 };
 
+const useTeacherUnitReadQueries = (unitId: string) => {
+  const unitQuery = useQuery<UnitWithTasks>({
+    queryKey: contentQueryKeys.teacherUnit(unitId),
+    queryFn: () => teacherApi.getUnit(unitId),
+  });
+
+  const unit = unitQuery.data ?? null;
+
+  const sectionMetaQuery = useQuery({
+    queryKey: contentQueryKeys.teacherSectionMeta(unit?.sectionId ?? ""),
+    queryFn: () => teacherApi.getSectionMeta(unit?.sectionId ?? ""),
+    enabled: Boolean(unit?.sectionId) && !unit?.section?.courseId,
+    retry: false,
+  });
+
+  const sectionCourseId = unit?.section?.courseId ?? sectionMetaQuery.data?.courseId ?? null;
+  const sectionTitle = unit?.section?.title ?? sectionMetaQuery.data?.title ?? null;
+
+  const courseQuery = useQuery({
+    queryKey: contentQueryKeys.teacherCourse(sectionCourseId ?? ""),
+    queryFn: () => teacherApi.getCourse(sectionCourseId ?? ""),
+    enabled: Boolean(sectionCourseId),
+    retry: false,
+  });
+
+  return {
+    unitQuery,
+    unit,
+    sectionTitle,
+    courseQuery,
+  };
+};
+
 export const useTeacherUnitFetchSave = ({ unitId }: Params) => {
   const queryClient = useQueryClient();
   const [errorOverride, setErrorOverride] = useState<string | null>(null);
@@ -104,12 +137,7 @@ export const useTeacherUnitFetchSave = ({ unitId }: Params) => {
   const timerRef = useRef<number | null>(null);
   const inflightRef = useRef(0);
 
-  const unitQuery = useQuery<UnitWithTasks>({
-    queryKey: contentQueryKeys.teacherUnit(unitId),
-    queryFn: () => teacherApi.getUnit(unitId),
-  });
-
-  const unit = unitQuery.data ?? null;
+  const { unitQuery, unit, sectionTitle, courseQuery } = useTeacherUnitReadQueries(unitId);
 
   useEffect(() => {
     if (!unitQuery.data) return;
@@ -127,20 +155,6 @@ export const useTeacherUnitFetchSave = ({ unitId }: Params) => {
     });
     setErrorOverride(null);
   }, [unitQuery.data]);
-
-  const sectionQuery = useQuery({
-    queryKey: contentQueryKeys.teacherSection(unit?.sectionId ?? ""),
-    queryFn: () => teacherApi.getSection(unit?.sectionId ?? ""),
-    enabled: Boolean(unit?.sectionId),
-    retry: false,
-  });
-
-  const courseQuery = useQuery({
-    queryKey: contentQueryKeys.teacherCourse(sectionQuery.data?.courseId ?? ""),
-    queryFn: () => teacherApi.getCourse(sectionQuery.data?.courseId ?? ""),
-    enabled: Boolean(sectionQuery.data?.courseId),
-    retry: false,
-  });
 
   const updateUnitMutation = useMutation({
     mutationFn: ({
@@ -276,7 +290,7 @@ export const useTeacherUnitFetchSave = ({ unitId }: Params) => {
     unit,
     setUnit,
     courseTitle: courseQuery.data?.title ?? null,
-    sectionTitle: sectionQuery.data?.title ?? null,
+    sectionTitle,
     error,
     setError: setErrorOverride,
     theoryText,

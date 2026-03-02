@@ -81,6 +81,22 @@ describe("wave3 runtime parsing (non-learning)", () => {
     expect(response[0]?.login).toBe("student1");
   });
 
+  it("parses valid teacher section meta response", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        id: "section-1",
+        courseId: "course-1",
+        title: "Линейные уравнения",
+        status: "draft",
+      }),
+    );
+
+    const response = await teacherApi.getSectionMeta("section-1");
+
+    expect(response.courseId).toBe("course-1");
+    expect(response.title).toBe("Линейные уравнения");
+  });
+
   it("throws API_RESPONSE_INVALID when teacher student profile payload is broken", async () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse({

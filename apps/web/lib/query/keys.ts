@@ -31,6 +31,8 @@ export const contentQueryKeys = {
   teacherCourses: () => ["content", "teacher", "courses"] as const,
   teacherCourse: (courseId: string) => ["content", "teacher", "course", courseId] as const,
   teacherSection: (sectionId: string) => ["content", "teacher", "section", sectionId] as const,
+  teacherSectionMeta: (sectionId: string) =>
+    ["content", "teacher", "section-meta", sectionId] as const,
   teacherUnit: (unitId: string) => ["content", "teacher", "unit", unitId] as const,
   teacherTaskStatementImagePreview: (taskId: string, assetKey: string) =>
     ["content", "teacher", "task", taskId, "statement-image", assetKey] as const,

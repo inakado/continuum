@@ -102,6 +102,15 @@ export const TeacherSectionSchema = z
   })
   .passthrough();
 
+export const TeacherSectionMetaSchema = z
+  .object({
+    id: z.string().min(1),
+    courseId: z.string().min(1),
+    title: z.string(),
+    status: ContentStatusSchema,
+  })
+  .passthrough();
+
 export const TeacherUnitSchema = z
   .object({
     id: z.string().min(1),
@@ -461,6 +470,7 @@ export type StudentSectionGraphResponse = z.infer<typeof StudentSectionGraphResp
 
 export type TeacherCourse = z.infer<typeof TeacherCourseSchema>;
 export type TeacherSection = z.infer<typeof TeacherSectionSchema>;
+export type TeacherSectionMeta = z.infer<typeof TeacherSectionMetaSchema>;
 export type TeacherUnit = z.infer<typeof TeacherUnitSchema>;
 export type TeacherGraphNode = z.infer<typeof TeacherGraphNodeSchema>;
 export type TeacherGraphEdge = z.infer<typeof TeacherGraphEdgeSchema>;

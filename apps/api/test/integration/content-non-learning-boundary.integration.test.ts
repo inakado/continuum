@@ -1,5 +1,5 @@
+import { NotFoundException, type INestApplication } from '@nestjs/common';
 import { Role, type CourseStatus, type SectionStatus } from '@prisma/client';
-import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ContentService } from '../../src/content/content.service';
@@ -24,6 +24,7 @@ describe('content non-learning boundary integration', () => {
     unpublishCourse: vi.fn(),
     deleteCourse: vi.fn(),
     getSection: vi.fn(),
+    getSectionMeta: vi.fn(),
     createSection: vi.fn(),
     updateSection: vi.fn(),
     publishSection: vi.fn(),
@@ -193,6 +194,12 @@ describe('content non-learning boundary integration', () => {
 
   it('covers teacher section get/create/update/publish/unpublish/delete HTTP paths', async () => {
     contentService.getSection.mockResolvedValue(sectionFixture());
+    contentService.getSectionMeta.mockResolvedValue({
+      id: 'section-1',
+      courseId: 'course-1',
+      title: 'Linear equations',
+      status: 'draft',
+    });
     contentService.createSection.mockResolvedValue(sectionFixture());
     contentService.updateSection.mockResolvedValue(sectionFixture());
     contentService.publishSection.mockResolvedValue(sectionFixture('published'));
@@ -200,6 +207,7 @@ describe('content non-learning boundary integration', () => {
     contentService.deleteSection.mockResolvedValue(sectionFixture('draft'));
 
     const getResponse = await request(app.getHttpServer()).get('/teacher/sections/section-1');
+    const metaResponse = await request(app.getHttpServer()).get('/teacher/sections/section-1/meta');
     const createResponse = await request(app.getHttpServer())
       .post('/teacher/sections')
       .send({
@@ -218,6 +226,13 @@ describe('content non-learning boundary integration', () => {
 
     expect(getResponse.status).toBe(200);
     expect(getResponse.body.id).toBe('section-1');
+    expect(metaResponse.status).toBe(200);
+    expect(metaResponse.body).toEqual({
+      id: 'section-1',
+      courseId: 'course-1',
+      title: 'Linear equations',
+      status: 'draft',
+    });
     expect(createResponse.status).toBe(201);
     expect(updateResponse.status).toBe(200);
     expect(publishResponse.status).toBe(200);
@@ -232,6 +247,7 @@ describe('content non-learning boundary integration', () => {
     expect(contentService.updateSection).toHaveBeenCalledWith('section-1', {
       title: 'Updated section',
     });
+    expect(contentService.getSectionMeta).toHaveBeenCalledWith('section-1');
     expect(eventsLogService.append).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
@@ -272,6 +288,15 @@ describe('content non-learning boundary integration', () => {
         entityId: 'section-1',
       }),
     );
+  });
+
+  it('returns 404 for missing teacher section meta', async () => {
+    contentService.getSectionMeta.mockRejectedValueOnce(new NotFoundException('Section not found'));
+
+    const response = await request(app.getHttpServer()).get('/teacher/sections/missing/meta');
+
+    expect(response.status).toBe(404);
+    expect(contentService.getSectionMeta).toHaveBeenCalledWith('missing');
   });
 
   it('covers student published content read paths', async () => {
