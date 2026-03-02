@@ -93,6 +93,8 @@ vi.mock("@/lib/api/teacher", async () => {
       getCourse: vi.fn(),
       createCourse: vi.fn(),
       createSection: vi.fn(),
+      updateSection: vi.fn(),
+      deleteCourse: vi.fn(),
       publishSection: vi.fn(),
     },
   };
@@ -110,6 +112,8 @@ describe("TeacherDashboardScreen", () => {
     vi.mocked(teacherApi.getCourse).mockReset();
     vi.mocked(teacherApi.createCourse).mockReset();
     vi.mocked(teacherApi.createSection).mockReset();
+    vi.mocked(teacherApi.updateSection).mockReset();
+    vi.mocked(teacherApi.deleteCourse).mockReset();
     vi.mocked(teacherApi.publishSection).mockReset();
     window.history.replaceState(null, "", "/teacher");
   });
@@ -341,5 +345,157 @@ describe("TeacherDashboardScreen", () => {
         queryKey: contentQueryKeys.teacherCourse("course-1"),
       });
     });
+  });
+
+  it("restores selected course and section from history state", async () => {
+    window.history.replaceState(
+      {
+        __continuumTeacherEditNav: true,
+        courseId: "course-1",
+        sectionId: "section-1",
+        sectionTitle: "Линейные уравнения",
+      },
+      "",
+      "/teacher",
+    );
+    vi.mocked(teacherApi.listCourses).mockResolvedValue([
+      {
+        id: "course-1",
+        title: "Алгебра",
+        description: "Базовый курс",
+        status: "draft",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-02T00:00:00.000Z",
+      },
+    ]);
+    vi.mocked(teacherApi.getCourse).mockResolvedValue({
+      id: "course-1",
+      title: "Алгебра",
+      description: "Базовый курс",
+      status: "draft",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+      sections: [
+        {
+          id: "section-1",
+          courseId: "course-1",
+          title: "Линейные уравнения",
+          description: "Раздел",
+          status: "draft",
+          sortOrder: 0,
+          createdAt: "2026-01-03T00:00:00.000Z",
+          updatedAt: "2026-01-03T00:00:00.000Z",
+        },
+      ],
+    } as never);
+
+    renderWithQueryClient(<TeacherDashboardScreen active="edit" />);
+
+    expect(await screen.findByTestId("teacher-graph-panel")).toBeInTheDocument();
+    expect(screen.getByText("Линейные уравнения")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(teacherApi.getCourse).toHaveBeenCalledWith("course-1");
+    });
+  });
+
+  it("reacts to popstate and returns to courses root", async () => {
+    vi.mocked(teacherApi.listCourses).mockResolvedValue([
+      {
+        id: "course-1",
+        title: "Алгебра",
+        description: "Базовый курс",
+        status: "draft",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-02T00:00:00.000Z",
+      },
+    ]);
+    vi.mocked(teacherApi.getCourse).mockResolvedValue({
+      id: "course-1",
+      title: "Алгебра",
+      description: "Базовый курс",
+      status: "draft",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+      sections: [
+        {
+          id: "section-1",
+          courseId: "course-1",
+          title: "Линейные уравнения",
+          description: "Раздел",
+          status: "draft",
+          sortOrder: 0,
+          createdAt: "2026-01-03T00:00:00.000Z",
+          updatedAt: "2026-01-03T00:00:00.000Z",
+        },
+      ],
+    } as never);
+
+    renderWithQueryClient(<TeacherDashboardScreen active="edit" />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: /Алгебра/ }));
+    await user.click(await screen.findByRole("button", { name: /Линейные уравнения/ }));
+    expect(await screen.findByTestId("teacher-graph-panel")).toBeInTheDocument();
+
+    window.dispatchEvent(
+      new PopStateEvent("popstate", {
+        state: {
+          __continuumTeacherEditNav: true,
+          courseId: null,
+          sectionId: null,
+          sectionTitle: null,
+        },
+      }),
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("teacher-graph-panel")).not.toBeInTheDocument();
+    });
+    expect(await screen.findByRole("button", { name: /Алгебра/ })).toBeInTheDocument();
+  });
+
+  it("deletes selected course and resets edit selection to courses root", async () => {
+    vi.mocked(teacherApi.listCourses).mockResolvedValue([
+      {
+        id: "course-1",
+        title: "Алгебра",
+        description: "Базовый курс",
+        status: "draft",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-02T00:00:00.000Z",
+      },
+    ]);
+    vi.mocked(teacherApi.getCourse).mockResolvedValue({
+      id: "course-1",
+      title: "Алгебра",
+      description: "Базовый курс",
+      status: "draft",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+      sections: [],
+    } as never);
+    vi.mocked(teacherApi.deleteCourse).mockResolvedValue(undefined as never);
+
+    const { queryClient } = renderWithQueryClient(<TeacherDashboardScreen active="edit" />);
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: /Алгебра/ }));
+    expect(await screen.findByText("Разделов пока нет.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Курсы" }));
+    await user.click(screen.getByRole("button", { name: "Удалить курс" }));
+    await user.click(screen.getByRole("button", { name: "Подтвердить" }));
+
+    await waitFor(() => {
+      expect(teacherApi.deleteCourse).toHaveBeenCalledWith("course-1");
+    });
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: contentQueryKeys.teacherCourses(),
+      });
+    });
+    expect(await screen.findByText("Алгебра")).toBeInTheDocument();
+    expect(screen.queryByText("Разделов пока нет.")).not.toBeInTheDocument();
   });
 });

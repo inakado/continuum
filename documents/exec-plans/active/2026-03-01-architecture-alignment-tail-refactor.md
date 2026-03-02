@@ -315,6 +315,19 @@ Adjacency candidate:
      - выносим edit navigation/history в отдельный hook;
      - отделяем action-orchestration от render shell;
      - уменьшаем ответственность корневого экрана до composition.
+   - Статус:
+     - `Implemented`
+   - Что сделано:
+     - добавлен safety-net:
+       - `apps/web/features/teacher-dashboard/TeacherDashboardScreen.test.tsx`
+     - покрыты restore/popstate/delete сценарии поверх уже существующих create/open/publish flows;
+     - navigation/history, query orchestration и edit actions вынесены в:
+       - `apps/web/features/teacher-dashboard/hooks/use-teacher-edit-mode.ts`
+     - `TeacherDashboardScreen.tsx` оставлен composition-shell без дублирования query/mutation/history логики.
+   - Проверки:
+     - `pnpm --filter web exec vitest run --config vitest.config.ts features/teacher-dashboard/TeacherDashboardScreen.test.tsx`
+     - `pnpm --filter web typecheck`
+     - `pnpm --filter web lint`
 
 3. `apps/web/features/teacher-students/TeacherStudentProfilePanel.tsx`
    - Причина:
@@ -360,10 +373,9 @@ Adjacency candidate:
 
 #### Порядок работы на следующую итерацию
 
-1. `TeacherDashboardScreen.tsx`
-2. `TeacherStudentProfilePanel.tsx`
-3. `photo-task-read.service.ts`
-4. `photo-task-review-write.service.ts`
+1. `TeacherStudentProfilePanel.tsx`
+2. `photo-task-read.service.ts`
+3. `photo-task-review-write.service.ts`
 
 Этот порядок выбран так, чтобы:
 - сначала убрать самые дорогие frontend orchestration tails;
