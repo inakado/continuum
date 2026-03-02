@@ -32,7 +32,6 @@
 - `documents/design-docs/core-beliefs.md` — core beliefs для design-doc ветки.
 - `documents/product-specs/index.md` — индекс продуктовых спецификаций.
 - `documents/exec-plans/active/` — активные execution plans.
-- `documents/exec-plans/active/2026-03-02-frontend-render-profiling-playwright.md` — текущий активный план browser-side render profiling через Playwright.
 - `documents/exec-plans/completed/` — завершённые execution plans.
 - `documents/exec-plans/completed/index.md` — индекс завершённых планов.
 - `documents/exec-plans/deferred-roadmap.md` — отложенные future items, которые не являются техдолгом.
