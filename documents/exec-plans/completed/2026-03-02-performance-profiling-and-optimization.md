@@ -472,9 +472,9 @@
 - если здесь есть реальная задержка, она вероятнее `render-bound`, а не `backend-bound`
 - browser-side render profiling отложен на следующий подэтап
 
-## Shortlist bottleneck (`Implemented`)
+## Initial shortlist bottleneck (`Implemented`)
 
-### 1. Teacher unit editor initial load
+### 1. Teacher unit editor initial load (`Resolved`)
 - User pain: `4/5`
 - Bottleneck class: `mixed`
 - Primary cause: `teacher section` overfetch + waterfall `unit -> section -> course`
@@ -483,7 +483,7 @@
 - Risk of change: `2/5`
 - Priority score: `(5 + 4 + 5 + 5) - 2 = 17`
 
-### 2. Student dashboard graph load
+### 2. Student dashboard graph load (`Resolved`)
 - User pain: `4/5`
 - Bottleneck class: `backend-bound`
 - Primary cause: дорогой student graph read-path при маленьком payload
@@ -492,7 +492,7 @@
 - Risk of change: `3/5`
 - Priority score: `(5 + 4 + 4 + 4) - 3 = 14`
 
-### 3. Teacher section graph render
+### 3. Teacher section graph render (`Unconfirmed`)
 - User pain: `3/5`
 - Bottleneck class: `unconfirmed`, likely `render-bound`
 - Primary cause: pending render baseline
@@ -678,6 +678,44 @@ Web:
 4. Не добавляем кэш/мемоизацию без повторного измерения.
 5. Не возвращаемся к `playwright`/browser-side automation до тех пор, пока не закроем два уже подтверждённых hotspot.
 
+## Re-triage result (`Implemented`)
+
+После выполнения `Slice 1` и `Slice 2` повторный triage даёт такую картину:
+
+### Confirmed and resolved
+1. `teacher unit editor initial load`
+   - baseline bottleneck подтверждён;
+   - optimization выполнена;
+   - post-change measurement подтверждает эффект;
+   - дополнительных подтверждённых optimization target внутри этого flow сейчас нет.
+
+2. `student dashboard graph read-path`
+   - baseline bottleneck подтверждён;
+   - optimization выполнена;
+   - post-change measurement подтверждает эффект;
+   - текущий backend read-path больше не выглядит первичным hotspot.
+
+### Unconfirmed after re-triage
+1. `teacher section graph render`
+   - backend latency не является primary hotspot;
+   - browser-side render bottleneck отдельными измерениями не подтверждён;
+   - без нового evidence этот flow не идёт в implementation.
+
+### Decision
+1. На текущем evidence новых подтверждённых optimization target в рамках этой инициативы нет.
+2. `teacher section graph render` переносится в категорию `deferred until measured evidence`.
+3. Текущую инициативу можно закрывать после переноса неподтверждённого residual finding в roadmap/debt-контур.
+
+## Updated shortlist after re-triage (`Implemented`)
+
+### Resolved
+1. `teacher unit editor initial load`
+2. `student dashboard graph read-path`
+
+### Deferred until measured evidence
+1. `teacher section graph render`
+   - следующий шаг допустим только после отдельного render profiling batch и подтверждённого user-visible pain
+
 ## Порядок реализации
 
 ### Этап 1. Slice 1 (`Implemented`)
@@ -692,7 +730,7 @@ Web:
 3. Safety-net и Docker verification пройдены.
 4. Post-change baseline по student graph снят и зафиксирован.
 
-### Этап 3. Re-triage (`Planned`)
+### Этап 3. Re-triage (`Implemented`)
 1. Сравнить baseline и post-change по двум slices.
 2. Обновить shortlist.
 3. Решить, нужен ли отдельный `teacher section graph` render profiling batch.
