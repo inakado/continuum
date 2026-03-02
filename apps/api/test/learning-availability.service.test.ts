@@ -194,4 +194,44 @@ describe('LearningAvailabilityService', () => {
       }),
     );
   });
+
+  it('builds graph snapshot without persisting student unit state', async () => {
+    prisma.section.findFirst.mockResolvedValue({
+      units: [
+        { id: 'unit-a', sortOrder: 1, minOptionalCountedTasksToComplete: 0 },
+        { id: 'unit-b', sortOrder: 2, minOptionalCountedTasksToComplete: 0 },
+      ],
+    });
+    prisma.unitGraphEdge.findMany.mockResolvedValue([{ prereqUnitId: 'unit-a', unitId: 'unit-b' }]);
+    prisma.task.findMany.mockResolvedValue([
+      { id: 'task-a-1', unitId: 'unit-a', isRequired: true },
+      { id: 'task-a-2', unitId: 'unit-a', isRequired: false },
+      { id: 'task-b-1', unitId: 'unit-b', isRequired: true },
+    ]);
+    prisma.studentUnitState.findMany.mockResolvedValue([]);
+    prisma.unitUnlockOverride.findMany.mockResolvedValue([]);
+    prisma.studentTaskState.findMany.mockResolvedValue([
+      { taskId: 'task-a-1', status: StudentTaskStatus.correct },
+      { taskId: 'task-a-2', status: StudentTaskStatus.accepted },
+    ]);
+    prisma.attempt.findMany.mockResolvedValue([{ taskId: 'task-a-1' }]);
+
+    const snapshots = await service.getSectionGraphAvailabilitySnapshot('student-1', 'section-1');
+
+    expect(snapshots.get('unit-a')).toMatchObject({
+      status: StudentUnitStatus.completed,
+      countedTasks: 2,
+      solvedTasks: 2,
+      completionPercent: 100,
+      solvedPercent: 100,
+    });
+    expect(snapshots.get('unit-b')).toMatchObject({
+      status: StudentUnitStatus.available,
+      countedTasks: 0,
+      solvedTasks: 0,
+      completionPercent: 0,
+      solvedPercent: 0,
+    });
+    expect(prisma.studentUnitState.upsert).not.toHaveBeenCalled();
+  });
 });

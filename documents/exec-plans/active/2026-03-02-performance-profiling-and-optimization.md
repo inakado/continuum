@@ -613,7 +613,7 @@ Web:
 3. UX, breadcrumbs и autosave остались прежними;
 4. повторный baseline подтвердил устранение `teacher section` overfetch на hot-path.
 
-### Slice 2 — Student dashboard graph read-path (`Planned`)
+### Slice 2 — Student dashboard graph read-path (`Implemented`)
 
 #### Почему этот slice второй
 - hotspot подтверждён измерениями;
@@ -655,10 +655,20 @@ Web:
    - `GET /sections/:id/graph`
    - форма ответа и статусы сохраняются
 
-#### Acceptance criteria для Slice 2
+#### Post-change measurement (`Implemented`)
+- Post-change repeated baseline:
+  - `GET /sections/:id/graph` ≈ `18–33 ms`
+  - первый прогон после login ≈ `71 ms`
+  - payload без изменений: `1939 B`
+- Подтверждённый эффект:
+  - student graph больше не вызывает общий `recomputeSectionAvailability(...)` на hot read-path;
+  - graph endpoint использует узкий snapshot path без persist-side-effect на каждое чтение;
+  - latency заметно снизилась без изменения response shape.
+
+#### Acceptance criteria для Slice 2 (`Implemented`)
 1. `GET /sections/:id/graph` сохраняет текущий response shape;
 2. `status/completionPercent/solvedPercent` не меняются по смыслу;
-3. latency graph read-path заметно снижается на повторных замерах.
+3. повторные замеры подтверждают заметное снижение latency graph read-path.
 
 ## Что не делаем в этой wave (`Implemented`)
 
@@ -676,13 +686,13 @@ Web:
 3. Safety-net и общий verification contour пройдены.
 4. Post-change baseline снят и зафиксирован.
 
-### Этап 2. Slice 2
-1. Добавить узкий graph snapshot path.
-2. Перевести student graph endpoint на него.
-3. Прогнать safety-net.
-4. Повторно снять baseline по student graph.
+### Этап 2. Slice 2 (`Implemented`)
+1. Добавлен узкий graph snapshot path.
+2. Student graph endpoint переведён на него.
+3. Safety-net и Docker verification пройдены.
+4. Post-change baseline по student graph снят и зафиксирован.
 
-### Этап 3. Re-triage
+### Этап 3. Re-triage (`Planned`)
 1. Сравнить baseline и post-change по двум slices.
 2. Обновить shortlist.
 3. Решить, нужен ли отдельный `teacher section graph` render profiling batch.

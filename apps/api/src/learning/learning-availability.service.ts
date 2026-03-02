@@ -123,8 +123,7 @@ export class LearningAvailabilityService {
     tx?: Prisma.TransactionClient,
   ): Promise<Map<string, UnitProgressSnapshot>> {
     const db = tx ?? this.prisma;
-    const context = await this.loadSectionComputationContext(db, studentId, sectionId);
-    const snapshots = this.computeSnapshots(context);
+    const { context, snapshots } = await this.computeSectionSnapshots(db, studentId, sectionId);
     await this.persistSnapshots(
       db,
       studentId,
@@ -133,6 +132,15 @@ export class LearningAvailabilityService {
       context.overrideOpenedUnitIds,
     );
     return snapshots;
+  }
+
+  async getSectionGraphAvailabilitySnapshot(
+    studentId: string,
+    sectionId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<Map<string, UnitProgressSnapshot>> {
+    const db = tx ?? this.prisma;
+    return (await this.computeSectionSnapshots(db, studentId, sectionId)).snapshots;
   }
 
   private async getUnitSnapshot(
@@ -159,6 +167,21 @@ export class LearningAvailabilityService {
     const snapshot = snapshots.get(unit.id);
     if (!snapshot) throw new NotFoundException('Unit not found');
     return snapshot;
+  }
+
+  private async computeSectionSnapshots(
+    db: DbClient,
+    studentId: string,
+    sectionId: string,
+  ): Promise<{
+    context: SectionComputationContext;
+    snapshots: Map<string, UnitProgressSnapshot>;
+  }> {
+    const context = await this.loadSectionComputationContext(db, studentId, sectionId);
+    return {
+      context,
+      snapshots: this.computeSnapshots(context),
+    };
   }
 
   private async loadSectionComputationContext(

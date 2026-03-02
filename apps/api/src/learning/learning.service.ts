@@ -44,7 +44,7 @@ export class LearningService {
 
   async getPublishedSectionGraphForStudent(studentId: string, sectionId: string) {
     const graph = await this.contentService.getPublishedSectionGraph(sectionId);
-    const snapshots = await this.learningAvailabilityService.recomputeSectionAvailability(
+    const snapshots = await this.learningAvailabilityService.getSectionGraphAvailabilitySnapshot(
       studentId,
       sectionId,
     );
