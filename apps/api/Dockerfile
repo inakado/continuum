@@ -9,10 +9,9 @@ ENV PATH=$PNPM_HOME:$PATH
 
 RUN corepack enable
 
-COPY scripts/install-texlive-runtime.sh /tmp/install-texlive-runtime.sh
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
-    sh /tmp/install-texlive-runtime.sh && rm -f /tmp/install-texlive-runtime.sh
+    apt-get update && apt-get install -y --no-install-recommends ca-certificates wget && rm -rf /var/lib/apt/lists/*
 
 FROM base AS deps
 
@@ -20,7 +19,6 @@ ENV DATABASE_URL=postgresql://continuum:continuum@postgres:5432/continuum
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/api/package.json apps/api/
-COPY packages/latex-runtime/package.json packages/latex-runtime/
 COPY packages/shared/package.json packages/shared/
 COPY apps/api/prisma ./apps/api/prisma
 COPY apps/api/prisma.config.ts ./apps/api/prisma.config.ts
@@ -31,11 +29,9 @@ RUN --mount=type=cache,target=/pnpm/store,sharing=locked \
 FROM deps AS builder
 
 COPY scripts ./scripts
-COPY packages/latex-runtime ./packages/latex-runtime
 COPY packages/shared ./packages/shared
 COPY apps/api ./apps/api
 
-RUN pnpm --filter @continuum/latex-runtime build
 RUN pnpm --filter @continuum/shared build
 RUN pnpm --filter @continuum/api exec prisma generate
 RUN pnpm --filter @continuum/api build
@@ -46,8 +42,6 @@ ENV NODE_ENV=production
 
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
-COPY --from=builder /app/packages/latex-runtime/dist ./packages/latex-runtime/dist
-COPY packages/latex-runtime/package.json ./packages/latex-runtime/package.json
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY packages/shared/package.json ./packages/shared/package.json
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
@@ -65,7 +59,6 @@ CMD ["node", "apps/api/dist/main.js"]
 
 FROM deps AS dev
 
-COPY packages/latex-runtime ./packages/latex-runtime
 COPY packages/shared ./packages/shared
 COPY apps/api ./apps/api
 

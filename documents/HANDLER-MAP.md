@@ -80,6 +80,7 @@
 
 - API queue:
   - `LatexCompileQueueService` добавляет jobs в BullMQ.
+  - `POST /teacher/debug/latex/compile-and-upload` не компилирует локально и только ставит debug job в `latex.compile`.
 - Worker:
   - компилирует через `pdflatex`,
   - для TikZ HTML assets использует `pdflatex --output-format=dvi -> dvisvgm`,
@@ -87,6 +88,7 @@
   - вызывает `POST /internal/latex/jobs/:jobId/apply` с `x-internal-token`.
 - API internal apply:
   - применяет `Unit.theoryPdfAssetKey|methodPdfAssetKey` или `TaskRevision.solutionPdfAssetKey`,
+  - debug jobs не применяются (`LATEX_JOB_APPLY_UNSUPPORTED`),
   - защищается от stale-результатов,
   - пишет event `TaskSolutionPdfCompiled` (для task solution).
 

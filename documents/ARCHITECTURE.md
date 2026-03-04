@@ -73,6 +73,7 @@
 **Инварианты:**
 - compile runtime основан на `TeX Live`; основной PDF path использует `pdflatex`, TikZ HTML asset path использует `pdflatex --output-format=dvi -> dvisvgm`
 - общий backend runtime helper вынесен в `packages/latex-runtime`
+- TeX runtime размещён только в worker-контуре; API (включая debug compile endpoint) ограничен queue-orchestration и read/apply API
 - unit theory/method compile публикует согласованную пару артефактов `PDF + HTML`
 - API защищается от stale-результатов при apply (сравнение assetKey и active revision)
 - при `failed` статусе job API отдаёт структурированную ошибку компиляции: `code/message + log tail (+logTruncated)`; `logSnippet` сохранён для backward compatibility (`Implemented`)

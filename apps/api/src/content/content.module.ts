@@ -42,6 +42,11 @@ import { UnitPdfPolicyService } from './unit-pdf-policy.service';
     TaskStatementImagePolicyService,
     LatexCompileQueueService,
   ],
-  exports: [ContentService, UnitPdfPolicyService, TaskStatementImagePolicyService],
+  exports: [
+    ContentService,
+    UnitPdfPolicyService,
+    TaskStatementImagePolicyService,
+    LatexCompileQueueService,
+  ],
 })
 export class ContentModule {}

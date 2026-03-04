@@ -40,7 +40,6 @@
       "@nestjs/core",
       "@prisma/engines",
       "argon2",
-      "msgpackr-extract",
       "prisma"
     ],
     "auditConfig": {
@@ -49,7 +48,8 @@
       ]
     },
     "ignoredBuiltDependencies": [
-      "sharp"
+      "sharp",
+      "msgpackr-extract"
     ]
   }
 }

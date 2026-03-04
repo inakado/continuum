@@ -63,6 +63,7 @@
 
 - `POST /teacher/units/:id/latex/compile` → enqueue BullMQ job (`latex.compile`).
 - `POST /teacher/tasks/:taskId/solution/latex/compile` → сохраняет `solutionRichLatex` в active revision и enqueue job.
+- `POST /teacher/debug/latex/compile-and-upload` → enqueue debug job (`target=debug_pdf`) и возвращает `jobId` + `statusUrl`.
 
 ### Job status / apply
 
@@ -77,6 +78,7 @@
 - `POST /teacher/latex/jobs/:jobId/apply`:
   - для unit → пишет `Unit.theoryPdfAssetKey|methodPdfAssetKey`
   - для task solution → пишет `TaskRevision.solutionPdfAssetKey`
+  - для debug jobs endpoint возвращает `LATEX_JOB_APPLY_UNSUPPORTED`.
 - Worker делает auto-apply через internal endpoint:
   - `POST /internal/latex/jobs/:jobId/apply` (`x-internal-token`).
 
@@ -87,6 +89,7 @@
 ### Compile compatibility policy (`Implemented`)
 
 - Backend compile runtime работает на `TeX Live` и считает canonical только `pdflatex`-совместимый source.
+- TeX binaries установлены только в `worker` контейнере; `api` не компилирует LaTeX локально.
 - Если teacher source не содержит полного document envelope, backend оборачивает его repo-canonical `pdflatex` preamble.
 - Если source содержит XeTeX/LuaTeX-only preamble или команды вне текущего runtime scope, compile fail-fast завершается `LATEX_COMPILE_FAILED`.
 - Current denylist включает:
@@ -148,7 +151,7 @@
 - Текущий production path для TikZ assets:
   - `pdflatex --output-format=dvi`
   - `dvisvgm --exact-bbox --font-format=woff`
-- Общий compile/runtime helper для API и worker живёт в `packages/latex-runtime`.
+- Compile/runtime helper живёт в `packages/latex-runtime` и используется в worker compile contour.
 - HTML pipeline считается semantic/rendered representation, а не pixel-perfect эквивалентом PDF:
   - текущий контур сохраняет основной текст, формулы, figure references и image-based TikZ figures;
   - итоговый HTML может типографически отличаться от исходного PDF/LaTeX layout, особенно в figure-heavy theory content и кастомных theorem-like блоках.

@@ -2,8 +2,11 @@ import { ConflictException } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { z } from 'zod';
 import {
+  DEBUG_PDF_TARGET,
   LATEX_MAX_SOURCE_LENGTH,
   PDF_TTL_MAX_SEC,
+  type DebugLatexCompileJobResult,
+  type DebugLatexCompileQueuePayload,
   type LatexCompileJobResult,
   type LatexCompileQueuePayload,
   type TaskSolutionLatexCompileJobResult,
@@ -53,6 +56,11 @@ const TaskSolutionLatexCompileJobPayloadSchema = LatexCompileQueuePayloadBaseSch
   taskRevisionId: z.string().min(1),
 });
 
+const DebugLatexCompileJobPayloadSchema = LatexCompileQueuePayloadBaseSchema.extend({
+  target: z.literal(DEBUG_PDF_TARGET),
+  debugTarget: z.enum(['theory', 'method']),
+});
+
 const UnitLatexCompileJobResultSchema = z.object({
   target: z.enum(['theory', 'method']),
   unitId: z.string().min(1),
@@ -79,6 +87,14 @@ const TaskSolutionLatexCompileJobResultSchema = z.object({
   compileLogSnippet: z.string().optional(),
 });
 
+const DebugLatexCompileJobResultSchema = z.object({
+  target: z.literal(DEBUG_PDF_TARGET),
+  debugTarget: z.enum(['theory', 'method']),
+  assetKey: z.string().min(1),
+  sizeBytes: z.number().positive(),
+  compileLogSnippet: z.string().optional(),
+});
+
 export type TeacherUnitLatexCompileRequest = z.infer<typeof TeacherUnitLatexCompileRequestSchema>;
 export type TeacherTaskSolutionLatexCompileRequest = z.infer<typeof TeacherTaskSolutionLatexCompileRequestSchema>;
 export type TeacherLatexTtlQuery = z.infer<typeof TeacherLatexTtlQuerySchema>;
@@ -94,6 +110,10 @@ export const isTaskSolutionLatexCompileJobPayload = (
   payload: LatexCompileQueuePayload,
 ): payload is TaskSolutionLatexCompileQueuePayload => payload.target === TASK_SOLUTION_PDF_TARGET;
 
+export const isDebugLatexCompileJobPayload = (
+  payload: LatexCompileQueuePayload,
+): payload is DebugLatexCompileQueuePayload => payload.target === DEBUG_PDF_TARGET;
+
 export const isUnitLatexCompileJobResult = (
   result: LatexCompileJobResult,
 ): result is UnitLatexCompileJobResult =>
@@ -105,6 +125,10 @@ export const isUnitLatexCompileJobResult = (
 export const isTaskSolutionLatexCompileJobResult = (
   result: LatexCompileJobResult,
 ): result is TaskSolutionLatexCompileJobResult => result.target === TASK_SOLUTION_PDF_TARGET;
+
+export const isDebugLatexCompileJobResult = (
+  result: LatexCompileJobResult,
+): result is DebugLatexCompileJobResult => result.target === DEBUG_PDF_TARGET;
 
 const throwLatexJobPayloadInvalid = (message: string): never => {
   throw new ConflictException({
@@ -159,6 +183,23 @@ const mapTaskPayloadParseError = (error: z.ZodError): never => {
   return throwLatexJobPayloadInvalid('Job payload is missing or malformed');
 };
 
+const mapDebugPayloadParseError = (error: z.ZodError): never => {
+  const issuePath = firstIssuePath(error);
+  if (issuePath[0] === 'requestedByUserId' || issuePath[0] === 'requestedByRole') {
+    return throwLatexJobPayloadInvalid('Job payload is missing required fields');
+  }
+  if (issuePath[0] === 'ttlSec') {
+    return throwLatexJobPayloadInvalid('Job payload ttlSec is invalid');
+  }
+  if (issuePath[0] === 'tex') {
+    return throwLatexJobPayloadInvalid('Job payload tex is invalid');
+  }
+  if (issuePath[0] === 'debugTarget') {
+    return throwLatexJobPayloadInvalid('Job payload debugTarget is invalid');
+  }
+  return throwLatexJobPayloadInvalid('Job payload is missing or malformed');
+};
+
 const mapUnitResultParseError = (error: z.ZodError): never => {
   const issuePath = firstIssuePath(error);
   if (issuePath[0] === 'assetKey') {
@@ -187,6 +228,20 @@ const mapTaskResultParseError = (error: z.ZodError): never => {
   return throwLatexJobResultInvalid('Job result is missing or malformed');
 };
 
+const mapDebugResultParseError = (error: z.ZodError): never => {
+  const issuePath = firstIssuePath(error);
+  if (issuePath[0] === 'assetKey') {
+    return throwLatexJobResultInvalid('Job result is missing required fields');
+  }
+  if (issuePath[0] === 'sizeBytes') {
+    return throwLatexJobResultInvalid('Job result sizeBytes is invalid');
+  }
+  if (issuePath[0] === 'debugTarget') {
+    return throwLatexJobResultInvalid('Job result debugTarget is invalid');
+  }
+  return throwLatexJobResultInvalid('Job result is missing or malformed');
+};
+
 export const parseLatexCompileJobPayloadOrThrow = (raw: unknown): LatexCompileQueuePayload => {
   if (!raw || typeof raw !== 'object') {
     return throwLatexJobPayloadInvalid('Job payload is missing or malformed');
@@ -208,6 +263,14 @@ export const parseLatexCompileJobPayloadOrThrow = (raw: unknown): LatexCompileQu
       return parsed.data;
     }
     return mapTaskPayloadParseError(parsed.error);
+  }
+
+  if (target === DEBUG_PDF_TARGET) {
+    const parsed = DebugLatexCompileJobPayloadSchema.safeParse(raw);
+    if (parsed.success) {
+      return parsed.data;
+    }
+    return mapDebugPayloadParseError(parsed.error);
   }
 
   return throwLatexJobPayloadInvalid('Job payload target is invalid');
@@ -234,6 +297,14 @@ export const parseLatexCompileJobResultOrThrow = (raw: unknown): LatexCompileJob
       return parsed.data;
     }
     return mapTaskResultParseError(parsed.error);
+  }
+
+  if (target === DEBUG_PDF_TARGET) {
+    const parsed = DebugLatexCompileJobResultSchema.safeParse(raw);
+    if (parsed.success) {
+      return parsed.data;
+    }
+    return mapDebugResultParseError(parsed.error);
   }
 
   return throwLatexJobResultInvalid('Job result target is invalid');

@@ -38,9 +38,6 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: ^3.988.0
         version: 3.988.0
-      '@continuum/latex-runtime':
-        specifier: workspace:*
-        version: link:../../packages/latex-runtime
       '@continuum/shared':
         specifier: workspace:*
         version: link:../../packages/shared

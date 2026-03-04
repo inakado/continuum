@@ -2,6 +2,7 @@ import { Injectable, type OnModuleDestroy } from '@nestjs/common';
 import { type Job, Queue } from 'bullmq';
 import IORedis from 'ioredis';
 import {
+  type DebugLatexCompileQueuePayload,
   LATEX_COMPILE_JOB_NAME,
   LATEX_COMPILE_QUEUE_NAME,
   type TaskSolutionLatexCompileQueuePayload,
@@ -31,6 +32,11 @@ export class LatexCompileQueueService implements OnModuleDestroy {
   }
 
   async enqueueTaskSolutionPdfCompile(payload: TaskSolutionLatexCompileQueuePayload): Promise<string> {
+    const job = await this.queue.add(LATEX_COMPILE_JOB_NAME, payload);
+    return String(job.id);
+  }
+
+  async enqueueDebugPdfCompile(payload: DebugLatexCompileQueuePayload): Promise<string> {
     const job = await this.queue.add(LATEX_COMPILE_JOB_NAME, payload);
     return String(job.id);
   }

@@ -5,15 +5,16 @@ import {
   HttpCode,
   Inject,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
-import { createHash } from 'node:crypto';
+import { type AuthRequest } from './auth/auth.request';
 import { Roles } from './auth/decorators/roles.decorator';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
-import { LatexCompileService } from './infra/latex/latex-compile.service';
-import { ObjectStorageService } from './infra/storage/object-storage.service';
+import { LatexCompileQueueService } from './content/latex-compile-queue.service';
+import { DEBUG_PDF_TARGET } from './content/unit-pdf.constants';
 
 type CompileAndUploadRequest = {
   tex?: unknown;
@@ -28,40 +29,28 @@ type LatexTarget = 'theory' | 'method';
 @Roles(Role.teacher)
 export class DebugLatexController {
   constructor(
-    @Inject(LatexCompileService)
-    private readonly latexCompileService: LatexCompileService,
-    @Inject(ObjectStorageService)
-    private readonly objectStorageService: ObjectStorageService,
+    @Inject(LatexCompileQueueService)
+    private readonly queueService: LatexCompileQueueService,
   ) {}
 
   @Post('compile-and-upload')
-  @HttpCode(200)
-  async compileAndUpload(@Body() payload: CompileAndUploadRequest) {
+  @HttpCode(202)
+  async compileAndUpload(@Req() req: AuthRequest, @Body() payload: CompileAndUploadRequest) {
     const tex = this.requireString(payload.tex, 'tex');
-    const target = this.parseTarget(payload.target);
+    const debugTarget = this.parseTarget(payload.target);
     const ttlSec = this.parseTtl(payload.ttlSec);
 
-    const compile = await this.latexCompileService.compileToPdf(tex);
-
-    const timestamp = new Date().toISOString().replace(/[-:.TZ]/g, '');
-    const hash = createHash('sha256').update(tex).digest('hex').slice(0, 12);
-    const key = `units/debug/${target}/${timestamp}-${hash}.pdf`;
-
-    const uploaded = await this.objectStorageService.putObject({
-      key,
-      contentType: 'application/pdf',
-      body: compile.pdfBytes,
-      cacheControl: 'no-store',
+    const jobId = await this.queueService.enqueueDebugPdfCompile({
+      target: DEBUG_PDF_TARGET,
+      debugTarget,
+      tex,
+      ttlSec,
+      requestedByUserId: req.user.id,
+      requestedByRole: Role.teacher,
     });
-
-    const presignedUrl = await this.objectStorageService.getPresignedGetUrl(key, ttlSec);
-
     return {
-      key,
-      sizeBytes: compile.pdfBytes.length,
-      presignedUrl,
-      ...(uploaded.etag ? { etag: uploaded.etag } : null),
-      ...(compile.logSnippet ? { compileLogSnippet: compile.logSnippet } : null),
+      jobId,
+      statusUrl: `/teacher/latex/jobs/${jobId}`,
     };
   }
 

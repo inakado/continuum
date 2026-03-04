@@ -31,14 +31,15 @@
 - shell-escape запрещён
 - source compatibility: strict `pdflatex`
 - старые артефакты живут до следующей ручной compile
-- API debug compile path сохраняется
+- debug compile path сохраняется как queue-orchestration (`api` не компилирует локально)
+- TeX runtime остаётся только в `worker`, `api` образ без TeX toolchain
 - `tectonic` удаляется полностью, без dual-runtime в production
 
 ## Этапы
 
 1. Вынести shared runtime в `packages/latex-runtime`.
 2. Удалить `tectonic`-specific fallback logic и внедрить strict pdflatex boundary.
-3. Перевести PDF compile в `api` и `worker`.
+3. Перевести PDF compile в worker и убрать локальный compile из `api`.
 4. Перевести TikZ HTML renderer на DVI path.
 5. Обновить Docker/compose/env.
 6. Обновить SoR-доки.
@@ -67,12 +68,16 @@
 - 2026-03-04: `apps/api` и `apps/worker` Docker images переведены на Debian + `TeX Live`; `tectonic` удалён из runtime contour, compose/runbook обновлены.
 - 2026-03-04: dev bootstrap скорректирован на non-interactive `pnpm install --force`, чтобы container startup не зависал на stale workspace volumes после добавления `packages/latex-runtime`.
 - 2026-03-04: миграционный contour поднят локально; `api /health = 200`, `worker` стартует на новом runtime и принимает compile jobs.
+- 2026-03-05: debug compile endpoint (`POST /teacher/debug/latex/compile-and-upload`) переведён на постановку job в `latex.compile`; статус/debug preview читается через `GET /teacher/latex/jobs/:jobId`.
+- 2026-03-05: из `api` удалён локальный compile service/module; apply endpoint явно отклоняет debug jobs (`LATEX_JOB_APPLY_UNSUPPORTED`), а worker пропускает auto-apply для debug target.
+- 2026-03-05: `apps/api` Dockerfile очищен от TeX runtime; TeX binaries оставлены только в `worker`.
 
 ## Текущее состояние
 
 - Backend runtime migration функционально внедрена:
-  - `tectonic` удалён из `api` и `worker`;
-  - compile policy и Docker contour работают через `TeX Live + pdflatex`;
+  - `tectonic` удалён из runtime contour;
+  - compile policy работает через `TeX Live + pdflatex`;
+  - TeX runtime размещён только в `worker`; `api` работает как queue/API-orchestration;
   - TikZ HTML assets собираются через DVI path;
   - HTTP contracts и frontend transport shape не менялись.
 - На реальном teacher corpus migration уже выявила и закрыла несколько runtime/adapter defects:

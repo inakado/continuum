@@ -2,7 +2,9 @@ import { randomBytes } from 'node:crypto';
 
 export type UnitPdfTarget = 'theory' | 'method';
 export type TaskSolutionPdfTarget = 'task_solution';
-export type LatexCompileTarget = UnitPdfTarget | TaskSolutionPdfTarget;
+export type DebugPdfTarget = 'debug_pdf';
+export type LatexCompileTarget = UnitPdfTarget | TaskSolutionPdfTarget | DebugPdfTarget;
+export type DebugPdfScope = UnitPdfTarget;
 export type UnitHtmlAssetRef = {
   placeholder: string;
   assetKey: string;
@@ -11,6 +13,7 @@ export type UnitHtmlAssetRef = {
 
 export const UNIT_PDF_TARGETS: UnitPdfTarget[] = ['theory', 'method'];
 export const TASK_SOLUTION_PDF_TARGET: TaskSolutionPdfTarget = 'task_solution';
+export const DEBUG_PDF_TARGET: DebugPdfTarget = 'debug_pdf';
 
 export const STUDENT_PDF_TTL_DEFAULT_SEC = 180;
 export const TEACHER_PDF_TTL_DEFAULT_SEC = 600;
@@ -38,9 +41,15 @@ export type TaskSolutionLatexCompileQueuePayload = LatexCompileQueuePayloadBase 
   target: TaskSolutionPdfTarget;
 };
 
+export type DebugLatexCompileQueuePayload = LatexCompileQueuePayloadBase & {
+  target: DebugPdfTarget;
+  debugTarget: DebugPdfScope;
+};
+
 export type LatexCompileQueuePayload =
   | UnitLatexCompileQueuePayload
-  | TaskSolutionLatexCompileQueuePayload;
+  | TaskSolutionLatexCompileQueuePayload
+  | DebugLatexCompileQueuePayload;
 
 export type LatexCompileJobError = {
   code: string;
@@ -72,7 +81,15 @@ export type TaskSolutionLatexCompileJobResult = LatexCompileJobResultBase & {
   target: TaskSolutionPdfTarget;
 };
 
-export type LatexCompileJobResult = UnitLatexCompileJobResult | TaskSolutionLatexCompileJobResult;
+export type DebugLatexCompileJobResult = LatexCompileJobResultBase & {
+  target: DebugPdfTarget;
+  debugTarget: DebugPdfScope;
+};
+
+export type LatexCompileJobResult =
+  | UnitLatexCompileJobResult
+  | TaskSolutionLatexCompileJobResult
+  | DebugLatexCompileJobResult;
 
 export const buildUnitPdfKey = (unitId: string, target: UnitPdfTarget, at = new Date()): string => {
   const timestampMs = at.getTime();
@@ -94,6 +111,15 @@ export const buildTaskSolutionPdfKey = (
   const timestampMs = at.getTime();
   const suffix = randomBytes(4).toString('hex');
   return `tasks/${taskId}/revisions/${taskRevisionId}/solution/${timestampMs}-${suffix}.pdf`;
+};
+
+export const buildDebugPdfKey = (
+  target: DebugPdfScope,
+  at = new Date(),
+): string => {
+  const timestampMs = at.getTime();
+  const suffix = randomBytes(4).toString('hex');
+  return `units/debug/${target}/${timestampMs}-${suffix}.pdf`;
 };
 
 export const extractVersionedAssetKeyTimestampMs = (key: string): number | null => {

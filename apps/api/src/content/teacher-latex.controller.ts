@@ -29,6 +29,8 @@ import { EventsLogService } from '../events/events-log.service';
 import { ObjectStorageService } from '../infra/storage/object-storage.service';
 import { ContentService } from './content.service';
 import {
+  isDebugLatexCompileJobPayload,
+  isDebugLatexCompileJobResult,
   isTaskSolutionLatexCompileJobPayload,
   isTaskSolutionLatexCompileJobResult,
   isUnitLatexCompileJobPayload,
@@ -349,6 +351,13 @@ export class TeacherLatexController {
         target: payload.target,
         assetKey: result.assetKey,
       };
+    }
+
+    if (isDebugLatexCompileJobPayload(payload) && isDebugLatexCompileJobResult(result)) {
+      throw new ConflictException({
+        code: 'LATEX_JOB_APPLY_UNSUPPORTED',
+        message: 'Debug compile jobs cannot be applied',
+      });
     }
 
     throw new ConflictException({

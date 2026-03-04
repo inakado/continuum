@@ -1,6 +1,9 @@
 import { type Job } from 'bullmq';
 import {
+  DEBUG_PDF_TARGET,
   LATEX_COMPILE_JOB_NAME,
+  type DebugLatexCompileJobResult,
+  type DebugLatexCompileQueuePayload,
   type LatexCompileJobResult,
   type LatexCompileQueuePayload,
   TASK_SOLUTION_PDF_TARGET,
@@ -10,6 +13,7 @@ import {
   type UnitLatexCompileQueuePayload,
   type UnitPdfTarget,
   buildUnitHtmlKey,
+  buildDebugPdfKey,
   buildTaskSolutionPdfKey,
   buildUnitPdfKey,
 } from './latex-queue.contract';
@@ -20,6 +24,16 @@ import { renderLatexToHtml } from '../latex-html/render-latex-to-html';
 
 const ensureUnitTarget = (value: unknown): value is UnitPdfTarget =>
   value === 'theory' || value === 'method';
+
+const describePayloadScope = (payload: LatexCompileQueuePayload): string => {
+  if ('unitId' in payload) {
+    return `unitId=${payload.unitId}`;
+  }
+  if ('taskId' in payload) {
+    return `taskId=${payload.taskId}`;
+  }
+  return `debugTarget=${payload.debugTarget}`;
+};
 
 const parsePayload = (raw: unknown): LatexCompileQueuePayload => {
   if (!raw || typeof raw !== 'object') {
@@ -101,6 +115,26 @@ const parsePayload = (raw: unknown): LatexCompileQueuePayload => {
     } as TaskSolutionLatexCompileQueuePayload;
   }
 
+  if (target === DEBUG_PDF_TARGET) {
+    const debugTarget = payload.debugTarget;
+    if (!ensureUnitTarget(debugTarget)) {
+      throw new Error(
+        JSON.stringify({
+          code: 'LATEX_JOB_PAYLOAD_INVALID',
+          message: 'Compile job payload debugTarget is invalid',
+        }),
+      );
+    }
+    return {
+      tex,
+      requestedByUserId,
+      requestedByRole,
+      ttlSec,
+      target,
+      debugTarget,
+    } as DebugLatexCompileQueuePayload;
+  }
+
   throw new Error(
     JSON.stringify({
       code: 'LATEX_JOB_PAYLOAD_INVALID',
@@ -167,15 +201,11 @@ export const createLatexCompileProcessor = (storage: WorkerObjectStorageService)
 
     try {
       const payload = parsePayload(job.data);
-      console.log(
-        `[worker][latex] start jobId=${job.id} target=${payload.target}${
-          'unitId' in payload ? ` unitId=${payload.unitId}` : ` taskId=${payload.taskId}`
-        }`,
-      );
+      console.log(`[worker][latex] start jobId=${job.id} target=${payload.target} ${describePayloadScope(payload)}`);
 
       const compiled = await compileLatexToPdf(payload.tex);
       const renderedHtml =
-        payload.target === TASK_SOLUTION_PDF_TARGET
+        payload.target === TASK_SOLUTION_PDF_TARGET || payload.target === DEBUG_PDF_TARGET
           ? null
           : await renderLatexToHtml(payload.tex, storage);
 
@@ -183,7 +213,9 @@ export const createLatexCompileProcessor = (storage: WorkerObjectStorageService)
       const pdfKey =
         payload.target === TASK_SOLUTION_PDF_TARGET
           ? buildTaskSolutionPdfKey(payload.taskId, payload.taskRevisionId, renderAt)
-          : buildUnitPdfKey(payload.unitId, payload.target, renderAt);
+          : payload.target === DEBUG_PDF_TARGET
+            ? buildDebugPdfKey(payload.debugTarget, renderAt)
+            : buildUnitPdfKey(payload.unitId, payload.target, renderAt);
       await storage.putObject({
         key: pdfKey,
         contentType: 'application/pdf',
@@ -193,7 +225,7 @@ export const createLatexCompileProcessor = (storage: WorkerObjectStorageService)
       uploadedVersionedKeys.push(pdfKey);
 
       const htmlKey =
-        payload.target === TASK_SOLUTION_PDF_TARGET
+        payload.target === TASK_SOLUTION_PDF_TARGET || payload.target === DEBUG_PDF_TARGET
           ? null
           : buildUnitHtmlKey(payload.unitId, payload.target, renderAt);
       if (htmlKey && renderedHtml) {
@@ -234,6 +266,11 @@ export const createLatexCompileProcessor = (storage: WorkerObjectStorageService)
               taskId: payload.taskId,
               taskRevisionId: payload.taskRevisionId,
             } as TaskSolutionLatexCompileJobResult)
+          : payload.target === DEBUG_PDF_TARGET
+            ? ({
+                ...baseResult,
+                debugTarget: payload.debugTarget,
+              } as DebugLatexCompileJobResult)
           : ({
               ...baseResult,
               unitId: payload.unitId,
@@ -242,28 +279,26 @@ export const createLatexCompileProcessor = (storage: WorkerObjectStorageService)
               htmlAssets: renderedHtml?.assetRefs ?? [],
             } as UnitLatexCompileJobResult);
 
-      await job.updateProgress({ autoApplyResult: result });
-      const applyResult = await applyUnitPdfKeyViaApi(jobId, result);
-      if (!applyResult.ok) {
-        throw new Error(
-          JSON.stringify({
-            code: 'LATEX_APPLY_FAILED',
-            message: 'Internal apply endpoint returned an invalid response',
-          }),
+      if (payload.target !== DEBUG_PDF_TARGET) {
+        await job.updateProgress({ autoApplyResult: result });
+        const applyResult = await applyUnitPdfKeyViaApi(jobId, result);
+        if (!applyResult.ok) {
+          throw new Error(
+            JSON.stringify({
+              code: 'LATEX_APPLY_FAILED',
+              message: 'Internal apply endpoint returned an invalid response',
+            }),
+          );
+        }
+        console.log(
+          `[worker][latex] apply jobId=${job.id} target=${payload.target} applied=${String(
+            applyResult.applied,
+          )}${applyResult.reason ? ` reason=${applyResult.reason}` : ''} ${describePayloadScope(payload)}`,
         );
       }
-      console.log(
-        `[worker][latex] apply jobId=${job.id} target=${payload.target} applied=${String(
-          applyResult.applied,
-        )}${applyResult.reason ? ` reason=${applyResult.reason}` : ''}${
-          'unitId' in payload ? ` unitId=${payload.unitId}` : ` taskId=${payload.taskId}`
-        }`,
-      );
 
       console.log(
-        `[worker][latex] success jobId=${job.id} target=${payload.target} bytes=${result.sizeBytes}${
-          'unitId' in payload ? ` unitId=${payload.unitId}` : ` taskId=${payload.taskId}`
-        }`,
+        `[worker][latex] success jobId=${job.id} target=${payload.target} bytes=${result.sizeBytes} ${describePayloadScope(payload)}`,
       );
       return result;
     } catch (error) {
