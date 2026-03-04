@@ -5,6 +5,8 @@ export const learningPhotoQueryKeys = {
     ["learning-photo", "student", "unit", unitId] as const,
   studentUnitPdfPreview: (unitId: string, target: "theory" | "method") =>
     ["learning-photo", "student", "unit", unitId, "pdf-preview", target] as const,
+  studentUnitRenderedContent: (unitId: string, target: "theory" | "method") =>
+    ["learning-photo", "student", "unit", unitId, "rendered-content", target] as const,
   studentTaskSolutionPdfPreview: (taskId: string) =>
     ["learning-photo", "student", "task", taskId, "solution-pdf"] as const,
   studentTaskStatementImagePreview: (taskId: string) =>
@@ -34,6 +36,8 @@ export const contentQueryKeys = {
   teacherSectionMeta: (sectionId: string) =>
     ["content", "teacher", "section-meta", sectionId] as const,
   teacherUnit: (unitId: string) => ["content", "teacher", "unit", unitId] as const,
+  teacherUnitRenderedContent: (unitId: string, target: "theory" | "method") =>
+    ["content", "teacher", "unit", unitId, "rendered-content", target] as const,
   teacherTaskStatementImagePreview: (taskId: string, assetKey: string) =>
     ["content", "teacher", "task", taskId, "statement-image", assetKey] as const,
   teacherSectionGraph: (sectionId: string) =>

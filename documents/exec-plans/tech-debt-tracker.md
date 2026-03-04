@@ -40,3 +40,12 @@
 - Приоритет: medium
 - Статус: open
 - План устранения: спроектировать единый asset model только если появится реальная потребность в обобщении.
+
+### TD-004 — TikZ vector accents in HTML SVG path
+
+- Область: Rendering / Content / Web
+- Описание: текущий `tectonic --outfmt xdv -> dvisvgm --font-format=woff` path для TikZ figure assets сохраняет рабочий SVG-контур, но math accent-команды вида `\vec{...}` в TikZ labels браузер рендерит с некорректным положением accent glyph.
+- Влияние: часть физических обозначений в HTML preview/student view выглядит типографически неверно, хотя общий figure render остаётся рабочим.
+- Приоритет: high
+- Статус: open
+- План устранения: отдельно исследовать classic DVI renderer для figure-only path; если он не даст стабильный SVG для кириллицы и math accents, добавить selective raster fallback для TikZ-блоков с accent-макросами.

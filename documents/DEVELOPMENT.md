@@ -191,6 +191,24 @@ Auth smoke проверяет:
 - **Фикс:** проверить alias/path mapping в toolchain и при необходимости пересобрать shared.
 - **Проверка:** `pnpm typecheck`, `pnpm --filter @continuum/api test`, `pnpm --filter web test`
 
+- **Симптом:** Docker `api` отвечает `500` с ошибкой вида `Cannot read properties of undefined (reading 'parse')` сразу после изменения shared-контрактов.
+- **Команда:** `GET /units/:id/rendered-content`, другие endpoints с runtime schema parsing
+- **Причина:** контейнер использует устаревший `/app/packages/shared/dist`, если dev startup пересобирал shared только при отсутствии файлов.
+- **Фикс:** пересобрать shared внутри контейнеров и перезапустить backend:
+  - `docker compose exec -T api sh -lc "pnpm --filter @continuum/api exec tsc -p /app/packages/shared/tsconfig.json"`
+  - `docker compose exec -T worker sh -lc "pnpm --filter @continuum/worker exec tsc -p /app/packages/shared/tsconfig.json"`
+  - `docker compose restart api worker`
+- **Проверка:** endpoint снова отвечает `200`, а dev startup всегда пересобирает `packages/shared`
+
+- **Симптом:** первый LaTeX compile после rebuild/recreate `worker` падает по timeout или очень долго скачивает runtime bundle/font data.
+- **Команда:** compile из teacher dashboard или `docker compose logs --no-color --tail=120 worker`
+- **Причина:** cold `Tectonic` cache; runtime bundle и format files ещё не прогреты.
+- **Фикс:**
+  - использовать persistent volume `/root/.cache/Tectonic` в compose-контуре;
+  - при необходимости повторить compile после прогрева cache;
+  - для длинных compile держать повышенный `LATEX_COMPILE_TIMEOUT_MS`.
+- **Проверка:** последующие compile заметно быстрее и не повторяют полный bootstrap download
+
 - **Симптом:** агент пытается запустить `CI=true pnpm install --frozen-lockfile` в sandbox и получает сетевые ошибки.
 - **Команда:** `CI=true pnpm install --frozen-lockfile`
 - **Причина:** для агентской sandbox-сессии эта команда запрещена policy и нестабильна по сети.

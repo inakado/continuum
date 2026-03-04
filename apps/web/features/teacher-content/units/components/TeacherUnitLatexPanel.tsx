@@ -1,3 +1,5 @@
+"use client";
+
 import dynamic from "next/dynamic";
 import {
   type CSSProperties,
@@ -5,11 +7,18 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
 } from "react";
 import type CodeMirrorComponent from "@uiw/react-codemirror";
 import Button from "@/components/ui/Button";
+import Tabs from "@/components/ui/Tabs";
 import type PdfCanvasPreviewComponent from "@/components/PdfCanvasPreview";
+import type { TeacherUnitRenderedContentResponse } from "@/lib/api/teacher";
 import type { CompileState } from "../hooks/use-teacher-unit-latex-compile";
+import { typesetMathInElement } from "../../../student-content/units/mathjax-helper";
 import styles from "../teacher-unit-detail.module.css";
 
 type CodeMirrorProps = ComponentProps<typeof CodeMirrorComponent>;
@@ -45,7 +54,13 @@ type Props = {
   previewUrl: string | null;
   refreshKey?: string;
   getFreshUrl: () => Promise<string | null>;
+  renderedContent: TeacherUnitRenderedContentResponse | null;
+  renderedContentLoading: boolean;
+  renderedContentError: string | null;
+  refreshRenderedContent: () => Promise<TeacherUnitRenderedContentResponse | null>;
 };
+
+type PreviewMode = "pdf" | "html";
 
 export function TeacherUnitLatexPanel({
   title,
@@ -67,7 +82,35 @@ export function TeacherUnitLatexPanel({
   previewUrl,
   refreshKey,
   getFreshUrl,
+  renderedContent,
+  renderedContentLoading,
+  renderedContentError,
+  refreshRenderedContent,
 }: Props) {
+  const [previewMode, setPreviewMode] = useState<PreviewMode>("pdf");
+  const htmlContentRef = useRef<HTMLDivElement | null>(null);
+  const previewTabs = useMemo(
+    () => [
+      { key: "pdf" as const, label: "PDF" },
+      { key: "html" as const, label: "HTML" },
+    ],
+    [],
+  );
+
+  useEffect(() => {
+    if (previewMode !== "html") return;
+    void refreshRenderedContent().catch(() => {
+      // HTML preview остаётся в последнем успешно загруженном состоянии.
+    });
+  }, [previewMode, refreshRenderedContent, renderedContent?.htmlKey, renderedContent?.pdfKey]);
+
+  useEffect(() => {
+    if (previewMode !== "html" || !renderedContent?.html || !htmlContentRef.current) return;
+    void typesetMathInElement(htmlContentRef.current).catch(() => {
+      // Teacher preview остаётся читаемым и без typesetting.
+    });
+  }, [previewMode, renderedContent?.html]);
+
   return (
     <div
       ref={editorGridRef}
@@ -100,8 +143,17 @@ export function TeacherUnitLatexPanel({
         <div className={styles.kicker}>Предпросмотр</div>
         <div className={styles.previewActions}>
           <Button onClick={onCompile} disabled={compileState.loading}>
-            {compileState.loading ? "Компиляция..." : "Скомпилировать PDF"}
+            {compileState.loading ? "Компиляция..." : "Скомпилировать HTML + PDF"}
           </Button>
+          <div className={styles.previewModeTabsWrap}>
+            <Tabs
+              tabs={previewTabs}
+              active={previewMode}
+              onChange={setPreviewMode}
+              ariaLabel={`Режим предпросмотра для раздела ${title}`}
+              className={styles.previewModeTabs}
+            />
+          </div>
         </div>
         {compileState.error ? (
           <div className={styles.compileError} role="status" aria-live="polite">
@@ -115,21 +167,44 @@ export function TeacherUnitLatexPanel({
         ) : null}
         {compileState.updatedAt ? (
           <div className={styles.compileMeta}>
-            PDF обновлён: {new Date(compileState.updatedAt).toLocaleString("ru-RU")}
+            HTML + PDF обновлены: {new Date(compileState.updatedAt).toLocaleString("ru-RU")}
           </div>
         ) : null}
         <div className={styles.previewViewport}>
-          {previewUrl ? (
-            <PdfCanvasPreview
-              className={styles.previewFrame}
-              url={previewUrl}
-              refreshKey={refreshKey}
-              getFreshUrl={getFreshUrl}
-              scrollFeel="inertial-heavy"
-              freezeWidth
-            />
+          {previewMode === "pdf" ? (
+            previewUrl ? (
+              <PdfCanvasPreview
+                className={styles.previewFrame}
+                url={previewUrl}
+                refreshKey={refreshKey}
+                getFreshUrl={getFreshUrl}
+                scrollFeel="inertial-heavy"
+                freezeWidth
+              />
+            ) : (
+              <div className={styles.previewStub}>Предпросмотр PDF появится здесь после сборки.</div>
+            )
           ) : (
-            <div className={styles.previewStub}>Предпросмотр PDF появится здесь после сборки.</div>
+            <div className={styles.previewHtmlFrame}>
+              {renderedContentError ? (
+                <div className={styles.compileError} role="status" aria-live="polite">
+                  <span>{renderedContentError}</span>
+                </div>
+              ) : null}
+              {renderedContent?.html ? (
+                <div
+                  ref={htmlContentRef}
+                  className={styles.previewHtmlContent}
+                  dangerouslySetInnerHTML={{ __html: renderedContent.html }}
+                />
+              ) : (
+                <div className={styles.previewStub}>
+                  {renderedContentLoading
+                    ? "Загрузка HTML..."
+                    : "Предпросмотр HTML появится здесь после успешной сборки."}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

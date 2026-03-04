@@ -1,4 +1,4 @@
-FROM node:20-alpine AS base
+FROM node:20-bookworm-slim AS base
 
 WORKDIR /app
 ENV BACKEND_BUILD_IN_DOCKER=1
@@ -7,13 +7,23 @@ RUN corepack enable
 
 ARG TECTONIC_VERSION=0.15.0
 RUN set -eux; \
-    apk add --no-cache curl ca-certificates tar fontconfig ttf-dejavu font-noto; \
-    curl -fsSL -o /tmp/tectonic.tar.gz "https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%40${TECTONIC_VERSION}/tectonic-${TECTONIC_VERSION}-x86_64-unknown-linux-musl.tar.gz"; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends curl ca-certificates tar fontconfig fonts-dejavu fonts-noto pandoc dvisvgm ghostscript; \
+    rm -rf /var/lib/apt/lists/*; \
+    arch="$(dpkg --print-architecture)"; \
+    case "$arch" in \
+      amd64) tectonic_target="x86_64-unknown-linux-gnu" ;; \
+      arm64) tectonic_target="aarch64-unknown-linux-musl" ;; \
+      *) echo "Unsupported architecture: $arch" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL -o /tmp/tectonic.tar.gz "https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%40${TECTONIC_VERSION}/tectonic-${TECTONIC_VERSION}-${tectonic_target}.tar.gz"; \
     tar -xzf /tmp/tectonic.tar.gz -C /tmp; \
     install -m 0755 /tmp/tectonic /usr/local/bin/tectonic; \
     rm -f /tmp/tectonic.tar.gz /tmp/tectonic; \
     fc-cache -f; \
-    tectonic --version
+    tectonic --version; \
+    pandoc --version; \
+    dvisvgm --version
 
 FROM base AS deps
 

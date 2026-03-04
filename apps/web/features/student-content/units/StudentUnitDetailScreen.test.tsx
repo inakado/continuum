@@ -95,6 +95,27 @@ vi.mock("./components/StudentUnitPdfPanel", () => ({
   ),
 }));
 
+vi.mock("./components/StudentUnitHtmlPanel", () => ({
+  StudentUnitHtmlPanel: ({
+    content,
+    previewError,
+    previewLoading,
+    unavailableText,
+  }: {
+    content: { html: string | null; pdfUrl: string | null };
+    previewError?: string | null;
+    previewLoading?: boolean;
+    unavailableText: string;
+  }) => (
+    <div data-testid="student-unit-html-panel">
+      <div>{content.html ?? "no-html"}</div>
+      <div>{content.pdfUrl ?? "no-pdf"}</div>
+      <div>{previewError ?? unavailableText}</div>
+      <div>{previewLoading ? "loading" : "ready"}</div>
+    </div>
+  ),
+}));
+
 vi.mock("./components/StudentTaskTabs", () => ({
   StudentTaskTabs: ({
     tasks,
@@ -157,8 +178,8 @@ vi.mock("./components/StudentTaskMediaPreview", () => ({
   ),
 }));
 
-vi.mock("./hooks/use-student-unit-pdf-preview", () => ({
-  useStudentUnitPdfPreview: vi.fn(),
+vi.mock("./hooks/use-student-unit-rendered-content", () => ({
+  useStudentUnitRenderedContent: vi.fn(),
 }));
 
 vi.mock("./hooks/use-student-task-navigation", () => ({
@@ -192,7 +213,7 @@ import { useStudentTaskAttempt } from "./hooks/use-student-task-attempt";
 import { useStudentPhotoSubmit } from "./hooks/use-student-photo-submit";
 import { useStudentTaskMediaPreview } from "./hooks/use-student-task-media-preview";
 import { useStudentTaskNavigation } from "./hooks/use-student-task-navigation";
-import { useStudentUnitPdfPreview } from "./hooks/use-student-unit-pdf-preview";
+import { useStudentUnitRenderedContent } from "./hooks/use-student-unit-rendered-content";
 
 const buildTask = (overrides: Partial<Task> = {}): Task => ({
   id: "task-1",
@@ -258,17 +279,32 @@ describe("StudentUnitDetailScreen", () => {
     vi.mocked(useRouter).mockReturnValue({ push: pushMock, back: backMock } as never);
     vi.mocked(studentApi.getUnit).mockReset();
 
-    vi.mocked(useStudentUnitPdfPreview).mockReturnValue({
-      theoryPreviewError: null,
-      theoryPreviewUrl: "https://cdn.local/theory.pdf",
-      theoryPreviewLoading: false,
-      methodPreviewError: null,
-      methodPreviewUrl: "https://cdn.local/method.pdf",
-      methodPreviewLoading: false,
-      refreshTheoryPreviewUrl: vi.fn(),
-      refreshMethodPreviewUrl: vi.fn(),
+    vi.mocked(useStudentUnitRenderedContent).mockReturnValue({
+      theoryContent: {
+        ok: true,
+        target: "theory",
+        html: null,
+        htmlKey: null,
+        pdfUrl: "https://cdn.local/theory.pdf",
+        pdfKey: "theory-key",
+        expiresInSec: 180,
+      },
+      theoryLoading: false,
+      theoryError: null,
+      refreshTheoryContent: vi.fn(),
+      methodContent: {
+        ok: true,
+        target: "method",
+        html: null,
+        htmlKey: null,
+        pdfUrl: "https://cdn.local/method.pdf",
+        pdfKey: "method-key",
+        expiresInSec: 180,
+      },
+      methodLoading: false,
+      methodError: null,
+      refreshMethodContent: vi.fn(),
       pdfZoomByTarget: { theory: 1, method: 1 },
-      getDefaultPdfZoom: () => 0.5,
       setPdfZoom: vi.fn(),
     });
 
@@ -375,6 +411,45 @@ describe("StudentUnitDetailScreen", () => {
 
     expect(screen.queryByLabelText("Прогресс юнита")).not.toBeInTheDocument();
     expect(screen.getByTestId("student-unit-pdf-panel")).toHaveTextContent("https://cdn.local/theory.pdf");
+  });
+
+  it("renders HTML panel when rendered content is available", async () => {
+    const unit = buildUnit({ theoryHtmlAssetKey: "theory-html-key" });
+    vi.mocked(studentApi.getUnit).mockResolvedValueOnce(unit);
+    vi.mocked(useStudentUnitRenderedContent).mockReturnValue({
+      theoryContent: {
+        ok: true,
+        target: "theory",
+        html: "<h1>Теория</h1><p>HTML</p>",
+        htmlKey: "theory-html-key",
+        pdfUrl: "https://cdn.local/theory.pdf",
+        pdfKey: "theory-key",
+        expiresInSec: 180,
+      },
+      theoryLoading: false,
+      theoryError: null,
+      refreshTheoryContent: vi.fn(),
+      methodContent: null,
+      methodLoading: false,
+      methodError: null,
+      refreshMethodContent: vi.fn(),
+      pdfZoomByTarget: { theory: 1, method: 1 },
+      setPdfZoom: vi.fn(),
+    });
+    vi.mocked(useStudentTaskNavigation).mockReturnValue({
+      activeTaskId: unit.tasks[0]?.id ?? null,
+      activeTaskIndex: 0,
+      activeTask: unit.tasks[0] ?? buildTask(),
+      setActiveTaskId: setActiveTaskIdMock,
+    });
+
+    renderWithQueryClient(<StudentUnitDetailScreen unitId="unit-1" />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "Теория" }));
+
+    expect(screen.getByTestId("student-unit-html-panel")).toHaveTextContent("<h1>Теория</h1><p>HTML</p>");
+    expect(screen.queryByTestId("student-unit-pdf-panel")).not.toBeInTheDocument();
   });
 
   it("renders credited non-photo task actions and solution toggle", async () => {

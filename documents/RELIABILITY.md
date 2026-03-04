@@ -13,15 +13,17 @@
 ### API ↔ Worker: LaTeX pipeline
 
 - API ставит LaTeX compile jobs в BullMQ queue `latex.compile`.
-- Worker (BullMQ consumer) компилирует LaTeX через `tectonic`, загружает PDF в object storage и вызывает internal apply endpoint в API.
+- Worker (BullMQ consumer) компилирует LaTeX через `tectonic`, для unit theory/method дополнительно собирает HTML/SVG, загружает артефакты в object storage и вызывает internal apply endpoint в API.
 - Auto-apply результата worker — default mode (worker всегда пытается применить результат; API защищает от “stale”).
 
 ### Timeouts / retries
 
-- LaTeX compile timeout: `LATEX_COMPILE_TIMEOUT_MS` (default `120000`).
+- LaTeX compile timeout: `LATEX_COMPILE_TIMEOUT_MS` (default `300000` в dev/prod compose).
 - LaTeX compile log tail limit: `LATEX_COMPILE_LOG_TAIL_BYTES` (default `256000`, max `256000`).
+- HTML render в worker зависит от runtime binary: `pandoc`, `dvisvgm`, `ghostscript`.
 - Internal apply retry в worker: до 8 повторов (условный retry на `409` с `code=LATEX_JOB_RESULT_INVALID`).
 - HTTP keep-alive в API: `keepAliveTimeout = 65s` (уменьшает лишние disconnects за прокси).
+- Tectonic cache в compose-контуре вынесен в persistent worker volume, чтобы cold-start compile не скачивал runtime bundle заново после каждого restart.
 
 ### Queue hygiene
 

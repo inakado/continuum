@@ -152,6 +152,17 @@ export class ObjectStorageService {
     }
   }
 
+  async getObjectText(key: string): Promise<string> {
+    const object = await this.getObjectStream(key);
+    const chunks: Buffer[] = [];
+    for await (const chunk of object.stream as AsyncIterable<Buffer | Uint8Array | string>) {
+      chunks.push(
+        typeof chunk === 'string' ? Buffer.from(chunk) : Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk),
+      );
+    }
+    return Buffer.concat(chunks).toString('utf8');
+  }
+
   async getObjectMeta(key: string): Promise<ObjectMetaResult> {
     try {
       const output = await this.s3.send(

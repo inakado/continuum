@@ -1,4 +1,5 @@
 import {
+  StudentUnitRenderedContentResponseSchema,
   TeacherCourseDetailResponseSchema,
   TeacherCourseListResponseSchema,
   TeacherCourseSchema,
@@ -49,6 +50,7 @@ import {
   type TeacherStudentProfileResponse as SharedTeacherStudentProfileResponse,
   type TeacherStudentSummary as SharedTeacherStudentSummary,
   type TeacherStudentsListQuery as SharedTeacherStudentsListQuery,
+  type StudentUnitRenderedContentResponse as SharedStudentUnitRenderedContentResponse,
   type TeacherSummary as SharedTeacherSummary,
   type TeacherTransferStudentRequest as SharedTeacherTransferStudentRequest,
   type TeacherUnit as SharedTeacherUnit,
@@ -282,6 +284,8 @@ export type UnitPdfPresignedResponse = {
   expiresInSec: number;
   url: string | null;
 };
+
+export type TeacherUnitRenderedContentResponse = SharedStudentUnitRenderedContentResponse;
 
 export type TaskSolutionPdfPresignedResponse = {
   ok: true;
@@ -530,6 +534,14 @@ export const teacherApi = {
       ttlSec: String(ttlSec),
     });
     return apiRequest<UnitPdfPresignedResponse>(`/teacher/units/${id}/pdf-presign?${search.toString()}`);
+  },
+
+  getUnitRenderedContent(id: string, target: "theory" | "method", ttlSec = 600) {
+    const search = new URLSearchParams({ target, ttlSec: String(ttlSec) });
+    return apiRequestParsed(
+      `/teacher/units/${id}/rendered-content?${search.toString()}`,
+      StudentUnitRenderedContentResponseSchema,
+    );
   },
 
   getTaskSolutionPdfPresignedUrl(taskId: string, ttlSec = 600) {

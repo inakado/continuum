@@ -117,6 +117,19 @@ vi.mock("./hooks/use-teacher-unit-latex-compile", () => ({
   }),
 }));
 
+vi.mock("./hooks/use-teacher-unit-rendered-content", () => ({
+  useTeacherUnitRenderedContent: () => ({
+    theoryContent: null,
+    theoryLoading: false,
+    theoryError: null,
+    refreshTheoryContent: vi.fn(),
+    methodContent: null,
+    methodLoading: false,
+    methodError: null,
+    refreshMethodContent: vi.fn(),
+  }),
+}));
+
 vi.mock("./hooks/use-teacher-task-statement-image", () => ({
   useTeacherTaskStatementImage: () => ({
     taskStatementImageInputRef: { current: null },
@@ -244,8 +257,10 @@ const buildUnit = (overrides: Partial<UnitWithTasks> = {}): UnitWithTasks => ({
   updatedAt: "2026-01-02T00:00:00.000Z",
   theoryRichLatex: "theory",
   theoryPdfAssetKey: null,
+  theoryHtmlAssetKey: null,
   methodRichLatex: "method",
   methodPdfAssetKey: null,
+  methodHtmlAssetKey: null,
   videosJson: [],
   attachmentsJson: [],
   section: {
@@ -302,13 +317,13 @@ describe("TeacherUnitDetailScreen", () => {
 
   it("falls back to section meta when unit payload has no embedded section", async () => {
     vi.mocked(teacherApi.getUnit).mockResolvedValueOnce(buildUnit({ section: null }));
-    vi.mocked(teacherApi.getSectionMeta).mockResolvedValueOnce({
+    vi.mocked(teacherApi.getSectionMeta).mockResolvedValue({
       id: "section-1",
       courseId: "course-1",
       title: "Раздел 1",
       status: "draft",
     } as never);
-    vi.mocked(teacherApi.getCourse).mockResolvedValueOnce({
+    vi.mocked(teacherApi.getCourse).mockResolvedValue({
       id: "course-1",
       title: "Алгебра",
       description: null,
@@ -320,10 +335,13 @@ describe("TeacherUnitDetailScreen", () => {
 
     renderWithQueryClient(<TeacherUnitDetailScreen unitId="unit-1" />);
 
-    expect(await screen.findByRole("button", { name: "Алгебра" })).toBeInTheDocument();
     await waitFor(() => {
       expect(teacherApi.getSectionMeta).toHaveBeenCalledWith("section-1");
     });
+    await waitFor(() => {
+      expect(teacherApi.getCourse).toHaveBeenCalledWith("course-1");
+    });
+    expect(await screen.findByRole("button", { name: "Алгебра" })).toBeInTheDocument();
   });
 
   it("publishes unit from header toggle", async () => {

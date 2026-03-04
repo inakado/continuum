@@ -34,7 +34,7 @@ services:
       - .:/app
       - api_node_modules:/app/node_modules
       - api_app_node_modules:/app/apps/api/node_modules
-    command: sh -c "if [ ! -d /app/node_modules/.pnpm ] || [ ! -d /app/node_modules/helmet ] || [ ! -d /app/node_modules/@prisma/client ] || [ ! -d /app/node_modules/zod ]; then pnpm install --filter @continuum/api... --frozen-lockfile; fi; if [ ! -f /app/packages/shared/dist/storage-core.js ] || [ ! -f /app/packages/shared/dist/contracts/learning-photo.js ]; then pnpm --filter @continuum/api exec tsc -p /app/packages/shared/tsconfig.json; fi; if [ ! -d /app/node_modules/.prisma/client ]; then pnpm --filter @continuum/api exec prisma generate; fi; pnpm --filter @continuum/api dev"
+    command: sh -c "if [ ! -d /app/node_modules/.pnpm ] || [ ! -d /app/node_modules/helmet ] || [ ! -d /app/node_modules/@prisma/client ] || [ ! -d /app/node_modules/zod ]; then pnpm install --filter @continuum/api... --frozen-lockfile; fi; pnpm --filter @continuum/api exec tsc -p /app/packages/shared/tsconfig.json; if [ ! -d /app/node_modules/.prisma/client ]; then pnpm --filter @continuum/api exec prisma generate; fi; pnpm --filter @continuum/api dev"
     working_dir: /app
 
   postgres:
@@ -90,14 +90,15 @@ services:
       S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL:-http://localhost:9000}
       API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:3000}
       WORKER_INTERNAL_TOKEN: ${WORKER_INTERNAL_TOKEN:-continuum-internal-dev}
-      LATEX_COMPILE_TIMEOUT_MS: ${LATEX_COMPILE_TIMEOUT_MS:-120000}
+      LATEX_COMPILE_TIMEOUT_MS: ${LATEX_COMPILE_TIMEOUT_MS:-300000}
       LATEX_COMPILE_LOG_TAIL_BYTES: ${LATEX_COMPILE_LOG_TAIL_BYTES:-256000}
       LATEX_COMPILE_WORKER_CONCURRENCY: ${LATEX_COMPILE_WORKER_CONCURRENCY:-1}
     volumes:
       - .:/app
       - worker_node_modules:/app/node_modules
       - worker_app_node_modules:/app/apps/worker/node_modules
-    command: sh -c "if [ ! -d /app/node_modules/.pnpm ] || [ ! -d /app/node_modules/zod ]; then pnpm install --filter @continuum/worker... --frozen-lockfile; fi; if [ ! -f /app/packages/shared/dist/storage-core.js ] || [ ! -f /app/packages/shared/dist/contracts/learning-photo.js ]; then pnpm --filter @continuum/worker exec tsc -p /app/packages/shared/tsconfig.json; fi; pnpm --filter @continuum/worker dev"
+      - worker_tectonic_cache:/root/.cache/Tectonic
+    command: sh -c "if [ ! -d /app/node_modules/.pnpm ] || [ ! -d /app/node_modules/zod ]; then pnpm install --filter @continuum/worker... --frozen-lockfile; fi; pnpm --filter @continuum/worker exec tsc -p /app/packages/shared/tsconfig.json; pnpm --filter @continuum/worker dev"
     working_dir: /app
 
   minio:
@@ -118,6 +119,7 @@ volumes:
   api_app_node_modules:
   worker_node_modules:
   worker_app_node_modules:
+  worker_tectonic_cache:
   postgres_data:
   redis_data:
   minio_data:

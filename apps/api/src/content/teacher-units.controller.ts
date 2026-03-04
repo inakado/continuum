@@ -13,6 +13,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { EventCategory, Role } from '@prisma/client';
+import { StudentUnitRenderedContentResponseSchema } from '@continuum/shared';
 import { type AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -73,6 +74,37 @@ export class TeacherUnitsController {
       expiresInSec: ttlSec,
       url,
     };
+  }
+
+  @Get(':id/rendered-content')
+  async getRenderedContent(
+    @Param('id') id: string,
+    @Query('target') targetRaw: string | undefined,
+    @Query('ttlSec') ttlRaw: string | undefined,
+  ) {
+    const target = this.unitPdfPolicyService.parseTargetOrThrow(targetRaw);
+    const ttlSec = this.unitPdfPolicyService.resolveTtlForRole(Role.teacher, ttlRaw);
+    const state = await this.contentService.getUnitRenderedAssetState(id, target);
+
+    const pdfUrl = state.pdfAssetKey
+      ? await this.objectStorageService.getPresignedGetUrl(state.pdfAssetKey, ttlSec, 'application/pdf')
+      : null;
+
+    let html: string | null = null;
+    if (state.htmlAssetKey) {
+      const htmlSource = await this.objectStorageService.getObjectText(state.htmlAssetKey);
+      html = await this.replaceAssetPlaceholders(htmlSource, state.htmlAssets, ttlSec);
+    }
+
+    return StudentUnitRenderedContentResponseSchema.parse({
+      ok: true,
+      target,
+      html,
+      htmlKey: state.htmlAssetKey,
+      pdfUrl,
+      pdfKey: state.pdfAssetKey,
+      expiresInSec: ttlSec,
+    });
   }
 
   @Post()
@@ -190,5 +222,18 @@ export class TeacherUnitsController {
       payload: { title: unit.title, status: unit.status, sectionId: unit.sectionId },
     });
     return unit;
+  }
+
+  private async replaceAssetPlaceholders(
+    html: string,
+    assets: Array<{ placeholder: string; assetKey: string; contentType: 'image/svg+xml' }>,
+    ttlSec: number,
+  ) {
+    let next = html;
+    for (const asset of assets) {
+      const url = await this.objectStorageService.presignGetObject(asset.assetKey, ttlSec, asset.contentType);
+      next = next.split(asset.placeholder).join(url);
+    }
+    return next;
   }
 }

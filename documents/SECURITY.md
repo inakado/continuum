@@ -55,6 +55,12 @@ Operational pitfall (`Implemented`):
 
 - Файлы в S3/MinIO доступны через presigned URLs, которые выдаёт backend.
 - Asset keys сейчас хранятся прямо в доменных сущностях.
+- Для student unit HTML backend не отдаёт raw storage HTML напрямую:
+  - читает HTML артефакт сам,
+  - подписывает связанные SVG asset URLs,
+  - возвращает уже санитизированный HTML fragment.
+- Teacher HTML preview идёт через отдельный backend endpoint с teacher RBAC; web не читает HTML asset напрямую из storage.
+- Worker должен fail-closed отклонять HTML/SVG с опасной разметкой (`script`, event handlers, executable external refs).
 
 Operational pitfall (`Implemented`):
 - **Симптом:** браузер блокирует PDF/изображения из S3 с `No 'Access-Control-Allow-Origin' header`.

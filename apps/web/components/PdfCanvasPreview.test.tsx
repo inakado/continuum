@@ -96,12 +96,14 @@ describe("PdfCanvasPreview", () => {
     await waitFor(() => {
       expect(document.querySelectorAll("canvas")).toHaveLength(2);
     });
+    await waitFor(() => {
+      expect(pdfDocument.getPage).toHaveBeenCalledTimes(2);
+    });
 
     expect(getDocumentMock).toHaveBeenCalledWith({
       url: "https://cdn.example.com/doc.pdf",
       withCredentials: false,
     });
-    expect(pdfDocument.getPage).toHaveBeenCalledTimes(2);
   });
 
   it("refreshes expired presigned URL and retries loading", async () => {

@@ -3,12 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "sync:mathjax": "node scripts/sync-mathjax-assets.mjs",
+    "dev": "pnpm sync:mathjax && next dev",
+    "build": "pnpm sync:mathjax && next build",
     "lint": "pnpm exec eslint \"**/*.{ts,tsx}\"",
     "typecheck": "pnpm exec tsc -p tsconfig.json --noEmit",
     "test": "pnpm exec vitest run --config vitest.config.ts",
-    "start": "next start"
+    "start": "pnpm sync:mathjax && next start"
   },
   "dependencies": {
     "@codemirror/language": "^6.12.1",
@@ -31,6 +32,7 @@
     "framer-motion": "^12.23.24",
     "katex": "^0.16.22",
     "lucide-react": "^0.475.0",
+    "mathjax": "^4.1.1",
     "next": "16.1.6",
     "ogl": "^1.0.11",
     "pdfjs-dist": "^5.4.624",

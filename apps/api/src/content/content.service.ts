@@ -20,6 +20,7 @@ import {
   TaskRevisionPayloadService,
   type TaskWithActiveRevision,
 } from './task-revision-payload.service';
+import type { UnitHtmlAssetRef } from './unit-pdf.constants';
 
 @Injectable()
 export class ContentService {
@@ -261,6 +262,38 @@ export class ContentService {
     return target === 'theory' ? unit.theoryPdfAssetKey : unit.methodPdfAssetKey;
   }
 
+  async getUnitRenderedAssetState(id: string, target: 'theory' | 'method') {
+    const unit = await this.prisma.unit.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        theoryPdfAssetKey: true,
+        theoryHtmlAssetKey: true,
+        theoryHtmlAssetsJson: true,
+        methodPdfAssetKey: true,
+        methodHtmlAssetKey: true,
+        methodHtmlAssetsJson: true,
+      },
+    });
+    if (!unit) throw new NotFoundException('Unit not found');
+
+    if (target === 'theory') {
+      return {
+        unitId: unit.id,
+        pdfAssetKey: unit.theoryPdfAssetKey,
+        htmlAssetKey: unit.theoryHtmlAssetKey,
+        htmlAssets: this.normalizeUnitHtmlAssets(unit.theoryHtmlAssetsJson),
+      };
+    }
+
+    return {
+      unitId: unit.id,
+      pdfAssetKey: unit.methodPdfAssetKey,
+      htmlAssetKey: unit.methodHtmlAssetKey,
+      htmlAssets: this.normalizeUnitHtmlAssets(unit.methodHtmlAssetsJson),
+    };
+  }
+
   async getTaskForSolutionPdfCompile(taskId: string): Promise<{ id: string; activeRevisionId: string }> {
     const task = await this.prisma.task.findUnique({
       where: { id: taskId },
@@ -405,6 +438,30 @@ export class ContentService {
 
   mapTaskWithRevision(task: TaskWithActiveRevision) {
     return this.taskRevisionPayloadService.mapTaskWithRevision(task);
+  }
+
+  private normalizeUnitHtmlAssets(raw: unknown): UnitHtmlAssetRef[] {
+    if (!Array.isArray(raw)) return [];
+    const assets: UnitHtmlAssetRef[] = [];
+    for (const item of raw) {
+      if (!item || typeof item !== 'object') continue;
+      const asset = item as Record<string, unknown>;
+      if (
+        typeof asset.placeholder !== 'string' ||
+        !asset.placeholder.trim() ||
+        typeof asset.assetKey !== 'string' ||
+        !asset.assetKey.trim() ||
+        asset.contentType !== 'image/svg+xml'
+      ) {
+        continue;
+      }
+      assets.push({
+        placeholder: asset.placeholder.trim(),
+        assetKey: asset.assetKey.trim(),
+        contentType: 'image/svg+xml',
+      });
+    }
+    return assets;
   }
 
 }

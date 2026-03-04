@@ -25,6 +25,7 @@ import {
 import { LatexCompileQueueService } from './latex-compile-queue.service';
 import {
   type LatexCompileJobResult,
+  shouldApplyIncomingUnitRender,
   shouldApplyIncomingPdfKey,
 } from './unit-pdf.constants';
 
@@ -54,8 +55,9 @@ export class InternalLatexController {
     if (isUnitLatexCompileJobPayload(payload) && isUnitLatexCompileJobResult(result)) {
       const unit = await this.contentService.getUnit(payload.unitId);
       const currentKey = payload.target === 'theory' ? unit.theoryPdfAssetKey : unit.methodPdfAssetKey;
+      const currentHtmlKey = payload.target === 'theory' ? unit.theoryHtmlAssetKey : unit.methodHtmlAssetKey;
 
-      if (currentKey === result.assetKey) {
+      if (currentKey === result.pdfAssetKey && currentHtmlKey === result.htmlAssetKey) {
         return {
           ok: true,
           applied: false,
@@ -67,7 +69,14 @@ export class InternalLatexController {
         };
       }
 
-      if (!shouldApplyIncomingPdfKey(currentKey, result.assetKey)) {
+      if (
+        !shouldApplyIncomingUnitRender(
+          currentKey,
+          currentHtmlKey,
+          result.pdfAssetKey,
+          result.htmlAssetKey,
+        )
+      ) {
         return {
           ok: true,
           applied: false,
@@ -81,8 +90,16 @@ export class InternalLatexController {
 
       const patch =
         payload.target === 'theory'
-          ? { theoryPdfAssetKey: result.assetKey }
-          : { methodPdfAssetKey: result.assetKey };
+          ? {
+              theoryPdfAssetKey: result.pdfAssetKey,
+              theoryHtmlAssetKey: result.htmlAssetKey,
+              theoryHtmlAssetsJson: result.htmlAssets,
+            }
+          : {
+              methodPdfAssetKey: result.pdfAssetKey,
+              methodHtmlAssetKey: result.htmlAssetKey,
+              methodHtmlAssetsJson: result.htmlAssets,
+            };
       await this.contentService.updateUnit(payload.unitId, patch);
 
       return {
@@ -91,7 +108,7 @@ export class InternalLatexController {
         jobId: String(job.id ?? jobId),
         unitId: payload.unitId,
         target: payload.target,
-        assetKey: result.assetKey,
+        assetKey: result.pdfAssetKey,
       };
     }
 

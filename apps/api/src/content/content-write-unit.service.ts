@@ -5,6 +5,11 @@ import type { CreateUnitDto, UpdateUnitDto } from './dto/unit.dto';
 
 type UnitVideo = { id: string; title: string; embedUrl: string };
 type UnitAttachment = { id: string; name: string; urlOrKey?: string | null };
+type UnitHtmlAssetRef = {
+  placeholder: string;
+  assetKey: string;
+  contentType: 'image/svg+xml';
+};
 
 export class ContentWriteUnitService {
   constructor(private readonly prisma: PrismaService) {}
@@ -42,11 +47,27 @@ export class ContentWriteUnitService {
     if (dto.theoryPdfAssetKey !== undefined) {
       data.theoryPdfAssetKey = this.normalizeAssetKey(dto.theoryPdfAssetKey);
     }
+    if (dto.theoryHtmlAssetKey !== undefined) {
+      data.theoryHtmlAssetKey = this.normalizeAssetKey(dto.theoryHtmlAssetKey);
+    }
+    if (dto.theoryHtmlAssetsJson !== undefined) {
+      const theoryHtmlAssets = this.validateHtmlAssetsJson(dto.theoryHtmlAssetsJson);
+      data.theoryHtmlAssetsJson =
+        theoryHtmlAssets === null ? Prisma.DbNull : (theoryHtmlAssets as unknown as Prisma.InputJsonValue);
+    }
     if (dto.methodRichLatex !== undefined) {
       data.methodRichLatex = this.sanitizeRichText(dto.methodRichLatex);
     }
     if (dto.methodPdfAssetKey !== undefined) {
       data.methodPdfAssetKey = this.normalizeAssetKey(dto.methodPdfAssetKey);
+    }
+    if (dto.methodHtmlAssetKey !== undefined) {
+      data.methodHtmlAssetKey = this.normalizeAssetKey(dto.methodHtmlAssetKey);
+    }
+    if (dto.methodHtmlAssetsJson !== undefined) {
+      const methodHtmlAssets = this.validateHtmlAssetsJson(dto.methodHtmlAssetsJson);
+      data.methodHtmlAssetsJson =
+        methodHtmlAssets === null ? Prisma.DbNull : (methodHtmlAssets as unknown as Prisma.InputJsonValue);
     }
     if (dto.videosJson !== undefined) {
       const videos = this.validateVideosJson(dto.videosJson);
@@ -287,5 +308,36 @@ export class ContentWriteUnitService {
     }
 
     return attachments;
+  }
+
+  private validateHtmlAssetsJson(value: unknown): UnitHtmlAssetRef[] | null {
+    if (value === null) return null;
+    if (!Array.isArray(value)) throw new BadRequestException('InvalidUnitHtmlAssetsJson');
+    if (value.length > 200) throw new BadRequestException('InvalidUnitHtmlAssetsJson');
+
+    const assets: UnitHtmlAssetRef[] = [];
+    const seenPlaceholders = new Set<string>();
+    for (const item of value) {
+      if (!item || typeof item !== 'object') throw new BadRequestException('InvalidUnitHtmlAssetsJson');
+      const asset = item as Record<string, unknown>;
+      const placeholder = typeof asset.placeholder === 'string' ? asset.placeholder.trim() : '';
+      const assetKey = typeof asset.assetKey === 'string' ? asset.assetKey.trim() : '';
+      const contentType = asset.contentType;
+
+      if (!placeholder || placeholder.length > 160 || seenPlaceholders.has(placeholder)) {
+        throw new BadRequestException('InvalidUnitHtmlAssetsJson');
+      }
+      if (!assetKey || assetKey.length > 2048) {
+        throw new BadRequestException('InvalidUnitHtmlAssetsJson');
+      }
+      if (contentType !== 'image/svg+xml') {
+        throw new BadRequestException('InvalidUnitHtmlAssetsJson');
+      }
+
+      seenPlaceholders.add(placeholder);
+      assets.push({ placeholder, assetKey, contentType });
+    }
+
+    return assets;
   }
 }

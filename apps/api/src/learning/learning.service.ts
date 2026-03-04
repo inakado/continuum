@@ -17,6 +17,7 @@ import { StudentsService } from '../students/students.service';
 import { LearningAvailabilityService } from './learning-availability.service';
 import { LearningAttemptsWriteService } from './learning-attempts-write.service';
 import { LearningTeacherActionsService } from './learning-teacher-actions.service';
+import type { UnitHtmlAssetRef } from '../content/unit-pdf.constants';
 
 const TASK_SOLUTION_ALLOWED_STATUSES = new Set<StudentTaskStatus>([
   StudentTaskStatus.correct,
@@ -222,6 +223,23 @@ export class LearningService {
   ) {
     const unit = await this.getPublishedUnitForStudent(studentId, unitId);
     return target === 'theory' ? unit.theoryPdfAssetKey : unit.methodPdfAssetKey;
+  }
+
+  async getPublishedUnitRenderedAssetStateForStudent(
+    studentId: string,
+    unitId: string,
+    target: 'theory' | 'method',
+  ) {
+    const unit = await this.getPublishedUnitForStudent(studentId, unitId);
+    const htmlAssetsRaw =
+      target === 'theory' ? unit.theoryHtmlAssetsJson ?? null : unit.methodHtmlAssetsJson ?? null;
+
+    return {
+      unitId: unit.id,
+      pdfAssetKey: target === 'theory' ? unit.theoryPdfAssetKey ?? null : unit.methodPdfAssetKey ?? null,
+      htmlAssetKey: target === 'theory' ? unit.theoryHtmlAssetKey ?? null : unit.methodHtmlAssetKey ?? null,
+      htmlAssets: this.normalizeUnitHtmlAssets(htmlAssetsRaw),
+    };
   }
 
   async getTaskSolutionPdfAssetKeyForStudent(studentId: string, taskId: string) {
@@ -479,6 +497,30 @@ export class LearningService {
       blockedUntil: isBlocked ? state.lockedUntil : null,
       requiredSkipped: state.requiredSkipped,
     };
+  }
+
+  private normalizeUnitHtmlAssets(raw: unknown): UnitHtmlAssetRef[] {
+    if (!Array.isArray(raw)) return [];
+    const assets: UnitHtmlAssetRef[] = [];
+    for (const item of raw) {
+      if (!item || typeof item !== 'object') continue;
+      const asset = item as Record<string, unknown>;
+      if (
+        typeof asset.placeholder !== 'string' ||
+        !asset.placeholder.trim() ||
+        typeof asset.assetKey !== 'string' ||
+        !asset.assetKey.trim() ||
+        asset.contentType !== 'image/svg+xml'
+      ) {
+        continue;
+      }
+      assets.push({
+        placeholder: asset.placeholder.trim(),
+        assetKey: asset.assetKey.trim(),
+        contentType: 'image/svg+xml',
+      });
+    }
+    return assets;
   }
 
 }

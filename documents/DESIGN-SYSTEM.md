@@ -189,6 +189,20 @@ Glass‑стиль — основа для **teacher dashboards** и **student d
 - без browser viewer UI
 - PDF.js canvas/text-layer
 
+### 6.3 HTML unit content (`Implemented`)
+- Для student unit `theory/method` при наличии собранного HTML показываем адаптивный HTML panel вместо PDF canvas.
+- HTML panel ощущается частью glass-страницы, а не отдельным viewer:
+  - собственный content-skin внутри panel scope;
+  - responsive `img/svg`;
+  - читаемая верстка длинного текста, списков, table, blockquote, code;
+  - локальный math typesetting внутри panel scope.
+- Teacher preview использует тот же content-skin внутри preview container, но остаётся переключаемым режимом рядом с PDF preview.
+- Контентные выделения в HTML panel:
+  - `DefinitionBox` без отдельного label-префикса;
+  - `RemarkBox` с жирным `Замечание.`;
+  - figure cards с белой подложкой, скруглением и центрированной подписью.
+- При отсутствии HTML допускается fallback на legacy PDF panel.
+
 **Правило показа решений:**
 1. после правильного ответа, **или**
 2. после auto‑credit (6 ошибок)

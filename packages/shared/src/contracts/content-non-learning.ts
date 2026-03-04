@@ -3,6 +3,13 @@ import { z } from "zod";
 export const ContentStatusSchema = z.enum(["draft", "published"]);
 export const StudentUnitStatusSchema = z.enum(["locked", "available", "in_progress", "completed"]);
 export const TaskAnswerTypeSchema = z.enum(["numeric", "single_choice", "multi_choice", "photo"]);
+export const UnitHtmlAssetRefSchema = z
+  .object({
+    placeholder: z.string().min(1),
+    assetKey: z.string().min(1),
+    contentType: z.literal("image/svg+xml"),
+  })
+  .passthrough();
 
 export const StudentCourseSchema = z
   .object({
@@ -36,6 +43,10 @@ export const StudentUnitSchema = z
     status: ContentStatusSchema,
     sortOrder: z.number(),
     minOptionalCountedTasksToComplete: z.number(),
+    theoryHtmlAssetKey: z.string().nullable().optional(),
+    theoryHtmlAssetsJson: z.array(UnitHtmlAssetRefSchema).nullable().optional(),
+    methodHtmlAssetKey: z.string().nullable().optional(),
+    methodHtmlAssetsJson: z.array(UnitHtmlAssetRefSchema).nullable().optional(),
     createdAt: z.string(),
     updatedAt: z.string(),
   })
@@ -120,8 +131,24 @@ export const TeacherUnitSchema = z
     status: ContentStatusSchema,
     sortOrder: z.number(),
     minOptionalCountedTasksToComplete: z.number(),
+    theoryHtmlAssetKey: z.string().nullable().optional(),
+    theoryHtmlAssetsJson: z.array(UnitHtmlAssetRefSchema).nullable().optional(),
+    methodHtmlAssetKey: z.string().nullable().optional(),
+    methodHtmlAssetsJson: z.array(UnitHtmlAssetRefSchema).nullable().optional(),
     createdAt: z.string(),
     updatedAt: z.string(),
+  })
+  .passthrough();
+
+export const StudentUnitRenderedContentResponseSchema = z
+  .object({
+    ok: z.literal(true),
+    target: z.enum(["theory", "method"]),
+    html: z.string().nullable(),
+    htmlKey: z.string().nullable(),
+    pdfUrl: z.string().nullable(),
+    pdfKey: z.string().nullable(),
+    expiresInSec: z.number(),
   })
   .passthrough();
 
@@ -461,12 +488,14 @@ export const TeacherOverrideOpenUnitResponseSchema = z
 export type StudentCourse = z.infer<typeof StudentCourseSchema>;
 export type StudentSection = z.infer<typeof StudentSectionSchema>;
 export type StudentUnit = z.infer<typeof StudentUnitSchema>;
+export type UnitHtmlAssetRef = z.infer<typeof UnitHtmlAssetRefSchema>;
 export type StudentGraphNode = z.infer<typeof StudentGraphNodeSchema>;
 export type StudentGraphEdge = z.infer<typeof StudentGraphEdgeSchema>;
 export type StudentCourseListResponse = z.infer<typeof StudentCourseListResponseSchema>;
 export type StudentCourseDetailResponse = z.infer<typeof StudentCourseDetailResponseSchema>;
 export type StudentSectionDetailResponse = z.infer<typeof StudentSectionDetailResponseSchema>;
 export type StudentSectionGraphResponse = z.infer<typeof StudentSectionGraphResponseSchema>;
+export type StudentUnitRenderedContentResponse = z.infer<typeof StudentUnitRenderedContentResponseSchema>;
 
 export type TeacherCourse = z.infer<typeof TeacherCourseSchema>;
 export type TeacherSection = z.infer<typeof TeacherSectionSchema>;

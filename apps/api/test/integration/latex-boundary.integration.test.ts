@@ -40,7 +40,13 @@ describe('latex boundary integration', () => {
     Object.values(objectStorageService).forEach((mockFn) => mockFn.mockReset());
     eventsLogService.append.mockReset();
 
-    contentService.getUnit.mockResolvedValue({ id: 'unit-1', theoryPdfAssetKey: null, methodPdfAssetKey: null });
+    contentService.getUnit.mockResolvedValue({
+      id: 'unit-1',
+      theoryPdfAssetKey: null,
+      theoryHtmlAssetKey: null,
+      methodPdfAssetKey: null,
+      methodHtmlAssetKey: null,
+    });
     contentService.getTaskForSolutionPdfCompile.mockResolvedValue({
       id: 'task-1',
       activeRevisionId: 'revision-1',
@@ -164,6 +170,9 @@ describe('latex boundary integration', () => {
         target: 'theory',
         unitId: 'unit-1',
         assetKey: 'units/unit-1/theory/1710000000000-1234abcd.pdf',
+        pdfAssetKey: 'units/unit-1/theory/1710000000000-1234abcd.pdf',
+        htmlAssetKey: 'units/unit-1/theory/1710000000000-1234abcd.html',
+        htmlAssets: [],
         sizeBytes: 1024,
       },
       failedReason: null,

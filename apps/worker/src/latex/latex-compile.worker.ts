@@ -9,12 +9,14 @@ import {
   type UnitLatexCompileJobResult,
   type UnitLatexCompileQueuePayload,
   type UnitPdfTarget,
+  buildUnitHtmlKey,
   buildTaskSolutionPdfKey,
   buildUnitPdfKey,
 } from './latex-queue.contract';
 import { compileLatexToPdf, LatexCompileError } from './latex-compile';
 import { applyUnitPdfKeyViaApi } from './latex-apply-client';
 import { type WorkerObjectStorageService } from '../storage/object-storage';
+import { renderLatexToHtml } from '../latex-html/render-latex-to-html';
 
 const ensureUnitTarget = (value: unknown): value is UnitPdfTarget =>
   value === 'theory' || value === 'method';
@@ -153,6 +155,7 @@ const formatError = (error: unknown): Error => {
 
 export const createLatexCompileProcessor = (storage: WorkerObjectStorageService) => {
   return async (job: Job): Promise<LatexCompileJobResult> => {
+    const uploadedVersionedKeys: string[] = [];
     if (job.name !== LATEX_COMPILE_JOB_NAME) {
       throw new Error(
         JSON.stringify({
@@ -171,16 +174,37 @@ export const createLatexCompileProcessor = (storage: WorkerObjectStorageService)
       );
 
       const compiled = await compileLatexToPdf(payload.tex);
-      const key =
+      const renderedHtml =
         payload.target === TASK_SOLUTION_PDF_TARGET
-          ? buildTaskSolutionPdfKey(payload.taskId, payload.taskRevisionId, new Date())
-          : buildUnitPdfKey(payload.unitId, payload.target, new Date());
+          ? null
+          : await renderLatexToHtml(payload.tex, storage);
+
+      const renderAt = new Date();
+      const pdfKey =
+        payload.target === TASK_SOLUTION_PDF_TARGET
+          ? buildTaskSolutionPdfKey(payload.taskId, payload.taskRevisionId, renderAt)
+          : buildUnitPdfKey(payload.unitId, payload.target, renderAt);
       await storage.putObject({
-        key,
+        key: pdfKey,
         contentType: 'application/pdf',
         body: compiled.pdfBytes,
         cacheControl: 'no-store',
       });
+      uploadedVersionedKeys.push(pdfKey);
+
+      const htmlKey =
+        payload.target === TASK_SOLUTION_PDF_TARGET
+          ? null
+          : buildUnitHtmlKey(payload.unitId, payload.target, renderAt);
+      if (htmlKey && renderedHtml) {
+        await storage.putObject({
+          key: htmlKey,
+          contentType: 'text/html; charset=utf-8',
+          body: renderedHtml.html,
+          cacheControl: 'no-store',
+        });
+        uploadedVersionedKeys.push(htmlKey);
+      }
       const jobId = String(job.id ?? '');
       if (!jobId) {
         throw new Error(
@@ -193,9 +217,15 @@ export const createLatexCompileProcessor = (storage: WorkerObjectStorageService)
 
       const baseResult = {
         target: payload.target,
-        assetKey: key,
+        assetKey: pdfKey,
         sizeBytes: compiled.pdfBytes.length,
-        ...(compiled.logSnippet ? { compileLogSnippet: compiled.logSnippet } : null),
+        ...((compiled.logSnippet || renderedHtml?.logSnippet)
+          ? {
+              compileLogSnippet: [compiled.logSnippet, renderedHtml?.logSnippet]
+                .filter((item) => typeof item === 'string' && item.length > 0)
+                .join('\n'),
+            }
+          : null),
       };
       const result: LatexCompileJobResult =
         payload.target === TASK_SOLUTION_PDF_TARGET
@@ -207,6 +237,9 @@ export const createLatexCompileProcessor = (storage: WorkerObjectStorageService)
           : ({
               ...baseResult,
               unitId: payload.unitId,
+              pdfAssetKey: pdfKey,
+              htmlAssetKey: htmlKey ?? '',
+              htmlAssets: renderedHtml?.assetRefs ?? [],
             } as UnitLatexCompileJobResult);
 
       await job.updateProgress({ autoApplyResult: result });
@@ -234,6 +267,15 @@ export const createLatexCompileProcessor = (storage: WorkerObjectStorageService)
       );
       return result;
     } catch (error) {
+      await Promise.all(
+        uploadedVersionedKeys.map(async (key) => {
+          try {
+            await storage.deleteObject(key);
+          } catch {
+            // best-effort cleanup for partially uploaded versioned render artifacts
+          }
+        }),
+      );
       const formatted = formatError(error);
       console.error(`[worker][latex] failed jobId=${job.id} error=${formatted.message}`);
       throw formatted;

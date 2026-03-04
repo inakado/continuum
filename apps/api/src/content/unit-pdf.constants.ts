@@ -3,6 +3,11 @@ import { randomBytes } from 'node:crypto';
 export type UnitPdfTarget = 'theory' | 'method';
 export type TaskSolutionPdfTarget = 'task_solution';
 export type LatexCompileTarget = UnitPdfTarget | TaskSolutionPdfTarget;
+export type UnitHtmlAssetRef = {
+  placeholder: string;
+  assetKey: string;
+  contentType: 'image/svg+xml';
+};
 
 export const UNIT_PDF_TARGETS: UnitPdfTarget[] = ['theory', 'method'];
 export const TASK_SOLUTION_PDF_TARGET: TaskSolutionPdfTarget = 'task_solution';
@@ -56,6 +61,9 @@ type LatexCompileJobResultBase = {
 export type UnitLatexCompileJobResult = LatexCompileJobResultBase & {
   unitId: string;
   target: UnitPdfTarget;
+  pdfAssetKey: string;
+  htmlAssetKey: string;
+  htmlAssets: UnitHtmlAssetRef[];
 };
 
 export type TaskSolutionLatexCompileJobResult = LatexCompileJobResultBase & {
@@ -72,6 +80,12 @@ export const buildUnitPdfKey = (unitId: string, target: UnitPdfTarget, at = new 
   return `units/${unitId}/${target}/${timestampMs}-${suffix}.pdf`;
 };
 
+export const buildUnitHtmlKey = (unitId: string, target: UnitPdfTarget, at = new Date()): string => {
+  const timestampMs = at.getTime();
+  const suffix = randomBytes(4).toString('hex');
+  return `units/${unitId}/${target}/${timestampMs}-${suffix}.html`;
+};
+
 export const buildTaskSolutionPdfKey = (
   taskId: string,
   taskRevisionId: string,
@@ -82,8 +96,8 @@ export const buildTaskSolutionPdfKey = (
   return `tasks/${taskId}/revisions/${taskRevisionId}/solution/${timestampMs}-${suffix}.pdf`;
 };
 
-export const extractPdfKeyTimestampMs = (key: string): number | null => {
-  const match = key.match(/\/(\d{13})-[a-f0-9]+\.pdf$/i);
+export const extractVersionedAssetKeyTimestampMs = (key: string): number | null => {
+  const match = key.match(/\/(\d{13})-[a-f0-9]+\.(pdf|html)$/i);
   if (!match) return null;
   const parsed = Number(match[1]);
   if (!Number.isFinite(parsed) || parsed <= 0) return null;
@@ -98,10 +112,21 @@ export const shouldApplyIncomingPdfKey = (
     typeof currentKey === 'string' && currentKey.trim() ? currentKey.trim() : null;
   if (!normalizedCurrentKey) return true;
 
-  const currentTs = extractPdfKeyTimestampMs(normalizedCurrentKey);
-  const incomingTs = extractPdfKeyTimestampMs(incomingKey);
+  const currentTs = extractVersionedAssetKeyTimestampMs(normalizedCurrentKey);
+  const incomingTs = extractVersionedAssetKeyTimestampMs(incomingKey);
 
   if (incomingTs === null) return false;
   if (currentTs === null) return true;
   return incomingTs > currentTs;
+};
+
+export const shouldApplyIncomingUnitRender = (
+  currentPdfKey: string | null | undefined,
+  currentHtmlKey: string | null | undefined,
+  incomingPdfKey: string,
+  incomingHtmlKey: string,
+): boolean => {
+  const baseline = currentPdfKey ?? currentHtmlKey ?? null;
+  return shouldApplyIncomingPdfKey(baseline, incomingPdfKey)
+    && shouldApplyIncomingPdfKey(baseline, incomingHtmlKey);
 };

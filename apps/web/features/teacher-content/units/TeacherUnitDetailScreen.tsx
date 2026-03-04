@@ -40,6 +40,7 @@ import { TeacherCompileErrorDialog } from "./components/TeacherCompileErrorDialo
 import { TeacherTaskStatementImageSection } from "./components/TeacherTaskStatementImageSection";
 import { TeacherTaskSolutionSection } from "./components/TeacherTaskSolutionSection";
 import { TeacherUnitTasksPanel } from "./components/TeacherUnitTasksPanel";
+import { useTeacherUnitRenderedContent } from "./hooks/use-teacher-unit-rendered-content";
 
 type Props = {
   unitId: string;
@@ -328,6 +329,7 @@ function TeacherUnitTabContent({
   latexExtensions,
   minCountedInput,
   progressSaveState,
+  renderedContent,
 }: {
   activeTab: TabKey;
   unit: ReturnType<typeof useTeacherUnitFetchSave>["unit"];
@@ -345,6 +347,7 @@ function TeacherUnitTabContent({
   latexExtensions: unknown[];
   minCountedInput: string;
   progressSaveState: ReturnType<typeof useTeacherUnitFetchSave>["progressSaveState"];
+  renderedContent: ReturnType<typeof useTeacherUnitRenderedContent>;
 }) {
   if (activeTab === "theory" || activeTab === "method") {
     const target = activeTab;
@@ -356,6 +359,11 @@ function TeacherUnitTabContent({
       (target === "theory" ? unit?.theoryPdfAssetKey : unit?.methodPdfAssetKey) ??
       undefined;
     const getFreshUrl = target === "theory" ? compile.refreshTheoryPreviewUrl : compile.refreshMethodPreviewUrl;
+    const renderedPreview = target === "theory" ? renderedContent.theoryContent : renderedContent.methodContent;
+    const renderedPreviewLoading = target === "theory" ? renderedContent.theoryLoading : renderedContent.methodLoading;
+    const renderedPreviewError = target === "theory" ? renderedContent.theoryError : renderedContent.methodError;
+    const refreshRenderedPreview =
+      target === "theory" ? renderedContent.refreshTheoryContent : renderedContent.refreshMethodContent;
     const onCompile = () => void compile.runCompile(target);
     const showOpenLogAction =
       compileState.error === "Компиляция не удалась. Откройте лог." &&
@@ -383,6 +391,10 @@ function TeacherUnitTabContent({
         previewUrl={previewUrl}
         refreshKey={refreshKey}
         getFreshUrl={getFreshUrl}
+        renderedContent={renderedPreview}
+        renderedContentLoading={renderedPreviewLoading}
+        renderedContentError={renderedPreviewError}
+        refreshRenderedContent={refreshRenderedPreview}
       />
     );
   }
@@ -503,6 +515,10 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
     editingTask: actions.editingTask,
     fetchUnit: fetchSave.fetchUnit,
   });
+  const renderedContent = useTeacherUnitRenderedContent({
+    unit: fetchSave.unit,
+    unitId,
+  });
 
   const statementImage = useTeacherTaskStatementImage({
     editingTask: actions.editingTask,
@@ -590,8 +606,9 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
             layout={layout}
             latexExtensions={latexExtensions}
             minCountedInput={fetchSave.minCountedInput}
-            progressSaveState={fetchSave.progressSaveState}
-          />
+        progressSaveState={fetchSave.progressSaveState}
+        renderedContent={renderedContent}
+      />
         </div>
       </div>
 

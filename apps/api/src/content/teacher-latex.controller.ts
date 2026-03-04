@@ -47,6 +47,7 @@ import {
   type LatexCompileJobError,
   type LatexCompileQueuePayload,
   TASK_SOLUTION_PDF_TARGET,
+  shouldApplyIncomingUnitRender,
   shouldApplyIncomingPdfKey,
 } from './unit-pdf.constants';
 import { UnitPdfPolicyService } from './unit-pdf-policy.service';
@@ -185,15 +186,16 @@ export class TeacherLatexController {
 
     if (status === 'succeeded') {
       const result = parseLatexCompileJobResultOrThrow(job.returnvalue);
+      const previewKey = isUnitLatexCompileJobResult(result) ? result.pdfAssetKey : result.assetKey;
       const presignedUrl = await this.objectStorageService.getPresignedGetUrl(
-        result.assetKey,
+        previewKey,
         ttlSec,
         'application/pdf',
       );
       return {
         jobId: String(job.id ?? jobId),
         status,
-        assetKey: result.assetKey,
+        assetKey: previewKey,
         presignedUrl,
       };
     }
@@ -233,7 +235,8 @@ export class TeacherLatexController {
     if (isUnitLatexCompileJobPayload(payload) && isUnitLatexCompileJobResult(result)) {
       const unit = await this.contentService.getUnit(payload.unitId);
       const currentKey = payload.target === 'theory' ? unit.theoryPdfAssetKey : unit.methodPdfAssetKey;
-      if (currentKey === result.assetKey) {
+      const currentHtmlKey = payload.target === 'theory' ? unit.theoryHtmlAssetKey : unit.methodHtmlAssetKey;
+      if (currentKey === result.pdfAssetKey && currentHtmlKey === result.htmlAssetKey) {
         return {
           ok: true,
           applied: false,
@@ -243,7 +246,14 @@ export class TeacherLatexController {
           assetKey: result.assetKey,
         };
       }
-      if (!shouldApplyIncomingPdfKey(currentKey, result.assetKey)) {
+      if (
+        !shouldApplyIncomingUnitRender(
+          currentKey,
+          currentHtmlKey,
+          result.pdfAssetKey,
+          result.htmlAssetKey,
+        )
+      ) {
         return {
           ok: true,
           applied: false,
@@ -256,8 +266,16 @@ export class TeacherLatexController {
 
       const patch =
         payload.target === 'theory'
-          ? { theoryPdfAssetKey: result.assetKey }
-          : { methodPdfAssetKey: result.assetKey };
+          ? {
+              theoryPdfAssetKey: result.pdfAssetKey,
+              theoryHtmlAssetKey: result.htmlAssetKey,
+              theoryHtmlAssetsJson: result.htmlAssets,
+            }
+          : {
+              methodPdfAssetKey: result.pdfAssetKey,
+              methodHtmlAssetKey: result.htmlAssetKey,
+              methodHtmlAssetsJson: result.htmlAssets,
+            };
       await this.contentService.updateUnit(payload.unitId, patch);
 
       return {
@@ -265,7 +283,7 @@ export class TeacherLatexController {
         applied: true,
         unitId: payload.unitId,
         target: payload.target,
-        assetKey: result.assetKey,
+        assetKey: result.pdfAssetKey,
       };
     }
 

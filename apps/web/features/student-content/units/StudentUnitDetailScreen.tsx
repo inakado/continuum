@@ -15,11 +15,12 @@ import { toYouTubeEmbed } from "@/lib/video-embed";
 import Button from "@/components/ui/Button";
 import { useStudentLogout } from "../auth/use-student-logout";
 import { useStudentIdentity } from "../shared/use-student-identity";
-import { useStudentUnitPdfPreview } from "./hooks/use-student-unit-pdf-preview";
+import { useStudentUnitRenderedContent } from "./hooks/use-student-unit-rendered-content";
 import { useStudentTaskNavigation } from "./hooks/use-student-task-navigation";
 import { useStudentTaskAttempt } from "./hooks/use-student-task-attempt";
 import { useStudentPhotoSubmit } from "./hooks/use-student-photo-submit";
 import { useStudentTaskMediaPreview } from "./hooks/use-student-task-media-preview";
+import { StudentUnitHtmlPanel } from "./components/StudentUnitHtmlPanel";
 import { StudentUnitPdfPanel } from "./components/StudentUnitPdfPanel";
 import { StudentTaskTabs } from "./components/StudentTaskTabs";
 import { StudentTaskCardShell } from "./components/StudentTaskCardShell";
@@ -35,7 +36,7 @@ type UnitTabs = Array<{ key: TabKey; label: string }>;
 type AttemptStateModel = ReturnType<typeof useStudentTaskAttempt>;
 type PhotoStateModel = ReturnType<typeof useStudentPhotoSubmit>;
 type MediaStateModel = ReturnType<typeof useStudentTaskMediaPreview>;
-type PdfPreviewStateModel = ReturnType<typeof useStudentUnitPdfPreview>;
+type UnitRenderedContentStateModel = ReturnType<typeof useStudentUnitRenderedContent>;
 type StudentTaskNavigationModel = ReturnType<typeof useStudentTaskNavigation>;
 
 const CREDITED_TASK_STATUSES = new Set<TaskState["status"]>([
@@ -519,7 +520,7 @@ function StudentUnitTabContent({
   activeTab,
   unit,
   videos,
-  unitPdfPreview,
+  unitRenderedContent,
   orderedTasks,
   taskNavigation,
   activeState,
@@ -531,7 +532,7 @@ function StudentUnitTabContent({
   activeTab: TabKey;
   unit: UnitWithTasks | null;
   videos: UnitVideo[];
-  unitPdfPreview: PdfPreviewStateModel;
+  unitRenderedContent: UnitRenderedContentStateModel;
   orderedTasks: Task[];
   taskNavigation: StudentTaskNavigationModel;
   activeState: TaskState | null;
@@ -541,31 +542,53 @@ function StudentUnitTabContent({
   onGoToStudentGraph: () => void;
 }) {
   if (activeTab === "theory") {
+    if (unitRenderedContent.theoryContent?.html) {
+      return (
+        <StudentUnitHtmlPanel
+          content={unitRenderedContent.theoryContent}
+          previewError={unitRenderedContent.theoryError}
+          previewLoading={unitRenderedContent.theoryLoading}
+          unavailableText="HTML теории пока не опубликован учителем."
+        />
+      );
+    }
+
     return (
       <StudentUnitPdfPanel
-        previewError={unitPdfPreview.theoryPreviewError}
-        previewUrl={unitPdfPreview.theoryPreviewUrl}
-        previewLoading={unitPdfPreview.theoryPreviewLoading}
+        previewError={unitRenderedContent.theoryError}
+        previewUrl={unitRenderedContent.theoryContent?.pdfUrl ?? null}
+        previewLoading={unitRenderedContent.theoryLoading}
         unavailableText="PDF теории пока не опубликован учителем."
         refreshKey={unit?.theoryPdfAssetKey ?? undefined}
-        getFreshUrl={unitPdfPreview.refreshTheoryPreviewUrl}
-        zoom={unitPdfPreview.pdfZoomByTarget.theory}
-        onZoomChange={(zoom) => unitPdfPreview.setPdfZoom("theory", zoom)}
+        getFreshUrl={async () => (await unitRenderedContent.refreshTheoryContent())?.pdfUrl ?? null}
+        zoom={unitRenderedContent.pdfZoomByTarget.theory}
+        onZoomChange={(zoom) => unitRenderedContent.setPdfZoom("theory", zoom)}
       />
     );
   }
 
   if (activeTab === "method") {
+    if (unitRenderedContent.methodContent?.html) {
+      return (
+        <StudentUnitHtmlPanel
+          content={unitRenderedContent.methodContent}
+          previewError={unitRenderedContent.methodError}
+          previewLoading={unitRenderedContent.methodLoading}
+          unavailableText="HTML методики пока не опубликован учителем."
+        />
+      );
+    }
+
     return (
       <StudentUnitPdfPanel
-        previewError={unitPdfPreview.methodPreviewError}
-        previewUrl={unitPdfPreview.methodPreviewUrl}
-        previewLoading={unitPdfPreview.methodPreviewLoading}
+        previewError={unitRenderedContent.methodError}
+        previewUrl={unitRenderedContent.methodContent?.pdfUrl ?? null}
+        previewLoading={unitRenderedContent.methodLoading}
         unavailableText="PDF методики пока не опубликован учителем."
         refreshKey={unit?.methodPdfAssetKey ?? undefined}
-        getFreshUrl={unitPdfPreview.refreshMethodPreviewUrl}
-        zoom={unitPdfPreview.pdfZoomByTarget.method}
-        onZoomChange={(zoom) => unitPdfPreview.setPdfZoom("method", zoom)}
+        getFreshUrl={async () => (await unitRenderedContent.refreshMethodContent())?.pdfUrl ?? null}
+        zoom={unitRenderedContent.pdfZoomByTarget.method}
+        onZoomChange={(zoom) => unitRenderedContent.setPdfZoom("method", zoom)}
       />
     );
   }
@@ -616,7 +639,7 @@ const useStudentUnitQueryState = (unitId: string) => {
 const useStudentUnitTabsState = (unit: UnitWithTasks | null) => {
   const [activeTab, setActiveTab] = useState<TabKey>("tasks");
   const videos = useMemo(() => (unit?.videosJson ?? []).filter((video) => video.embedUrl.trim().length > 0), [unit?.videosJson]);
-  const hasMethod = Boolean(unit?.methodPdfAssetKey || unit?.methodRichLatex);
+  const hasMethod = Boolean(unit?.methodPdfAssetKey || unit?.methodHtmlAssetKey || unit?.methodRichLatex);
   const hasAttachments = Boolean(unit?.attachmentsJson && unit.attachmentsJson.length > 0);
   const tabs = useMemo(
     () =>
@@ -661,7 +684,7 @@ const useStudentUnitTaskState = (orderedTasks: Task[], unitId: string) => {
 const useStudentUnitScreenState = (unitId: string) => {
   const queryState = useStudentUnitQueryState(unitId);
   const tabsState = useStudentUnitTabsState(queryState.unit);
-  const unitPdfPreview = useStudentUnitPdfPreview({ unit: queryState.unit, unitId });
+  const unitRenderedContent = useStudentUnitRenderedContent({ unit: queryState.unit, unitId });
   const orderedTasks = useMemo(() => getOrderedTasks(queryState.unit), [queryState.unit]);
   const progressMetrics = useMemo(() => getProgressMetrics(queryState.unit, orderedTasks), [orderedTasks, queryState.unit]);
   const completionMeter = normalizePercent(queryState.unit?.completionPercent ?? 0);
@@ -676,7 +699,7 @@ const useStudentUnitScreenState = (unitId: string) => {
   return {
     ...queryState,
     ...tabsState,
-    unitPdfPreview,
+    unitRenderedContent,
     orderedTasks,
     progressMetrics,
     completionMeter,
@@ -741,7 +764,7 @@ function StudentUnitBody({
           activeTab={state.activeTab}
           unit={unit}
           videos={state.videos}
-          unitPdfPreview={state.unitPdfPreview}
+          unitRenderedContent={state.unitRenderedContent}
           orderedTasks={state.orderedTasks}
           taskNavigation={state.taskNavigation}
           activeState={state.activeState}

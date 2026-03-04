@@ -3,6 +3,11 @@ import { randomBytes } from 'node:crypto';
 export type UnitPdfTarget = 'theory' | 'method';
 export type TaskSolutionPdfTarget = 'task_solution';
 export type LatexCompileTarget = UnitPdfTarget | TaskSolutionPdfTarget;
+export type UnitHtmlAssetRef = {
+  placeholder: string;
+  assetKey: string;
+  contentType: 'image/svg+xml';
+};
 export const TASK_SOLUTION_PDF_TARGET: TaskSolutionPdfTarget = 'task_solution';
 
 export const LATEX_COMPILE_QUEUE_NAME = 'latex.compile';
@@ -50,6 +55,9 @@ type LatexCompileJobResultBase = {
 export type UnitLatexCompileJobResult = LatexCompileJobResultBase & {
   unitId: string;
   target: UnitPdfTarget;
+  pdfAssetKey: string;
+  htmlAssetKey: string;
+  htmlAssets: UnitHtmlAssetRef[];
 };
 
 export type TaskSolutionLatexCompileJobResult = LatexCompileJobResultBase & {
@@ -64,6 +72,12 @@ export const buildUnitPdfKey = (unitId: string, target: UnitPdfTarget, at = new 
   const timestampMs = at.getTime();
   const suffix = randomBytes(4).toString('hex');
   return `units/${unitId}/${target}/${timestampMs}-${suffix}.pdf`;
+};
+
+export const buildUnitHtmlKey = (unitId: string, target: UnitPdfTarget, at = new Date()): string => {
+  const timestampMs = at.getTime();
+  const suffix = randomBytes(4).toString('hex');
+  return `units/${unitId}/${target}/${timestampMs}-${suffix}.html`;
 };
 
 export const buildTaskSolutionPdfKey = (

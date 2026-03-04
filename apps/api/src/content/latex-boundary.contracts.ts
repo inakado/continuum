@@ -57,6 +57,15 @@ const UnitLatexCompileJobResultSchema = z.object({
   target: z.enum(['theory', 'method']),
   unitId: z.string().min(1),
   assetKey: z.string().min(1),
+  pdfAssetKey: z.string().min(1),
+  htmlAssetKey: z.string().min(1),
+  htmlAssets: z.array(
+    z.object({
+      placeholder: z.string().min(1),
+      assetKey: z.string().min(1),
+      contentType: z.literal('image/svg+xml'),
+    }),
+  ),
   sizeBytes: z.number().positive(),
   compileLogSnippet: z.string().optional(),
 });
@@ -87,7 +96,11 @@ export const isTaskSolutionLatexCompileJobPayload = (
 
 export const isUnitLatexCompileJobResult = (
   result: LatexCompileJobResult,
-): result is UnitLatexCompileJobResult => isUnitPdfTarget(result.target);
+): result is UnitLatexCompileJobResult =>
+  isUnitPdfTarget(result.target) &&
+  'pdfAssetKey' in result &&
+  'htmlAssetKey' in result &&
+  Array.isArray((result as UnitLatexCompileJobResult).htmlAssets);
 
 export const isTaskSolutionLatexCompileJobResult = (
   result: LatexCompileJobResult,

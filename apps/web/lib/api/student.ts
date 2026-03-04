@@ -7,6 +7,7 @@ import {
   StudentPhotoPresignUploadResponseSchema,
   StudentPhotoPresignViewResponseSchema,
   StudentPhotoSubmitResponseSchema,
+  StudentUnitRenderedContentResponseSchema,
   type StudentCourse as SharedStudentCourse,
   type StudentCourseDetailResponse as SharedStudentCourseDetailResponse,
   type StudentGraphEdge as SharedStudentGraphEdge,
@@ -25,6 +26,7 @@ import {
   type StudentPhotoSubmitRequest as SharedStudentPhotoSubmitRequest,
   type StudentPhotoPresignViewResponse as SharedStudentPhotoPresignViewResponse,
   type StudentPhotoSubmitResponse as SharedStudentPhotoSubmitResponse,
+  type StudentUnitRenderedContentResponse as SharedStudentUnitRenderedContentResponse,
 } from "@continuum/shared";
 import { apiRequest, apiRequestParsed } from "./client";
 import type { MeResponse } from "./auth";
@@ -74,8 +76,10 @@ export type Section = SharedStudentSection;
 export type Unit = SharedStudentUnit & {
   theoryRichLatex?: string | null;
   theoryPdfAssetKey?: string | null;
+  theoryHtmlAssetKey?: string | null;
   methodRichLatex?: string | null;
   methodPdfAssetKey?: string | null;
+  methodHtmlAssetKey?: string | null;
   videosJson?: UnitVideo[] | null;
   attachmentsJson?: UnitAttachment[] | null;
   unitStatus?: StudentUnitStatus;
@@ -128,6 +132,8 @@ export type UnitPdfPresignedResponse = {
   expiresInSec: number;
   url: string | null;
 };
+
+export type StudentUnitRenderedContentResponse = SharedStudentUnitRenderedContentResponse;
 
 export type StudentPhotoFileInput = SharedStudentPhotoPresignUploadRequest["files"][number];
 
@@ -211,6 +217,14 @@ export const studentApi = {
   getUnitPdfPresignedUrl(id: string, target: "theory" | "method", ttlSec = 180) {
     const search = new URLSearchParams({ target, ttlSec: String(ttlSec) });
     return apiRequest<UnitPdfPresignedResponse>(`/units/${id}/pdf-presign?${search.toString()}`);
+  },
+
+  getUnitRenderedContent(id: string, target: "theory" | "method", ttlSec = 180) {
+    const search = new URLSearchParams({ target, ttlSec: String(ttlSec) });
+    return apiRequestParsed(
+      `/units/${id}/rendered-content?${search.toString()}`,
+      StudentUnitRenderedContentResponseSchema,
+    );
   },
 
   submitAttempt(taskId: string, body: AttemptRequest) {

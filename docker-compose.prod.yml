@@ -30,12 +30,16 @@ services:
       target: runner
     env_file:
       - ./deploy/env/worker.env
+    environment:
+      LATEX_COMPILE_TIMEOUT_MS: ${LATEX_COMPILE_TIMEOUT_MS:-300000}
     restart: unless-stopped
     depends_on:
       redis:
         condition: service_healthy
       api:
         condition: service_healthy
+    volumes:
+      - continuum_prod_worker_tectonic_cache:/root/.cache/Tectonic
 
   postgres:
     image: postgres:16-alpine
@@ -67,3 +71,4 @@ services:
 volumes:
   continuum_prod_postgres_data:
   continuum_prod_redis_data:
+  continuum_prod_worker_tectonic_cache:

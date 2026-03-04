@@ -9,6 +9,7 @@
 - API client слой (cookie auth + refresh)
 - Server-state правила
 - UI primitives, motion и asset preview rules
+- rendered-content flow для student unit `theory/method`
 
 ## Structure
 
@@ -70,6 +71,10 @@
 - Presigned PDF/asset preview из object storage рендерится без credentials (`withCredentials = false`).
 - Это исключает отправку auth-cookie на внешний storage origin и предотвращает CORS-блокировку при `credentials: include`.
 - В student unit PDF tabs zoom хранится отдельно по target; теория и методика открываются с масштабом `50%`.
+- Для student unit `theory/method` primary read-path теперь идёт через backend endpoint `rendered-content`, который отдаёт уже подписанный HTML fragment и optional `pdfUrl`.
+- HTML fragment рендерится как часть страницы; legacy PDF preview остаётся fallback path для unit без собранного HTML.
+- Rich math внутри student/teacher HTML preview typeset'ится локальным MathJax helper из workspace, а не CDN/runtime с внешнего origin.
+- В teacher unit editor preview для `theory/method` живёт внутри того же preview container и поддерживает два режима: `PDF` и `HTML`. HTML preview читает backend `teacher/units/:id/rendered-content`, а PDF preview остаётся canvas-based.
 
 ## UI Primitives and Motion
 

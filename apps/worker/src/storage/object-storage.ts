@@ -1,9 +1,11 @@
 import {
   type BucketLocationConstraint,
   CreateBucketCommand,
+  DeleteObjectCommand,
   type CreateBucketCommandInput,
   GetObjectCommand,
   HeadBucketCommand,
+  HeadObjectCommand,
   type PutObjectCommandInput,
   S3Client,
   S3ServiceException,
@@ -116,6 +118,39 @@ export class WorkerObjectStorageService {
       );
     } catch (error) {
       throw this.wrapStorageError(error, 'failed to generate presigned URL');
+    }
+  }
+
+  async objectExists(key: string): Promise<boolean> {
+    try {
+      await this.s3.send(
+        new HeadObjectCommand({
+          Bucket: this.config.bucket,
+          Key: key,
+        }),
+      );
+      return true;
+    } catch (error) {
+      const known = error as KnownStorageError | undefined;
+      const code = known?.Code || known?.name;
+      const status = known?.$metadata?.httpStatusCode;
+      if (code === 'NotFound' || code === 'NoSuchKey' || status === 404) {
+        return false;
+      }
+      throw this.wrapStorageError(error, 'failed to read object metadata');
+    }
+  }
+
+  async deleteObject(key: string): Promise<void> {
+    try {
+      await this.s3.send(
+        new DeleteObjectCommand({
+          Bucket: this.config.bucket,
+          Key: key,
+        }),
+      );
+    } catch (error) {
+      throw this.wrapStorageError(error, 'failed to delete object');
     }
   }
 

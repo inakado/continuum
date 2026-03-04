@@ -69,9 +69,10 @@
 - (Planned) универсальная привязка файлов к сущностям (если понадобится)
 
 ### BC6 — Rendering (Rich LaTeX)
-**Ответственность:** очередь компиляции LaTeX → PDF, worker compile + apply результата в API, логи ошибок/сниппеты.  
+**Ответственность:** очередь компиляции LaTeX → PDF/HTML, worker compile + apply результата в API, логи ошибок/сниппеты.  
 **Инварианты:**
 - компиляция Tectonic выполняется worker’ом (BullMQ queue `latex.compile`)
+- unit theory/method compile публикует согласованную пару артефактов `PDF + HTML`
 - API защищается от stale-результатов при apply (сравнение assetKey и active revision)
 - при `failed` статусе job API отдаёт структурированную ошибку компиляции: `code/message + log tail (+logTruncated)`; `logSnippet` сохранён для backward compatibility (`Implemented`)
 
@@ -92,7 +93,7 @@
 ### 3.1 Разрешённые зависимости (на уровне чтения/портов)
 - **Learning → Content (read)**: published tasks (required/optional), граф prereq, `minOptionalCountedTasksToComplete`, активная ревизия.
 - **ManualReview → Learning**: принятие/отклонение фото меняет состояние задачи/прогресса.
-- **Rendering → Storage/Content**: результат (PDF) сохраняется в object storage и применяется в Content через internal endpoint.
+- **Rendering → Storage/Content**: результат (`PDF`, `HTML`, `SVG assets`) сохраняется в object storage и применяется в Content через internal endpoint.
 - **Content/Learning/ManualReview/Rendering → Audit**: пишут события.
 - **Search/Analytics ← Audit (+ read)**: строят проекции и агрегаты.
 
@@ -124,7 +125,7 @@
 ## 5) Очереди и фоновые процессы
 
 ### 5.1 Очереди (BullMQ)
-- `latex.compile` — compile LaTeX→PDF (unit theory/method, task solution)
+- `latex.compile` — compile LaTeX→PDF/HTML (unit theory/method) и LaTeX→PDF (task solution)
 - `system.ping` — debug queue (smoke/проверка worker)
 - (Planned) `batch.*` — массовые пересчёты (publish/unpublish, graph updates)
 
