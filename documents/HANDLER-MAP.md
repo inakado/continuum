@@ -81,7 +81,8 @@
 - API queue:
   - `LatexCompileQueueService` добавляет jobs в BullMQ.
 - Worker:
-  - компилирует через `tectonic`,
+  - компилирует через `pdflatex`,
+  - для TikZ HTML assets использует `pdflatex --output-format=dvi -> dvisvgm`,
   - загружает PDF в object storage,
   - вызывает `POST /internal/latex/jobs/:jobId/apply` с `x-internal-token`.
 - API internal apply:

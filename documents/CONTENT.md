@@ -84,13 +84,24 @@
 
 - Apply защищается от stale-ключей (`shouldApplyIncomingPdfKey`): старый результат не должен перезатереть новый.
 
-### Compile compatibility fallback (`Implemented`)
+### Compile compatibility policy (`Implemented`)
 
-- При T2A/font metric ошибках compile retry переписывает legacy encoding preamble на Unicode-вариант:
-  - убирает `cmap`, `fontenc`, `inputenc`;
-  - переключает `\fontencoding{TU}`;
-  - добавляет `\usepackage{fontspec}` и `\defaultfontfeatures{Ligatures=TeX}`;
-  - использует `\setmainfont{Noto Serif}` как runtime fallback для учебных PDF.
+- Backend compile runtime работает на `TeX Live` и считает canonical только `pdflatex`-совместимый source.
+- Если teacher source не содержит полного document envelope, backend оборачивает его repo-canonical `pdflatex` preamble.
+- Если source содержит XeTeX/LuaTeX-only preamble или команды вне текущего runtime scope, compile fail-fast завершается `LATEX_COMPILE_FAILED`.
+- Current denylist включает:
+  - `fontspec`
+  - `unicode-math`
+  - `polyglossia`
+  - `minted`
+  - `svg` / `\includesvg`
+  - `\defaultfontfeatures`, `\setmainfont`, `\setsansfont`, `\setmonofont`, `\setmathfont`, `\newfontfamily`
+  - `\directlua`
+  - `\write18`
+  - `\tikzexternalize`
+  - bibliography/index toolchain (`\bibliography`, `\addbibresource`, `\printbibliography`, `\makeindex`, `\printindex`)
+- `shell-escape` не используется.
+- XColor compatibility fallback остаётся: при unknown TikZ color compile retry добавляет `dvipsnames,svgnames,x11names`.
 
 ### Presigned PDF preview (web) (`Implemented`)
 
@@ -135,8 +146,12 @@
 - Inline/block math в HTML panel typeset'ится локальным MathJax runtime в web.
 - TikZ figures в HTML panel остаются image-based assets из worker render path.
 - Текущий production path для TikZ assets:
-  - `tectonic --outfmt xdv`
+  - `pdflatex --output-format=dvi`
   - `dvisvgm --exact-bbox --font-format=woff`
+- Общий compile/runtime helper для API и worker живёт в `packages/latex-runtime`.
+- HTML pipeline считается semantic/rendered representation, а не pixel-perfect эквивалентом PDF:
+  - текущий контур сохраняет основной текст, формулы, figure references и image-based TikZ figures;
+  - итоговый HTML может типографически отличаться от исходного PDF/LaTeX layout, особенно в figure-heavy theory content и кастомных theorem-like блоках.
 - Известное ограничение текущего SVG path:
   - math accent-команды вида `\vec{...}` внутри TikZ labels могут рендериться браузером с некорректным положением accent glyph;
   - проблема признана как engineering debt и вынесена в `documents/exec-plans/tech-debt-tracker.md`.

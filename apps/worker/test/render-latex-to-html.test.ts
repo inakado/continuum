@@ -2,6 +2,38 @@ import { describe, expect, it } from 'vitest';
 import { __test__ } from '../src/latex-html/render-latex-to-html';
 
 describe('render-latex-to-html helpers', () => {
+  it('extracts preamble without dropping source documentclass', () => {
+    const preamble = __test__.extractPreamble(
+      [
+        '\\PassOptionsToPackage{dvipsnames}{xcolor}',
+        '\\documentclass[14pt,a4paper,oneside]{extreport}',
+        '\\usepackage{svg}',
+        '\\usepackage{tikz}',
+        '\\begin{document}',
+        'ok',
+        '\\end{document}',
+      ].join('\n'),
+    );
+
+    expect(preamble).toContain('\\documentclass[14pt,a4paper,oneside]{extreport}');
+    expect(preamble).not.toContain('\\usepackage{svg}');
+  });
+
+  it('keeps original documentclass in tikz standalone document when source already defines one', () => {
+    const doc = __test__.buildTikzStandaloneDocument(
+      [
+        '\\documentclass[14pt,a4paper,oneside]{extreport}',
+        '\\usepackage{tikz}',
+        '\\newcounter{definition}[chapter]',
+      ].join('\n'),
+      '\\begin{tikzpicture}\\draw (0,0)--(1,1);\\end{tikzpicture}',
+    );
+
+    expect(doc).toContain('\\documentclass[14pt,a4paper,oneside]{extreport}');
+    expect(doc).not.toContain('\\documentclass[a4paper,14pt]{extarticle}');
+    expect(doc).toContain('\\newcounter{definition}[chapter]');
+  });
+
   it('expands one-argument fig macros into raw tikz blocks', () => {
     const tex = String.raw`\documentclass{article}
 \newcommand{\figDemo}[1]{%

@@ -32,6 +32,7 @@
 - `documents/design-docs/core-beliefs.md` — core beliefs для design-doc ветки.
 - `documents/product-specs/index.md` — индекс продуктовых спецификаций.
 - `documents/exec-plans/active/` — активные execution plans.
+- `documents/exec-plans/active/texlive-pdflatex-migration.md` — активный план миграции backend LaTeX runtime с `tectonic` на `TeX Live + pdflatex`.
 - `documents/exec-plans/completed/` — завершённые execution plans.
 - `documents/exec-plans/completed/index.md` — индекс завершённых планов.
 - `documents/exec-plans/deferred-roadmap.md` — отложенные future items, которые не являются техдолгом.

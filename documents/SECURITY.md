@@ -51,6 +51,15 @@ Operational pitfall (`Implemented`):
 - Worker применяет результаты LaTeX compile через internal endpoint с заголовком `x-internal-token`.
 - Token сравнивается с `WORKER_INTERNAL_TOKEN`.
 
+### LaTeX runtime sandbox policy
+
+- Backend LaTeX runtime основан на `TeX Live`, но остаётся в no-shell-escape contour.
+- `pdflatex` source проходит fail-fast validation и отклоняется, если содержит:
+  - XeTeX/LuaTeX-only preamble (`fontspec`, `unicode-math`, `polyglossia`, `\setmainfont` и похожие команды);
+  - shell-escape/external-tooling markers (`minted`, `svg`, `\includesvg`, `\write18`, `\tikzexternalize`);
+  - bibliography/index toolchain вне текущего scope.
+- Worker и API не должны silently включать shell-escape как “compatibility fix”.
+
 ### Object storage (presigned URLs)
 
 - Файлы в S3/MinIO доступны через presigned URLs, которые выдаёт backend.
@@ -80,6 +89,8 @@ Operational pitfall (`Implemented`):
 - Internal worker token:
   - `apps/api/src/content/internal-latex.controller.ts`
   - `apps/worker/src/latex/latex-apply-client.ts`
+- LaTeX runtime:
+  - `packages/latex-runtime/src/*`
 - Storage:
   - `apps/api/src/infra/storage/object-storage.service.ts`
   - `apps/api/src/learning/photo-task-read.service.ts`

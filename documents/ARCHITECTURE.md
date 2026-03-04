@@ -10,7 +10,7 @@
 ### 1.1 Стиль
 - **Modular Monolith** на **NestJS** (единый деплой API), разбиение по модулям/Bounded Contexts.
 - Отдельный процесс **Worker** (BullMQ consumers) для:
-  - Rich LaTeX рендера (Tectonic),
+  - Rich LaTeX рендера (TeX Live + `pdflatex` / `dvisvgm`),
   - (Planned) batch-пересчётов прогресса/доступности при publish/unpublish и обновлениях графа (в текущем коде пересчёт делается синхронно в API).
 
 ### 1.2 Доменная декомпозиция (DDD)
@@ -71,7 +71,8 @@
 ### BC6 — Rendering (Rich LaTeX)
 **Ответственность:** очередь компиляции LaTeX → PDF/HTML, worker compile + apply результата в API, логи ошибок/сниппеты.  
 **Инварианты:**
-- компиляция Tectonic выполняется worker’ом (BullMQ queue `latex.compile`)
+- compile runtime основан на `TeX Live`; основной PDF path использует `pdflatex`, TikZ HTML asset path использует `pdflatex --output-format=dvi -> dvisvgm`
+- общий backend runtime helper вынесен в `packages/latex-runtime`
 - unit theory/method compile публикует согласованную пару артефактов `PDF + HTML`
 - API защищается от stale-результатов при apply (сравнение assetKey и active revision)
 - при `failed` статусе job API отдаёт структурированную ошибку компиляции: `code/message + log tail (+logTruncated)`; `logSnippet` сохранён для backward compatibility (`Implemented`)

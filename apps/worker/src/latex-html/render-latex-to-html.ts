@@ -4,36 +4,32 @@ import { promises as fs } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
-  LATEX_MAX_SOURCE_LENGTH,
+  assertPdflatexCompatible,
+  compileLatexToDvi,
+  convertDviToSvg,
+  ensurePdflatexDocumentEnvelope,
+  LatexRuntimeError,
+  normalizeLatexSource,
+  resolveLatexTimeoutMs,
+  summarizeLatexOutput,
+} from '@continuum/latex-runtime';
+import {
   type UnitHtmlAssetRef,
 } from '../latex/latex-queue.contract';
 import { LatexCompileError } from '../latex/latex-compile';
 import { type WorkerObjectStorageService } from '../storage/object-storage';
 
-const DEFAULT_TIMEOUT_MS = 120_000;
 const OUTPUT_CAPTURE_LIMIT = 128_000;
 const OUTPUT_SNIPPET_LIMIT = 12_000;
-const TIKZ_RENDER_CACHE_VERSION = 'v6';
-const DEFAULT_DOCUMENT_PREAMBLE = [
-  '\\documentclass{article}',
-  '\\usepackage[english,russian]{babel}',
-  '\\usepackage{amsmath,amsthm,mathtools}',
-  '\\usepackage{tikz}',
-  '\\begin{document}',
-];
-const TIKZ_STANDALONE_SAFE_FONT_BLOCK = [
-  '\\usepackage{fontspec}',
-  '\\defaultfontfeatures{Ligatures=TeX}',
-  '\\setmainfont{Noto Serif}',
-  '\\setsansfont{Noto Sans}',
-  '\\setmonofont{DejaVu Sans Mono}',
-];
+const TIKZ_RENDER_CACHE_VERSION = 'pdflatex-dvi-v2';
 const TIKZ_STANDALONE_DISALLOWED_PACKAGES = new Set([
   'pdfpages',
   'svg',
   'newcomputermodern',
   'fontspec',
   'unicode-math',
+  'polyglossia',
+  'minted',
 ]);
 const TIKZ_STANDALONE_DISALLOWED_COMMAND_PATTERNS = [
   /^\s*\\defaultfontfeatures(?:\[[^\]]*])?\{/,
@@ -41,6 +37,10 @@ const TIKZ_STANDALONE_DISALLOWED_COMMAND_PATTERNS = [
   /^\s*\\setsansfont(?:\[[^\]]*])?\{/,
   /^\s*\\setmonofont(?:\[[^\]]*])?\{/,
   /^\s*\\setmathfont(?:\[[^\]]*])?\{/,
+  /^\s*\\newfontfamily(?:\[[^\]]*])?\{/,
+  /^\s*\\directlua\b/,
+  /^\s*\\includesvg(?:\[[^\]]*])?\{/,
+  /^\s*\\tikzexternalize\b/,
 ];
 
 type LatexHtmlRenderResult = {
@@ -83,34 +83,6 @@ type CommandResult = {
   outputTruncated: boolean;
 };
 
-const ensureTex = (texSource: string): string => {
-  if (typeof texSource !== 'string' || !texSource.trim()) {
-    throw new LatexCompileError('INVALID_LATEX_INPUT', 'tex must be a non-empty string');
-  }
-  if (texSource.length > LATEX_MAX_SOURCE_LENGTH) {
-    throw new LatexCompileError(
-      'LATEX_TOO_LARGE',
-      `tex exceeds max length (${LATEX_MAX_SOURCE_LENGTH})`,
-    );
-  }
-  return texSource;
-};
-
-const resolveTimeoutMs = (): number => {
-  const raw = process.env.LATEX_COMPILE_TIMEOUT_MS;
-  if (!raw) return DEFAULT_TIMEOUT_MS;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_TIMEOUT_MS;
-  return Math.floor(parsed);
-};
-
-const ensureDocumentEnvelope = (tex: string): string => {
-  if (/\\begin\{document\}/.test(tex) && /\\end\{document\}/.test(tex)) {
-    return tex;
-  }
-  return `${DEFAULT_DOCUMENT_PREAMBLE.join('\n')}\n${tex}\n\\end{document}\n`;
-};
-
 const extractPreamble = (tex: string): string => {
   const documentMatch = tex.match(/\\begin\{document\}/);
   if (!documentMatch || documentMatch.index === undefined) {
@@ -119,7 +91,6 @@ const extractPreamble = (tex: string): string => {
   const beforeDocument = tex.slice(0, documentMatch.index);
   const lines = beforeDocument
     .split(/\r?\n/)
-    .filter((line) => !/^\s*\\documentclass/.test(line))
     .filter((line) => !TIKZ_STANDALONE_DISALLOWED_COMMAND_PATTERNS.some((pattern) => pattern.test(line)))
     .map(stripDisallowedTikzPackagesFromLine)
     .filter((line) => !/^\s*$/.test(line));
@@ -459,23 +430,18 @@ const buildTikzStandaloneDocument = (preamble: string, block: string): string =>
     .filter((line) => !/\\end\{document\}/.test(line))
     .join('\n');
 
+  const hasDocumentClass = /\\documentclass(?:\[[^\]]*])?\{[^}]+\}/.test(cleanedPreamble);
+
   return [
-    '\\documentclass[tikz,dvisvgm,border=2pt]{standalone}',
+    ...(hasDocumentClass ? [] : ['\\documentclass[a4paper,14pt]{extarticle}']),
     cleanedPreamble,
-    ...TIKZ_STANDALONE_SAFE_FONT_BLOCK,
     '\\begin{document}',
+    '\\pagestyle{empty}',
+    '\\thispagestyle{empty}',
     block,
     '\\end{document}',
     '',
   ].join('\n');
-};
-
-const summarizeOutput = (chunks: string[]): string | undefined => {
-  const normalized = chunks.map((chunk) => chunk.trim()).filter(Boolean).join('\n');
-  if (!normalized) return undefined;
-  return normalized.length <= OUTPUT_SNIPPET_LIMIT
-    ? normalized
-    : `...${normalized.slice(-OUTPUT_SNIPPET_LIMIT)}`;
 };
 
 const buildTikzAssetKey = (preamble: string, block: string): string => {
@@ -485,7 +451,7 @@ const buildTikzAssetKey = (preamble: string, block: string): string => {
     .update(preamble, 'utf8')
     .update('\n---BLOCK---\n', 'utf8')
     .update(block, 'utf8')
-    .update('\n---DVI2SVG---\n--exact-bbox --font-format=woff\n', 'utf8')
+    .update('\n---PDFLATEX-DVI2SVG---\n-output-format=dvi --exact-bbox --font-format=woff\n', 'utf8')
     .digest('hex');
   return `rendering/tikz/${hash}.svg`;
 };
@@ -565,17 +531,13 @@ const ensureCommandSucceeded = (
 
 const compileTikzToSvg = async ({
   storage,
-  tempDir,
   preamble,
   block,
-  index,
   timeoutMs,
 }: {
   storage: WorkerObjectStorageService;
-  tempDir: string;
   preamble: string;
   block: string;
-  index: number;
   timeoutMs: number;
 }): Promise<{ assetKey: string; contentType: 'image/svg+xml'; logSnippet?: string }> => {
   const assetKey = buildTikzAssetKey(preamble, block);
@@ -583,29 +545,15 @@ const compileTikzToSvg = async ({
     return { assetKey, contentType: 'image/svg+xml' };
   }
 
-  const texName = `tikz-${index}.tex`;
-  const texPath = join(tempDir, texName);
-  const xdvPath = join(tempDir, `tikz-${index}.xdv`);
-  const svgPath = join(tempDir, `tikz-${index}.svg`);
-  await fs.writeFile(texPath, buildTikzStandaloneDocument(preamble, block), 'utf8');
-
-  const tectonic = await runCommand(
-    'tectonic',
-    ['--outfmt', 'xdv', '--outdir', tempDir, texName],
-    tempDir,
+  const compiled = await compileLatexToDvi(buildTikzStandaloneDocument(preamble, block), {
     timeoutMs,
-  );
-  const tectonicSnippet = ensureCommandSucceeded('tectonic', tectonic, timeoutMs);
-
-  const dvisvgm = await runCommand(
-    'dvisvgm',
-    ['--exact-bbox', '--font-format=woff', '-o', svgPath, xdvPath],
-    tempDir,
+    tempDirPrefix: 'continuum-tikz-dvi-',
+  });
+  const converted = await convertDviToSvg(compiled.bytes, {
     timeoutMs,
-  );
-  const dvisvgmSnippet = ensureCommandSucceeded('dvisvgm', dvisvgm, timeoutMs);
-
-  const svg = sanitizeSvg(await fs.readFile(svgPath, 'utf8'));
+    tempDirPrefix: 'continuum-tikz-svg-',
+  });
+  const svg = sanitizeSvg(converted.svg);
   await storage.putObject({
     key: assetKey,
     contentType: 'image/svg+xml',
@@ -616,7 +564,7 @@ const compileTikzToSvg = async ({
   return {
     assetKey,
     contentType: 'image/svg+xml',
-    logSnippet: summarizeOutput([tectonicSnippet ?? '', dvisvgmSnippet ?? '']),
+    logSnippet: summarizeLatexOutput([compiled.logSnippet ?? '', converted.logSnippet ?? '']),
   };
 };
 
@@ -708,8 +656,11 @@ export const renderLatexToHtml = async (
   texSource: string,
   storage: WorkerObjectStorageService,
 ): Promise<LatexHtmlRenderResult> => {
-  const tex = expandFigureMacros(ensureDocumentEnvelope(ensureTex(texSource)));
-  const timeoutMs = resolveTimeoutMs();
+  const normalizedTex = normalizeLatexSource(texSource);
+  const wrappedTex = ensurePdflatexDocumentEnvelope(normalizedTex);
+  assertPdflatexCompatible(wrappedTex);
+  const tex = expandFigureMacros(wrappedTex);
+  const timeoutMs = resolveLatexTimeoutMs();
   const tempDir = await fs.mkdtemp(join(tmpdir(), 'continuum-tex-html-'));
   const logChunks: string[] = [];
 
@@ -719,13 +670,11 @@ export const renderLatexToHtml = async (
     const { modifiedTex, figures } = extractFigures(texWithTikzPlaceholders);
     const assetRefs: UnitHtmlAssetRef[] = [];
 
-    for (const [index, block] of blocks.entries()) {
+    for (const block of blocks) {
       const compiled = await compileTikzToSvg({
         storage,
-        tempDir,
         preamble,
         block: block.content,
-        index,
         timeoutMs,
       });
       assetRefs.push({
@@ -757,7 +706,7 @@ export const renderLatexToHtml = async (
         figures,
       ),
     );
-    const logSnippet = summarizeOutput(logChunks);
+    const logSnippet = summarizeLatexOutput(logChunks);
 
     return {
       html,
@@ -765,10 +714,20 @@ export const renderLatexToHtml = async (
       ...(logSnippet ? { logSnippet } : null),
     };
   } catch (error) {
+    if (error instanceof LatexRuntimeError) {
+      throw new LatexCompileError(
+        error.code,
+        error.message,
+        error.log,
+        error.logSnippet,
+        error.logTruncated,
+        error.logLimitBytes,
+      );
+    }
     if ((error as { code?: string } | null)?.code === 'ENOENT') {
       throw new LatexCompileError(
         'LATEX_RUNTIME_MISSING',
-        'pandoc or dvisvgm binary is not available in worker runtime environment',
+        'pandoc binary is not available in worker runtime environment',
       );
     }
     if (error instanceof LatexCompileError) {
@@ -785,6 +744,8 @@ export const renderLatexToHtml = async (
 
 export const __test__ = {
   buildTikzAssetKey,
+  buildTikzStandaloneDocument,
+  extractPreamble,
   expandFigureMacros,
   extractFigures,
   injectFigurePlaceholders,

@@ -38,6 +38,9 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: ^3.988.0
         version: 3.988.0
+      '@continuum/latex-runtime':
+        specifier: workspace:*
+        version: link:../../packages/latex-runtime
       '@continuum/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -289,6 +292,9 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: ^3.988.0
         version: 3.988.0
+      '@continuum/latex-runtime':
+        specifier: workspace:*
+        version: link:../../packages/latex-runtime
       '@continuum/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -308,6 +314,18 @@ importers:
       ts-node-dev:
         specifier: ^2.0.0
         version: 2.0.0(@types/node@25.2.0)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.0.18
+        version: 4.0.18(@types/node@25.2.0)(jiti@2.6.1)(jsdom@28.1.0(@noble/hashes@1.8.0))(lightningcss@1.30.2)
+
+  packages/latex-runtime:
+    devDependencies:
+      '@types/node':
+        specifier: ^25.2.0
+        version: 25.2.0
       typescript:
         specifier: ^5.9.3
         version: 5.9.3

@@ -238,15 +238,17 @@ Web удобнее дебажить локально (Next dev server), но inf
 
 ---
 
-## DEC-18 — Tectonic только в Worker-окружении, в sandbox, без shell-escape
+## DEC-18 — TeX Live runtime для backend LaTeX, без shell-escape
 **Контекст**  
 Rich LaTeX компилируется на сервере, потенциально небезопасен (инъекции, доступ к FS/сети). Компиляция должна быть асинхронной и не блокировать API.
 
 **Решение (уточнение по факту кода):**  
 - Основной pipeline: compile выполняется в worker (BullMQ `latex.compile`) и применяется через internal endpoint в API.  
-- В docker-образе API также установлен `tectonic` (используется debug endpoint’ом); это увеличивает attack surface и требует дисциплины доступа.  
+- Runtime основан на `TeX Live`; основной PDF path использует `pdflatex`, а TikZ HTML asset path — `pdflatex --output-format=dvi -> dvisvgm`.
+- В docker-образе API также установлен тот же runtime для debug endpoint’а; это увеличивает attack surface и требует дисциплины доступа.  
 - Worker вызывает internal apply с `x-internal-token` (`WORKER_INTERNAL_TOKEN`).  
 - Shell-escape не используется.
+- Source compatibility фиксируется как strict `pdflatex`; XeTeX/LuaTeX-only preamble и внешний toolchain отклоняются fail-fast.
 
 **Обоснование**  
 Разделение обязанностей и blast-radius: API остаётся быстрым и безопасным, тяжёлый/опасный процесс живёт отдельно.

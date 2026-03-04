@@ -1,19 +1,21 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException, InternalServerErrorException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { fsMock } = vi.hoisted(() => ({
-  fsMock: {
-    mkdtemp: vi.fn(),
-    writeFile: vi.fn(),
-    readFile: vi.fn(),
-    rm: vi.fn(),
-  },
+const { compileLatexToPdfMock } = vi.hoisted(() => ({
+  compileLatexToPdfMock: vi.fn(),
 }));
 
-vi.mock('node:fs', () => ({
-  promises: fsMock,
-}));
+vi.mock('@continuum/latex-runtime', async () => {
+  const actual = await vi.importActual<typeof import('@continuum/latex-runtime')>(
+    '@continuum/latex-runtime',
+  );
+  return {
+    ...actual,
+    compileLatexToPdf: compileLatexToPdfMock,
+  };
+});
 
+import { LatexRuntimeError } from '@continuum/latex-runtime';
 import { LatexCompileService } from '../src/infra/latex/latex-compile.service';
 
 describe('LatexCompileService', () => {
@@ -21,87 +23,65 @@ describe('LatexCompileService', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
-    vi.unstubAllEnvs();
-
-    fsMock.mkdtemp.mockReset();
-    fsMock.writeFile.mockReset();
-    fsMock.readFile.mockReset();
-    fsMock.rm.mockReset();
-
-    fsMock.mkdtemp.mockResolvedValue('/tmp/continuum-tex-123');
-    fsMock.writeFile.mockResolvedValue(undefined);
-    fsMock.readFile.mockResolvedValue(Buffer.from('%PDF-1.4'));
-    fsMock.rm.mockResolvedValue(undefined);
+    compileLatexToPdfMock.mockReset();
   });
 
-  it('retries with Unicode fallback after T2A metric error and succeeds', async () => {
-    const executeCompileAttempt = vi
-      .spyOn(service as never, 'executeCompileAttempt')
-      .mockResolvedValueOnce({
-        code: 1,
-        timedOut: false,
-        logSnippet: 'Font T2A/lmr/m/n not loadable',
-      })
-      .mockResolvedValueOnce({
-        code: 0,
-        timedOut: false,
-        logSnippet: 'fallback compile ok',
-      });
+  it('returns compiled pdf bytes and log snippet on success', async () => {
+    compileLatexToPdfMock.mockResolvedValue({
+      bytes: Buffer.from('%PDF-1.4'),
+      logSnippet: 'compile ok',
+      logTruncated: false,
+      logLimitBytes: 256_000,
+    });
 
-    const result = await service.compileToPdf(
-      '\\documentclass{article}\n\\usepackage[T2A]{fontenc}\n\\begin{document}Привет\\end{document}',
-    );
-
-    expect(result).toMatchObject({
+    await expect(
+      service.compileToPdf('\\documentclass{article}\\begin{document}ok\\end{document}'),
+    ).resolves.toEqual({
       pdfBytes: Buffer.from('%PDF-1.4'),
-      logSnippet: 'fallback compile ok',
-    });
-    expect(executeCompileAttempt).toHaveBeenCalledTimes(2);
-    expect(fsMock.writeFile).toHaveBeenNthCalledWith(
-      2,
-      '/tmp/continuum-tex-123/main.tex',
-      expect.stringContaining('\\usepackage{fontspec}'),
-      'utf8',
-    );
-    expect(fsMock.rm).toHaveBeenCalledWith('/tmp/continuum-tex-123', {
-      recursive: true,
-      force: true,
+      logSnippet: 'compile ok',
     });
   });
 
-  it('retries with xcolor names fallback after unknown TikZ color error and succeeds', async () => {
-    vi.spyOn(service as never, 'executeCompileAttempt')
-      .mockResolvedValueOnce({
-        code: 1,
-        timedOut: false,
-        logSnippet: "Package pgfkeys Error: I do not know the key '/tikz/FooBar'",
-      })
-      .mockResolvedValueOnce({
-        code: 0,
-        timedOut: false,
-        logSnippet: 'xcolor fallback compile ok',
-      });
-
-    const result = await service.compileToPdf(
-      '\\documentclass{article}\n\\begin{document}ok\\end{document}',
+  it('maps invalid input to BadRequestException', async () => {
+    compileLatexToPdfMock.mockRejectedValue(
+      new LatexRuntimeError('INVALID_LATEX_INPUT', 'tex must be a non-empty string'),
     );
 
-    expect(result.logSnippet).toBe('xcolor fallback compile ok');
-    expect(fsMock.writeFile).toHaveBeenNthCalledWith(
-      2,
-      '/tmp/continuum-tex-123/main.tex',
-      expect.stringContaining('\\PassOptionsToPackage{dvipsnames,svgnames,x11names}{xcolor}'),
-      'utf8',
-    );
+    await expect(service.compileToPdf('   ')).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('returns LATEX_COMPILE_TIMEOUT with log snippet when tectonic exceeds timeout', async () => {
-    vi.stubEnv('LATEX_COMPILE_TIMEOUT_MS', '1500');
-    vi.spyOn(service as never, 'executeCompileAttempt').mockResolvedValue({
-      code: null,
-      timedOut: true,
-      logSnippet: 'still compiling...',
+  it('maps unsupported pdflatex source to ConflictException', async () => {
+    compileLatexToPdfMock.mockRejectedValue(
+      new LatexRuntimeError(
+        'LATEX_COMPILE_FAILED',
+        'LaTeX source is not compatible with pdflatex runtime policy: package "fontspec" is unsupported in pdflatex runtime',
+        undefined,
+        'package "fontspec" is unsupported',
+      ),
+    );
+
+    await expect(
+      service.compileToPdf(
+        '\\documentclass{article}\n\\usepackage{fontspec}\n\\begin{document}ok\\end{document}',
+      ),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({
+        code: 'LATEX_COMPILE_FAILED',
+        message:
+          'LaTeX source is not compatible with pdflatex runtime policy: package "fontspec" is unsupported in pdflatex runtime',
+      }),
     });
+  });
+
+  it('maps timeout to ConflictException preserving log snippet', async () => {
+    compileLatexToPdfMock.mockRejectedValue(
+      new LatexRuntimeError(
+        'LATEX_COMPILE_TIMEOUT',
+        'LaTeX compilation exceeded 1500ms',
+        undefined,
+        'still compiling...',
+      ),
+    );
 
     await expect(
       service.compileToPdf('\\documentclass{article}\n\\begin{document}slow\\end{document}'),
@@ -114,28 +94,24 @@ describe('LatexCompileService', () => {
     });
   });
 
-  it('keeps legacy T2A failure message when fallback does not change source', async () => {
-    vi.spyOn(service as never, 'executeCompileAttempt').mockResolvedValue({
-      code: 1,
-      timedOut: false,
-      logSnippet: 'Metric (TFM) file or installed font not found',
-    });
+  it('maps missing runtime binary to InternalServerErrorException', async () => {
+    compileLatexToPdfMock.mockRejectedValue(
+      new LatexRuntimeError(
+        'LATEX_RUNTIME_MISSING',
+        'pdflatex binary is not available in runtime environment',
+      ),
+    );
 
     await expect(
-      service.compileToPdf(
-        '\\documentclass{article}\n\\usepackage{fontspec}\n\\defaultfontfeatures{Ligatures=TeX}\n\\setmainfont{Noto Serif}\n\\begin{document}ok\\end{document}',
-      ),
-    ).rejects.toMatchObject({
-      response: expect.objectContaining({
-        code: 'LATEX_COMPILE_FAILED',
-        message:
-          'LaTeX compilation failed: legacy T2A fonts are unavailable in runtime. Remove cmap/fontenc/inputenc and use Unicode fontspec preamble.',
-      }),
-    });
+      service.compileToPdf('\\documentclass{article}\n\\begin{document}ok\\end{document}'),
+    ).rejects.toBeInstanceOf(InternalServerErrorException);
   });
 
-  it('rejects empty tex input before touching filesystem', async () => {
-    await expect(service.compileToPdf('   ')).rejects.toBeInstanceOf(BadRequestException);
-    expect(fsMock.mkdtemp).not.toHaveBeenCalled();
+  it('keeps unexpected crashes as InternalServerErrorException', async () => {
+    compileLatexToPdfMock.mockRejectedValue(new Error('unexpected crash'));
+
+    await expect(
+      service.compileToPdf('\\documentclass{article}\n\\begin{document}ok\\end{document}'),
+    ).rejects.toBeInstanceOf(InternalServerErrorException);
   });
 });

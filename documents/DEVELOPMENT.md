@@ -200,14 +200,14 @@ Auth smoke проверяет:
   - `docker compose restart api worker`
 - **Проверка:** endpoint снова отвечает `200`, а dev startup всегда пересобирает `packages/shared`
 
-- **Симптом:** первый LaTeX compile после rebuild/recreate `worker` падает по timeout или очень долго скачивает runtime bundle/font data.
-- **Команда:** compile из teacher dashboard или `docker compose logs --no-color --tail=120 worker`
-- **Причина:** cold `Tectonic` cache; runtime bundle и format files ещё не прогреты.
+- **Симптом:** compile падает сообщением про incompatible `pdflatex` source (`fontspec`, `unicode-math`, `\includesvg`, bibliography/index команды).
+- **Команда:** teacher compile / `GET /teacher/latex/jobs/:jobId`
+- **Причина:** новый backend runtime работает на strict `pdflatex` policy и не поддерживает XeTeX/LuaTeX-only preamble и внешний toolchain.
 - **Фикс:**
-  - использовать persistent volume `/root/.cache/Tectonic` в compose-контуре;
-  - при необходимости повторить compile после прогрева cache;
-  - для длинных compile держать повышенный `LATEX_COMPILE_TIMEOUT_MS`.
-- **Проверка:** последующие compile заметно быстрее и не повторяют полный bootstrap download
+  - привести teacher source к `pdflatex`-совместимой preamble;
+  - убрать `fontspec`, `unicode-math`, `polyglossia`, `minted`, `svg`, `\includesvg`, `\tikzexternalize`, bibliography/index команды;
+  - не использовать shell-escape.
+- **Проверка:** compile job завершается `succeeded`, а PDF/HTML assets публикуются как обычно
 
 - **Симптом:** агент пытается запустить `CI=true pnpm install --frozen-lockfile` в sandbox и получает сетевые ошибки.
 - **Команда:** `CI=true pnpm install --frozen-lockfile`
@@ -218,6 +218,14 @@ Auth smoke проверяет:
 - **Симптом:** install пишет `Ignored build scripts: ...`.
 - **Команда:** `pnpm install --frozen-lockfile`
 - **Причина:** pnpm v10 блокирует lifecycle build scripts без allowlist.
+- **Симптом:** в dev startup `worker` логирует ошибку вида `msgpackr-extract install ... gcc: not found` или stack trace из `node-gyp`, но после этого всё равно пишет `Done in ...` и продолжает запускаться.
+- **Команда:** `docker compose logs --no-color --tail=120 worker`
+- **Причина:** `msgpackr-extract` пытается собрать optional native addon; в dev image нет build toolchain (`gcc`), поэтому native rebuild падает и пакет остаётся на JS fallback.
+- **Фикс:** если `worker` после этого доходит до `[worker] latex ready`, ничего делать не нужно; это не блокирует runtime. Build toolchain добавлять только если появится реальная потребность в native performance path.
+- **Проверка:** после лога install есть:
+  - `Done in ... using pnpm`
+  - `> @continuum/worker@0.0.0 dev`
+  - `[worker] latex ready concurrency=...`
 - **Фикс:** использовать зафиксированный `pnpm.onlyBuiltDependencies` в root `package.json`.
 - **Проверка:** install не требует ручного `pnpm approve-builds`
 
@@ -258,15 +266,25 @@ Auth smoke проверяет:
 - **Фикс:** не использовать `GET /courses` как teacher smoke; проверять `GET /auth/me`, `GET /teacher/me`, `GET /debug/teacher-only` и ожидать `GET /courses = 403`.
 - **Проверка:** `pnpm smoke:auth` внутри контейнера `api` проходит целиком
 
-- **Симптом:** PDF compile из UI запускается, но результат долго не появляется и явной ошибки нет.
+- **Симптом:** PDF compile из UI запускается, но результат долго не появляется, либо в `worker` логах есть `Cannot find module '@continuum/latex-runtime'`.
 - **Команда:** `docker compose logs --no-color --tail=120 worker`
-- **Причина:** `worker` использует stale `node_modules` volume и после изменений в `packages/shared` не видит новые runtime dependencies (например, `zod`), поэтому latex worker не стартует или не обрабатывает очередь.
+- **Причина:** `worker` использует stale `node_modules` volume и после изменений в workspace-пакетах (`packages/shared`, `packages/latex-runtime`) не видит новые runtime dependencies, поэтому latex worker не стартует или не обрабатывает очередь. Если `pnpm install` должен перелинковать volume с нуля, без `--force` он может зависнуть на интерактивном вопросе `The modules directories will be removed and reinstalled from scratch`.
 - **Фикс:**
   - пересоздать dev-контур:
     - `docker compose up -d --build --force-recreate api worker`
   - если нужно убедиться вручную:
     - `docker compose exec -T worker sh -lc "cd /app/packages/shared && node -e \"require('zod'); console.log('ok')\""`
+    - `docker compose exec -T worker sh -lc "cd /app/apps/worker && node -e \"require('@continuum/latex-runtime'); console.log('ok')\""`
 - **Проверка:**
   - в логах есть:
     - `[worker] latex ready concurrency=1`
     - `[worker][latex] success jobId=...`
+
+- **Симптом:** backend Docker rebuild после LaTeX-изменений слишком долго скачивает `TeX Live` и зависимости заново.
+- **Команда:** `docker compose build api worker`
+- **Причина:** первый build после смены Dockerfile/install-layer заполняет BuildKit cache для `apt` и `pnpm`; при ручной очистке builder cache он заполняется снова.
+- **Фикс:**
+  - не очищать без необходимости Docker builder cache;
+  - не делать `docker builder prune` / `docker system prune -a`, если цель только пересоздать `api` и `worker`;
+  - для dev-перезапуска использовать `docker compose up -d --build api worker`, чтобы переиспользовать слои и named volumes.
+- **Проверка:** повторный `docker compose build api worker` использует cached steps для `install-texlive-runtime.sh` и `pnpm install`, если не менялись Dockerfile и lockfile.

@@ -34,7 +34,7 @@ services:
       - .:/app
       - api_node_modules:/app/node_modules
       - api_app_node_modules:/app/apps/api/node_modules
-    command: sh -c "if [ ! -d /app/node_modules/.pnpm ] || [ ! -d /app/node_modules/helmet ] || [ ! -d /app/node_modules/@prisma/client ] || [ ! -d /app/node_modules/zod ]; then pnpm install --filter @continuum/api... --frozen-lockfile; fi; pnpm --filter @continuum/api exec tsc -p /app/packages/shared/tsconfig.json; if [ ! -d /app/node_modules/.prisma/client ]; then pnpm --filter @continuum/api exec prisma generate; fi; pnpm --filter @continuum/api dev"
+    command: sh -c "if [ ! -d /app/node_modules/.pnpm ] || [ ! -d /app/node_modules/helmet ] || [ ! -d /app/node_modules/@prisma/client ] || [ ! -d /app/node_modules/zod ] || [ ! -d /app/node_modules/@continuum/latex-runtime ]; then CI=true pnpm install --force --reporter=append-only --filter @continuum/api... --frozen-lockfile; fi; pnpm --filter @continuum/api exec tsc -p /app/packages/shared/tsconfig.json; pnpm --filter @continuum/api exec tsc -p /app/packages/latex-runtime/tsconfig.json; if [ ! -d /app/node_modules/.prisma/client ]; then pnpm --filter @continuum/api exec prisma generate; fi; pnpm --filter @continuum/api dev"
     working_dir: /app
 
   postgres:
@@ -97,8 +97,7 @@ services:
       - .:/app
       - worker_node_modules:/app/node_modules
       - worker_app_node_modules:/app/apps/worker/node_modules
-      - worker_tectonic_cache:/root/.cache/Tectonic
-    command: sh -c "if [ ! -d /app/node_modules/.pnpm ] || [ ! -d /app/node_modules/zod ]; then pnpm install --filter @continuum/worker... --frozen-lockfile; fi; pnpm --filter @continuum/worker exec tsc -p /app/packages/shared/tsconfig.json; pnpm --filter @continuum/worker dev"
+    command: sh -c "if [ ! -d /app/node_modules/.pnpm ] || [ ! -d /app/node_modules/zod ] || [ ! -d /app/node_modules/@continuum/latex-runtime ]; then CI=true pnpm install --force --reporter=append-only --filter @continuum/worker... --frozen-lockfile; fi; pnpm --filter @continuum/worker exec tsc -p /app/packages/shared/tsconfig.json; pnpm --filter @continuum/worker exec tsc -p /app/packages/latex-runtime/tsconfig.json; pnpm --filter @continuum/worker dev"
     working_dir: /app
 
   minio:
@@ -119,7 +118,6 @@ volumes:
   api_app_node_modules:
   worker_node_modules:
   worker_app_node_modules:
-  worker_tectonic_cache:
   postgres_data:
   redis_data:
   minio_data:

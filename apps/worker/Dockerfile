@@ -1,44 +1,37 @@
+# syntax=docker/dockerfile:1.7
+
 FROM node:20-bookworm-slim AS base
 
 WORKDIR /app
 ENV BACKEND_BUILD_IN_DOCKER=1
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
 
 RUN corepack enable
 
-ARG TECTONIC_VERSION=0.15.0
-RUN set -eux; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends curl ca-certificates tar fontconfig fonts-dejavu fonts-noto pandoc dvisvgm ghostscript; \
-    rm -rf /var/lib/apt/lists/*; \
-    arch="$(dpkg --print-architecture)"; \
-    case "$arch" in \
-      amd64) tectonic_target="x86_64-unknown-linux-gnu" ;; \
-      arm64) tectonic_target="aarch64-unknown-linux-musl" ;; \
-      *) echo "Unsupported architecture: $arch" >&2; exit 1 ;; \
-    esac; \
-    curl -fsSL -o /tmp/tectonic.tar.gz "https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%40${TECTONIC_VERSION}/tectonic-${TECTONIC_VERSION}-${tectonic_target}.tar.gz"; \
-    tar -xzf /tmp/tectonic.tar.gz -C /tmp; \
-    install -m 0755 /tmp/tectonic /usr/local/bin/tectonic; \
-    rm -f /tmp/tectonic.tar.gz /tmp/tectonic; \
-    fc-cache -f; \
-    tectonic --version; \
-    pandoc --version; \
-    dvisvgm --version
+COPY scripts/install-texlive-runtime.sh /tmp/install-texlive-runtime.sh
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    sh /tmp/install-texlive-runtime.sh && rm -f /tmp/install-texlive-runtime.sh
 
 FROM base AS deps
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/worker/package.json apps/worker/
+COPY packages/latex-runtime/package.json packages/latex-runtime/
 COPY packages/shared/package.json packages/shared/
 
-RUN pnpm install --filter @continuum/worker... --frozen-lockfile
+RUN --mount=type=cache,target=/pnpm/store,sharing=locked \
+    pnpm config set store-dir /pnpm/store && pnpm install --filter @continuum/worker... --frozen-lockfile
 
 FROM deps AS builder
 
 COPY scripts ./scripts
+COPY packages/latex-runtime ./packages/latex-runtime
 COPY packages/shared ./packages/shared
 COPY apps/worker ./apps/worker
 
+RUN pnpm --filter @continuum/latex-runtime build
 RUN pnpm --filter @continuum/shared build
 RUN pnpm --filter @continuum/worker build
 
@@ -48,6 +41,8 @@ ENV NODE_ENV=production
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/worker/node_modules ./apps/worker/node_modules
+COPY --from=builder /app/packages/latex-runtime/dist ./packages/latex-runtime/dist
+COPY packages/latex-runtime/package.json ./packages/latex-runtime/package.json
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY packages/shared/package.json ./packages/shared/package.json
 COPY --from=builder /app/apps/worker/dist ./apps/worker/dist
@@ -57,6 +52,7 @@ CMD ["node", "apps/worker/dist/main.js"]
 
 FROM deps AS dev
 
+COPY packages/latex-runtime ./packages/latex-runtime
 COPY packages/shared ./packages/shared
 COPY apps/worker ./apps/worker
 
