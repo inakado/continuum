@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import type { StudentUnitRenderedContentResponse } from "@/lib/api/student";
 import styles from "../student-unit-detail.module.css";
 import { typesetMathInElement } from "../mathjax-helper";
 
 type Props = {
   content: StudentUnitRenderedContentResponse;
+  getFreshPdfUrl: () => Promise<string | null>;
   previewError: string | null;
   previewLoading: boolean;
   unavailableText: string;
@@ -14,11 +15,14 @@ type Props = {
 
 export function StudentUnitHtmlPanel({
   content,
+  getFreshPdfUrl,
   previewError,
   previewLoading,
   unavailableText,
 }: Props) {
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     if (!content.html || !contentRef.current) return;
@@ -28,6 +32,31 @@ export function StudentUnitHtmlPanel({
     });
   }, [content.html]);
 
+  const handleDownloadPdf = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    setDownloadError(null);
+
+    try {
+      const url = (await getFreshPdfUrl()) ?? content.pdfUrl;
+      if (!url) {
+        setDownloadError("PDF временно недоступен. Повторите попытку.");
+        return;
+      }
+
+      const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
+      if (popup) {
+        popup.location.href = url;
+      } else {
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
+    } catch {
+      setDownloadError("Не удалось получить ссылку для скачивания PDF.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <div className={styles.htmlPanel}>
       {previewError ? (
@@ -36,21 +65,24 @@ export function StudentUnitHtmlPanel({
         </div>
       ) : null}
 
-      <div className={styles.htmlToolbar}>
-        <span className={styles.pdfToolbarLabel}>Формат</span>
-        <span className={styles.htmlToolbarValue}>Адаптивный HTML</span>
-        {content.pdfUrl ? (
-          <a
+      {content.pdfUrl ? (
+        <div className={styles.htmlToolbar}>
+          <button
+            type="button"
             className={styles.downloadLink}
-            href={content.pdfUrl}
-            target="_blank"
-            rel="noreferrer"
-            download
+            onClick={handleDownloadPdf}
+            disabled={downloading}
           >
-            Скачать PDF
-          </a>
-        ) : null}
-      </div>
+            {downloading ? "Готовим PDF..." : "Скачать PDF"}
+          </button>
+        </div>
+      ) : null}
+
+      {downloadError ? (
+        <div className={styles.previewError} role="status" aria-live="polite">
+          {downloadError}
+        </div>
+      ) : null}
 
       <div className={styles.htmlViewport}>
         {content.html ? (

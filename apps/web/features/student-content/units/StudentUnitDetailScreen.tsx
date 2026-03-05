@@ -546,6 +546,7 @@ function StudentUnitTabContent({
       return (
         <StudentUnitHtmlPanel
           content={unitRenderedContent.theoryContent}
+          getFreshPdfUrl={async () => (await unitRenderedContent.refreshTheoryContent())?.pdfUrl ?? null}
           previewError={unitRenderedContent.theoryError}
           previewLoading={unitRenderedContent.theoryLoading}
           unavailableText="HTML теории пока не опубликован учителем."
@@ -572,6 +573,7 @@ function StudentUnitTabContent({
       return (
         <StudentUnitHtmlPanel
           content={unitRenderedContent.methodContent}
+          getFreshPdfUrl={async () => (await unitRenderedContent.refreshMethodContent())?.pdfUrl ?? null}
           previewError={unitRenderedContent.methodError}
           previewLoading={unitRenderedContent.methodLoading}
           unavailableText="HTML методики пока не опубликован учителем."

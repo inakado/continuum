@@ -132,6 +132,7 @@
   - подписывает SVG URLs по `*HtmlAssetsJson`;
   - возвращает final `html` fragment + optional `pdfUrl`.
 - Если HTML ещё не собран, но PDF есть, web использует legacy PDF fallback.
+- В student HTML panel скачивание PDF всегда должно запрашивать свежий presigned URL через backend read-path перед открытием файла; это защищает от `Request has expired` при долгом открытии вкладки.
 
 ### Teacher read path
 
@@ -152,6 +153,9 @@
   - `pdflatex --output-format=dvi`
   - `dvisvgm --exact-bbox --font-format=woff`
 - Compile/runtime helper живёт в `packages/latex-runtime` и используется в worker compile contour.
+- Figure references в HTML render path нормализуются так:
+  - ссылки на `fig:*` в обычном тексте становятся кликабельными anchor links (`href="#fig:..."`);
+  - `\ref/\autoref` на `fig:*` внутри math-контекста не превращаются в HTML links, а подставляются как plain text reference (`рис. N`) до MathJax typeset, чтобы не ломать формулу.
 - HTML pipeline считается semantic/rendered representation, а не pixel-perfect эквивалентом PDF:
   - текущий контур сохраняет основной текст, формулы, figure references и image-based TikZ figures;
   - итоговый HTML может типографически отличаться от исходного PDF/LaTeX layout, особенно в figure-heavy theory content и кастомных theorem-like блоках.

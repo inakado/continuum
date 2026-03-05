@@ -22,6 +22,9 @@ import { type WorkerObjectStorageService } from '../storage/object-storage';
 const OUTPUT_CAPTURE_LIMIT = 128_000;
 const OUTPUT_SNIPPET_LIMIT = 12_000;
 const TIKZ_RENDER_CACHE_VERSION = 'pdflatex-dvi-v2';
+const FIGURE_REF_TOKEN_PREFIX = 'CONTINUUMFIGREF__';
+const FIGURE_AUTOREF_TOKEN_PREFIX = 'CONTINUUMFIGAUTOREF__';
+const FIGURE_REF_TOKEN_SUFFIX = '__';
 const TIKZ_STANDALONE_DISALLOWED_PACKAGES = new Set([
   'pdfpages',
   'svg',
@@ -290,6 +293,12 @@ const escapeHtml = (value: string): string =>
     .replaceAll("'", '&#39;');
 
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const buildFigureRefToken = (label: string): string =>
+  `${FIGURE_REF_TOKEN_PREFIX}${label}${FIGURE_REF_TOKEN_SUFFIX}`;
+
+const buildFigureAutorefToken = (label: string): string =>
+  `${FIGURE_AUTOREF_TOKEN_PREFIX}${label}${FIGURE_REF_TOKEN_SUFFIX}`;
 
 const normalizeLatexInlineForHtml = (latex: string): string =>
   escapeHtml(
@@ -603,7 +612,7 @@ const buildFigureHtml = (figure: FigureDescriptor): string => {
 
   if (figure.subfigures.length > 0) {
     const subfigureHtml = figure.subfigures.map(buildSubfigureHtml).join('');
-    return `<figure class="unit-html-figure-group"${idAttr}>${subfigureHtml}${captionHtml}</figure>`;
+    return `<figure class="unit-html-figure-group"${idAttr}><div class="unit-html-figure-group-grid">${subfigureHtml}</div>${captionHtml}</figure>`;
   }
 
   const imagesHtml = figure.imagePlaceholders
@@ -627,6 +636,30 @@ const injectExtractedFigures = (html: string, figures: FigureDescriptor[]): stri
 
 const replaceFigureReferences = (html: string, figures: FigureDescriptor[]): string => {
   let next = html;
+  const references = buildFigureReferenceMap(figures);
+
+  for (const [label, refText] of references) {
+    const escapedLabel = escapeRegExp(label);
+    const escapedLabelForHtml = escapeHtml(label);
+    const escapedRefText = escapeHtml(refText);
+    const linkHtml = `<a href="#${escapedLabelForHtml}" data-reference="${escapedLabelForHtml}">${escapedRefText}</a>`;
+    const anchorPattern = new RegExp(
+      `<a([^>]*?(?:href="#${escapedLabel}"|data-reference="${escapedLabel}")[^>]*)>\\s*\\[${escapedLabel}\\]\\s*<\\/a>`,
+      'g',
+    );
+    next = next.replace(anchorPattern, `<a$1>${escapedRefText}</a>`);
+    next = next.replace(new RegExp(`\\[${escapedLabel}\\]`, 'g'), linkHtml);
+    next = next.replace(new RegExp(escapeRegExp(buildFigureRefToken(label)), 'g'), linkHtml);
+    next = next.replace(
+      new RegExp(escapeRegExp(buildFigureAutorefToken(label)), 'g'),
+      `рис. ${linkHtml}`,
+    );
+  }
+
+  return next;
+};
+
+const buildFigureReferenceMap = (figures: FigureDescriptor[]): Map<string, string> => {
   const references = new Map<string, string>();
   for (const figure of figures) {
     if (figure.label && figure.refText) {
@@ -638,17 +671,262 @@ const replaceFigureReferences = (html: string, figures: FigureDescriptor[]): str
       }
     }
   }
+  return references;
+};
 
-  for (const [label, refText] of references) {
-    const escapedLabel = escapeRegExp(label);
-    const anchorPattern = new RegExp(
-      `<a([^>]*?(?:href="#${escapedLabel}"|data-reference="${escapedLabel}")[^>]*)>\\s*\\[${escapedLabel}\\]\\s*<\\/a>`,
-      'g',
-    );
-    next = next.replace(anchorPattern, `<a$1>${refText}</a>`);
-    next = next.replace(new RegExp(`\\[${escapedLabel}\\]`, 'g'), refText);
+const splitEquationRows = (body: string): string[] => {
+  const rows: string[] = [];
+  let rowStart = 0;
+
+  for (let index = 0; index < body.length - 1; index += 1) {
+    if (body[index] !== '\\' || body[index + 1] !== '\\') {
+      continue;
+    }
+    if (index > 0 && body[index - 1] === '\\') {
+      continue;
+    }
+
+    rows.push(body.slice(rowStart, index));
+    rowStart = index + 2;
+    index += 1;
   }
 
+  rows.push(body.slice(rowStart));
+  return rows;
+};
+
+const extractLabels = (source: string): string[] =>
+  Array.from(source.matchAll(/\\label\{([^}]+)\}/g), (match) => match[1]).filter(Boolean);
+
+const buildEquationReferenceMap = (tex: string): Map<string, string> => {
+  const references = new Map<string, string>();
+  let equationCounter = 0;
+  const equationEnvPattern =
+    /\\begin\{(equation\*?|align\*?|alignat\*?|gather\*?|multline\*?|flalign\*?)\}(?:\{[^}]*\})?([\s\S]*?)\\end\{\1\}/g;
+  const multilineEnvs = new Set(['align', 'alignat', 'gather', 'multline', 'flalign']);
+
+  for (const match of tex.matchAll(equationEnvPattern)) {
+    const environment = match[1] ?? '';
+    const body = match[2] ?? '';
+    if (!environment || environment.endsWith('*')) {
+      continue;
+    }
+
+    const environmentName = environment.replace('*', '');
+    const bodyLabels = extractLabels(body);
+    if (bodyLabels.length === 0) {
+      continue;
+    }
+
+    if (!multilineEnvs.has(environmentName)) {
+      const customTag = body.match(/\\tag\*?\{([^}]+)\}/)?.[1]?.trim() ?? null;
+      const referenceText = customTag || String(++equationCounter);
+      for (const label of bodyLabels) {
+        references.set(label, referenceText);
+      }
+      continue;
+    }
+
+    let assignedInRows = false;
+    for (const row of splitEquationRows(body)) {
+      const rowLabels = extractLabels(row);
+      if (rowLabels.length === 0) {
+        continue;
+      }
+      if (/\\(?:nonumber|notag)\b/.test(row)) {
+        continue;
+      }
+
+      const customTag = row.match(/\\tag\*?\{([^}]+)\}/)?.[1]?.trim() ?? null;
+      const referenceText = customTag || String(++equationCounter);
+      for (const label of rowLabels) {
+        references.set(label, referenceText);
+      }
+      assignedInRows = true;
+    }
+
+    if (!assignedInRows) {
+      const customTag = body.match(/\\tag\*?\{([^}]+)\}/)?.[1]?.trim() ?? null;
+      const referenceText = customTag || String(++equationCounter);
+      for (const label of bodyLabels) {
+        references.set(label, referenceText);
+      }
+    }
+  }
+
+  const bracketDisplayPattern = /\\\[((?:[\s\S]*?))\\\]/g;
+  for (const match of tex.matchAll(bracketDisplayPattern)) {
+    const body = match[1] ?? '';
+    const bodyLabels = extractLabels(body);
+    if (bodyLabels.length === 0) continue;
+    if (/\\(?:nonumber|notag)\b/.test(body)) continue;
+    const customTag = body.match(/\\tag\*?\{([^}]+)\}/)?.[1]?.trim() ?? null;
+    const referenceText = customTag || String(++equationCounter);
+    for (const label of bodyLabels) {
+      references.set(label, referenceText);
+    }
+  }
+
+  const dollarDisplayPattern = /\$\$([\s\S]*?)\$\$/g;
+  for (const match of tex.matchAll(dollarDisplayPattern)) {
+    const body = match[1] ?? '';
+    const bodyLabels = extractLabels(body);
+    if (bodyLabels.length === 0) continue;
+    if (/\\(?:nonumber|notag)\b/.test(body)) continue;
+    const customTag = body.match(/\\tag\*?\{([^}]+)\}/)?.[1]?.trim() ?? null;
+    const referenceText = customTag || String(++equationCounter);
+    for (const label of bodyLabels) {
+      references.set(label, referenceText);
+    }
+  }
+
+  return references;
+};
+
+const buildReferenceMap = (
+  equationReferences: Map<string, string>,
+  figureReferences: Map<string, string>,
+): Map<string, string> => {
+  const references = new Map<string, string>();
+
+  for (const [label, refText] of equationReferences) {
+    references.set(label, refText);
+  }
+  for (const [label, refText] of figureReferences) {
+    references.set(label, refText);
+  }
+
+  return references;
+};
+
+const buildMathRanges = (tex: string): Array<{ start: number; end: number }> => {
+  const ranges: Array<{ start: number; end: number }> = [];
+  const patterns = [
+    /\\begin\{(equation\*?|align\*?|alignat\*?|gather\*?|multline\*?|flalign\*?|math|displaymath)\}[\s\S]*?\\end\{\1\}/g,
+    /\\\[[\s\S]*?\\\]/g,
+    /\\\([\s\S]*?\\\)/g,
+    /(?<!\\)\$\$[\s\S]*?(?<!\\)\$\$/g,
+    /(?<!\\)\$(?!\$)[\s\S]*?(?<!\\)\$(?!\$)/g,
+  ];
+
+  for (const pattern of patterns) {
+    for (const match of tex.matchAll(pattern)) {
+      if (match.index === undefined || !match[0]) {
+        continue;
+      }
+      ranges.push({ start: match.index, end: match.index + match[0].length });
+    }
+  }
+
+  if (ranges.length <= 1) {
+    return ranges;
+  }
+
+  ranges.sort((left, right) => left.start - right.start);
+  const merged: Array<{ start: number; end: number }> = [ranges[0]];
+  for (let index = 1; index < ranges.length; index += 1) {
+    const current = ranges[index];
+    const last = merged[merged.length - 1];
+    if (current.start <= last.end) {
+      last.end = Math.max(last.end, current.end);
+      continue;
+    }
+    merged.push(current);
+  }
+
+  return merged;
+};
+
+const isOffsetInsideRanges = (offset: number, ranges: Array<{ start: number; end: number }>): boolean =>
+  ranges.some((range) => offset >= range.start && offset < range.end);
+
+const resolveLatexReferencesInTex = (
+  tex: string,
+  references: Map<string, string>,
+  equationReferences: Map<string, string>,
+  options?: {
+    preserveFigureRefTokens?: boolean;
+  },
+): string => {
+  const preserveFigureRefTokens = options?.preserveFigureRefTokens ?? false;
+  const mathRanges = buildMathRanges(tex);
+  const resolveByLabel = (label: string): string | null => {
+    const reference = references.get(label);
+    return reference ? reference.trim() : null;
+  };
+  const commandPattern = /\\(eqref|autoref|ref)\{([^}]+)\}/g;
+  let withRefs = '';
+  let cursor = 0;
+
+  for (const match of tex.matchAll(commandPattern)) {
+    if (match.index === undefined) {
+      continue;
+    }
+
+    const fullMatch = match[0] ?? '';
+    const command = match[1];
+    const label = match[2] ?? '';
+    const start = match.index;
+    const end = start + fullMatch.length;
+    const resolved = resolveByLabel(label);
+    const insideMath = isOffsetInsideRanges(start, mathRanges);
+    let replacement = fullMatch;
+
+    if (resolved) {
+      if (command === 'eqref') {
+        replacement = `(${resolved})`;
+      } else if (command === 'autoref') {
+        if (label.startsWith('fig:')) {
+          replacement =
+            preserveFigureRefTokens && !insideMath
+              ? buildFigureAutorefToken(label)
+              : `рис. ${resolved}`;
+        } else if (label.startsWith('eq:')) {
+          replacement = `(${resolved})`;
+        } else {
+          replacement = resolved;
+        }
+      } else if (command === 'ref') {
+        replacement =
+          preserveFigureRefTokens && label.startsWith('fig:') && !insideMath
+            ? buildFigureRefToken(label)
+            : resolved;
+      }
+    }
+
+    withRefs += tex.slice(cursor, start);
+    withRefs += replacement;
+    cursor = end;
+  }
+
+  withRefs += tex.slice(cursor);
+
+  const taggedEquationRefs = new Set<string>();
+  return withRefs.replace(/\\label\{([^}]+)\}/g, (match, label: string) => {
+    const equationRef = equationReferences.get(label)?.trim();
+    if (!equationRef) {
+      return match;
+    }
+    if (taggedEquationRefs.has(equationRef)) {
+      return '';
+    }
+    taggedEquationRefs.add(equationRef);
+    return `\\tag{${equationRef}}`;
+  });
+};
+
+const replaceResolvedReferencesInHtml = (html: string, references: Map<string, string>): string => {
+  let next = html;
+  for (const [label, refText] of references) {
+    const escapedLabel = escapeRegExp(label);
+    const escapedRefText = escapeHtml(refText);
+    const anchorPattern = new RegExp(
+      `<a([^>]*?(?:href="#${escapedLabel}"|data-reference="${escapedLabel}")[^>]*)>\\s*(?:\\[${escapedLabel}\\]|\\(\\?\\?\\?\\)|\\?\\?\\?)\\s*<\\/a>`,
+      'g',
+    );
+    next = next.replace(anchorPattern, `<a$1>${escapedRefText}</a>`);
+    next = next.replace(new RegExp(`\\[${escapedLabel}\\]`, 'g'), escapedRefText);
+  }
   return next;
 };
 
@@ -668,13 +946,24 @@ export const renderLatexToHtml = async (
     const preamble = extractPreamble(tex);
     const { modifiedTex: texWithTikzPlaceholders, blocks } = extractTikzBlocks(tex);
     const { modifiedTex, figures } = extractFigures(texWithTikzPlaceholders);
+    const equationReferences = buildEquationReferenceMap(modifiedTex);
+    const figureReferences = buildFigureReferenceMap(figures);
+    const references = buildReferenceMap(equationReferences, figureReferences);
+    const resolvedTex = resolveLatexReferencesInTex(modifiedTex, references, equationReferences, {
+      preserveFigureRefTokens: true,
+    });
     const assetRefs: UnitHtmlAssetRef[] = [];
 
     for (const block of blocks) {
+      const resolvedBlockContent = resolveLatexReferencesInTex(
+        block.content,
+        references,
+        equationReferences,
+      );
       const compiled = await compileTikzToSvg({
         storage,
         preamble,
-        block: block.content,
+        block: resolvedBlockContent,
         timeoutMs,
       });
       assetRefs.push({
@@ -687,7 +976,7 @@ export const renderLatexToHtml = async (
       }
     }
 
-    await fs.writeFile(join(tempDir, 'render-input.tex'), modifiedTex, 'utf8');
+    await fs.writeFile(join(tempDir, 'render-input.tex'), resolvedTex, 'utf8');
     const pandocResult = await runCommand(
       'pandoc',
       ['render-input.tex', '-f', 'latex', '-t', 'html5', '--mathjax', '-o', 'render-output.html'],
@@ -701,9 +990,12 @@ export const renderLatexToHtml = async (
 
     const rawHtml = await fs.readFile(join(tempDir, 'render-output.html'), 'utf8');
     const html = sanitizeHtml(
-      replaceFigureReferences(
-        injectFigurePlaceholders(injectExtractedFigures(rawHtml, figures), assetRefs),
-        figures,
+      replaceResolvedReferencesInHtml(
+        replaceFigureReferences(
+          injectFigurePlaceholders(injectExtractedFigures(rawHtml, figures), assetRefs),
+          figures,
+        ),
+        references,
       ),
     );
     const logSnippet = summarizeLatexOutput(logChunks);
@@ -751,4 +1043,7 @@ export const __test__ = {
   injectFigurePlaceholders,
   injectExtractedFigures,
   replaceFigureReferences,
+  buildEquationReferenceMap,
+  resolveLatexReferencesInTex,
+  replaceResolvedReferencesInHtml,
 };

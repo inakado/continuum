@@ -1,6 +1,8 @@
 :root {
   --font-inter: "Inter";
-  --font-unbounded: "Unbounded";
+  --font-onest: "Onest";
+  --font-unbounded: var(--font-onest);
+  --font-logo: "Unbounded";
   --border-width-strong: 1.5px;
   --border-width-thin: 1px;
   --border-width: var(--border-width-strong);

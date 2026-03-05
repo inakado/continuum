@@ -177,6 +177,9 @@ importers:
       '@fontsource/inter':
         specifier: ^5.2.8
         version: 5.2.8
+      '@fontsource/onest':
+        specifier: ^5.2.8
+        version: 5.2.11
       '@fontsource/unbounded':
         specifier: ^5.2.8
         version: 5.2.8
@@ -898,6 +901,9 @@ packages:
 
   '@fontsource/inter@5.2.8':
     resolution: {integrity: sha512-P6r5WnJoKiNVV+zvW2xM13gNdFhAEpQ9dQJHt3naLvfg+LkF2ldgSLiF4T41lf1SQCM9QmkqPTn4TH568IRagg==}
+
+  '@fontsource/onest@5.2.11':
+    resolution: {integrity: sha512-YDOHuJ+HFf4rl6+vBzEoAGul+GyEOIlziepq+7UDT4839LyiFU1clVZqNmqmCRjwWidPTMUJIv1k9e+5UtuQOw==}
 
   '@fontsource/unbounded@5.2.8':
     resolution: {integrity: sha512-tBHtKB+s5tKvQXEWy5h86sDY5hzVLsEbW6TGphSjUY9b/gawUPvXv5vFS4ZdPbGDcvSqMMy6eXkqdcsKI29dig==}
@@ -5601,6 +5607,8 @@ snapshots:
   '@floating-ui/utils@0.2.10': {}
 
   '@fontsource/inter@5.2.8': {}
+
+  '@fontsource/onest@5.2.11': {}
 
   '@fontsource/unbounded@5.2.8': {}
 

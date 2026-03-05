@@ -98,11 +98,13 @@ vi.mock("./components/StudentUnitPdfPanel", () => ({
 vi.mock("./components/StudentUnitHtmlPanel", () => ({
   StudentUnitHtmlPanel: ({
     content,
+    getFreshPdfUrl,
     previewError,
     previewLoading,
     unavailableText,
   }: {
     content: { html: string | null; pdfUrl: string | null };
+    getFreshPdfUrl: () => Promise<string | null>;
     previewError?: string | null;
     previewLoading?: boolean;
     unavailableText: string;
@@ -112,6 +114,9 @@ vi.mock("./components/StudentUnitHtmlPanel", () => ({
       <div>{content.pdfUrl ?? "no-pdf"}</div>
       <div>{previewError ?? unavailableText}</div>
       <div>{previewLoading ? "loading" : "ready"}</div>
+      <button type="button" onClick={() => void getFreshPdfUrl()}>
+        RefreshPdf
+      </button>
     </div>
   ),
 }));

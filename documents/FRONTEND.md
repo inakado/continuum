@@ -72,8 +72,12 @@
 - Это исключает отправку auth-cookie на внешний storage origin и предотвращает CORS-блокировку при `credentials: include`.
 - В student unit PDF tabs zoom хранится отдельно по target; теория и методика открываются с масштабом `50%`.
 - Для student unit `theory/method` primary read-path теперь идёт через backend endpoint `rendered-content`, который отдаёт уже подписанный HTML fragment и optional `pdfUrl`.
+- В `StudentUnitHtmlPanel` кнопка `Скачать PDF` не использует сохранённый при первичной загрузке `pdfUrl` как единственный источник: перед открытием файла panel запрашивает свежий rendered-content (`refresh*Content`) и берёт актуальный presigned URL.
 - HTML fragment рендерится как часть страницы; legacy PDF preview остаётся fallback path для unit без собранного HTML.
 - Rich math внутри student/teacher HTML preview typeset'ится локальным MathJax helper из workspace, а не CDN/runtime с внешнего origin.
+- MathJax helper работает как сериализованный runtime:
+  - typeset вызовы выполняются через очередь (без конкурентных гонок);
+  - при runtime-сбое есть controlled retry с переинициализацией MathJax script.
 - В teacher unit editor preview для `theory/method` живёт внутри того же preview container и поддерживает два режима: `PDF` и `HTML`. HTML preview читает backend `teacher/units/:id/rendered-content`, а PDF preview остаётся canvas-based.
 
 ## UI Primitives and Motion
@@ -82,6 +86,15 @@
 - Для сложных interactive primitives используются локальные обёртки над Radix primitives.
 - `framer-motion` применяется точечно для React UI-анимаций; layout-size анимации по возможности остаются на CSS custom properties.
 - Для frequently triggered interactions избегаем тяжёлых `filter: blur(...)` и уважаем `prefers-reduced-motion`.
+
+## Typography Runtime
+
+- Шрифты подключаются локально через `@fontsource/*` в `apps/web/app/layout.tsx`; CDN/Google Fonts runtime не используется.
+- Токены в `apps/web/app/globals.css`:
+  - `--font-logo` = `Unbounded` (только для логотипного текста `Континуум`),
+  - `--font-onest` = `Onest` (заголовки и интерфейсные акценты),
+  - `--font-inter` = `Inter` (основной текст).
+- Для совместимости существующих CSS-модулей `--font-unbounded` алиасится на `--font-onest`; новая вёрстка не должна использовать `--font-unbounded` как “брендовый” шрифт.
 
 ## Navigation Patterns
 

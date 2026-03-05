@@ -89,6 +89,8 @@ export function TeacherUnitLatexPanel({
 }: Props) {
   const [previewMode, setPreviewMode] = useState<PreviewMode>("pdf");
   const htmlContentRef = useRef<HTMLDivElement | null>(null);
+  const typesetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resizeRafRef = useRef<number | null>(null);
   const previewTabs = useMemo(
     () => [
       { key: "pdf" as const, label: "PDF" },
@@ -106,10 +108,52 @@ export function TeacherUnitLatexPanel({
 
   useEffect(() => {
     if (previewMode !== "html" || !renderedContent?.html || !htmlContentRef.current) return;
-    void typesetMathInElement(htmlContentRef.current).catch(() => {
-      // Teacher preview остаётся читаемым и без typesetting.
-    });
+    const runTypeset = () => {
+      if (!htmlContentRef.current) return;
+      void typesetMathInElement(htmlContentRef.current).catch(() => {
+        // Teacher preview остаётся читаемым и без typesetting.
+      });
+    };
+    runTypeset();
+    return () => {
+      if (typesetTimeoutRef.current) {
+        clearTimeout(typesetTimeoutRef.current);
+        typesetTimeoutRef.current = null;
+      }
+      if (resizeRafRef.current !== null) {
+        cancelAnimationFrame(resizeRafRef.current);
+        resizeRafRef.current = null;
+      }
+    };
   }, [previewMode, renderedContent?.html]);
+
+  useEffect(() => {
+    if (previewMode !== "html" || !renderedContent?.html || !htmlContentRef.current) return;
+    if (isResizingLayout) return;
+
+    if (typesetTimeoutRef.current) {
+      clearTimeout(typesetTimeoutRef.current);
+    }
+    typesetTimeoutRef.current = setTimeout(() => {
+      resizeRafRef.current = requestAnimationFrame(() => {
+        if (!htmlContentRef.current) return;
+        void typesetMathInElement(htmlContentRef.current).catch(() => {
+          // Teacher preview остаётся читаемым и без typesetting после resize.
+        });
+      });
+    }, 120);
+
+    return () => {
+      if (typesetTimeoutRef.current) {
+        clearTimeout(typesetTimeoutRef.current);
+        typesetTimeoutRef.current = null;
+      }
+      if (resizeRafRef.current !== null) {
+        cancelAnimationFrame(resizeRafRef.current);
+        resizeRafRef.current = null;
+      }
+    };
+  }, [previewMode, renderedContent?.html, previewWidthPercent, isResizingLayout]);
 
   return (
     <div

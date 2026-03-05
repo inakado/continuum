@@ -28,6 +28,7 @@
 - HTTP keep-alive в API: `keepAliveTimeout = 65s` (уменьшает лишние disconnects за прокси).
 - `pdflatex` PDF compile выполняется в 2 прохода по умолчанию и добавляет 3-й проход только при standard rerun markers в логе.
 - `shell-escape` не используется.
+- Student HTML panel не полагается на long-lived presigned `pdfUrl`: скачивание PDF запрашивает свежий backend URL на клик, чтобы исключить деградацию `Request has expired` после долгого idle.
 
 ### Queue hygiene
 
@@ -71,7 +72,8 @@
 - LaTeX compile implementation:
   - `apps/worker/src/latex/latex-compile.ts`
   - `packages/latex-runtime/src/*`
-  - `apps/api/src/infra/latex/latex-compile.service.ts` (debug-only endpoint)
+  - `apps/api/src/content/latex-compile-queue.service.ts`
+  - `apps/api/src/debug-latex.controller.ts` (debug compile queue orchestration)
 - Internal apply:
   - `apps/api/src/content/internal-latex.controller.ts`
   - `apps/worker/src/latex/latex-apply-client.ts`

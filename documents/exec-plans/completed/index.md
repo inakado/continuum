@@ -20,6 +20,7 @@
 
 ## Native exec-plans
 
+- `2026-03-05-texlive-pdflatex-migration.md`
 - `2026-03-04-latex-html-student-unit.md`
 - `2026-03-01-architecture-alignment-tail-refactor.md`
 - `2026-03-02-performance-profiling-and-optimization.md`

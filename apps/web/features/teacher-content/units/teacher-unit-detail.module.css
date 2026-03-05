@@ -480,11 +480,47 @@
 .previewHtmlContent :global(h2),
 .previewHtmlContent :global(h3),
 .previewHtmlContent :global(h4) {
-  margin: 0 0 0.9em;
+  margin: 0 0 0.85em;
   font-family: var(--font-unbounded), sans-serif;
-  font-weight: 300;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
+  font-weight: 560;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  color: color-mix(in srgb, var(--text-primary) 94%, transparent);
+}
+
+.previewHtmlContent :global(h1) {
+  font-size: clamp(1.95rem, 2.7vw, 2.35rem);
+  margin-top: 0;
+  margin-bottom: 0.95em;
+}
+
+.previewHtmlContent :global(h2) {
+  font-size: clamp(1.58rem, 2.2vw, 1.92rem);
+  margin-top: 1.9em;
+  margin-bottom: 0.78em;
+  padding-top: 0.3em;
+  border-top: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 62%, transparent);
+}
+
+.previewHtmlContent :global(h3) {
+  font-size: clamp(1.3rem, 1.7vw, 1.5rem);
+  margin-top: 1.45em;
+  margin-bottom: 0.72em;
+}
+
+.previewHtmlContent :global(h4) {
+  font-size: clamp(1.1rem, 1.35vw, 1.2rem);
+  margin-top: 1.2em;
+  margin-bottom: 0.62em;
+  letter-spacing: -0.005em;
+}
+
+.previewHtmlContent :global(h1 + h2),
+.previewHtmlContent :global(h2:first-child),
+.previewHtmlContent :global(h2:first-of-type) {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
 }
 
 .previewHtmlContent :global(p),
@@ -518,9 +554,15 @@
 }
 
 .previewHtmlContent :global(.RemarkBox) {
-  border: 1px solid #e2e8f0;
-  border-left: 5px dashed #64748b;
-  background-color: #ffffff;
+  border: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 62%, #f59e0b 38%);
+  border-left: 4px solid color-mix(in srgb, #f59e0b 74%, #d97706 26%);
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--surface-2) 62%, #fef3c7 38%) 0%,
+      color-mix(in srgb, var(--surface-1) 76%, #fef9c3 24%) 42%,
+      color-mix(in srgb, var(--surface-1) 96%, transparent) 100%
+    );
 }
 
 .previewHtmlContent :global(.ExampleBox) {
@@ -529,11 +571,11 @@
 }
 
 .previewHtmlContent :global(.RemarkBox::before) {
-  content: "Замечание.";
+  content: "Замечание";
   display: block;
   margin-bottom: 0.35em;
   font-weight: 700;
-  color: #1a202c;
+  color: color-mix(in srgb, var(--text-primary) 78%, #92400e 22%);
 }
 
 .previewHtmlContent :global(.DefinitionBox > :last-child),
@@ -606,20 +648,41 @@
 
 .previewHtmlContent :global(.unit-html-figure-group) {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 20px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
   margin: 2.5em auto;
-  width: fit-content;
+  width: min(100%, 1100px);
+  max-width: min(100%, 1100px);
+}
+
+.previewHtmlContent :global(.unit-html-figure-group > .unit-html-figure-group-grid) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  justify-content: center;
+  align-items: start;
+  gap: 20px;
+  width: 100%;
   max-width: 100%;
 }
 
-.previewHtmlContent :global(.unit-html-figure-group > .unit-html-subfigure) {
-  flex: 0 1 420px;
-  min-width: 250px;
-  max-width: min(100%, 420px);
+.previewHtmlContent :global(.unit-html-figure-group:not(:has(> .unit-html-figure-group-grid))) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  justify-content: center;
+  align-items: start;
+  gap: 20px;
+}
+
+.previewHtmlContent :global(.unit-html-figure-group .unit-html-subfigure) {
+  min-width: 0;
+  max-width: none;
+  width: 100%;
   margin: 0;
+  padding: 1.1em 1.2em;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.035);
 }
 
 .previewHtmlContent :global(.unit-html-figure-group > figcaption) {
@@ -627,7 +690,7 @@
   margin-top: 1em;
 }
 
-.previewHtmlContent :global(figure:has(> img.unit-html-tikz-image)) {
+.previewHtmlContent :global(figure:not(.unit-html-subfigure):has(> img.unit-html-tikz-image)) {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -662,7 +725,17 @@
 .previewHtmlContent :global(img.unit-html-tikz-image) {
   display: block;
   margin: 0 auto;
-  margin-bottom: 1.5em;
+  margin-bottom: 1.1em;
+}
+
+@media (max-width: 860px) {
+  .previewHtmlContent :global(.unit-html-figure-group > .unit-html-figure-group-grid) {
+    grid-template-columns: 1fr;
+  }
+
+  .previewHtmlContent :global(.unit-html-figure-group:not(:has(> .unit-html-figure-group-grid))) {
+    grid-template-columns: 1fr;
+  }
 }
 
 .previewHtmlContent :global(a) {
@@ -672,17 +745,29 @@
 }
 
 .previewHtmlContent :global(a[href^="#fig:"]) {
-  color: var(--text-primary);
+  color: color-mix(in srgb, var(--border-primary) 88%, var(--text-primary));
   font-weight: 700;
-  text-decoration-line: underline;
-  text-decoration-thickness: 2px;
-  text-decoration-color: color-mix(in srgb, var(--border-primary) 72%, transparent);
+  text-decoration: none;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--border-primary) 10%, transparent);
+  border-radius: 4px;
+  padding-inline: 0.12em;
+}
+
+.previewHtmlContent :global(a[href^="#eq:"]) {
+  color: var(--text-primary);
+  font-weight: 600;
+  text-decoration: none;
   cursor: pointer;
 }
 
 .previewHtmlContent :global(a[href^="#fig:"]:hover) {
+  color: color-mix(in srgb, var(--border-primary) 96%, var(--text-primary));
+  background: color-mix(in srgb, var(--border-primary) 16%, transparent);
+}
+
+.previewHtmlContent :global(a[href^="#eq:"]:hover) {
   color: color-mix(in srgb, var(--text-primary) 82%, var(--border-primary));
-  text-decoration-color: currentColor;
 }
 
 .previewHtmlContent :global(mjx-container) {

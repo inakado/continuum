@@ -1,6 +1,6 @@
 # TeX Live + pdflatex Migration
 
-Статус: `Active`
+Статус: `Completed` (2026-03-05)
 
 ## Цель и контекст
 
@@ -25,7 +25,15 @@
 - shell-escape и внешний toolchain
 - PNG/raster fallback для TikZ
 
-## Decision Log
+## Итог
+
+- `tectonic` полностью удалён из backend runtime contour.
+- Компиляция PDF переведена на `TeX Live + pdflatex`.
+- TikZ HTML assets переведены на `pdflatex --output-format=dvi -> dvisvgm`.
+- TeX runtime оставлен только в `worker`; `api` работает как queue/read/apply orchestration.
+- Публичные HTTP contracts для compile/read-path не менялись.
+
+## Decision Log (final)
 
 - canonical engine: `pdflatex`
 - shell-escape запрещён
@@ -35,15 +43,14 @@
 - TeX runtime остаётся только в `worker`, `api` образ без TeX toolchain
 - `tectonic` удаляется полностью, без dual-runtime в production
 
-## Этапы
+## Acceptance (final)
 
-1. Вынести shared runtime в `packages/latex-runtime`.
-2. Удалить `tectonic`-specific fallback logic и внедрить strict pdflatex boundary.
-3. Перевести PDF compile в worker и убрать локальный compile из `api`.
-4. Перевести TikZ HTML renderer на DVI path.
-5. Обновить Docker/compose/env.
-6. Обновить SoR-доки.
-7. Прогнать backend acceptance в конце.
+- [x] в `api` и `worker` больше нет `tectonic`
+- [x] PDF compile идёт через `pdflatex`
+- [x] TikZ SVG assets идут через DVI path
+- [x] HTTP contracts не изменены
+- [x] старые артефакты не удаляются автоматически
+- [x] SoR и runbook обновлены
 
 ## Риски
 
@@ -52,14 +59,26 @@
 - возможные отличия `pdflatex` output от текущего `tectonic` path
 - `\vec` в TikZ может остаться нерешённым даже после classic DVI path
 
-## Acceptance
+## Проверка соответствия ARCHITECTURE-PRINCIPLES
 
-- в `api` и `worker` больше нет `tectonic`
-- PDF compile идёт через `pdflatex`
-- TikZ SVG assets идут через DVI path
-- HTTP contracts не изменены
-- старые артефакты не удаляются автоматически
-- SoR и runbook обновлены
+- `P1 (SRP + complexity budget)`:
+  - runtime-ядро вынесено в `packages/latex-runtime`;
+  - compile responsibility отделена от API orchestration.
+- `P3 (Fail-fast boundary validation)`:
+  - strict `pdflatex` compatibility policy;
+  - fail-fast reject для unsupported preamble/команд.
+- `P4 (Read/write separation)`:
+  - API compile/read/apply path отделён от worker compile execution;
+  - debug compile в API не выполняет локальную сборку.
+- `P7 (Policy-as-code)`:
+  - runtime policy (passes, timeout, compatibility constraints) централизована в shared runtime helper.
+- `P8 (Convention over duplication)`:
+  - общий runtime package используется в `api` и `worker` вместо дублирования compile logic.
+- `P9 (Server-state discipline)`:
+  - web read-path для rendered-content опирается на React Query hooks.
+- `P10 (Effect isolation)`:
+  - math/render side-effects вынесены в helper/hook слой, UI-панели остаются декларативными.
+- Осознанных отклонений от принципов в рамках этой инициативы не зафиксировано.
 
 ## Progress Log
 
@@ -71,8 +90,9 @@
 - 2026-03-05: debug compile endpoint (`POST /teacher/debug/latex/compile-and-upload`) переведён на постановку job в `latex.compile`; статус/debug preview читается через `GET /teacher/latex/jobs/:jobId`.
 - 2026-03-05: из `api` удалён локальный compile service/module; apply endpoint явно отклоняет debug jobs (`LATEX_JOB_APPLY_UNSUPPORTED`), а worker пропускает auto-apply для debug target.
 - 2026-03-05: `apps/api` Dockerfile очищен от TeX runtime; TeX binaries оставлены только в `worker`.
+- 2026-03-05: план переведён в `completed`; SoR/docs синхронизированы с фактическим runtime contour.
 
-## Текущее состояние
+## Финальное состояние
 
 - Backend runtime migration функционально внедрена:
   - `tectonic` удалён из runtime contour;

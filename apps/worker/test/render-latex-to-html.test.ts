@@ -166,6 +166,7 @@ describe('render-latex-to-html helpers', () => {
     ]);
 
     expect(withImages).toContain('class="unit-html-figure-group"');
+    expect(withImages).toContain('class="unit-html-figure-group-grid"');
     expect(withImages).toContain('id="fig:point-field"');
     expect(withImages).toContain('id="fig:point-field-a"');
     expect(withImages).toContain('Рис. 1.');
@@ -192,5 +193,105 @@ describe('render-latex-to-html helpers', () => {
     expect(baseKey).toMatch(/^rendering\/tikz\/[a-f0-9]{32}\.svg$/);
     expect(changedPreambleKey).not.toBe(baseKey);
     expect(changedBlockKey).not.toBe(baseKey);
+  });
+
+  it('builds equation reference map and resolves \\ref/\\eqref in tex before pandoc', () => {
+    const tex = String.raw`\begin{document}
+\begin{equation}
+\label{eq:work}
+W = q\varphi
+\end{equation}
+Подставляя \eqref{eq:work} в \ref{eq:work}, получаем.
+\end{document}`;
+
+    const refs = __test__.buildEquationReferenceMap(tex);
+    expect(refs.get('eq:work')).toBe('1');
+
+    const resolved = __test__.resolveLatexReferencesInTex(tex, refs, refs);
+    expect(resolved).toContain('Подставляя (1) в 1, получаем.');
+    expect(resolved).toContain('\\tag{1}');
+    expect(resolved).not.toContain('\\eqref{eq:work}');
+    expect(resolved).not.toContain('\\ref{eq:work}');
+    expect(resolved).not.toContain('\\label{eq:work}');
+  });
+
+  it('preserves figure refs as tokens only outside math and converts text refs to clickable anchors', () => {
+    const tex = String.raw`\begin{document}
+См. \ref{fig:point-field} и \autoref{fig:point-field-a}.
+\[
+\vec E \xrightarrow{\text{\autoref{fig:point-field-a}}} \vec E_0
+\]
+\end{document}`;
+
+    const references = new Map([
+      ['fig:point-field', '1'],
+      ['fig:point-field-a', '1a'],
+    ]);
+    const resolved = __test__.resolveLatexReferencesInTex(tex, references, new Map(), {
+      preserveFigureRefTokens: true,
+    });
+    expect(resolved).toContain('CONTINUUMFIGREF__fig:point-field__');
+    expect(resolved).toContain('CONTINUUMFIGAUTOREF__fig:point-field-a__');
+    expect(resolved).toContain('\\xrightarrow{\\text{рис. 1a}}');
+
+    const html = __test__.replaceFigureReferences(`<p>${resolved}</p>`, [
+      {
+        placeholder: 'CONTINUUMFIGUREPLACEHOLDER0',
+        label: 'fig:point-field',
+        captionLatex: null,
+        imagePlaceholders: [],
+        refText: '1',
+        subfigures: [
+          {
+            label: 'fig:point-field-a',
+            captionLatex: null,
+            imagePlaceholders: [],
+            refText: '1a',
+          },
+        ],
+      },
+    ]);
+
+    expect(html).toContain('href="#fig:point-field"');
+    expect(html).toContain('href="#fig:point-field-a"');
+    expect(html).toContain('data-reference="fig:point-field"');
+    expect(html).toContain('data-reference="fig:point-field-a"');
+    expect(html).toContain('>1</a>');
+    expect(html).toContain('рис. <a href="#fig:point-field-a"');
+    expect(html).toContain('\\xrightarrow{\\text{рис. 1a}}');
+  });
+
+  it('builds equation references for display math blocks with labels', () => {
+    const tex = String.raw`\begin{document}
+\[
+W_C = \frac{q^2}{2C}.
+\label{eq:energy-1}
+\]
+$$
+W_C = \frac{qU}{2}.
+\label{eq:energy-2}
+$$
+\end{document}`;
+
+    const refs = __test__.buildEquationReferenceMap(tex);
+    expect(refs.get('eq:energy-1')).toBe('1');
+    expect(refs.get('eq:energy-2')).toBe('2');
+  });
+
+  it('replaces unresolved html reference anchors and bracket placeholders', () => {
+    const html = [
+      '<p><a href="#eq:work" data-reference="eq:work">[eq:work]</a></p>',
+      '<p><a href="#eq:work">(???)</a></p>',
+      '<p>[eq:work]</p>',
+    ].join('');
+
+    const replaced = __test__.replaceResolvedReferencesInHtml(
+      html,
+      new Map([['eq:work', '3']]),
+    );
+
+    expect(replaced).toContain('href="#eq:work" data-reference="eq:work">3</a>');
+    expect(replaced).toContain('href="#eq:work">3</a>');
+    expect(replaced).toContain('<p>3</p>');
   });
 });

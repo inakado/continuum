@@ -209,6 +209,12 @@ Auth smoke проверяет:
   - не использовать shell-escape.
 - **Проверка:** compile job завершается `succeeded`, а PDF/HTML assets публикуются как обычно
 
+- **Симптом:** в student HTML panel при клике `Скачать PDF` открывается XML-ошибка storage с `AccessDenied` и `Request has expired`.
+- **Команда:** открыть unit `theory/method` и кликнуть `Скачать PDF` после длительного idle страницы.
+- **Причина:** использовался устаревший presigned URL.
+- **Фикс:** использовать актуальный web path, где `StudentUnitHtmlPanel` перед скачиванием запрашивает свежий rendered-content URL; если запущен старый web bundle — перезапустить `pnpm dev:web` и сделать hard reload.
+- **Проверка:** повторный клик `Скачать PDF` открывает PDF без XML-ошибки.
+
 - **Симптом:** агент пытается запустить `CI=true pnpm install --frozen-lockfile` в sandbox и получает сетевые ошибки.
 - **Команда:** `CI=true pnpm install --frozen-lockfile`
 - **Причина:** для агентской sandbox-сессии эта команда запрещена policy и нестабильна по сети.
