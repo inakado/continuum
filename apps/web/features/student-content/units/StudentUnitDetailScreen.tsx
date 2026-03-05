@@ -226,7 +226,7 @@ function StudentUnitProgressCard({
 
         <article className={styles.progressStat}>
           <div className={styles.progressStatHead}>
-            <span className={styles.progressStatLabel}>Обязательные</span>
+            <span className={styles.progressStatLabel}>Ключевые</span>
             <span className={styles.progressStatValue}>
               {requiredDone}/{requiredTotal}
             </span>
@@ -289,7 +289,7 @@ function StudentTaskStatusNotices({ activeState }: { activeState: TaskState | nu
     <>
       {activeState?.requiredSkipped ? (
         <div className={styles.taskMeta}>
-          <span className={styles.requiredBadge}>Обязательная пропущена</span>
+          <span className={styles.requiredBadge}>Ключевая пропущена</span>
         </div>
       ) : null}
 

@@ -335,7 +335,7 @@ describe("TeacherDashboardScreen", () => {
     const user = userEvent.setup();
 
     await user.click(await screen.findByRole("button", { name: /Алгебра/ }));
-    await user.click(screen.getByRole("button", { name: "Опубликовать раздел" }));
+    await user.click(screen.getByRole("switch", { name: "Опубликовать раздел" }));
 
     await waitFor(() => {
       expect(teacherApi.publishSection).toHaveBeenCalledWith("section-1");

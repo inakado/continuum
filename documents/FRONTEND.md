@@ -35,6 +35,12 @@
 - В экранах и компонентах запрещено рендерить сырой enum напрямую (`locked`, `available`, `draft`, `published` и т.п.).
 - Любой новый статус сначала добавляется в `apps/web/lib/status-labels.ts`, затем используется через явный mapping-layer.
 
+### Терминология required-задач в UI
+
+- В user-facing копирайте фронта required-задачи именуются как `Ключевая`/`Ключевые`.
+- Доменный и контрактный нейминг не меняется: `isRequired`, `requiredSkipped`, `required_*` events/notification codes.
+- На student unit screen (`/student/units/[id]`) ключевые задачи визуально отмечаются иконкой в task tabs и в заголовке task card.
+
 ## Routes Map
 
 - `/login` — общий логин.
@@ -84,6 +90,8 @@
 
 - Базовый UI-kit живёт в `apps/web/components/ui/*`.
 - Для сложных interactive primitives используются локальные обёртки над Radix primitives.
+- В teacher dashboard карточки курса и раздела переключают publish/draft через `Switch`-контрол (а не icon-only toggle button).
+- В teacher unit tasks list публикация задачи переключается через `Switch` на карточке задачи; форма создания новой задачи не публикует её сразу и оставляет `draft` по умолчанию.
 - `framer-motion` применяется точечно для React UI-анимаций; layout-size анимации по возможности остаются на CSS custom properties.
 - Для frequently triggered interactions избегаем тяжёлых `filter: blur(...)` и уважаем `prefers-reduced-motion`.
 
@@ -100,6 +108,7 @@
 
 - Teacher dashboard edit flow и student dashboard синхронизируют внутридашбордную навигацию с `window.history.state`.
 - Browser `Back/Forward` должен возвращать предыдущий UI-шаг внутри dashboard, а не ломать user journey.
+- В student и teacher view `Раздел → Граф` canvas-контейнер должен занимать почти весь viewport по высоте (viewport-aware `dvh`) с сохранением нижнего визуального зазора.
 
 ## Related Source Links
 

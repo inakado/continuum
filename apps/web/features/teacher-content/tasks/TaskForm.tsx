@@ -178,7 +178,7 @@ function BaseSettingsSection({
           />
         </label>
         <Checkbox
-          label="Обязательная"
+          label="Ключевая"
           checked={isRequired}
           onChange={(event) => onRequiredChange(event.target.checked)}
           className={styles.checkboxField}

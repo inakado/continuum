@@ -1,4 +1,5 @@
 import { type ReactNode } from "react";
+import { KeyRound } from "lucide-react";
 import type { Task } from "@/lib/api/student";
 import LiteTex from "@/components/LiteTex";
 import styles from "../student-unit-detail.module.css";
@@ -15,7 +16,12 @@ export function StudentTaskCardShell({ task, taskIndex, children }: Props) {
       <div className={styles.taskHeader}>
         <div className={styles.taskTitle}>Задача №{taskIndex + 1}</div>
         <div className={styles.taskHeaderBadges}>
-          {task.isRequired ? <span className={styles.taskBadge}>Обязательная</span> : null}
+          {task.isRequired ? (
+            <span className={styles.taskBadge}>
+              <KeyRound size={12} aria-hidden="true" />
+              Ключевая
+            </span>
+          ) : null}
         </div>
       </div>
 

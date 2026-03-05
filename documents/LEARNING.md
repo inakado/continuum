@@ -11,6 +11,11 @@
 - Notifications (teacher)
 - Photo tasks (manual review)
 
+## UI Terminology Mapping (`Implemented`)
+
+- В доменной модели и API сохраняется `required`-нейминг (`isRequired`, `required_skipped`, `required_task_skipped`).
+- Во фронтовом user-facing тексте required-задача отображается как `Ключевая задача`; это терминологический mapping без изменения бизнес-логики.
+
 ## Core Invariants (`Implemented`)
 
 ### Auto-check task types

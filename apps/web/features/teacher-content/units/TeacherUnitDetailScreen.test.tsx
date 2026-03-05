@@ -177,21 +177,16 @@ vi.mock("./components/TeacherUnitTasksPanel", () => ({
   TeacherUnitTasksPanel: ({
     taskOrder,
     onStartCreateTask,
-    onCreatingTaskPublishChange,
     onTaskSubmit,
   }: {
     taskOrder: Task[];
     onStartCreateTask: () => void;
-    onCreatingTaskPublishChange: (checked: boolean) => void;
     onTaskSubmit: (data: TaskFormData) => Promise<void>;
   }) => (
     <div>
       <div data-testid="teacher-unit-task-count">{taskOrder.length}</div>
       <button type="button" onClick={onStartCreateTask}>
         Начать создание задачи
-      </button>
-      <button type="button" onClick={() => onCreatingTaskPublishChange(true)}>
-        Включить публикацию
       </button>
       <button
         type="button"
@@ -376,7 +371,7 @@ describe("TeacherUnitDetailScreen", () => {
     });
   });
 
-  it("creates task and publishes it when publish option is selected", async () => {
+  it("creates task in draft by default", async () => {
     vi.mocked(teacherApi.getUnit)
       .mockResolvedValueOnce(buildUnit())
       .mockResolvedValueOnce(buildUnit({ tasks: [buildTask(), buildTask({ id: "task-2", title: "Задача 2" })] }));
@@ -390,16 +385,12 @@ describe("TeacherUnitDetailScreen", () => {
       sections: [],
     } as never);
     vi.mocked(teacherApi.createTask).mockResolvedValueOnce(buildTask({ id: "task-2", title: null }) as never);
-    vi.mocked(teacherApi.publishTask).mockResolvedValueOnce(
-      buildTask({ id: "task-2", title: null, status: "published" }) as never,
-    );
 
     renderWithQueryClient(<TeacherUnitDetailScreen unitId="unit-1" />);
     const user = userEvent.setup();
 
     await user.click(await screen.findByRole("button", { name: "Задачи" }));
     await user.click(await screen.findByRole("button", { name: "Начать создание задачи" }));
-    await user.click(await screen.findByRole("button", { name: "Включить публикацию" }));
     await user.click(await screen.findByRole("button", { name: "Создать задачу" }));
 
     await waitFor(() => {
@@ -414,9 +405,7 @@ describe("TeacherUnitDetailScreen", () => {
         correctAnswerJson: null,
       });
     });
-    await waitFor(() => {
-      expect(teacherApi.publishTask).toHaveBeenCalledWith("task-2");
-    });
+    expect(teacherApi.publishTask).not.toHaveBeenCalled();
   });
 
   it("deletes unit after confirmation and returns to section route", async () => {

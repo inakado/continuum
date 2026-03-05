@@ -73,7 +73,7 @@
 .graphPanel {
   border: var(--border-width) solid var(--panel-border);
   background: var(--panel-bg);
-  height: 60vh;
+  height: clamp(420px, calc(100dvh - clamp(132px, 16vh, 208px)), 1200px);
   min-height: 420px;
   position: relative;
   z-index: 1;
@@ -322,6 +322,7 @@
   }
 
   .graphPanel {
+    height: clamp(480px, calc(100dvh - clamp(136px, 20vh, 220px)), 980px);
     min-height: 480px;
   }
 

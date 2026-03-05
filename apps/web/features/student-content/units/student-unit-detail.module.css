@@ -1072,6 +1072,9 @@
   background: var(--glass-tint);
   color: var(--text-muted);
   border-radius: var(--control-radius);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 

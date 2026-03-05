@@ -159,7 +159,7 @@
       color-mix(in srgb, var(--panel-bg) 92%, transparent)
     ),
     var(--panel-bg);
-  height: 60vh;
+  height: clamp(420px, calc(100dvh - clamp(176px, 21vh, 264px)), 1200px);
   min-height: 420px;
   position: relative;
   border-radius: var(--panel-radius);
@@ -401,6 +401,7 @@
 
 @media (max-width: 960px) {
   .graphPanel {
+    height: clamp(500px, calc(100dvh - clamp(168px, 22vh, 248px)), 980px);
     min-height: 500px;
   }
 

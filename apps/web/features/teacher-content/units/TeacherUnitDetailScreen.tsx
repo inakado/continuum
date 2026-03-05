@@ -425,8 +425,6 @@ function TeacherUnitTabContent({
       onSaveOptionalMin={actions.optionalMinEditing.onSaveOptionalMin}
       creatingTask={actions.creatingTask}
       editingTask={actions.editingTask}
-      creatingTaskPublish={actions.creatingTaskPublish}
-      onCreatingTaskPublishChange={actions.setCreatingTaskPublish}
       onStartCreateTask={actions.taskFormFlow.onStartCreateTask}
       onCancelTaskForm={actions.taskFormFlow.onCancelTaskForm}
       formError={actions.formError}

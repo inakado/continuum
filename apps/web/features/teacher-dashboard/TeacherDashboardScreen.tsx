@@ -3,11 +3,12 @@
 import { useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import DashboardShell from "@/components/DashboardShell";
 import AlertDialog from "@/components/ui/AlertDialog";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import Switch from "@/components/ui/Switch";
 import Textarea from "@/components/ui/Textarea";
 import type { Course, CourseWithSections, Section } from "@/lib/api/teacher";
 import { getContentStatusLabel } from "@/lib/status-labels";
@@ -256,15 +257,13 @@ function TeacherCourseCard({
           {getContentStatusLabel(course.status)}
         </span>
         <div className={styles.cardActions}>
-          <Button
-            variant="ghost"
-            className={styles.cardIconAction}
-            title={course.status === "published" ? "Снять с публикации" : "Опубликовать"}
+          <Switch
+            className={styles.cardPublishSwitch}
+            checked={course.status === "published"}
+            onCheckedChange={() => onPublishToggle(course)}
             aria-label={course.status === "published" ? "Снять курс с публикации" : "Опубликовать курс"}
-            onClick={() => onPublishToggle(course)}
-          >
-            {course.status === "published" ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
-          </Button>
+            title={course.status === "published" ? "Снять с публикации" : "Опубликовать"}
+          />
           <Button
             variant="ghost"
             className={styles.cardIconAction}
@@ -322,15 +321,13 @@ function TeacherSectionCard({
           {getContentStatusLabel(section.status)}
         </span>
         <div className={styles.cardActions}>
-          <Button
-            variant="ghost"
-            className={styles.cardIconAction}
-            title={section.status === "published" ? "Снять с публикации" : "Опубликовать"}
+          <Switch
+            className={styles.cardPublishSwitch}
+            checked={section.status === "published"}
+            onCheckedChange={() => onPublishToggle(section)}
             aria-label={section.status === "published" ? "Снять раздел с публикации" : "Опубликовать раздел"}
-            onClick={() => onPublishToggle(section)}
-          >
-            {section.status === "published" ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
-          </Button>
+            title={section.status === "published" ? "Снять с публикации" : "Опубликовать"}
+          />
           <Button
             variant="ghost"
             className={styles.cardIconAction}

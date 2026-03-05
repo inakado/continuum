@@ -139,7 +139,6 @@ export const useTeacherUnitScreenActions = ({
   router,
 }: Params) => {
   const [creatingTask, setCreatingTask] = useState(false);
-  const [creatingTaskPublish, setCreatingTaskPublish] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isDeletingUnit, setIsDeletingUnit] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -208,27 +207,14 @@ export const useTeacherUnitScreenActions = ({
       if (!unit) return;
       setFormError(null);
       try {
-        const created = await createTaskMutation.mutateAsync({ unitId: unit.id, ...buildTaskPayload(data) });
-        if (creatingTaskPublish) {
-          try {
-            await publishTaskMutation.mutateAsync({ taskId: created.id, publish: true });
-          } catch (err) {
-            setEditingTask(created);
-            setCreatingTask(false);
-            setCreatingTaskPublish(false);
-            setFormError(getApiErrorMessage(err));
-            await fetchUnit();
-            return;
-          }
-        }
+        await createTaskMutation.mutateAsync({ unitId: unit.id, ...buildTaskPayload(data) });
         setCreatingTask(false);
-        setCreatingTaskPublish(false);
         await fetchUnit();
       } catch (err) {
         setFormError(getApiErrorMessage(err));
       }
     },
-    [createTaskMutation, creatingTaskPublish, fetchUnit, publishTaskMutation, unit],
+    [createTaskMutation, fetchUnit, unit],
   );
 
   const handleTaskUpdate = useCallback(
@@ -377,13 +363,11 @@ export const useTeacherUnitScreenActions = ({
   return {
     creatingTask,
     editingTask,
-    creatingTaskPublish,
     isDeletingUnit,
     formError,
     taskOrderStatus,
     deleteConfirmState,
     setDeleteConfirmState,
-    setCreatingTaskPublish,
     setEditingTask,
     handleTaskSubmit,
     handleTaskUpdate,
@@ -433,13 +417,11 @@ export const useTeacherUnitScreenActions = ({
       onStartCreateTask: () => {
         setCreatingTask(true);
         setEditingTask(null);
-        setCreatingTaskPublish(false);
         setFormError(null);
       },
       onCancelTaskForm: () => {
         setEditingTask(null);
         setCreatingTask(false);
-        setCreatingTaskPublish(false);
         setFormError(null);
       },
     },

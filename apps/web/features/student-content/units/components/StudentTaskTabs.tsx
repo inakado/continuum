@@ -20,6 +20,8 @@ export function StudentTaskTabs({ tasks, activeTaskIndex, onSelectTask }: Props)
             type="button"
             className={`${styles.taskTab} ${isActive ? styles.taskTabActive : ""} ${isCorrect ? styles.taskTabDone : ""}`}
             onClick={() => onSelectTask(task.id)}
+            aria-label={task.isRequired ? `Задача ${index + 1}, ключевая` : `Задача ${index + 1}`}
+            title={task.isRequired ? "Ключевая задача" : undefined}
           >
             <span>{index + 1}</span>
           </button>

@@ -1,6 +1,5 @@
 import {
   memo,
-  type ChangeEvent,
   type ReactNode,
   type RefObject,
 } from "react";
@@ -21,8 +20,8 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { Pencil, Trash2 } from "lucide-react";
 import Button from "@/components/ui/Button";
-import Checkbox from "@/components/ui/Checkbox";
 import Input from "@/components/ui/Input";
+import Switch from "@/components/ui/Switch";
 import LiteTex from "@/components/LiteTex";
 import TaskForm, { type TaskFormData } from "../../tasks/TaskForm";
 import type { Task } from "@/lib/api/teacher";
@@ -42,6 +41,7 @@ type SortableTaskCardProps = {
   index: number;
   onEdit: (task: Task) => void;
   onDelete: (task: Task) => void;
+  onPublishToggle: (task: Task) => Promise<void>;
 };
 
 const SortableTaskCard = memo(function SortableTaskCard({
@@ -49,6 +49,7 @@ const SortableTaskCard = memo(function SortableTaskCard({
   index,
   onEdit,
   onDelete,
+  onPublishToggle,
 }: SortableTaskCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
@@ -69,7 +70,7 @@ const SortableTaskCard = memo(function SortableTaskCard({
       <div className={styles.taskHeader}>
         <div className={styles.taskTitleRow}>
           <div className={styles.taskNumber}>Задача №{index + 1}</div>
-          {task.isRequired ? <span className={styles.requiredBadge}>Обязательная</span> : null}
+          {task.isRequired ? <span className={styles.requiredBadge}>Ключевая</span> : null}
         </div>
         <div className={styles.taskMeta}>
           {answerTypeLabels[task.answerType]} • {getContentStatusLabel(task.status)}
@@ -79,6 +80,15 @@ const SortableTaskCard = memo(function SortableTaskCard({
         <LiteTex value={task.statementLite} block />
       </div>
       <div className={styles.taskActions}>
+        <Switch
+          className={styles.taskPublishSwitch}
+          checked={task.status === "published"}
+          onCheckedChange={() => {
+            void onPublishToggle(task);
+          }}
+          label="Опубликовано"
+          aria-label={task.status === "published" ? "Снять задачу с публикации" : "Опубликовать задачу"}
+        />
         <button type="button" className={styles.taskEditAction} onClick={() => onEdit(task)}>
           <Pencil size={16} aria-hidden="true" />
           <span>Редактировать</span>
@@ -114,8 +124,6 @@ type Props = {
 
   creatingTask: boolean;
   editingTask: Task | null;
-  creatingTaskPublish: boolean;
-  onCreatingTaskPublishChange: (checked: boolean) => void;
   onStartCreateTask: () => void;
   onCancelTaskForm: () => void;
   formError: string | null;
@@ -155,8 +163,6 @@ export function TeacherUnitTasksPanel({
 
   creatingTask,
   editingTask,
-  creatingTaskPublish,
-  onCreatingTaskPublishChange,
   onStartCreateTask,
   onCancelTaskForm,
   formError,
@@ -190,7 +196,7 @@ export function TeacherUnitTasksPanel({
 
         <div className={styles.progressSummary}>
           <div className={styles.progressMetric}>
-            <span className={styles.progressMetricLabel}>Обязательные</span>
+            <span className={styles.progressMetricLabel}>Ключевые</span>
             <div className={styles.metricValueBox}>
               <strong className={styles.progressMetricValue}>{requiredTasksCount}</strong>
             </div>
@@ -301,6 +307,7 @@ export function TeacherUnitTasksPanel({
                       index={index}
                       onEdit={onTaskEdit}
                       onDelete={onTaskDelete}
+                      onPublishToggle={onTaskPublishToggle}
                     />
                   ))}
                 </SortableContext>
@@ -319,28 +326,6 @@ export function TeacherUnitTasksPanel({
           onSubmit={editingTask ? onTaskUpdate : onTaskSubmit}
           error={formError}
           onCancel={onCancelTaskForm}
-          rightAction={
-            editingTask ? (
-              <Checkbox
-                label="Опубликовано"
-                checked={editingTask.status === "published"}
-                onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                  const nextChecked = event.target.checked;
-                  const isPublished = editingTask.status === "published";
-                  if (nextChecked === isPublished) return;
-                  void onTaskPublishToggle(editingTask);
-                }}
-              />
-            ) : creatingTask ? (
-              <Checkbox
-                label="Опубликовать"
-                checked={creatingTaskPublish}
-                onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                  onCreatingTaskPublishChange(event.target.checked)
-                }
-              />
-            ) : null
-          }
           initial={taskFormInitial}
           afterStatementSection={afterStatementSection}
           extraSection={extraSection}

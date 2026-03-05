@@ -59,7 +59,7 @@ export default function TeacherStudentUnitPreviewPanel({ unit, onOpenPhotoReview
                 {getStudentTaskStatusLabel(activeTask.state?.status ?? "not_started")}
               </span>
               {activeTask.state?.requiredSkipped ? (
-                <span className={styles.requiredBadge}>Обязательная пропущена</span>
+                <span className={styles.requiredBadge}>Ключевая пропущена</span>
               ) : null}
             </div>
           </div>
@@ -120,7 +120,7 @@ export default function TeacherStudentUnitPreviewPanel({ unit, onOpenPhotoReview
                 Статус: {getStudentTaskStatusLabel(activeTask.state?.status ?? "not_started")}
               </div>
               <div className={styles.photoStatusHint}>
-                До статуса «Принято» обязательная задача не закрывает юнит.
+                До статуса «Принято» ключевая задача не закрывает юнит.
               </div>
               {onOpenPhotoReview ? (
                 <button

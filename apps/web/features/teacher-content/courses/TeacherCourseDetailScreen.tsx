@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import TeacherShell from "@/components/TeacherShell";
-import EntityList, { EntityListItem } from "@/components/EntityList";
+import EntityList, { type EntityListItem } from "@/components/EntityList";
 import EntityEditorInline from "@/components/EntityEditorInline";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
-import { teacherApi, CourseWithSections, Section } from "@/lib/api/teacher";
+import { teacherApi, type CourseWithSections, type Section } from "@/lib/api/teacher";
 import { getApiErrorMessage } from "../shared/api-errors";
 import AuthRequired from "../auth/AuthRequired";
 import { useTeacherLogout } from "../auth/use-teacher-logout";
