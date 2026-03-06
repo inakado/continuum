@@ -360,14 +360,14 @@ function StudentTaskAttemptControls({
 function StudentTaskProgressControls({
   nextTaskId,
   isPhotoTask,
-  hasTaskSolutionPdf,
+  hasTaskSolutionHtml,
   attempt,
   media,
   onSelectTask,
 }: {
   nextTaskId: string | null;
   isPhotoTask: boolean;
-  hasTaskSolutionPdf: boolean;
+  hasTaskSolutionHtml: boolean;
   attempt: AttemptStateModel;
   media: MediaStateModel;
   onSelectTask: (taskId: string | null) => void;
@@ -384,7 +384,7 @@ function StudentTaskProgressControls({
         </Button>
       ) : null}
 
-      {attempt.isTaskCredited && hasTaskSolutionPdf ? (
+      {attempt.isTaskCredited && hasTaskSolutionHtml ? (
         <Button variant="ghost" onClick={media.toggleSolutionVisibility}>
           {media.isSolutionVisible ? "Скрыть решение" : "Показать решение"}
         </Button>
@@ -402,14 +402,14 @@ function StudentTaskProgressControls({
 function StudentTaskActions({
   nextTaskId,
   isPhotoTask,
-  hasTaskSolutionPdf,
+  hasTaskSolutionHtml,
   attempt,
   media,
   onSelectTask,
 }: {
   nextTaskId: string | null;
   isPhotoTask: boolean;
-  hasTaskSolutionPdf: boolean;
+  hasTaskSolutionHtml: boolean;
   attempt: AttemptStateModel;
   media: MediaStateModel;
   onSelectTask: (taskId: string | null) => void;
@@ -420,7 +420,7 @@ function StudentTaskActions({
       <StudentTaskProgressControls
         nextTaskId={nextTaskId}
         isPhotoTask={isPhotoTask}
-        hasTaskSolutionPdf={hasTaskSolutionPdf}
+        hasTaskSolutionHtml={hasTaskSolutionHtml}
         attempt={attempt}
         media={media}
         onSelectTask={onSelectTask}
@@ -456,9 +456,9 @@ function StudentUnitTasksPanel({
 
   const activeTask = taskNavigation.activeTask;
   const isPhotoTask = activeTask.answerType === "photo";
-  const hasTaskSolutionPdf = Boolean(activeTask.solutionPdfAssetKey);
+  const hasTaskSolutionHtml = Boolean(activeTask.solutionHtmlAssetKey);
   const showSolutionPanel =
-    !isPhotoTask && attempt.isTaskCredited && hasTaskSolutionPdf && media.isSolutionVisible;
+    !isPhotoTask && attempt.isTaskCredited && hasTaskSolutionHtml && media.isSolutionVisible;
   const nextTaskId = orderedTasks[taskNavigation.activeTaskIndex + 1]?.id ?? null;
 
   return (
@@ -480,9 +480,8 @@ function StudentUnitTasksPanel({
           solutionLoading={media.activeTaskSolutionLoading}
           solutionError={media.activeTaskSolutionError}
           solutionErrorCode={media.activeTaskSolutionErrorCode}
-          solutionUrl={media.activeTaskSolutionPdfUrl}
-          solutionRefreshKey={activeTask.solutionPdfAssetKey ?? undefined}
-          getFreshSolutionUrl={media.refreshTaskSolutionPreviewUrl}
+          solutionHtml={media.activeTaskSolutionHtml}
+          solutionRefreshKey={media.activeTaskSolutionHtmlKey ?? activeTask.solutionHtmlAssetKey ?? undefined}
           onGoToStudentGraph={onGoToStudentGraph}
         />
 
@@ -506,7 +505,7 @@ function StudentUnitTasksPanel({
         <StudentTaskActions
           nextTaskId={nextTaskId}
           isPhotoTask={isPhotoTask}
-          hasTaskSolutionPdf={hasTaskSolutionPdf}
+          hasTaskSolutionHtml={hasTaskSolutionHtml}
           attempt={attempt}
           media={media}
           onSelectTask={taskNavigation.setActiveTaskId}

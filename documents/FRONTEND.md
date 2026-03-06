@@ -10,6 +10,7 @@
 - Server-state правила
 - UI primitives, motion и asset preview rules
 - rendered-content flow для student unit `theory/method`
+- rendered-content flow для `task solution` (teacher + student)
 
 ## Structure
 
@@ -78,6 +79,7 @@
 - Это исключает отправку auth-cookie на внешний storage origin и предотвращает CORS-блокировку при `credentials: include`.
 - В student unit PDF tabs zoom хранится отдельно по target; теория и методика открываются с масштабом `50%`.
 - Для student unit `theory/method` primary read-path теперь идёт через backend endpoint `rendered-content`, который отдаёт уже подписанный HTML fragment и optional `pdfUrl`.
+- Для student task solution primary read-path идёт через `GET /student/tasks/:taskId/solution/rendered-content`; PDF viewer для решения задачи не используется.
 - В `StudentUnitHtmlPanel` кнопка `Скачать PDF` не использует сохранённый при первичной загрузке `pdfUrl` как единственный источник: перед открытием файла panel запрашивает свежий rendered-content (`refresh*Content`) и берёт актуальный presigned URL.
 - HTML fragment рендерится как часть страницы; legacy PDF preview остаётся fallback path для unit без собранного HTML.
 - Rich math внутри student/teacher HTML preview typeset'ится локальным MathJax helper из workspace, а не CDN/runtime с внешнего origin.
@@ -85,6 +87,7 @@
   - typeset вызовы выполняются через очередь (без конкурентных гонок);
   - при runtime-сбое есть controlled retry с переинициализацией MathJax script.
 - В teacher unit editor preview для `theory/method` живёт внутри того же preview container и поддерживает два режима: `PDF` и `HTML`. HTML preview читает backend `teacher/units/:id/rendered-content`, а PDF preview остаётся canvas-based.
+- В teacher unit tasks editor preview решения задачи (`TeacherTaskSolutionSection`) рендерится только HTML через `GET /teacher/tasks/:taskId/solution/rendered-content`.
 
 ## UI Primitives and Motion
 

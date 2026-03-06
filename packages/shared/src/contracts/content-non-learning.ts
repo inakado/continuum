@@ -152,6 +152,17 @@ export const StudentUnitRenderedContentResponseSchema = z
   })
   .passthrough();
 
+export const StudentTaskSolutionRenderedContentResponseSchema = z
+  .object({
+    ok: z.literal(true),
+    taskId: z.string().min(1),
+    taskRevisionId: z.string().min(1),
+    html: z.string(),
+    htmlKey: z.string().min(1),
+    expiresInSec: z.number(),
+  })
+  .passthrough();
+
 export const TeacherGraphNodeSchema = z
   .object({
     unitId: z.string().min(1),
@@ -496,6 +507,9 @@ export type StudentCourseDetailResponse = z.infer<typeof StudentCourseDetailResp
 export type StudentSectionDetailResponse = z.infer<typeof StudentSectionDetailResponseSchema>;
 export type StudentSectionGraphResponse = z.infer<typeof StudentSectionGraphResponseSchema>;
 export type StudentUnitRenderedContentResponse = z.infer<typeof StudentUnitRenderedContentResponseSchema>;
+export type StudentTaskSolutionRenderedContentResponse = z.infer<
+  typeof StudentTaskSolutionRenderedContentResponseSchema
+>;
 
 export type TeacherCourse = z.infer<typeof TeacherCourseSchema>;
 export type TeacherSection = z.infer<typeof TeacherSectionSchema>;

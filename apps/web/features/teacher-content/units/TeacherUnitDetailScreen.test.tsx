@@ -111,9 +111,9 @@ vi.mock("./hooks/use-teacher-unit-latex-compile", () => ({
     compileErrorLogHint: null,
     taskSolutionLatex: "",
     setTaskSolutionLatex: vi.fn(),
-    taskSolutionCompileState: { status: "idle", loading: false, error: null, updatedAt: null, key: null, previewUrl: null },
+    taskSolutionCompileState: { status: "idle", loading: false, error: null, updatedAt: null, key: null, previewHtml: null },
     runTaskSolutionCompile: vi.fn(),
-    refreshTaskSolutionPreviewUrl: vi.fn(),
+    refreshTaskSolutionRenderedContent: vi.fn(),
   }),
 }));
 
@@ -231,7 +231,7 @@ const buildTask = (overrides: Partial<Task> = {}): Task => ({
   choicesJson: null,
   correctAnswerJson: null,
   solutionRichLatex: null,
-  solutionPdfAssetKey: null,
+  solutionHtmlAssetKey: null,
   isRequired: true,
   status: "draft",
   sortOrder: 1,

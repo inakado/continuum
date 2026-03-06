@@ -73,6 +73,7 @@ export type TaskSolutionLatexCompileJobResult = LatexCompileJobResultBase & {
   taskId: string;
   taskRevisionId: string;
   target: TaskSolutionPdfTarget;
+  htmlAssets: UnitHtmlAssetRef[];
 };
 
 export type DebugLatexCompileJobResult = LatexCompileJobResultBase & {
@@ -105,6 +106,16 @@ export const buildTaskSolutionPdfKey = (
   const timestampMs = at.getTime();
   const suffix = randomBytes(4).toString('hex');
   return `tasks/${taskId}/revisions/${taskRevisionId}/solution/${timestampMs}-${suffix}.pdf`;
+};
+
+export const buildTaskSolutionHtmlKey = (
+  taskId: string,
+  taskRevisionId: string,
+  at = new Date(),
+): string => {
+  const timestampMs = at.getTime();
+  const suffix = randomBytes(4).toString('hex');
+  return `tasks/${taskId}/revisions/${taskRevisionId}/solution/${timestampMs}-${suffix}.html`;
 };
 
 export const buildDebugPdfKey = (

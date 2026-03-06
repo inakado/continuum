@@ -349,6 +349,37 @@ export class ContentService {
     };
   }
 
+  async getTaskSolutionRenderedState(taskId: string) {
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      select: {
+        id: true,
+        activeRevisionId: true,
+        activeRevision: {
+          select: {
+            id: true,
+            solutionHtmlAssetKey: true,
+            solutionHtmlAssetsJson: true,
+          },
+        },
+      },
+    });
+    if (!task) throw new NotFoundException('Task not found');
+    if (!task.activeRevisionId || !task.activeRevision) {
+      throw new ConflictException({
+        code: 'TASK_ACTIVE_REVISION_MISSING',
+        message: 'Task active revision is missing',
+      });
+    }
+
+    return {
+      taskId: task.id,
+      activeRevisionId: task.activeRevisionId,
+      solutionHtmlAssetKey: task.activeRevision.solutionHtmlAssetKey,
+      solutionHtmlAssets: this.normalizeUnitHtmlAssets(task.activeRevision.solutionHtmlAssetsJson),
+    };
+  }
+
   async getTaskStatementImageState(taskId: string) {
     const task = await this.prisma.task.findUnique({
       where: { id: taskId },
@@ -385,6 +416,18 @@ export class ContentService {
 
   async setTaskRevisionSolutionPdfAssetKey(taskRevisionId: string, key: string) {
     return this.contentWriteService.setTaskRevisionSolutionPdfAssetKey(taskRevisionId, key);
+  }
+
+  async setTaskRevisionSolutionRenderedAssets(
+    taskRevisionId: string,
+    htmlAssetKey: string,
+    htmlAssets: UnitHtmlAssetRef[],
+  ) {
+    return this.contentWriteService.setTaskRevisionSolutionRenderedAssets(
+      taskRevisionId,
+      htmlAssetKey,
+      htmlAssets,
+    );
   }
 
   async setTaskRevisionStatementImageAssetKey(taskRevisionId: string, key: string | null) {

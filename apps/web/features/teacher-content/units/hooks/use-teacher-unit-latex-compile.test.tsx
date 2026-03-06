@@ -11,7 +11,7 @@ vi.mock("@/lib/api/teacher", async () => {
     teacherApi: {
       ...actual.teacherApi,
       getUnitPdfPresignedUrl: vi.fn(),
-      getTaskSolutionPdfPresignedUrl: vi.fn(),
+      getTaskSolutionRenderedContent: vi.fn(),
       compileTaskSolutionLatex: vi.fn(),
       getLatexCompileJob: vi.fn(),
       applyLatexCompileJob: vi.fn(),
@@ -34,7 +34,7 @@ const createTask = (overrides: Partial<Task> = {}): Task =>
     createdAt: "2026-03-01T00:00:00.000Z",
     updatedAt: "2026-03-01T00:00:00.000Z",
     solutionRichLatex: "\\frac{1}{2}",
-    solutionPdfAssetKey: null,
+    solutionHtmlAssetKey: null,
     ...overrides,
   }) as Task;
 
@@ -64,7 +64,7 @@ describe("useTeacherUnitLatexCompile", () => {
     vi.restoreAllMocks();
     vi.useRealTimers();
     vi.mocked(teacherApi.getUnitPdfPresignedUrl).mockReset();
-    vi.mocked(teacherApi.getTaskSolutionPdfPresignedUrl).mockReset();
+    vi.mocked(teacherApi.getTaskSolutionRenderedContent).mockReset();
     vi.mocked(teacherApi.compileTaskSolutionLatex).mockReset();
     vi.mocked(teacherApi.getLatexCompileJob).mockReset();
     vi.mocked(teacherApi.applyLatexCompileJob).mockReset();
@@ -133,7 +133,7 @@ describe("useTeacherUnitLatexCompile", () => {
         ...unit,
         tasks: [
           createTask({
-            solutionPdfAssetKey: "asset-1",
+            solutionHtmlAssetKey: "asset-1",
             solutionRichLatex: "\\frac{1}{2}",
           }),
         ],
@@ -153,13 +153,13 @@ describe("useTeacherUnitLatexCompile", () => {
       assetKey: "asset-1",
       taskId: "task-1",
     } as never);
-    vi.mocked(teacherApi.getTaskSolutionPdfPresignedUrl).mockResolvedValue({
+    vi.mocked(teacherApi.getTaskSolutionRenderedContent).mockResolvedValue({
       ok: true,
       taskId: "task-1",
       taskRevisionId: "task-revision-1",
-      key: "asset-1",
+      htmlKey: "asset-1",
       expiresInSec: 600,
-      url: "https://cdn.example.com/task-solution.pdf",
+      html: "<p>Rendered</p>",
     } as never);
 
     const { result } = renderHook(() =>
@@ -194,7 +194,7 @@ describe("useTeacherUnitLatexCompile", () => {
     expect(teacherApi.applyLatexCompileJob).toHaveBeenCalledWith("job-2");
     expect(result.current.taskSolutionCompileState.status).toBe("succeeded");
     expect(result.current.taskSolutionCompileState.key).toBe("asset-1");
-    expect(result.current.taskSolutionCompileState.previewUrl).toBe("https://cdn.example.com/task-solution.pdf");
+    expect(result.current.taskSolutionCompileState.previewHtml).toBe("<p>Rendered</p>");
     expect(result.current.taskSolutionCompileState.error).toBeNull();
     expect(fetchUnit).toHaveBeenCalledTimes(4);
     timeoutSpy.mockRestore();

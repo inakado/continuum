@@ -14,7 +14,7 @@ import {
   type UnitPdfTarget,
   buildUnitHtmlKey,
   buildDebugPdfKey,
-  buildTaskSolutionPdfKey,
+  buildTaskSolutionHtmlKey,
   buildUnitPdfKey,
 } from './latex-queue.contract';
 import { compileLatexToPdf, LatexCompileError } from './latex-compile';
@@ -203,31 +203,36 @@ export const createLatexCompileProcessor = (storage: WorkerObjectStorageService)
       const payload = parsePayload(job.data);
       console.log(`[worker][latex] start jobId=${job.id} target=${payload.target} ${describePayloadScope(payload)}`);
 
-      const compiled = await compileLatexToPdf(payload.tex);
+      const shouldCompilePdf = payload.target !== TASK_SOLUTION_PDF_TARGET;
+      const compiled = shouldCompilePdf ? await compileLatexToPdf(payload.tex) : null;
       const renderedHtml =
-        payload.target === TASK_SOLUTION_PDF_TARGET || payload.target === DEBUG_PDF_TARGET
+        payload.target === DEBUG_PDF_TARGET
           ? null
           : await renderLatexToHtml(payload.tex, storage);
 
       const renderAt = new Date();
       const pdfKey =
         payload.target === TASK_SOLUTION_PDF_TARGET
-          ? buildTaskSolutionPdfKey(payload.taskId, payload.taskRevisionId, renderAt)
+          ? null
           : payload.target === DEBUG_PDF_TARGET
             ? buildDebugPdfKey(payload.debugTarget, renderAt)
             : buildUnitPdfKey(payload.unitId, payload.target, renderAt);
-      await storage.putObject({
-        key: pdfKey,
-        contentType: 'application/pdf',
-        body: compiled.pdfBytes,
-        cacheControl: 'no-store',
-      });
-      uploadedVersionedKeys.push(pdfKey);
+      if (compiled && pdfKey) {
+        await storage.putObject({
+          key: pdfKey,
+          contentType: 'application/pdf',
+          body: compiled.pdfBytes,
+          cacheControl: 'no-store',
+        });
+        uploadedVersionedKeys.push(pdfKey);
+      }
 
       const htmlKey =
-        payload.target === TASK_SOLUTION_PDF_TARGET || payload.target === DEBUG_PDF_TARGET
+        payload.target === DEBUG_PDF_TARGET
           ? null
-          : buildUnitHtmlKey(payload.unitId, payload.target, renderAt);
+          : payload.target === TASK_SOLUTION_PDF_TARGET
+            ? buildTaskSolutionHtmlKey(payload.taskId, payload.taskRevisionId, renderAt)
+            : buildUnitHtmlKey(payload.unitId, payload.target, renderAt);
       if (htmlKey && renderedHtml) {
         await storage.putObject({
           key: htmlKey,
@@ -249,11 +254,14 @@ export const createLatexCompileProcessor = (storage: WorkerObjectStorageService)
 
       const baseResult = {
         target: payload.target,
-        assetKey: pdfKey,
-        sizeBytes: compiled.pdfBytes.length,
-        ...((compiled.logSnippet || renderedHtml?.logSnippet)
+        assetKey: payload.target === TASK_SOLUTION_PDF_TARGET ? (htmlKey ?? '') : (pdfKey ?? ''),
+        sizeBytes:
+          payload.target === TASK_SOLUTION_PDF_TARGET
+            ? Math.max(1, Buffer.byteLength(renderedHtml?.html ?? '', 'utf8'))
+            : Math.max(1, compiled?.pdfBytes.length ?? 0),
+        ...((compiled?.logSnippet || renderedHtml?.logSnippet)
           ? {
-              compileLogSnippet: [compiled.logSnippet, renderedHtml?.logSnippet]
+              compileLogSnippet: [compiled?.logSnippet, renderedHtml?.logSnippet]
                 .filter((item) => typeof item === 'string' && item.length > 0)
                 .join('\n'),
             }
@@ -265,6 +273,7 @@ export const createLatexCompileProcessor = (storage: WorkerObjectStorageService)
               ...baseResult,
               taskId: payload.taskId,
               taskRevisionId: payload.taskRevisionId,
+              htmlAssets: renderedHtml?.assetRefs ?? [],
             } as TaskSolutionLatexCompileJobResult)
           : payload.target === DEBUG_PDF_TARGET
             ? ({

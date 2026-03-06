@@ -92,6 +92,22 @@ export class ContentWriteService {
     return this.taskWriteService.setTaskRevisionSolutionPdfAssetKey(taskRevisionId, key);
   }
 
+  setTaskRevisionSolutionRenderedAssets(
+    taskRevisionId: string,
+    htmlAssetKey: string,
+    htmlAssets: Array<{
+      placeholder: string;
+      assetKey: string;
+      contentType: 'image/svg+xml';
+    }>,
+  ) {
+    return this.taskWriteService.setTaskRevisionSolutionRenderedAssets(
+      taskRevisionId,
+      htmlAssetKey,
+      htmlAssets,
+    );
+  }
+
   setTaskRevisionStatementImageAssetKey(taskRevisionId: string, key: string | null) {
     return this.taskWriteService.setTaskRevisionStatementImageAssetKey(taskRevisionId, key);
   }

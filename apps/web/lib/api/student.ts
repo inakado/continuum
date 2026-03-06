@@ -7,6 +7,7 @@ import {
   StudentPhotoPresignUploadResponseSchema,
   StudentPhotoPresignViewResponseSchema,
   StudentPhotoSubmitResponseSchema,
+  StudentTaskSolutionRenderedContentResponseSchema,
   StudentUnitRenderedContentResponseSchema,
   type StudentCourse as SharedStudentCourse,
   type StudentCourseDetailResponse as SharedStudentCourseDetailResponse,
@@ -26,6 +27,7 @@ import {
   type StudentPhotoSubmitRequest as SharedStudentPhotoSubmitRequest,
   type StudentPhotoPresignViewResponse as SharedStudentPhotoPresignViewResponse,
   type StudentPhotoSubmitResponse as SharedStudentPhotoSubmitResponse,
+  type StudentTaskSolutionRenderedContentResponse as SharedStudentTaskSolutionRenderedContentResponse,
   type StudentUnitRenderedContentResponse as SharedStudentUnitRenderedContentResponse,
 } from "@continuum/shared";
 import { apiRequest, apiRequestParsed } from "./client";
@@ -98,7 +100,7 @@ export type Task = {
   statementLite: string;
   hasStatementImage?: boolean;
   solutionRichLatex?: string | null;
-  solutionPdfAssetKey?: string | null;
+  solutionHtmlAssetKey?: string | null;
   answerType: TaskAnswerType;
   numericPartsJson?: NumericPart[] | null;
   choicesJson?: Choice[] | null;
@@ -160,14 +162,8 @@ export type StudentPhotoPresignUploadResponse = SharedStudentPhotoPresignUploadR
 export type StudentPhotoSubmitResponse = SharedStudentPhotoSubmitResponse;
 export type StudentPhotoPresignViewResponse = SharedStudentPhotoPresignViewResponse;
 
-export type StudentTaskSolutionPdfPresignResponse = {
-  ok: true;
-  taskId: string;
-  taskRevisionId: string;
-  key: string;
-  expiresInSec: number;
-  url: string;
-};
+export type StudentTaskSolutionRenderedContentResponse =
+  SharedStudentTaskSolutionRenderedContentResponse;
 
 export type StudentTaskStatementImagePresignViewResponse = {
   ok: true;
@@ -278,10 +274,11 @@ export const studentApi = {
     );
   },
 
-  getTaskSolutionPdfPresignForStudent(taskId: string, ttlSec = 180) {
+  getTaskSolutionRenderedContentForStudent(taskId: string, ttlSec = 180) {
     const search = new URLSearchParams({ ttlSec: String(ttlSec) });
-    return apiRequest<StudentTaskSolutionPdfPresignResponse>(
-      `/student/tasks/${taskId}/solution/pdf-presign?${search.toString()}`,
+    return apiRequestParsed(
+      `/student/tasks/${taskId}/solution/rendered-content?${search.toString()}`,
+      StudentTaskSolutionRenderedContentResponseSchema,
     );
   },
 

@@ -1,12 +1,7 @@
-import dynamic from "next/dynamic";
+import { useEffect, useRef } from "react";
 import Button from "@/components/ui/Button";
 import styles from "../student-unit-detail.module.css";
-import { PDF_ZOOM_DEFAULT } from "../hooks/use-student-unit-pdf-preview";
-
-const PdfCanvasPreview = dynamic(() => import("@/components/PdfCanvasPreview"), {
-  ssr: false,
-  loading: () => <div className={styles.stub}>Загрузка PDF...</div>,
-});
+import { typesetMathInElement } from "../mathjax-helper";
 
 type Props = {
   hasStatementImage: boolean;
@@ -18,9 +13,8 @@ type Props = {
   solutionLoading: boolean;
   solutionError: string | null;
   solutionErrorCode: string | null;
-  solutionUrl: string | null;
+  solutionHtml: string | null;
   solutionRefreshKey?: string;
-  getFreshSolutionUrl: () => Promise<string | null>;
   onGoToStudentGraph: () => void;
 };
 
@@ -34,11 +28,19 @@ export function StudentTaskMediaPreview({
   solutionLoading,
   solutionError,
   solutionErrorCode,
-  solutionUrl,
+  solutionHtml,
   solutionRefreshKey,
-  getFreshSolutionUrl,
   onGoToStudentGraph,
 }: Props) {
+  const solutionHtmlRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!solutionHtml || !solutionHtmlRef.current) return;
+    void typesetMathInElement(solutionHtmlRef.current).catch(() => {
+      // HTML решения остаётся читаемым и без typesetting.
+    });
+  }, [solutionHtml, solutionRefreshKey]);
+
   return (
     <>
       {hasStatementImage ? (
@@ -64,7 +66,7 @@ export function StudentTaskMediaPreview({
 
       {showSolutionPanel ? (
         solutionLoading ? (
-          <div className={styles.solutionHint}>Загружаем PDF-решение…</div>
+          <div className={styles.solutionHint}>Загружаем HTML-решение…</div>
         ) : solutionError ? (
           <div className={styles.solutionError} role="status" aria-live="polite">
             {solutionError}
@@ -76,19 +78,17 @@ export function StudentTaskMediaPreview({
               </div>
             ) : null}
           </div>
-        ) : solutionUrl ? (
-          <div className={styles.solutionPdfViewport}>
-            <PdfCanvasPreview
-              className={styles.solutionPdfFrame}
-              url={solutionUrl}
-              refreshKey={solutionRefreshKey}
-              getFreshUrl={getFreshSolutionUrl}
-              zoom={PDF_ZOOM_DEFAULT}
-              scrollFeel="inertial-heavy"
-              freezeWidth
+        ) : solutionHtml ? (
+          <div className={styles.solutionHtmlViewport}>
+            <div
+              ref={solutionHtmlRef}
+              className={`${styles.htmlContent} ${styles.solutionHtmlContent}`}
+              dangerouslySetInnerHTML={{ __html: solutionHtml }}
             />
           </div>
-        ) : null
+        ) : (
+          <div className={styles.solutionStub}>HTML-решение пока не подготовлено преподавателем.</div>
+        )
       ) : null}
     </>
   );

@@ -41,17 +41,26 @@ describe('teacher unit rendered-content integration', () => {
       htmlAssetKey: 'units/unit-1/theory/1710000000000-1234abcd.html',
       htmlAssets: [
         {
-          placeholder: 'CONTINUUMTIKZPLACEHOLDER0',
+          placeholder: 'CONTINUUMTIKZPLACEHOLDER1',
           assetKey: 'rendering/tikz/asset-1.svg',
+          contentType: 'image/svg+xml',
+        },
+        {
+          placeholder: 'CONTINUUMTIKZPLACEHOLDER10',
+          assetKey: 'rendering/tikz/asset-10.svg',
           contentType: 'image/svg+xml',
         },
       ],
     });
     objectStorageService.getPresignedGetUrl.mockResolvedValue('https://storage.example/theory.pdf');
     objectStorageService.getObjectText.mockResolvedValue(
-      '<figure><img src="CONTINUUMTIKZPLACEHOLDER0" alt="" /></figure><p>HTML</p>',
+      '<figure><img src="CONTINUUMTIKZPLACEHOLDER1" alt="" /></figure><figure><img src="CONTINUUMTIKZPLACEHOLDER10" alt="" /></figure><p>HTML</p>',
     );
-    objectStorageService.presignGetObject.mockResolvedValue('https://storage.example/asset-1.svg');
+    objectStorageService.presignGetObject.mockImplementation(async (assetKey: string) => {
+      if (assetKey.endsWith('asset-1.svg')) return 'https://storage.example/asset-1.svg';
+      if (assetKey.endsWith('asset-10.svg')) return 'https://storage.example/asset-10.svg';
+      return 'https://storage.example/unknown.svg';
+    });
 
     app = await createIntegrationApp({
       controllers: [TeacherUnitsController],
@@ -95,7 +104,7 @@ describe('teacher unit rendered-content integration', () => {
     expect(response.body).toEqual({
       ok: true,
       target: 'theory',
-      html: '<figure><img src="https://storage.example/asset-1.svg" alt="" /></figure><p>HTML</p>',
+      html: '<figure><img src="https://storage.example/asset-1.svg" alt="" /></figure><figure><img src="https://storage.example/asset-10.svg" alt="" /></figure><p>HTML</p>',
       htmlKey: 'units/unit-1/theory/1710000000000-1234abcd.html',
       pdfUrl: 'https://storage.example/theory.pdf',
       pdfKey: 'units/unit-1/theory/1710000000000-1234abcd.pdf',
@@ -104,6 +113,11 @@ describe('teacher unit rendered-content integration', () => {
     expect(contentService.getUnitRenderedAssetState).toHaveBeenCalledWith('unit-1', 'theory');
     expect(objectStorageService.presignGetObject).toHaveBeenCalledWith(
       'rendering/tikz/asset-1.svg',
+      600,
+      'image/svg+xml',
+    );
+    expect(objectStorageService.presignGetObject).toHaveBeenCalledWith(
+      'rendering/tikz/asset-10.svg',
       600,
       'image/svg+xml',
     );

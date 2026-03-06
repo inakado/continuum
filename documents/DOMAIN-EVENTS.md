@@ -65,7 +65,7 @@
 
 ### 1.3 Rendering (BC6-ish)
 
-- `TaskSolutionPdfCompiled` (admin)
+- `TaskSolutionHtmlCompiled` (admin)
 
 ### 1.4 Learning (BC3)
 

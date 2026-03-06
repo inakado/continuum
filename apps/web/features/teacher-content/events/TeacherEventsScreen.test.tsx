@@ -55,7 +55,7 @@ describe("TeacherEventsScreen", () => {
         {
           id: "event-1",
           category: "admin",
-          eventType: "TaskSolutionPdfCompiled",
+          eventType: "TaskSolutionHtmlCompiled",
           actorUserId: "teacher-1",
           actorUser: { login: "teacher1" },
           entityType: "task_revision",
@@ -72,7 +72,7 @@ describe("TeacherEventsScreen", () => {
     renderWithQueryClient(<TeacherEventsScreen />);
 
     expect(await screen.findByText("События")).toBeInTheDocument();
-    expect(await screen.findByText("TaskSolutionPdfCompiled")).toBeInTheDocument();
+    expect(await screen.findByText("TaskSolutionHtmlCompiled")).toBeInTheDocument();
     expect(screen.getByText("teacher1")).toBeInTheDocument();
     expect(screen.getByText("task_revision:revision-1")).toBeInTheDocument();
     expect(teacherApi.listEvents).toHaveBeenCalledWith({ category: "admin", limit: 50, offset: 0 });

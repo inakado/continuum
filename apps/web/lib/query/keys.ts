@@ -7,8 +7,8 @@ export const learningPhotoQueryKeys = {
     ["learning-photo", "student", "unit", unitId, "pdf-preview", target] as const,
   studentUnitRenderedContent: (unitId: string, target: "theory" | "method") =>
     ["learning-photo", "student", "unit", unitId, "rendered-content", target] as const,
-  studentTaskSolutionPdfPreview: (taskId: string) =>
-    ["learning-photo", "student", "task", taskId, "solution-pdf"] as const,
+  studentTaskSolutionRenderedContent: (taskId: string) =>
+    ["learning-photo", "student", "task", taskId, "solution-rendered-content"] as const,
   studentTaskStatementImagePreview: (taskId: string) =>
     ["learning-photo", "student", "task", taskId, "statement-image"] as const,
   teacherReviewInbox: (filters: TeacherReviewInboxFilters | undefined) =>

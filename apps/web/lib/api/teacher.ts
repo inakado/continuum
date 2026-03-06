@@ -1,5 +1,6 @@
 import {
   StudentUnitRenderedContentResponseSchema,
+  StudentTaskSolutionRenderedContentResponseSchema,
   TeacherCourseDetailResponseSchema,
   TeacherCourseListResponseSchema,
   TeacherCourseSchema,
@@ -51,6 +52,7 @@ import {
   type TeacherStudentSummary as SharedTeacherStudentSummary,
   type TeacherStudentsListQuery as SharedTeacherStudentsListQuery,
   type StudentUnitRenderedContentResponse as SharedStudentUnitRenderedContentResponse,
+  type StudentTaskSolutionRenderedContentResponse as SharedStudentTaskSolutionRenderedContentResponse,
   type TeacherSummary as SharedTeacherSummary,
   type TeacherTransferStudentRequest as SharedTeacherTransferStudentRequest,
   type TeacherUnit as SharedTeacherUnit,
@@ -100,7 +102,7 @@ export type Task = {
   choicesJson?: Choice[] | null;
   correctAnswerJson?: CorrectAnswer | null;
   solutionRichLatex?: string | null;
-  solutionPdfAssetKey?: string | null;
+  solutionHtmlAssetKey?: string | null;
   isRequired: boolean;
   status: ContentStatus;
   sortOrder: number;
@@ -287,14 +289,8 @@ export type UnitPdfPresignedResponse = {
 
 export type TeacherUnitRenderedContentResponse = SharedStudentUnitRenderedContentResponse;
 
-export type TaskSolutionPdfPresignedResponse = {
-  ok: true;
-  taskId: string;
-  taskRevisionId: string;
-  key: string;
-  expiresInSec: number;
-  url: string;
-};
+export type TaskSolutionRenderedContentResponse =
+  SharedStudentTaskSolutionRenderedContentResponse;
 
 export type TaskStatementImagePresignUploadResponse = {
   uploadUrl: string;
@@ -382,9 +378,9 @@ const appendReviewFiltersToSearch = (
   if (params.sort) search.set("sort", params.sort);
 };
 
-const buildTaskSolutionPdfPresignPath = (taskId: string, ttlSec: number) => {
+const buildTaskSolutionRenderedContentPath = (taskId: string, ttlSec: number) => {
   const search = new URLSearchParams({ ttlSec: String(ttlSec) });
-  return `/teacher/tasks/${taskId}/solution/pdf-presign?${search.toString()}`;
+  return `/teacher/tasks/${taskId}/solution/rendered-content?${search.toString()}`;
 };
 
 const creditTaskRequest = (studentId: string, taskId: string) =>
@@ -544,15 +540,10 @@ export const teacherApi = {
     );
   },
 
-  getTaskSolutionPdfPresignedUrl(taskId: string, ttlSec = 600) {
-    return apiRequest<TaskSolutionPdfPresignedResponse>(
-      buildTaskSolutionPdfPresignPath(taskId, ttlSec),
-    );
-  },
-
-  getTaskSolutionPdfPresignForTeacher(taskId: string, ttlSec = 600) {
-    return apiRequest<TaskSolutionPdfPresignedResponse>(
-      buildTaskSolutionPdfPresignPath(taskId, ttlSec),
+  getTaskSolutionRenderedContent(taskId: string, ttlSec = 600) {
+    return apiRequestParsed(
+      buildTaskSolutionRenderedContentPath(taskId, ttlSec),
+      StudentTaskSolutionRenderedContentResponseSchema,
     );
   },
 

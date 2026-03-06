@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { type Prisma, TaskAnswerType } from '@prisma/client';
+import type { UnitHtmlAssetRef } from './unit-pdf.constants';
 
 export type NumericPart = { key: string; labelLite?: string | null; correctValue: string };
 export type Choice = { key: string; textLite: string };
@@ -15,6 +16,8 @@ export type NormalizedTaskPayload = {
   solutionLite: string | null;
   solutionRichLatex: string | null;
   solutionPdfAssetKey: string | null;
+  solutionHtmlAssetKey: string | null;
+  solutionHtmlAssetsJson: UnitHtmlAssetRef[] | null;
 };
 
 export type TaskRevisionRecord = {
@@ -25,6 +28,8 @@ export type TaskRevisionRecord = {
   solutionLite: string | null;
   solutionRichLatex: string | null;
   solutionPdfAssetKey: string | null;
+  solutionHtmlAssetKey: string | null;
+  solutionHtmlAssetsJson: UnitHtmlAssetRef[] | null;
   numericParts: { partKey: string; labelLite: string | null; correctValue: string }[];
   choices: { choiceKey: string; contentLite: string }[];
   correctChoices: { choiceKey: string }[];
@@ -92,6 +97,8 @@ export class TaskRevisionPayloadService {
       solutionLite: revision.solutionLite,
       solutionRichLatex: revision.solutionRichLatex,
       solutionPdfAssetKey: revision.solutionPdfAssetKey,
+      solutionHtmlAssetKey: revision.solutionHtmlAssetKey,
+      solutionHtmlAssetsJson: revision.solutionHtmlAssetsJson,
       isRequired: task.isRequired,
       status: task.status,
       sortOrder: task.sortOrder,
@@ -124,6 +131,8 @@ export class TaskRevisionPayloadService {
         solutionLite: normalized.solutionLite,
         solutionRichLatex: normalized.solutionRichLatex,
         solutionPdfAssetKey: normalized.solutionPdfAssetKey,
+        solutionHtmlAssetKey: normalized.solutionHtmlAssetKey,
+        solutionHtmlAssetsJson: normalized.solutionHtmlAssetsJson,
       },
     });
 
@@ -182,6 +191,8 @@ export class TaskRevisionPayloadService {
     solutionLite?: unknown;
     solutionRichLatex?: unknown;
     solutionPdfAssetKey?: unknown;
+    solutionHtmlAssetKey?: unknown;
+    solutionHtmlAssetsJson?: unknown;
   }): NormalizedTaskPayload {
     const answerType = this.normalizeAnswerType(payload.answerType);
     const statementLite =
@@ -212,6 +223,17 @@ export class TaskRevisionPayloadService {
       }
       solutionPdfAssetKey = this.normalizeAssetKey(payload.solutionPdfAssetKey);
     }
+    let solutionHtmlAssetKey: string | null = null;
+    if (payload.solutionHtmlAssetKey !== undefined && payload.solutionHtmlAssetKey !== null) {
+      if (typeof payload.solutionHtmlAssetKey !== 'string') {
+        throw new BadRequestException('InvalidSolutionHtmlAssetKey');
+      }
+      solutionHtmlAssetKey = this.normalizeAssetKey(payload.solutionHtmlAssetKey);
+    }
+    let solutionHtmlAssetsJson: UnitHtmlAssetRef[] | null = null;
+    if (payload.solutionHtmlAssetsJson !== undefined && payload.solutionHtmlAssetsJson !== null) {
+      solutionHtmlAssetsJson = this.normalizeUnitHtmlAssets(payload.solutionHtmlAssetsJson);
+    }
 
     if (answerType === TaskAnswerType.numeric) {
       const numericParts = this.normalizeNumericParts(payload.numericPartsJson);
@@ -225,6 +247,8 @@ export class TaskRevisionPayloadService {
         solutionLite,
         solutionRichLatex,
         solutionPdfAssetKey,
+        solutionHtmlAssetKey,
+        solutionHtmlAssetsJson,
       };
     }
 
@@ -245,6 +269,8 @@ export class TaskRevisionPayloadService {
         solutionLite,
         solutionRichLatex,
         solutionPdfAssetKey,
+        solutionHtmlAssetKey,
+        solutionHtmlAssetsJson,
       };
     }
 
@@ -268,6 +294,8 @@ export class TaskRevisionPayloadService {
       solutionLite,
       solutionRichLatex,
       solutionPdfAssetKey,
+      solutionHtmlAssetKey,
+      solutionHtmlAssetsJson,
     };
   }
 
@@ -295,6 +323,34 @@ export class TaskRevisionPayloadService {
     if (value === null) return null;
     const trimmed = value.trim();
     return trimmed ? trimmed : null;
+  }
+
+  private normalizeUnitHtmlAssets(raw: unknown): UnitHtmlAssetRef[] {
+    if (!Array.isArray(raw)) {
+      throw new BadRequestException('InvalidSolutionHtmlAssets');
+    }
+    const assets: UnitHtmlAssetRef[] = [];
+    for (const item of raw) {
+      if (!item || typeof item !== 'object') {
+        throw new BadRequestException('InvalidSolutionHtmlAssets');
+      }
+      const asset = item as Record<string, unknown>;
+      if (
+        typeof asset.placeholder !== 'string' ||
+        !asset.placeholder.trim() ||
+        typeof asset.assetKey !== 'string' ||
+        !asset.assetKey.trim() ||
+        asset.contentType !== 'image/svg+xml'
+      ) {
+        throw new BadRequestException('InvalidSolutionHtmlAssets');
+      }
+      assets.push({
+        placeholder: asset.placeholder.trim(),
+        assetKey: asset.assetKey.trim(),
+        contentType: 'image/svg+xml',
+      });
+    }
+    return assets;
   }
 
   private sanitizeLiteText(

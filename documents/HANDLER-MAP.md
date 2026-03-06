@@ -84,13 +84,21 @@
 - Worker:
   - компилирует через `pdflatex`,
   - для TikZ HTML assets использует `pdflatex --output-format=dvi -> dvisvgm`,
-  - загружает PDF в object storage,
+  - для unit загружает `PDF + HTML + SVG assets`, для `task_solution` загружает `HTML + SVG assets`,
   - вызывает `POST /internal/latex/jobs/:jobId/apply` с `x-internal-token`.
 - API internal apply:
-  - применяет `Unit.theoryPdfAssetKey|methodPdfAssetKey` или `TaskRevision.solutionPdfAssetKey`,
+  - применяет `Unit.theoryPdfAssetKey|theoryHtmlAssetKey|theoryHtmlAssetsJson` или `Unit.methodPdfAssetKey|methodHtmlAssetKey|methodHtmlAssetsJson`,
+  - для `task_solution` применяет `TaskRevision.solutionHtmlAssetKey|solutionHtmlAssetsJson`,
   - debug jobs не применяются (`LATEX_JOB_APPLY_UNSUPPORTED`),
   - защищается от stale-результатов,
-  - пишет event `TaskSolutionPdfCompiled` (для task solution).
+  - пишет event `TaskSolutionHtmlCompiled` (для task solution).
+
+- Teacher rendered-content read path:
+  - `GET /teacher/units/:id/rendered-content?target=theory|method`
+  - `GET /teacher/tasks/:taskId/solution/rendered-content`
+- Student rendered-content read path:
+  - `GET /units/:id/rendered-content?target=theory|method`
+  - `GET /student/tasks/:taskId/solution/rendered-content`
 
 Источник: `apps/api/src/content/internal-latex.controller.ts`, `apps/worker/src/latex/*`.
 

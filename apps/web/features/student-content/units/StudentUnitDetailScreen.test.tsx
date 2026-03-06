@@ -351,8 +351,9 @@ describe("StudentUnitDetailScreen", () => {
       activeTaskSolutionLoading: false,
       activeTaskSolutionError: null,
       activeTaskSolutionErrorCode: null,
-      activeTaskSolutionPdfUrl: "https://cdn.local/solution.pdf",
-      refreshTaskSolutionPreviewUrl: vi.fn(),
+      activeTaskSolutionHtml: "<p>Solution</p>",
+      activeTaskSolutionHtmlKey: "solution-html-key",
+      refreshTaskSolutionRenderedContent: vi.fn(),
       toggleSolutionVisibility: toggleSolutionVisibilityMock,
       isSolutionVisible: false,
     });
@@ -459,7 +460,7 @@ describe("StudentUnitDetailScreen", () => {
 
   it("renders credited non-photo task actions and solution toggle", async () => {
     const task = buildTask({
-      solutionPdfAssetKey: "solution-key",
+      solutionHtmlAssetKey: "solution-html-key",
       state: {
         status: "accepted",
         wrongAttempts: 0,
@@ -502,8 +503,9 @@ describe("StudentUnitDetailScreen", () => {
       activeTaskSolutionLoading: false,
       activeTaskSolutionError: null,
       activeTaskSolutionErrorCode: null,
-      activeTaskSolutionPdfUrl: "https://cdn.local/solution.pdf",
-      refreshTaskSolutionPreviewUrl: vi.fn(),
+      activeTaskSolutionHtml: "<p>Solution</p>",
+      activeTaskSolutionHtmlKey: "solution-html-key",
+      refreshTaskSolutionRenderedContent: vi.fn(),
       toggleSolutionVisibility: toggleSolutionVisibilityMock,
       isSolutionVisible: true,
     });

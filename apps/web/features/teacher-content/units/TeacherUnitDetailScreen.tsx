@@ -464,7 +464,6 @@ function TeacherUnitTabContent({
             compile.compileErrorModalState?.target === "task_solution"
           }
           onOpenCompileLog={() => compile.reopenCompileErrorModal("task_solution")}
-          getFreshPreviewUrl={compile.refreshTaskSolutionPreviewUrl}
         />
       }
     />

@@ -177,7 +177,7 @@ export class LearningService {
           correctAnswerJson,
           statementImageAssetKey,
           solutionLite,
-          solutionPdfAssetKey,
+          solutionHtmlAssetKey,
           solutionRichLatex,
           numericPartsJson,
           ...rest
@@ -208,7 +208,7 @@ export class LearningService {
           hasStatementImage: Boolean(statementImageAssetKey),
           numericPartsJson: safeNumericParts,
           ...(isCredited
-            ? { correctAnswerJson, solutionLite, solutionPdfAssetKey, solutionRichLatex }
+            ? { correctAnswerJson, solutionLite, solutionHtmlAssetKey, solutionRichLatex }
             : {}),
           state: normalizedState,
         };
@@ -242,7 +242,7 @@ export class LearningService {
     };
   }
 
-  async getTaskSolutionPdfAssetKeyForStudent(studentId: string, taskId: string) {
+  async getTaskSolutionRenderedAssetStateForStudent(studentId: string, taskId: string) {
     const task = await this.prisma.task.findFirst({
       where: {
         id: taskId,
@@ -261,7 +261,8 @@ export class LearningService {
         activeRevision: {
           select: {
             id: true,
-            solutionPdfAssetKey: true,
+            solutionHtmlAssetKey: true,
+            solutionHtmlAssetsJson: true,
           },
         },
         unit: {
@@ -314,18 +315,19 @@ export class LearningService {
       });
     }
 
-    const key = task.activeRevision.solutionPdfAssetKey;
+    const key = task.activeRevision.solutionHtmlAssetKey;
     if (!key) {
       throw new NotFoundException({
-        code: 'SOLUTION_PDF_MISSING',
-        message: 'Task solution PDF is not compiled yet',
+        code: 'SOLUTION_RENDER_MISSING',
+        message: 'Task solution HTML is not rendered yet',
       });
     }
 
     return {
       taskId: task.id,
       taskRevisionId: task.activeRevisionId,
-      key,
+      htmlKey: key,
+      htmlAssets: this.normalizeUnitHtmlAssets(task.activeRevision.solutionHtmlAssetsJson),
     };
   }
 

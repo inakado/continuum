@@ -113,7 +113,7 @@ export class InternalLatexController {
     }
 
     if (isTaskSolutionLatexCompileJobPayload(payload) && isTaskSolutionLatexCompileJobResult(result)) {
-      const state = await this.contentService.getTaskSolutionPdfState(payload.taskId);
+      const state = await this.contentService.getTaskSolutionRenderedState(payload.taskId);
       if (state.activeRevisionId !== payload.taskRevisionId) {
         return {
           ok: true,
@@ -128,7 +128,7 @@ export class InternalLatexController {
         };
       }
 
-      if (state.solutionPdfAssetKey === result.assetKey) {
+      if (state.solutionHtmlAssetKey === result.assetKey) {
         return {
           ok: true,
           applied: false,
@@ -141,7 +141,7 @@ export class InternalLatexController {
         };
       }
 
-      if (!shouldApplyIncomingPdfKey(state.solutionPdfAssetKey, result.assetKey)) {
+      if (!shouldApplyIncomingPdfKey(state.solutionHtmlAssetKey, result.assetKey)) {
         return {
           ok: true,
           applied: false,
@@ -154,10 +154,14 @@ export class InternalLatexController {
         };
       }
 
-      await this.contentService.setTaskRevisionSolutionPdfAssetKey(state.activeRevisionId, result.assetKey);
+      await this.contentService.setTaskRevisionSolutionRenderedAssets(
+        state.activeRevisionId,
+        result.assetKey,
+        result.htmlAssets,
+      );
       await this.eventsLogService.append({
         category: EventCategory.admin,
-        eventType: 'TaskSolutionPdfCompiled',
+        eventType: 'TaskSolutionHtmlCompiled',
         actorUserId: payload.requestedByUserId,
         actorRole: payload.requestedByRole,
         entityType: 'task_revision',
@@ -167,6 +171,7 @@ export class InternalLatexController {
           task_revision_id: state.activeRevisionId,
           target: payload.target,
           asset_key: result.assetKey,
+          html_assets_count: result.htmlAssets.length,
           job_id: String(job.id ?? jobId),
         },
       });

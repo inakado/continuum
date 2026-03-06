@@ -99,7 +99,10 @@ export class StudentUnitsController {
     ttlSec: number,
   ) {
     let next = html;
-    for (const asset of assets) {
+    const sortedAssets = [...assets].sort(
+      (left, right) => right.placeholder.length - left.placeholder.length,
+    );
+    for (const asset of sortedAssets) {
       const url = await this.objectStorageService.presignGetObject(asset.assetKey, ttlSec, asset.contentType);
       next = next.split(asset.placeholder).join(url);
     }

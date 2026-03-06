@@ -8,8 +8,8 @@
 - publish/unpublish + правила видимости
 - unit graph (edges/layout)
 - task revisions (active revision)
-- LaTeX → PDF pipeline (unit theory/method, task solution)
-- LaTeX → HTML pipeline для student unit content (unit theory/method)
+- LaTeX → PDF pipeline (unit theory/method)
+- LaTeX → HTML pipeline (unit theory/method, task solution)
 
 ## Visibility & Publishing (`Implemented`)
 
@@ -45,6 +45,8 @@
   - `activeRevisionId` указывает на `TaskRevision`
 - `TaskRevision`:
   - statement/solution поля
+  - render asset keys: `solutionHtmlAssetKey`
+  - HTML asset manifests: `solutionHtmlAssetsJson`
   - auto-check данные: numeric parts / choices / correct choices
 
 ## Unit Graph (`Implemented`)
@@ -68,7 +70,9 @@
 ### Job status / apply
 
 - `GET /teacher/latex/jobs/:jobId`:
-  - если `succeeded`, возвращает presigned URL на PDF;
+  - если `succeeded`, всегда возвращает `assetKey`;
+  - для unit job дополнительно возвращает `presignedUrl` на PDF preview;
+  - для `task_solution` `presignedUrl` не возвращается (preview читается через rendered-content endpoint);
   - если `failed`, возвращает `error` с полями:
     - `code`, `message`
     - `log`
@@ -77,7 +81,7 @@
     - `logSnippet` для legacy-совместимости.
 - `POST /teacher/latex/jobs/:jobId/apply`:
   - для unit → пишет `Unit.theoryPdfAssetKey|methodPdfAssetKey`
-  - для task solution → пишет `TaskRevision.solutionPdfAssetKey`
+  - для task solution → пишет `TaskRevision.solutionHtmlAssetKey|solutionHtmlAssetsJson`
   - для debug jobs endpoint возвращает `LATEX_JOB_APPLY_UNSUPPORTED`.
 - Worker делает auto-apply через internal endpoint:
   - `POST /internal/latex/jobs/:jobId/apply` (`x-internal-token`).
@@ -85,6 +89,7 @@
 ### Stale protection
 
 - Apply защищается от stale-ключей (`shouldApplyIncomingPdfKey`): старый результат не должен перезатереть новый.
+- Для `task_solution` используется timestamped HTML key, для unit — timestamped PDF+HTML keys.
 
 ### Compile compatibility policy (`Implemented`)
 
@@ -108,7 +113,7 @@
 
 ### Presigned PDF preview (web) (`Implemented`)
 
-- Presigned URL из `GET /teacher/latex/jobs/:jobId` и `.../pdf-presign` рендерятся во фронтенде через `PdfCanvasPreview`.
+- Unit PDF preview во фронтенде рендерится через `PdfCanvasPreview` (presign из `GET /teacher/latex/jobs/:jobId` и `.../pdf-presign`).
 - Загрузка PDF по storage URL выполняется без credentials (`withCredentials = false`).
 
 ## LaTeX → HTML Pipeline (`Implemented`)
@@ -122,7 +127,14 @@
 - Apply обновляет unit-артефакты атомарно:
   - `theoryPdfAssetKey` + `theoryHtmlAssetKey` + `theoryHtmlAssetsJson`
   - либо `methodPdfAssetKey` + `methodHtmlAssetKey` + `methodHtmlAssetsJson`
-- `task solution` остаётся PDF-only.
+
+### Task solution HTML render path
+
+- Для `task_solution` worker собирает HTML fragment + связанные TikZ SVG assets.
+- Apply обновляет active revision:
+  - `solutionHtmlAssetKey`
+  - `solutionHtmlAssetsJson`
+- Legacy `solutionPdfAssetKey` остаётся в БД, но не участвует в новом compile/read path.
 
 ### Student read path
 
@@ -133,6 +145,11 @@
   - возвращает final `html` fragment + optional `pdfUrl`.
 - Если HTML ещё не собран, но PDF есть, web использует legacy PDF fallback.
 - В student HTML panel скачивание PDF всегда должно запрашивать свежий presigned URL через backend read-path перед открытием файла; это защищает от `Request has expired` при долгом открытии вкладки.
+- Для решения задачи student read path:
+  - `GET /student/tasks/:taskId/solution/rendered-content`
+  - проверяет доступ (published chain, unit unlocked, задача зачтена);
+  - читает `solutionHtmlAssetKey` из storage;
+  - подписывает URLs для `solutionHtmlAssetsJson`.
 
 ### Teacher read path
 
@@ -144,6 +161,10 @@
 - Teacher editor preview для `theory|method` поддерживает два режима:
   - `PDF` — legacy canvas preview;
   - `HTML` — backend-rendered HTML fragment.
+- Для решения задачи teacher read path:
+  - `GET /teacher/tasks/:taskId/solution/rendered-content`
+  - возвращает HTML fragment решения с заменёнными TikZ placeholder URLs;
+  - при отсутствии HTML возвращает `SOLUTION_RENDER_MISSING`.
 
 ### Rich math / TikZ notes
 
@@ -152,6 +173,7 @@
 - Текущий production path для TikZ assets:
   - `pdflatex --output-format=dvi`
   - `dvisvgm --exact-bbox --font-format=woff`
+- Для standalone TikZ compile worker дополнительно переносит поддерживаемые декларации из `document` body (`\newcommand`, `\def`, `\pgfmathsetmacro`, `\tikzset`, `\definecolor`, `\colorlet`) перед рендером блока, чтобы body-defined макросы были доступны в HTML asset path.
 - Compile/runtime helper живёт в `packages/latex-runtime` и используется в worker compile contour.
 - Figure references в HTML render path нормализуются так:
   - ссылки на `fig:*` в обычном тексте становятся кликабельными anchor links (`href="#fig:..."`);
@@ -178,5 +200,6 @@
   - `apps/api/src/content/teacher-latex.controller.ts`
   - `apps/api/src/content/internal-latex.controller.ts`
   - `apps/api/src/content/unit-pdf.constants.ts`
+  - `apps/api/src/learning/student-task-solutions.controller.ts`
   - `apps/api/src/learning/student-units.controller.ts`
   - `apps/worker/src/latex-html/render-latex-to-html.ts`

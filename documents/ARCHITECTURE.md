@@ -65,7 +65,7 @@
 **Ответственность:** хранение/выдача файлов (S3/MinIO), presigned URLs, проверки доступа на уровне API endpoints.  
 **Инварианты:**
 - доступ к файлам только через backend-проверку прав
-- asset keys хранятся в доменных сущностях (например `Unit.theoryPdfAssetKey`, `TaskRevision.solutionPdfAssetKey`, `PhotoTaskSubmission.assetKeysJson`)
+- asset keys хранятся в доменных сущностях (например `Unit.theoryPdfAssetKey|theoryHtmlAssetKey`, `TaskRevision.solutionHtmlAssetKey`, `PhotoTaskSubmission.assetKeysJson`)
 - (Planned) универсальная привязка файлов к сущностям (если понадобится)
 
 ### BC6 — Rendering (Rich LaTeX)
@@ -128,6 +128,7 @@
 
 ### 5.1 Очереди (BullMQ)
 - `latex.compile` — compile LaTeX→PDF/HTML (unit theory/method) и LaTeX→PDF (task solution)
+- `latex.compile` — compile LaTeX→PDF/HTML (unit theory/method) и LaTeX→HTML (task solution)
 - `system.ping` — debug queue (smoke/проверка worker)
 - (Planned) `batch.*` — массовые пересчёты (publish/unpublish, graph updates)
 

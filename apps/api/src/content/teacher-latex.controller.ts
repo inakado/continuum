@@ -14,6 +14,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { EventCategory, Role } from '@prisma/client';
+import { StudentTaskSolutionRenderedContentResponseSchema } from '@continuum/shared';
 import type { Job } from 'bullmq';
 import { type AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -130,8 +131,8 @@ export class TeacherLatexController {
     return { jobId };
   }
 
-  @Get('tasks/:taskId/solution/pdf-presign')
-  async getTaskSolutionPdfPresignedUrl(
+  @Get('tasks/:taskId/solution/rendered-content')
+  async getTaskSolutionRenderedContent(
     @Param('taskId') taskId: string,
     @Query(
       new ZodValidationPipe(
@@ -142,28 +143,27 @@ export class TeacherLatexController {
     query: TeacherLatexTtlQuery,
   ) {
     const ttlSec = this.unitPdfPolicyService.resolveTtlForRole(Role.teacher, query.ttlSec);
-    const state = await this.contentService.getTaskSolutionPdfState(taskId);
-    if (!state.solutionPdfAssetKey) {
+    const state = await this.contentService.getTaskSolutionRenderedState(taskId);
+    if (!state.solutionHtmlAssetKey) {
       throw new NotFoundException({
-        code: 'SOLUTION_PDF_MISSING',
-        message: 'Task solution PDF is not compiled yet',
+        code: 'SOLUTION_RENDER_MISSING',
+        message: 'Task solution HTML is not rendered yet',
       });
     }
 
-    const url = await this.objectStorageService.getPresignedGetUrl(
-      state.solutionPdfAssetKey,
-      ttlSec,
-      'application/pdf',
+    const htmlSource = await this.objectStorageService.getObjectText(
+      state.solutionHtmlAssetKey,
     );
+    const html = await this.replaceAssetPlaceholders(htmlSource, state.solutionHtmlAssets, ttlSec);
 
-    return {
+    return StudentTaskSolutionRenderedContentResponseSchema.parse({
       ok: true,
       taskId: state.taskId,
       taskRevisionId: state.activeRevisionId,
-      key: state.solutionPdfAssetKey,
+      html,
+      htmlKey: state.solutionHtmlAssetKey,
       expiresInSec: ttlSec,
-      url,
-    };
+    });
   }
 
   @Get('latex/jobs/:jobId')
@@ -189,16 +189,18 @@ export class TeacherLatexController {
     if (status === 'succeeded') {
       const result = parseLatexCompileJobResultOrThrow(job.returnvalue);
       const previewKey = isUnitLatexCompileJobResult(result) ? result.pdfAssetKey : result.assetKey;
-      const presignedUrl = await this.objectStorageService.getPresignedGetUrl(
-        previewKey,
-        ttlSec,
-        'application/pdf',
-      );
+      const presignedUrl = isTaskSolutionLatexCompileJobResult(result)
+        ? undefined
+        : await this.objectStorageService.getPresignedGetUrl(
+            previewKey,
+            ttlSec,
+            'application/pdf',
+          );
       return {
         jobId: String(job.id ?? jobId),
         status,
         assetKey: previewKey,
-        presignedUrl,
+        ...(presignedUrl ? { presignedUrl } : null),
       };
     }
 
@@ -290,7 +292,7 @@ export class TeacherLatexController {
     }
 
     if (isTaskSolutionLatexCompileJobPayload(payload) && isTaskSolutionLatexCompileJobResult(result)) {
-      const state = await this.contentService.getTaskSolutionPdfState(payload.taskId);
+      const state = await this.contentService.getTaskSolutionRenderedState(payload.taskId);
       if (state.activeRevisionId !== payload.taskRevisionId) {
         return {
           ok: true,
@@ -303,7 +305,7 @@ export class TeacherLatexController {
           assetKey: result.assetKey,
         };
       }
-      if (state.solutionPdfAssetKey === result.assetKey) {
+      if (state.solutionHtmlAssetKey === result.assetKey) {
         return {
           ok: true,
           applied: false,
@@ -314,7 +316,7 @@ export class TeacherLatexController {
           assetKey: result.assetKey,
         };
       }
-      if (!shouldApplyIncomingPdfKey(state.solutionPdfAssetKey, result.assetKey)) {
+      if (!shouldApplyIncomingPdfKey(state.solutionHtmlAssetKey, result.assetKey)) {
         return {
           ok: true,
           applied: false,
@@ -326,10 +328,14 @@ export class TeacherLatexController {
         };
       }
 
-      await this.contentService.setTaskRevisionSolutionPdfAssetKey(state.activeRevisionId, result.assetKey);
+      await this.contentService.setTaskRevisionSolutionRenderedAssets(
+        state.activeRevisionId,
+        result.assetKey,
+        result.htmlAssets,
+      );
       await this.eventsLogService.append({
         category: EventCategory.admin,
-        eventType: 'TaskSolutionPdfCompiled',
+        eventType: 'TaskSolutionHtmlCompiled',
         actorUserId: req.user.id,
         actorRole: req.user.role,
         entityType: 'task_revision',
@@ -339,6 +345,7 @@ export class TeacherLatexController {
           task_revision_id: state.activeRevisionId,
           target: payload.target,
           asset_key: result.assetKey,
+          html_assets_count: result.htmlAssets.length,
           job_id: String(job.id ?? jobId),
         },
       });
@@ -440,6 +447,22 @@ export class TeacherLatexController {
       code: 'LATEX_COMPILE_FAILED',
       message: 'Compile job failed',
     };
+  }
+
+  private async replaceAssetPlaceholders(
+    html: string,
+    assets: Array<{ placeholder: string; assetKey: string; contentType: 'image/svg+xml' }>,
+    ttlSec: number,
+  ) {
+    let next = html;
+    const sortedAssets = [...assets].sort(
+      (left, right) => right.placeholder.length - left.placeholder.length,
+    );
+    for (const asset of sortedAssets) {
+      const url = await this.objectStorageService.presignGetObject(asset.assetKey, ttlSec, asset.contentType);
+      next = next.split(asset.placeholder).join(url);
+    }
+    return next;
   }
 
 }

@@ -30,6 +30,8 @@ const normalizedTaskPayload = {
   solutionLite: 'Решение',
   solutionRichLatex: null,
   solutionPdfAssetKey: null,
+  solutionHtmlAssetKey: null,
+  solutionHtmlAssetsJson: null,
 };
 
 const createTransactionMock = () => ({
@@ -94,6 +96,8 @@ describe('ContentWriteService tasks slice', () => {
       solutionLite: 'Решение',
       solutionRichLatex: null,
       solutionPdfAssetKey: null,
+      solutionHtmlAssetKey: null,
+      solutionHtmlAssetsJson: null,
     });
     tx.task.update.mockResolvedValue({
       id: 'task-1',
@@ -122,6 +126,8 @@ describe('ContentWriteService tasks slice', () => {
       expect.objectContaining({
         statementImageAssetKey: null,
         solutionPdfAssetKey: null,
+        solutionHtmlAssetKey: null,
+        solutionHtmlAssetsJson: null,
       }),
     );
     expect(taskRevisionPayloadService.createTaskRevision).toHaveBeenCalledWith(
@@ -170,6 +176,14 @@ describe('ContentWriteService tasks slice', () => {
         solutionLite: 'old-solution',
         solutionRichLatex: null,
         solutionPdfAssetKey: 'tasks/task-1/revisions/revision-1/solution/file.pdf',
+        solutionHtmlAssetKey: 'tasks/task-1/revisions/revision-1/solution/file.html',
+        solutionHtmlAssetsJson: [
+          {
+            placeholder: 'CONTINUUMTIKZPLACEHOLDER0',
+            assetKey: 'rendering/tikz/asset-1.svg',
+            contentType: 'image/svg+xml',
+          },
+        ],
         isRequired: false,
         status: 'draft',
         sortOrder: 1,
@@ -181,6 +195,14 @@ describe('ContentWriteService tasks slice', () => {
       ...normalizedTaskPayload,
       statementImageAssetKey: 'tasks/task-1/revisions/revision-1/statement-image/file.png',
       solutionPdfAssetKey: 'tasks/task-1/revisions/revision-1/solution/file.pdf',
+      solutionHtmlAssetKey: 'tasks/task-1/revisions/revision-1/solution/file.html',
+      solutionHtmlAssetsJson: [
+        {
+          placeholder: 'CONTINUUMTIKZPLACEHOLDER0',
+          assetKey: 'rendering/tikz/asset-1.svg',
+          contentType: 'image/svg+xml',
+        },
+      ],
       solutionLite: 'new-solution',
     });
     taskRevisionPayloadService.nextTaskRevisionNo.mockResolvedValue(2);
@@ -192,6 +214,14 @@ describe('ContentWriteService tasks slice', () => {
       solutionLite: 'new-solution',
       solutionRichLatex: null,
       solutionPdfAssetKey: 'tasks/task-1/revisions/revision-1/solution/file.pdf',
+      solutionHtmlAssetKey: 'tasks/task-1/revisions/revision-1/solution/file.html',
+      solutionHtmlAssetsJson: [
+        {
+          placeholder: 'CONTINUUMTIKZPLACEHOLDER0',
+          assetKey: 'rendering/tikz/asset-1.svg',
+          contentType: 'image/svg+xml',
+        },
+      ],
     });
     tx.task.update.mockResolvedValue({
       id: 'task-1',
@@ -217,6 +247,14 @@ describe('ContentWriteService tasks slice', () => {
       expect.objectContaining({
         statementImageAssetKey: 'tasks/task-1/revisions/revision-1/statement-image/file.png',
         solutionPdfAssetKey: 'tasks/task-1/revisions/revision-1/solution/file.pdf',
+        solutionHtmlAssetKey: 'tasks/task-1/revisions/revision-1/solution/file.html',
+        solutionHtmlAssetsJson: [
+          {
+            placeholder: 'CONTINUUMTIKZPLACEHOLDER0',
+            assetKey: 'rendering/tikz/asset-1.svg',
+            contentType: 'image/svg+xml',
+          },
+        ],
       }),
     );
     expect(taskRevisionPayloadService.nextTaskRevisionNo).toHaveBeenCalledWith(tx, 'task-1');

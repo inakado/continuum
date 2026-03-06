@@ -41,6 +41,30 @@ export class ContentWriteTaskService {
     });
   }
 
+  setTaskRevisionSolutionRenderedAssets(
+    taskRevisionId: string,
+    htmlAssetKey: string,
+    htmlAssets: Array<{
+      placeholder: string;
+      assetKey: string;
+      contentType: 'image/svg+xml';
+    }>,
+  ) {
+    return this.prisma.taskRevision.update({
+      where: { id: taskRevisionId },
+      data: {
+        solutionHtmlAssetKey: htmlAssetKey,
+        solutionHtmlAssetsJson: htmlAssets,
+      },
+      select: {
+        id: true,
+        taskId: true,
+        solutionHtmlAssetKey: true,
+        solutionHtmlAssetsJson: true,
+      },
+    });
+  }
+
   setTaskRevisionStatementImageAssetKey(taskRevisionId: string, key: string | null) {
     return this.prisma.taskRevision.update({
       where: { id: taskRevisionId },
@@ -69,6 +93,8 @@ export class ContentWriteTaskService {
       solutionLite: dto.solutionLite ?? null,
       solutionRichLatex: null,
       solutionPdfAssetKey: null,
+      solutionHtmlAssetKey: null,
+      solutionHtmlAssetsJson: null,
     });
 
     return this.prisma.$transaction(async (tx) => {
@@ -135,6 +161,8 @@ export class ContentWriteTaskService {
       solutionLite: dto.solutionLite !== undefined ? dto.solutionLite : currentView.solutionLite,
       solutionRichLatex: currentView.solutionRichLatex ?? null,
       solutionPdfAssetKey: currentView.solutionPdfAssetKey ?? null,
+      solutionHtmlAssetKey: currentView.solutionHtmlAssetKey ?? null,
+      solutionHtmlAssetsJson: currentView.solutionHtmlAssetsJson ?? null,
       isRequired: dto.isRequired ?? currentView.isRequired,
       sortOrder: dto.sortOrder ?? currentView.sortOrder,
     };
@@ -149,6 +177,8 @@ export class ContentWriteTaskService {
       solutionLite: merged.solutionLite ?? null,
       solutionRichLatex: merged.solutionRichLatex,
       solutionPdfAssetKey: merged.solutionPdfAssetKey,
+      solutionHtmlAssetKey: merged.solutionHtmlAssetKey,
+      solutionHtmlAssetsJson: merged.solutionHtmlAssetsJson,
     });
 
     return this.prisma.$transaction(async (tx) => {
@@ -245,6 +275,12 @@ export class ContentWriteTaskService {
       solutionLite: string | null;
       solutionRichLatex: string | null;
       solutionPdfAssetKey: string | null;
+      solutionHtmlAssetKey: string | null;
+      solutionHtmlAssetsJson: Array<{
+        placeholder: string;
+        assetKey: string;
+        contentType: 'image/svg+xml';
+      }> | null;
     },
     normalized: ReturnType<TaskRevisionPayloadService['normalizeTaskPayload']>,
   ) {
@@ -272,6 +308,12 @@ export class ContentWriteTaskService {
       solutionLite: string | null;
       solutionRichLatex: string | null;
       solutionPdfAssetKey: string | null;
+      solutionHtmlAssetKey: string | null;
+      solutionHtmlAssetsJson: Array<{
+        placeholder: string;
+        assetKey: string;
+        contentType: 'image/svg+xml';
+      }> | null;
     },
     normalized: ReturnType<TaskRevisionPayloadService['normalizeTaskPayload']>,
   ): TaskRevisionRecord {
@@ -290,6 +332,8 @@ export class ContentWriteTaskService {
       solutionLite: revision.solutionLite,
       solutionRichLatex: revision.solutionRichLatex,
       solutionPdfAssetKey: revision.solutionPdfAssetKey,
+      solutionHtmlAssetKey: revision.solutionHtmlAssetKey,
+      solutionHtmlAssetsJson: revision.solutionHtmlAssetsJson,
       numericParts:
         normalized.numericPartsJson?.map((part) => ({
           partKey: part.key,

@@ -1,17 +1,9 @@
-import dynamic from "next/dynamic";
-import { type ComponentProps } from "react";
+import { useEffect, useRef } from "react";
 import Button from "@/components/ui/Button";
-import type PdfCanvasPreviewComponent from "@/components/PdfCanvasPreview";
 import type { Task } from "@/lib/api/teacher";
 import type { TaskSolutionCompileState } from "../hooks/use-teacher-unit-latex-compile";
+import { typesetMathInElement } from "../../../student-content/units/mathjax-helper";
 import styles from "../teacher-unit-detail.module.css";
-
-type PdfCanvasPreviewProps = ComponentProps<typeof PdfCanvasPreviewComponent>;
-
-const PdfCanvasPreview = dynamic<PdfCanvasPreviewProps>(() => import("@/components/PdfCanvasPreview"), {
-  ssr: false,
-  loading: () => <div className={styles.previewStub}>Загрузка PDF...</div>,
-});
 
 type Props = {
   editingTask: Task | null;
@@ -21,7 +13,6 @@ type Props = {
   onCompile: () => Promise<void>;
   showOpenLogAction: boolean;
   onOpenCompileLog: () => void;
-  getFreshPreviewUrl: () => Promise<string | null>;
 };
 
 export function TeacherTaskSolutionSection({
@@ -32,12 +23,20 @@ export function TeacherTaskSolutionSection({
   onCompile,
   showOpenLogAction,
   onOpenCompileLog,
-  getFreshPreviewUrl,
 }: Props) {
+  const htmlContentRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!compileState.previewHtml || !htmlContentRef.current) return;
+    void typesetMathInElement(htmlContentRef.current).catch(() => {
+      // Teacher preview остаётся читаемым и без typesetting.
+    });
+  }, [compileState.previewHtml, compileState.key]);
+
   return (
     <div className={styles.taskSolutionSection}>
       <div className={styles.taskSolutionHeader}>
-        <div className={styles.taskSolutionTitle}>Решение (LaTeX → PDF)</div>
+        <div className={styles.taskSolutionTitle}>Решение (LaTeX → HTML)</div>
         {editingTask ? (
           <Button
             type="button"
@@ -45,7 +44,7 @@ export function TeacherTaskSolutionSection({
             onClick={() => void onCompile()}
             disabled={compileState.loading}
           >
-            {compileState.loading ? "Компиляция..." : "Скомпилировать PDF"}
+            {compileState.loading ? "Компиляция..." : "Скомпилировать HTML"}
           </Button>
         ) : null}
       </div>
@@ -75,21 +74,18 @@ export function TeacherTaskSolutionSection({
             <div className={styles.taskSolutionViewportWrap}>
               {compileState.updatedAt ? (
                 <div className={styles.taskSolutionMeta}>
-                  PDF обновлён: {new Date(compileState.updatedAt).toLocaleString("ru-RU")}
+                  HTML обновлён: {new Date(compileState.updatedAt).toLocaleString("ru-RU")}
                 </div>
               ) : null}
               <div className={styles.taskSolutionViewport}>
-                {compileState.previewUrl ? (
-                  <PdfCanvasPreview
-                    className={styles.taskSolutionFrame}
-                    url={compileState.previewUrl}
-                    refreshKey={compileState.key ?? undefined}
-                    getFreshUrl={getFreshPreviewUrl}
-                    scrollFeel="inertial-heavy"
-                    freezeWidth
+                {compileState.previewHtml ? (
+                  <div
+                    ref={htmlContentRef}
+                    className={styles.taskSolutionHtmlContent}
+                    dangerouslySetInnerHTML={{ __html: compileState.previewHtml }}
                   />
                 ) : (
-                  <div className={styles.previewStub}>PDF появится здесь после компиляции.</div>
+                  <div className={styles.previewStub}>HTML появится здесь после компиляции.</div>
                 )}
               </div>
             </div>
@@ -97,7 +93,7 @@ export function TeacherTaskSolutionSection({
         </div>
       ) : (
         <div className={styles.taskSolutionStub}>
-          Сначала создайте задачу, затем откройте её редактирование для сборки PDF-решения.
+          Сначала создайте задачу, затем откройте её редактирование для сборки HTML-решения.
         </div>
       )}
     </div>

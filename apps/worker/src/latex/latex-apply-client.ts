@@ -17,6 +17,11 @@ type ApplyResultTaskRequestBody = {
   taskRevisionId: string;
   target: 'task_solution';
   assetKey: string;
+  htmlAssets: Array<{
+    placeholder: string;
+    assetKey: string;
+    contentType: 'image/svg+xml';
+  }>;
   sizeBytes: number;
   compileLogSnippet?: string;
 };

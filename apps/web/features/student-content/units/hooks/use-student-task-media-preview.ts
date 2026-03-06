@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { studentApi, type Task } from "@/lib/api/student";
+import {
+  studentApi,
+  type StudentTaskSolutionRenderedContentResponse,
+  type Task,
+} from "@/lib/api/student";
 import { ApiError } from "@/lib/api/client";
 import { getStudentErrorMessage } from "../../shared/student-errors";
 
@@ -10,7 +14,9 @@ type Params = {
 export const useStudentTaskMediaPreview = ({ activeTask }: Params) => {
   const statementImageRetryRef = useRef<Record<string, boolean>>({});
   const [showSolutionByTask, setShowSolutionByTask] = useState<Record<string, boolean>>({});
-  const [taskSolutionPdfUrlByTask, setTaskSolutionPdfUrlByTask] = useState<Record<string, string | null>>({});
+  const [taskSolutionRenderedContentByTask, setTaskSolutionRenderedContentByTask] = useState<
+    Record<string, StudentTaskSolutionRenderedContentResponse | null>
+  >({});
   const [taskSolutionLoadingByTask, setTaskSolutionLoadingByTask] = useState<Record<string, boolean>>({});
   const [taskSolutionErrorByTask, setTaskSolutionErrorByTask] = useState<Record<string, string | null>>({});
   const [taskSolutionErrorCodeByTask, setTaskSolutionErrorCodeByTask] = useState<Record<string, string | null>>({});
@@ -18,18 +24,18 @@ export const useStudentTaskMediaPreview = ({ activeTask }: Params) => {
   const [statementImageLoadingByTask, setStatementImageLoadingByTask] = useState<Record<string, boolean>>({});
   const [statementImageErrorByTask, setStatementImageErrorByTask] = useState<Record<string, string | null>>({});
 
-  const loadTaskSolutionPdf = useCallback(async (taskId: string) => {
+  const loadTaskSolutionRenderedContent = useCallback(async (taskId: string) => {
     setTaskSolutionLoadingByTask((prev) => ({ ...prev, [taskId]: true }));
     setTaskSolutionErrorByTask((prev) => ({ ...prev, [taskId]: null }));
     setTaskSolutionErrorCodeByTask((prev) => ({ ...prev, [taskId]: null }));
 
     try {
-      const response = await studentApi.getTaskSolutionPdfPresignForStudent(taskId, 180);
-      setTaskSolutionPdfUrlByTask((prev) => ({ ...prev, [taskId]: response.url }));
-      return response.url;
+      const response = await studentApi.getTaskSolutionRenderedContentForStudent(taskId, 180);
+      setTaskSolutionRenderedContentByTask((prev) => ({ ...prev, [taskId]: response }));
+      return response;
     } catch (err) {
       const code = err instanceof ApiError ? err.code ?? null : null;
-      setTaskSolutionPdfUrlByTask((prev) => ({ ...prev, [taskId]: null }));
+      setTaskSolutionRenderedContentByTask((prev) => ({ ...prev, [taskId]: null }));
       setTaskSolutionErrorByTask((prev) => ({ ...prev, [taskId]: getStudentErrorMessage(err) }));
       setTaskSolutionErrorCodeByTask((prev) => ({ ...prev, [taskId]: code }));
       throw err;
@@ -66,12 +72,18 @@ export const useStudentTaskMediaPreview = ({ activeTask }: Params) => {
     if (!activeTask || activeTask.answerType === "photo") return;
     const isVisible = Boolean(showSolutionByTask[activeTask.id]);
     if (!isVisible) return;
-    if (taskSolutionPdfUrlByTask[activeTask.id] || taskSolutionLoadingByTask[activeTask.id]) return;
+    if (taskSolutionRenderedContentByTask[activeTask.id] || taskSolutionLoadingByTask[activeTask.id]) return;
 
-    void loadTaskSolutionPdf(activeTask.id).catch(() => {
+    void loadTaskSolutionRenderedContent(activeTask.id).catch(() => {
       // сообщение уже выставлено в state
     });
-  }, [activeTask, loadTaskSolutionPdf, showSolutionByTask, taskSolutionLoadingByTask, taskSolutionPdfUrlByTask]);
+  }, [
+    activeTask,
+    loadTaskSolutionRenderedContent,
+    showSolutionByTask,
+    taskSolutionLoadingByTask,
+    taskSolutionRenderedContentByTask,
+  ]);
 
   useEffect(() => {
     if (!activeTask || !activeTask.hasStatementImage) return;
@@ -82,14 +94,14 @@ export const useStudentTaskMediaPreview = ({ activeTask }: Params) => {
     });
   }, [activeTask, loadStatementImage, statementImageLoadingByTask, statementImageUrlByTask]);
 
-  const refreshTaskSolutionPreviewUrl = useCallback(async () => {
+  const refreshTaskSolutionRenderedContent = useCallback(async () => {
     if (!activeTask || activeTask.answerType === "photo") return null;
     try {
-      return await loadTaskSolutionPdf(activeTask.id);
+      return await loadTaskSolutionRenderedContent(activeTask.id);
     } catch {
       return null;
     }
-  }, [activeTask, loadTaskSolutionPdf]);
+  }, [activeTask, loadTaskSolutionRenderedContent]);
 
   const refreshTaskStatementImageUrl = useCallback(async () => {
     if (!activeTask || !activeTask.hasStatementImage) return null;
@@ -130,23 +142,28 @@ export const useStudentTaskMediaPreview = ({ activeTask }: Params) => {
     }
 
     setShowSolutionByTask((prev) => ({ ...prev, [taskId]: true }));
-    if (!taskSolutionPdfUrlByTask[taskId]) {
+    if (!taskSolutionRenderedContentByTask[taskId]) {
       try {
-        await loadTaskSolutionPdf(taskId);
+        await loadTaskSolutionRenderedContent(taskId);
       } catch {
         // ошибка уже в taskSolutionErrorByTask
       }
     }
-  }, [activeTask, loadTaskSolutionPdf, showSolutionByTask, taskSolutionPdfUrlByTask]);
+  }, [activeTask, loadTaskSolutionRenderedContent, showSolutionByTask, taskSolutionRenderedContentByTask]);
 
   const activeTaskId = activeTask?.id ?? null;
 
   return {
     toggleSolutionVisibility,
     handleStatementImageLoadError,
-    refreshTaskSolutionPreviewUrl,
+    refreshTaskSolutionRenderedContent,
     isSolutionVisible: activeTaskId ? Boolean(showSolutionByTask[activeTaskId]) : false,
-    activeTaskSolutionPdfUrl: activeTaskId ? (taskSolutionPdfUrlByTask[activeTaskId] ?? null) : null,
+    activeTaskSolutionHtml: activeTaskId
+      ? (taskSolutionRenderedContentByTask[activeTaskId]?.html ?? null)
+      : null,
+    activeTaskSolutionHtmlKey: activeTaskId
+      ? (taskSolutionRenderedContentByTask[activeTaskId]?.htmlKey ?? null)
+      : null,
     activeTaskSolutionLoading: activeTaskId ? Boolean(taskSolutionLoadingByTask[activeTaskId]) : false,
     activeTaskSolutionError: activeTaskId ? (taskSolutionErrorByTask[activeTaskId] ?? null) : null,
     activeTaskSolutionErrorCode: activeTaskId ? (taskSolutionErrorCodeByTask[activeTaskId] ?? null) : null,

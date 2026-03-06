@@ -16,7 +16,7 @@
 - Worker (BullMQ consumer) компилирует LaTeX через `TeX Live` runtime:
   - PDF path: `pdflatex`
   - TikZ HTML asset path: `pdflatex --output-format=dvi -> dvisvgm`
-- Для unit theory/method worker дополнительно собирает HTML/SVG, загружает артефакты в object storage и вызывает internal apply endpoint в API.
+- Для unit theory/method worker собирает `PDF + HTML/SVG`, для `task_solution` — `HTML/SVG`; затем вызывает internal apply endpoint в API.
 - Auto-apply результата worker — default mode (worker всегда пытается применить результат; API защищает от “stale”).
 
 ### Timeouts / retries
@@ -25,10 +25,12 @@
 - LaTeX compile log tail limit: `LATEX_COMPILE_LOG_TAIL_BYTES` (default `256000`, max `256000`).
 - HTML render в worker зависит от runtime binary: `pdflatex`, `pandoc`, `dvisvgm`, `ghostscript`.
 - Internal apply retry в worker: до 8 повторов (условный retry на `409` с `code=LATEX_JOB_RESULT_INVALID`).
+- Task solution stale-защита использует versioned timestamped HTML keys; stale result не перетирает новый рендер.
 - HTTP keep-alive в API: `keepAliveTimeout = 65s` (уменьшает лишние disconnects за прокси).
 - `pdflatex` PDF compile выполняется в 2 прохода по умолчанию и добавляет 3-й проход только при standard rerun markers в логе.
 - `shell-escape` не используется.
 - Student HTML panel не полагается на long-lived presigned `pdfUrl`: скачивание PDF запрашивает свежий backend URL на клик, чтобы исключить деградацию `Request has expired` после долгого idle.
+- Для student task solution PDF-path не используется: read-path идёт через backend HTML rendered-content endpoint.
 
 ### Queue hygiene
 

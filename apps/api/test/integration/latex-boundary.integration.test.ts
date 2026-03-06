@@ -18,9 +18,9 @@ describe('latex boundary integration', () => {
     getUnit: vi.fn(),
     getTaskForSolutionPdfCompile: vi.fn(),
     updateTaskRevisionSolutionRichLatex: vi.fn(),
-    getTaskSolutionPdfState: vi.fn(),
+    getTaskSolutionRenderedState: vi.fn(),
     updateUnit: vi.fn(),
-    setTaskRevisionSolutionPdfAssetKey: vi.fn(),
+    setTaskRevisionSolutionRenderedAssets: vi.fn(),
   };
   const queueService = {
     enqueueUnitPdfCompile: vi.fn(),
@@ -29,6 +29,8 @@ describe('latex boundary integration', () => {
   };
   const objectStorageService = {
     getPresignedGetUrl: vi.fn(),
+    getObjectText: vi.fn(),
+    presignGetObject: vi.fn(),
   };
   const eventsLogService = {
     append: vi.fn(),
@@ -51,14 +53,19 @@ describe('latex boundary integration', () => {
       id: 'task-1',
       activeRevisionId: 'revision-1',
     });
-    contentService.getTaskSolutionPdfState.mockResolvedValue({
+    contentService.getTaskSolutionRenderedState.mockResolvedValue({
       taskId: 'task-1',
       activeRevisionId: 'revision-1',
-      solutionPdfAssetKey: null,
+      solutionHtmlAssetKey: null,
+      solutionHtmlAssets: [],
     });
     queueService.enqueueUnitPdfCompile.mockResolvedValue('job-unit-1');
     queueService.enqueueTaskSolutionPdfCompile.mockResolvedValue('job-task-1');
     objectStorageService.getPresignedGetUrl.mockResolvedValue('https://storage.example/result.pdf');
+    objectStorageService.getObjectText.mockResolvedValue(
+      '<figure><img src="CONTINUUMTIKZPLACEHOLDER0" alt="" /></figure><p>Task solution</p>',
+    );
+    objectStorageService.presignGetObject.mockResolvedValue('https://storage.example/tikz-asset.svg');
 
     process.env.WORKER_INTERNAL_TOKEN = 'integration-token';
 
@@ -208,7 +215,14 @@ describe('latex boundary integration', () => {
         target: 'task_solution',
         taskId: 'task-1',
         taskRevisionId: 'revision-1',
-        assetKey: 'tasks/task-1/revisions/revision-1/solution/1710000000000-1234abcd.pdf',
+        assetKey: 'tasks/task-1/revisions/revision-1/solution/1710000000000-1234abcd.html',
+        htmlAssets: [
+          {
+            placeholder: 'CONTINUUMTIKZPLACEHOLDER0',
+            assetKey: 'rendering/tikz/asset-1.svg',
+            contentType: 'image/svg+xml',
+          },
+        ],
         sizeBytes: 2048,
       },
       progress: {},
@@ -227,11 +241,55 @@ describe('latex boundary integration', () => {
       taskId: 'task-1',
       taskRevisionId: 'revision-1',
       target: 'task_solution',
-      assetKey: 'tasks/task-1/revisions/revision-1/solution/1710000000000-1234abcd.pdf',
+      assetKey: 'tasks/task-1/revisions/revision-1/solution/1710000000000-1234abcd.html',
     });
-    expect(contentService.setTaskRevisionSolutionPdfAssetKey).toHaveBeenCalledWith(
+    expect(contentService.setTaskRevisionSolutionRenderedAssets).toHaveBeenCalledWith(
       'revision-1',
-      'tasks/task-1/revisions/revision-1/solution/1710000000000-1234abcd.pdf',
+      'tasks/task-1/revisions/revision-1/solution/1710000000000-1234abcd.html',
+      [
+        {
+          placeholder: 'CONTINUUMTIKZPLACEHOLDER0',
+          assetKey: 'rendering/tikz/asset-1.svg',
+          contentType: 'image/svg+xml',
+        },
+      ],
+    );
+  });
+
+  it('returns teacher task solution rendered-content with signed asset URLs', async () => {
+    contentService.getTaskSolutionRenderedState.mockResolvedValue({
+      taskId: 'task-1',
+      activeRevisionId: 'revision-1',
+      solutionHtmlAssetKey: 'tasks/task-1/revisions/revision-1/solution/1710000000000-1234abcd.html',
+      solutionHtmlAssets: [
+        {
+          placeholder: 'CONTINUUMTIKZPLACEHOLDER0',
+          assetKey: 'rendering/tikz/asset-1.svg',
+          contentType: 'image/svg+xml',
+        },
+      ],
+    });
+
+    const response = await request(app.getHttpServer())
+      .get('/teacher/tasks/task-1/solution/rendered-content')
+      .query({ ttlSec: 600 });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      ok: true,
+      taskId: 'task-1',
+      taskRevisionId: 'revision-1',
+      html: '<figure><img src="https://storage.example/tikz-asset.svg" alt="" /></figure><p>Task solution</p>',
+      htmlKey: 'tasks/task-1/revisions/revision-1/solution/1710000000000-1234abcd.html',
+      expiresInSec: 600,
+    });
+    expect(objectStorageService.getObjectText).toHaveBeenCalledWith(
+      'tasks/task-1/revisions/revision-1/solution/1710000000000-1234abcd.html',
+    );
+    expect(objectStorageService.presignGetObject).toHaveBeenCalledWith(
+      'rendering/tikz/asset-1.svg',
+      600,
+      'image/svg+xml',
     );
   });
 });

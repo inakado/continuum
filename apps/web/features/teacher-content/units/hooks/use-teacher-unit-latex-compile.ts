@@ -27,7 +27,7 @@ export type TaskSolutionCompileState = {
   error: string | null;
   updatedAt: number | null;
   key: string | null;
-  previewUrl: string | null;
+  previewHtml: string | null;
 };
 
 export type CompileErrorModalTarget = "theory" | "method" | "task_solution";
@@ -49,8 +49,8 @@ const createInitialTaskSolutionState = (task?: Task | null): TaskSolutionCompile
   loading: false,
   error: null,
   updatedAt: null,
-  key: task?.solutionPdfAssetKey ?? null,
-  previewUrl: null,
+  key: task?.solutionHtmlAssetKey ?? null,
+  previewHtml: null,
 });
 
 const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -123,7 +123,7 @@ const resolveTaskSolutionAfterRefresh = async ({
   for (let attempt = 0; attempt <= APPLY_RACE_RETRY_COUNT; attempt += 1) {
     const refreshedUnit = await fetchUnit();
     refreshedTask = findTaskInUnit(refreshedUnit, taskId);
-    if (refreshedTask?.solutionPdfAssetKey) break;
+    if (refreshedTask?.solutionHtmlAssetKey) break;
     if (attempt < APPLY_RACE_RETRY_COUNT) {
       await wait(APPLY_RACE_DELAY_MS);
     }
@@ -132,10 +132,10 @@ const resolveTaskSolutionAfterRefresh = async ({
 };
 
 const resolveTaskSolutionPreview = async (taskId: string, task: Task | null) => {
-  if (!task?.solutionPdfAssetKey) return null;
+  if (!task?.solutionHtmlAssetKey) return null;
   try {
-    const preview = await teacherApi.getTaskSolutionPdfPresignedUrl(taskId, 600);
-    return buildPdfPreviewSrc(preview.url);
+    const preview = await teacherApi.getTaskSolutionRenderedContent(taskId, 600);
+    return preview.html;
   } catch {
     return null;
   }
@@ -236,15 +236,15 @@ export const useTeacherUnitLatexCompile = ({
   const refreshTheoryPreviewUrl = useCallback(() => refreshPreviewUrl("theory"), [refreshPreviewUrl]);
   const refreshMethodPreviewUrl = useCallback(() => refreshPreviewUrl("method"), [refreshPreviewUrl]);
 
-  const refreshTaskSolutionPreviewUrl = useCallback(async () => {
+  const refreshTaskSolutionRenderedContent = useCallback(async () => {
     if (!editingTask?.id) return null;
-    const response = await teacherApi.getTaskSolutionPdfPresignedUrl(editingTask.id, 600);
+    const response = await teacherApi.getTaskSolutionRenderedContent(editingTask.id, 600);
     setTaskSolutionCompileState((prev) => ({
       ...prev,
-      key: response.key,
-      previewUrl: buildPdfPreviewSrc(response.url),
+      key: response.htmlKey,
+      previewHtml: response.html,
     }));
-    return buildPdfPreviewSrc(response.url);
+    return response;
   }, [editingTask?.id]);
 
   useEffect(() => {
@@ -258,22 +258,22 @@ export const useTeacherUnitLatexCompile = ({
     setTaskSolutionLatex(editingTask.solutionRichLatex ?? "");
     setTaskSolutionCompileState(createInitialTaskSolutionState(editingTask));
 
-    if (!editingTask.solutionPdfAssetKey) return;
+    if (!editingTask.solutionHtmlAssetKey) return;
 
     void (async () => {
       try {
-        const response = await teacherApi.getTaskSolutionPdfPresignedUrl(editingTask.id, 600);
+        const response = await teacherApi.getTaskSolutionRenderedContent(editingTask.id, 600);
         if (cancelled) return;
         setTaskSolutionCompileState((prev) => ({
           ...prev,
-          key: response.key,
-          previewUrl: buildPdfPreviewSrc(response.url),
+          key: response.htmlKey,
+          previewHtml: response.html,
         }));
       } catch {
         if (cancelled) return;
         setTaskSolutionCompileState((prev) => ({
           ...prev,
-          previewUrl: null,
+          previewHtml: null,
         }));
       }
     })();
@@ -281,7 +281,7 @@ export const useTeacherUnitLatexCompile = ({
     return () => {
       cancelled = true;
     };
-  }, [editingTask?.id, editingTask?.solutionPdfAssetKey, editingTask?.solutionRichLatex]);
+  }, [editingTask?.id, editingTask?.solutionHtmlAssetKey, editingTask?.solutionRichLatex]);
 
   const openCompileErrorModal = useCallback(
     ({
@@ -522,7 +522,7 @@ export const useTeacherUnitLatexCompile = ({
 
       let refreshedTask = await resolveTaskSolutionAfterRefresh({ taskId, fetchUnit });
 
-      if (!refreshedTask?.solutionPdfAssetKey) {
+      if (!refreshedTask?.solutionHtmlAssetKey) {
         try {
           await teacherApi.applyLatexCompileJob(queued.jobId);
         } catch {
@@ -531,17 +531,17 @@ export const useTeacherUnitLatexCompile = ({
         refreshedTask = await resolveTaskSolutionAfterRefresh({ taskId, fetchUnit });
       }
 
-      const previewUrl = await resolveTaskSolutionPreview(taskId, refreshedTask);
-      const resolvedAssetKey = refreshedTask?.solutionPdfAssetKey ?? finalStatus.assetKey ?? null;
+      const previewHtml = await resolveTaskSolutionPreview(taskId, refreshedTask);
+      const resolvedAssetKey = refreshedTask?.solutionHtmlAssetKey ?? finalStatus.assetKey ?? null;
 
       setTaskSolutionCompileState((prev) => ({
         ...prev,
         status: "succeeded",
         loading: false,
-        error: refreshedTask?.solutionPdfAssetKey ? null : "PDF ещё применяем… обновите через секунду.",
+        error: refreshedTask?.solutionHtmlAssetKey ? null : "HTML ещё применяем… обновите через секунду.",
         updatedAt: Date.now(),
         key: resolvedAssetKey,
-        previewUrl,
+        previewHtml,
       }));
     } catch (err) {
       setTaskSolutionCompileState((prev) => ({
@@ -568,7 +568,7 @@ export const useTeacherUnitLatexCompile = ({
     setTaskSolutionLatex,
     taskSolutionCompileState,
     runTaskSolutionCompile,
-    refreshTaskSolutionPreviewUrl,
+    refreshTaskSolutionRenderedContent,
     compileErrorModalState,
     isCompileErrorModalOpen,
     setIsCompileErrorModalOpen,
