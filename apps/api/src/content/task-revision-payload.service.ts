@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
-import { type Prisma, TaskAnswerType } from '@prisma/client';
+import { Prisma, TaskAnswerType } from '@prisma/client';
 import type { UnitHtmlAssetRef } from './unit-pdf.constants';
 
 export type NumericPart = { key: string; labelLite?: string | null; correctValue: string };
@@ -132,7 +132,7 @@ export class TaskRevisionPayloadService {
         solutionRichLatex: normalized.solutionRichLatex,
         solutionPdfAssetKey: normalized.solutionPdfAssetKey,
         solutionHtmlAssetKey: normalized.solutionHtmlAssetKey,
-        solutionHtmlAssetsJson: normalized.solutionHtmlAssetsJson,
+        solutionHtmlAssetsJson: normalized.solutionHtmlAssetsJson ?? Prisma.JsonNull,
       },
     });
 

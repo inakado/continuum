@@ -124,7 +124,14 @@ export class ContentWriteTaskService {
         });
       }
 
-      return this.mapTaskResponse(updatedTask, revision, normalized);
+      return this.mapTaskResponse(
+        updatedTask,
+        {
+          ...revision,
+          solutionHtmlAssetsJson: normalized.solutionHtmlAssetsJson,
+        },
+        normalized,
+      );
     });
   }
 
@@ -205,7 +212,14 @@ export class ContentWriteTaskService {
         });
       }
 
-      return this.mapTaskResponse(updatedTask, revision, normalized);
+      return this.mapTaskResponse(
+        updatedTask,
+        {
+          ...revision,
+          solutionHtmlAssetsJson: normalized.solutionHtmlAssetsJson,
+        },
+        normalized,
+      );
     });
   }
 
