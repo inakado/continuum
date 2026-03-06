@@ -760,18 +760,20 @@ const expandFigureMacros = (tex: string): string => {
       next = replaceZeroArgMacroInvocations(next, macroName, expandedBody);
       continue;
     }
-    next = replaceMacroInvocations(next, macroName, (argument) => expandedBody.replaceAll('#1', argument.trim()));
+    next = replaceMacroInvocations(next, macroName, (argument) =>
+      expandedBody.split('#1').join(argument.trim()),
+    );
   }
   return next;
 };
 
 const escapeHtml = (value: string): string =>
   value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -1206,7 +1208,7 @@ const injectExtractedFigures = (html: string, figures: FigureDescriptor[]): stri
   for (const figure of figures) {
     const figureHtml = buildFigureHtml(figure);
     next = next.replace(new RegExp(`<p>\\s*${figure.placeholder}\\s*</p>`, 'g'), figureHtml);
-    next = next.replaceAll(figure.placeholder, figureHtml);
+    next = next.split(figure.placeholder).join(figureHtml);
   }
   return next;
 };
@@ -1216,7 +1218,7 @@ const injectNameHeadings = (html: string, headings: NameHeading[]): string => {
   for (const heading of headings) {
     const headingHtml = `<h1 class="unit-html-title">${normalizeLatexInlineForHtml(heading.titleLatex)}</h1>`;
     next = next.replace(new RegExp(`<p>\\s*${heading.placeholder}\\s*</p>`, 'g'), headingHtml);
-    next = next.replaceAll(heading.placeholder, headingHtml);
+    next = next.split(heading.placeholder).join(headingHtml);
   }
   return next;
 };

@@ -289,8 +289,9 @@ export const createLatexCompileProcessor = (storage: WorkerObjectStorageService)
             } as UnitLatexCompileJobResult);
 
       if (payload.target !== DEBUG_PDF_TARGET) {
-        await job.updateProgress({ autoApplyResult: result });
-        const applyResult = await applyUnitPdfKeyViaApi(jobId, result);
+        const autoApplyResult = result as Exclude<LatexCompileJobResult, DebugLatexCompileJobResult>;
+        await job.updateProgress({ autoApplyResult });
+        const applyResult = await applyUnitPdfKeyViaApi(jobId, autoApplyResult);
         if (!applyResult.ok) {
           throw new Error(
             JSON.stringify({
