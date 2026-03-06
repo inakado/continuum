@@ -25,6 +25,7 @@ const TIKZ_RENDER_CACHE_VERSION = 'pdflatex-dvi-v2';
 const FIGURE_REF_TOKEN_PREFIX = 'CONTINUUMFIGREF__';
 const FIGURE_AUTOREF_TOKEN_PREFIX = 'CONTINUUMFIGAUTOREF__';
 const FIGURE_REF_TOKEN_SUFFIX = '__';
+const TITLE_PLACEHOLDER_PREFIX = 'CONTINUUMTITLEPLACEHOLDER';
 const TIKZ_STANDALONE_DISALLOWED_PACKAGES = new Set([
   'pdfpages',
   'svg',
@@ -45,6 +46,24 @@ const TIKZ_STANDALONE_DISALLOWED_COMMAND_PATTERNS = [
   /^\s*\\includesvg(?:\[[^\]]*])?\{/,
   /^\s*\\tikzexternalize\b/,
 ];
+const TIKZ_BODY_DECLARATION_COMMANDS = [
+  'newcommand',
+  'renewcommand',
+  'providecommand',
+  'def',
+  'gdef',
+  'pgfmathsetmacro',
+  'pgfmathsetlengthmacro',
+  'tikzset',
+  'definecolor',
+  'colorlet',
+] as const;
+const TIKZ_BODY_DECLARATION_PATTERN = new RegExp(
+  `\\\\(${TIKZ_BODY_DECLARATION_COMMANDS.join('|')})(?:\\*)?(?![A-Za-z@])`,
+  'g',
+);
+const TIKZ_INLINE_DECLARATION_LINE_PATTERN =
+  /^\\(?:def|gdef|pgfmathsetmacro|pgfmathsetlengthmacro)\b/;
 
 type LatexHtmlRenderResult = {
   html: string;
@@ -55,6 +74,7 @@ type LatexHtmlRenderResult = {
 type TikzBlock = {
   placeholder: string;
   content: string;
+  localDeclarations: string;
 };
 
 type FigureSubfigureDescriptor = {
@@ -74,9 +94,15 @@ type FigureDescriptor = {
 };
 
 type FigureMacroDefinition = {
+  argCount: number;
   body: string;
   start: number;
   end: number;
+};
+
+type NameHeading = {
+  placeholder: string;
+  titleLatex: string;
 };
 
 type CommandResult = {
@@ -123,29 +149,31 @@ const stripDisallowedTikzPackagesFromLine = (line: string): string => {
   return `${prefix}${filteredPackages.join(',')}${suffix}`;
 };
 
-const readBalancedGroup = (
+const readBalancedDelimitedGroup = (
   source: string,
-  openBraceIndex: number,
+  openIndex: number,
+  openChar: string,
+  closeChar: string,
 ): { content: string; endIndex: number } | null => {
-  if (source[openBraceIndex] !== '{') {
+  if (source[openIndex] !== openChar) {
     return null;
   }
 
   let depth = 0;
-  for (let index = openBraceIndex; index < source.length; index += 1) {
+  for (let index = openIndex; index < source.length; index += 1) {
     const char = source[index];
-    if (char === '{') {
+    if (char === openChar) {
       depth += 1;
       continue;
     }
-    if (char !== '}') {
+    if (char !== closeChar) {
       continue;
     }
 
     depth -= 1;
     if (depth === 0) {
       return {
-        content: source.slice(openBraceIndex + 1, index),
+        content: source.slice(openIndex + 1, index),
         endIndex: index + 1,
       };
     }
@@ -154,9 +182,289 @@ const readBalancedGroup = (
   return null;
 };
 
+const readBalancedGroup = (
+  source: string,
+  openBraceIndex: number,
+): { content: string; endIndex: number } | null => {
+  return readBalancedDelimitedGroup(source, openBraceIndex, '{', '}');
+};
+
+const readBalancedBracketGroup = (
+  source: string,
+  openBracketIndex: number,
+): { content: string; endIndex: number } | null =>
+  readBalancedDelimitedGroup(source, openBracketIndex, '[', ']');
+
+const skipWhitespaceAndComments = (source: string, offset: number): number => {
+  let cursor = offset;
+  while (cursor < source.length) {
+    const char = source[cursor];
+    if (/\s/.test(char)) {
+      cursor += 1;
+      continue;
+    }
+    if (char !== '%') {
+      break;
+    }
+    while (cursor < source.length && source[cursor] !== '\n') {
+      cursor += 1;
+    }
+  }
+  return cursor;
+};
+
+const readControlSequence = (
+  source: string,
+  offset: number,
+): { name: string; endIndex: number } | null => {
+  if (source[offset] !== '\\') {
+    return null;
+  }
+  const first = source[offset + 1];
+  if (!first) {
+    return null;
+  }
+
+  if (/[A-Za-z@]/.test(first)) {
+    let cursor = offset + 2;
+    while (cursor < source.length && /[A-Za-z@]/.test(source[cursor] ?? '')) {
+      cursor += 1;
+    }
+    return {
+      name: source.slice(offset + 1, cursor),
+      endIndex: cursor,
+    };
+  }
+
+  return {
+    name: first,
+    endIndex: offset + 2,
+  };
+};
+
+const parseDeclarationCommandWithBraceGroups = (
+  source: string,
+  startOffset: number,
+  requiredBraceGroups: number,
+): { value: string; endIndex: number } | null => {
+  const command = readControlSequence(source, startOffset);
+  if (!command) return null;
+
+  let cursor = command.endIndex;
+  for (let index = 0; index < requiredBraceGroups; index += 1) {
+    cursor = skipWhitespaceAndComments(source, cursor);
+    while (source[cursor] === '[') {
+      const optionalGroup = readBalancedBracketGroup(source, cursor);
+      if (!optionalGroup) return null;
+      cursor = skipWhitespaceAndComments(source, optionalGroup.endIndex);
+    }
+
+    const group = readBalancedGroup(source, cursor);
+    if (!group) return null;
+    cursor = group.endIndex;
+  }
+
+  return {
+    value: source.slice(startOffset, cursor),
+    endIndex: cursor,
+  };
+};
+
+const parseCommandWithMacroArgAndBraceGroup = (
+  source: string,
+  startOffset: number,
+): { value: string; endIndex: number } | null => {
+  const command = readControlSequence(source, startOffset);
+  if (!command) return null;
+
+  let cursor = skipWhitespaceAndComments(source, command.endIndex);
+  if (source[cursor] === '{') {
+    const macroGroup = readBalancedGroup(source, cursor);
+    if (!macroGroup) return null;
+    cursor = macroGroup.endIndex;
+  } else {
+    const macroName = readControlSequence(source, cursor);
+    if (!macroName) return null;
+    cursor = macroName.endIndex;
+  }
+
+  cursor = skipWhitespaceAndComments(source, cursor);
+  const valueGroup = readBalancedGroup(source, cursor);
+  if (!valueGroup) return null;
+
+  return {
+    value: source.slice(startOffset, valueGroup.endIndex),
+    endIndex: valueGroup.endIndex,
+  };
+};
+
+const parseMacroDefinitionDeclaration = (
+  source: string,
+  startOffset: number,
+): { value: string; endIndex: number } | null => {
+  const command = readControlSequence(source, startOffset);
+  if (!command) return null;
+
+  let cursor = skipWhitespaceAndComments(source, command.endIndex);
+  const macroName = readControlSequence(source, cursor);
+  if (!macroName) return null;
+  cursor = macroName.endIndex;
+
+  while (cursor < source.length) {
+    cursor = skipWhitespaceAndComments(source, cursor);
+    if (source[cursor] === '{') {
+      break;
+    }
+    if (source[cursor] === '#') {
+      cursor += 1;
+      if (cursor < source.length) {
+        cursor += 1;
+      }
+      continue;
+    }
+    if (source[cursor] === '\\') {
+      const token = readControlSequence(source, cursor);
+      if (!token) return null;
+      cursor = token.endIndex;
+      continue;
+    }
+    cursor += 1;
+  }
+
+  const body = readBalancedGroup(source, cursor);
+  if (!body) return null;
+
+  return {
+    value: source.slice(startOffset, body.endIndex),
+    endIndex: body.endIndex,
+  };
+};
+
+const parseBodyDeclarationCommand = (
+  source: string,
+  startOffset: number,
+  commandName: (typeof TIKZ_BODY_DECLARATION_COMMANDS)[number],
+): { value: string; endIndex: number } | null => {
+  if (
+    commandName === 'newcommand' ||
+    commandName === 'renewcommand' ||
+    commandName === 'providecommand'
+  ) {
+    const command = readControlSequence(source, startOffset);
+    if (!command) return null;
+
+    let cursor = skipWhitespaceAndComments(source, command.endIndex);
+    if (source[cursor] === '*') {
+      cursor = skipWhitespaceAndComments(source, cursor + 1);
+    }
+    if (source[cursor] === '{') {
+      const macroGroup = readBalancedGroup(source, cursor);
+      if (!macroGroup) return null;
+      cursor = macroGroup.endIndex;
+    } else {
+      const macroName = readControlSequence(source, cursor);
+      if (!macroName) return null;
+      cursor = macroName.endIndex;
+    }
+
+    cursor = skipWhitespaceAndComments(source, cursor);
+    if (source[cursor] === '[') {
+      const argsCount = readBalancedBracketGroup(source, cursor);
+      if (!argsCount) return null;
+      cursor = skipWhitespaceAndComments(source, argsCount.endIndex);
+      if (source[cursor] === '[') {
+        const defaultValue = readBalancedBracketGroup(source, cursor);
+        if (!defaultValue) return null;
+        cursor = defaultValue.endIndex;
+      }
+    }
+
+    cursor = skipWhitespaceAndComments(source, cursor);
+    const body = readBalancedGroup(source, cursor);
+    if (!body) return null;
+
+    return {
+      value: source.slice(startOffset, body.endIndex),
+      endIndex: body.endIndex,
+    };
+  }
+
+  if (
+    commandName === 'def' ||
+    commandName === 'gdef'
+  ) {
+    return parseMacroDefinitionDeclaration(source, startOffset);
+  }
+
+  if (commandName === 'definecolor') {
+    return parseDeclarationCommandWithBraceGroups(source, startOffset, 3);
+  }
+
+  if (
+    commandName === 'pgfmathsetmacro' ||
+    commandName === 'pgfmathsetlengthmacro'
+  ) {
+    return parseCommandWithMacroArgAndBraceGroup(source, startOffset);
+  }
+
+  if (commandName === 'colorlet') {
+    return parseDeclarationCommandWithBraceGroups(source, startOffset, 2);
+  }
+
+  if (commandName === 'tikzset') {
+    return parseDeclarationCommandWithBraceGroups(source, startOffset, 1);
+  }
+
+  return null;
+};
+
+const extractDocumentBody = (tex: string): string => {
+  const beginMatch = tex.match(/\\begin\{document\}/);
+  if (!beginMatch || beginMatch.index === undefined) {
+    return '';
+  }
+  const bodyStart = beginMatch.index + beginMatch[0].length;
+  const endIndex = tex.indexOf('\\end{document}', bodyStart);
+  if (endIndex === -1) {
+    return '';
+  }
+  return tex.slice(bodyStart, endIndex);
+};
+
+const extractBodyTikzDeclarations = (tex: string): string => {
+  const body = extractDocumentBody(tex);
+  if (!body) {
+    return '';
+  }
+  const bodyWithoutTikzBlocks = body.replace(
+    /\\begin\{tikzpicture\}[\s\S]*?\\end\{tikzpicture\}/g,
+    '\n',
+  );
+
+  const declarations: string[] = [];
+  const uniqueDeclarations = new Set<string>();
+
+  for (const match of bodyWithoutTikzBlocks.matchAll(TIKZ_BODY_DECLARATION_PATTERN)) {
+    if (match.index === undefined) continue;
+    const commandName = match[1] as (typeof TIKZ_BODY_DECLARATION_COMMANDS)[number];
+    const commandOffsetInMatch = match[0].indexOf('\\');
+    if (commandOffsetInMatch < 0) continue;
+    const commandStart = match.index + commandOffsetInMatch;
+    const parsed = parseBodyDeclarationCommand(bodyWithoutTikzBlocks, commandStart, commandName);
+    if (!parsed) continue;
+
+    const declaration = parsed.value.trim();
+    if (!declaration || uniqueDeclarations.has(declaration)) continue;
+    uniqueDeclarations.add(declaration);
+    declarations.push(declaration);
+  }
+
+  return declarations.join('\n');
+};
+
 const extractFigureMacroDefinitions = (tex: string): Map<string, FigureMacroDefinition> => {
   const definitions = new Map<string, FigureMacroDefinition>();
-  const headerPattern = /\\newcommand\{\\(fig[A-Za-z0-9@]+)\}\[1\]\s*\{/g;
+  const headerPattern = /\\newcommand(?:\*)?\s*\{\\([A-Za-z@][A-Za-z0-9@]*)\}/g;
 
   for (const match of tex.matchAll(headerPattern)) {
     if (match.index === undefined) continue;
@@ -164,8 +472,27 @@ const extractFigureMacroDefinitions = (tex: string): Map<string, FigureMacroDefi
     const macroName = match[1];
     if (!macroName) continue;
 
-    const headerText = match[0];
-    const bodyOpenIndex = match.index + headerText.length - 1;
+    let cursor = skipWhitespaceAndComments(tex, match.index + match[0].length);
+    let argCount = 0;
+    if (tex[cursor] === '[') {
+      const argCountGroup = readBalancedBracketGroup(tex, cursor);
+      if (!argCountGroup) continue;
+      const parsedArgCount = Number(argCountGroup.content.trim());
+      if (!Number.isFinite(parsedArgCount) || parsedArgCount < 0) continue;
+      argCount = parsedArgCount;
+      cursor = skipWhitespaceAndComments(tex, argCountGroup.endIndex);
+      if (tex[cursor] === '[') {
+        const defaultArgGroup = readBalancedBracketGroup(tex, cursor);
+        if (!defaultArgGroup) continue;
+        cursor = skipWhitespaceAndComments(tex, defaultArgGroup.endIndex);
+      }
+    }
+
+    if (argCount > 1 || tex[cursor] !== '{') {
+      continue;
+    }
+
+    const bodyOpenIndex = cursor;
     const body = readBalancedGroup(tex, bodyOpenIndex);
     if (!body) continue;
 
@@ -174,7 +501,14 @@ const extractFigureMacroDefinitions = (tex: string): Map<string, FigureMacroDefi
       end += 1;
     }
 
+    const isLegacyFigMacro = argCount === 1 && macroName.startsWith('fig');
+    const isZeroArgTikzMacro = argCount === 0 && /\\begin\{tikzpicture\}/.test(body.content);
+    if (!isLegacyFigMacro && !isZeroArgTikzMacro) {
+      continue;
+    }
+
     definitions.set(macroName, {
+      argCount,
       body: body.content,
       start: match.index,
       end,
@@ -226,6 +560,56 @@ const unwrapResizebox = (body: string): string => {
   return bodyArg.content.trim();
 };
 
+const unwrapResizeboxAroundTikzBlocks = (tex: string): string => {
+  const command = '\\resizebox';
+  let next = '';
+  let cursor = 0;
+
+  while (cursor < tex.length) {
+    const foundAt = tex.indexOf(command, cursor);
+    if (foundAt === -1) {
+      next += tex.slice(cursor);
+      break;
+    }
+
+    next += tex.slice(cursor, foundAt);
+
+    let parseCursor = skipWhitespaceAndComments(tex, foundAt + command.length);
+    const firstArg = readBalancedGroup(tex, parseCursor);
+    if (!firstArg) {
+      next += command;
+      cursor = foundAt + command.length;
+      continue;
+    }
+
+    parseCursor = skipWhitespaceAndComments(tex, firstArg.endIndex);
+    const secondArg = readBalancedGroup(tex, parseCursor);
+    if (!secondArg) {
+      next += command;
+      cursor = foundAt + command.length;
+      continue;
+    }
+
+    parseCursor = skipWhitespaceAndComments(tex, secondArg.endIndex);
+    const bodyArg = readBalancedGroup(tex, parseCursor);
+    if (!bodyArg) {
+      next += command;
+      cursor = foundAt + command.length;
+      continue;
+    }
+
+    const original = tex.slice(foundAt, bodyArg.endIndex);
+    if (/\\begin\{tikzpicture\}/.test(bodyArg.content)) {
+      next += bodyArg.content.trim();
+    } else {
+      next += original;
+    }
+    cursor = bodyArg.endIndex;
+  }
+
+  return next;
+};
+
 const replaceMacroInvocations = (
   tex: string,
   macroName: string,
@@ -261,11 +645,106 @@ const replaceMacroInvocations = (
       continue;
     }
 
-    next += replacer(argument.content);
+    const replacement = replacer(argument.content);
+    // Trailing '%' in expanded macro bodies can comment out closing braces on the same line.
+    next += replacement.endsWith('%') ? `${replacement}\n` : replacement;
     cursor = argument.endIndex;
   }
 
   return next;
+};
+
+const replaceZeroArgMacroInvocations = (
+  tex: string,
+  macroName: string,
+  replacement: string,
+): string => {
+  const safeReplacement = replacement.endsWith('%') ? `${replacement}\n` : replacement;
+  return tex.replace(new RegExp(`\\\\${escapeRegExp(macroName)}(?![A-Za-z@])`, 'g'), safeReplacement);
+};
+
+const extractNameHeadings = (tex: string): { modifiedTex: string; headings: NameHeading[] } => {
+  const invocation = '\\name';
+  const headings: NameHeading[] = [];
+  let next = '';
+  let cursor = 0;
+
+  while (cursor < tex.length) {
+    const foundAt = tex.indexOf(invocation, cursor);
+    if (foundAt === -1) {
+      next += tex.slice(cursor);
+      break;
+    }
+
+    next += tex.slice(cursor, foundAt);
+    let argStart = foundAt + invocation.length;
+    while (/\s/.test(tex[argStart] ?? '')) {
+      argStart += 1;
+    }
+
+    if (tex[argStart] !== '{') {
+      next += invocation;
+      cursor = foundAt + invocation.length;
+      continue;
+    }
+
+    const argument = readBalancedGroup(tex, argStart);
+    if (!argument) {
+      next += invocation;
+      cursor = foundAt + invocation.length;
+      continue;
+    }
+
+    const placeholder = `${TITLE_PLACEHOLDER_PREFIX}${headings.length}`;
+    headings.push({
+      placeholder,
+      titleLatex: argument.content.trim(),
+    });
+    next += `\n${placeholder}\n`;
+    cursor = argument.endIndex;
+  }
+
+  return { modifiedTex: next, headings };
+};
+
+const normalizeSiunitxForMathJax = (tex: string): string => {
+  const replaceUnit = (unit: string): string => {
+    const normalized = unit.trim();
+    if (!normalized || normalized === '1') {
+      return '1';
+    }
+    return `\\mathrm{${normalized}}`;
+  };
+
+  return tex
+    .replace(/\\num\{([^{}]+)\}/g, (_, numberValue: string) => numberValue.trim())
+    .replace(/\\si\{([^{}]+)\}/g, (_, unit: string) => replaceUnit(unit))
+    .replace(
+      /\\SI\{([^{}]+)\}\{([^{}]+)\}/g,
+      (_, numberValue: string, unit: string) => `${numberValue.trim()}\\,${replaceUnit(unit)}`,
+    );
+};
+
+const normalizeMhchemForMathJax = (tex: string): string => {
+  const normalizeChemicalFormula = (formula: string): string => {
+    const withSubscripts = formula.replace(
+      /([A-Za-z\)\]])(\d+)/g,
+      (_, base: string, digits: string) => `${base}_{${digits}}`,
+    );
+    const withCharge = withSubscripts.replace(
+      /([A-Za-z0-9\}\)\]])([+-])(?![A-Za-z0-9])/g,
+      (_, base: string, charge: string) => `${base}^{${charge}}`,
+    );
+    return withCharge.trim();
+  };
+
+  return tex.replace(/\\ce\{([^{}]+)\}/g, (_, formulaRaw: string) => {
+    const formula = normalizeChemicalFormula(formulaRaw);
+    if (!formula) {
+      return '';
+    }
+    return `\\(\\mathrm{${formula}}\\)`;
+  });
 };
 
 const expandFigureMacros = (tex: string): string => {
@@ -277,9 +756,11 @@ const expandFigureMacros = (tex: string): string => {
   let next = removeFigureMacroDefinitions(tex, definitions);
   for (const [macroName, definition] of definitions) {
     const expandedBody = unwrapResizebox(definition.body);
-    next = replaceMacroInvocations(next, macroName, (argument) =>
-      expandedBody.replaceAll('#1', argument.trim()),
-    );
+    if (definition.argCount === 0) {
+      next = replaceZeroArgMacroInvocations(next, macroName, expandedBody);
+      continue;
+    }
+    next = replaceMacroInvocations(next, macroName, (argument) => expandedBody.replaceAll('#1', argument.trim()));
   }
   return next;
 };
@@ -300,9 +781,36 @@ const buildFigureRefToken = (label: string): string =>
 const buildFigureAutorefToken = (label: string): string =>
   `${FIGURE_AUTOREF_TOKEN_PREFIX}${label}${FIGURE_REF_TOKEN_SUFFIX}`;
 
+const normalizeLatexTextDashes = (latex: string): string => {
+  const mathRanges = buildMathRanges(latex);
+  const normalizeTextSegment = (segment: string): string =>
+    segment
+      .replace(/---/g, '—')
+      .replace(/--/g, '–');
+
+  if (mathRanges.length === 0) {
+    return normalizeTextSegment(latex);
+  }
+
+  let next = '';
+  let cursor = 0;
+  for (const range of mathRanges) {
+    if (cursor < range.start) {
+      next += normalizeTextSegment(latex.slice(cursor, range.start));
+    }
+    next += latex.slice(range.start, range.end);
+    cursor = range.end;
+  }
+  if (cursor < latex.length) {
+    next += normalizeTextSegment(latex.slice(cursor));
+  }
+
+  return next;
+};
+
 const normalizeLatexInlineForHtml = (latex: string): string =>
   escapeHtml(
-    latex
+    normalizeLatexTextDashes(latex)
       .replace(/~/g, ' ')
       .replace(/\\\\/g, ' ')
       .replace(/\s+/g, ' ')
@@ -323,6 +831,38 @@ const extractFirstCommandArgument = (source: string, command: string): string | 
 
 const extractTikzPlaceholderTokens = (source: string): string[] =>
   Array.from(source.matchAll(/CONTINUUMTIKZPLACEHOLDER\d+/g), (match) => match[0]).filter(Boolean);
+
+const extractInlineTikzDeclarationsBeforeBlock = (source: string, blockStart: number): string => {
+  const contextWindowChars = 4000;
+  const context = source.slice(Math.max(0, blockStart - contextWindowChars), blockStart);
+  const lines = context.split(/\r?\n/);
+  const declarations: string[] = [];
+
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const line = lines[index]?.trim();
+    if (!line) {
+      if (declarations.length > 0) {
+        break;
+      }
+      continue;
+    }
+
+    if (line.startsWith('%') || line === '\\begingroup') {
+      continue;
+    }
+
+    if (TIKZ_INLINE_DECLARATION_LINE_PATTERN.test(line)) {
+      declarations.unshift(line);
+      continue;
+    }
+
+    if (declarations.length > 0) {
+      break;
+    }
+  }
+
+  return declarations.join('\n');
+};
 
 const stripRanges = (source: string, ranges: Array<{ start: number; end: number }>): string => {
   let next = source;
@@ -355,8 +895,9 @@ const parseSubfigures = (body: string): Array<FigureSubfigureDescriptor & { star
 
 const extractFigures = (tex: string): { modifiedTex: string; figures: FigureDescriptor[] } => {
   const figures: FigureDescriptor[] = [];
-  const figurePattern = /\\begin\{figure\}(?:\[[^\]]*])?([\s\S]*?)\\end\{figure\}/g;
-  const modifiedTex = tex.replace(figurePattern, (match, bodyRaw) => {
+  const figurePattern =
+    /\\begin\{(figure|wrapfigure)\}(?:\[[^\]]*])?(?:\{[^}]*\}\{[^}]*\})?([\s\S]*?)\\end\{\1\}/g;
+  const modifiedTex = tex.replace(figurePattern, (match, _env, bodyRaw) => {
     const body = typeof bodyRaw === 'string' ? bodyRaw : '';
     const placeholder = `CONTINUUMFIGUREPLACEHOLDER${figures.length}`;
     const subfiguresWithRanges = parseSubfigures(body);
@@ -389,9 +930,14 @@ const extractFigures = (tex: string): { modifiedTex: string; figures: FigureDesc
 
 const extractTikzBlocks = (tex: string): { modifiedTex: string; blocks: TikzBlock[] } => {
   const blocks: TikzBlock[] = [];
-  const modifiedTex = tex.replace(/\\begin\{tikzpicture\}[\s\S]*?\\end\{tikzpicture\}/g, (match) => {
+  const modifiedTex = tex.replace(/\\begin\{tikzpicture\}[\s\S]*?\\end\{tikzpicture\}/g, (match, offset) => {
     const placeholder = `CONTINUUMTIKZPLACEHOLDER${blocks.length}`;
-    blocks.push({ placeholder, content: match });
+    const blockStart = typeof offset === 'number' ? offset : 0;
+    blocks.push({
+      placeholder,
+      content: match,
+      localDeclarations: extractInlineTikzDeclarationsBeforeBlock(tex, blockStart),
+    });
     return `\n${placeholder}\n`;
   });
   return { modifiedTex, blocks };
@@ -432,12 +978,22 @@ const sanitizeHtml = (html: string): string => {
   return next.trim();
 };
 
-const buildTikzStandaloneDocument = (preamble: string, block: string): string => {
+const buildTikzStandaloneDocument = (
+  preamble: string,
+  block: string,
+  bodyDeclarations = '',
+): string => {
   const cleanedPreamble = preamble
     .split(/\r?\n/)
     .filter((line) => !/\\begin\{document\}/.test(line))
     .filter((line) => !/\\end\{document\}/.test(line))
     .join('\n');
+  const cleanedBodyDeclarations = bodyDeclarations
+    .split(/\r?\n/)
+    .filter((line) => !/\\begin\{document\}/.test(line))
+    .filter((line) => !/\\end\{document\}/.test(line))
+    .join('\n')
+    .trim();
 
   const hasDocumentClass = /\\documentclass(?:\[[^\]]*])?\{[^}]+\}/.test(cleanedPreamble);
 
@@ -447,22 +1003,38 @@ const buildTikzStandaloneDocument = (preamble: string, block: string): string =>
     '\\begin{document}',
     '\\pagestyle{empty}',
     '\\thispagestyle{empty}',
+    ...(cleanedBodyDeclarations ? [cleanedBodyDeclarations] : []),
     block,
     '\\end{document}',
     '',
   ].join('\n');
 };
 
-const buildTikzAssetKey = (preamble: string, block: string): string => {
+const buildTikzAssetKey = (preamble: string, block: string, bodyDeclarations = ''): string => {
   const hash = createHash('md5')
     .update(TIKZ_RENDER_CACHE_VERSION, 'utf8')
     .update('\n---PREAMBLE---\n', 'utf8')
     .update(preamble, 'utf8')
+    .update('\n---BODY-DECLARATIONS---\n', 'utf8')
+    .update(bodyDeclarations, 'utf8')
     .update('\n---BLOCK---\n', 'utf8')
     .update(block, 'utf8')
     .update('\n---PDFLATEX-DVI2SVG---\n-output-format=dvi --exact-bbox --font-format=woff\n', 'utf8')
     .digest('hex');
   return `rendering/tikz/${hash}.svg`;
+};
+
+const normalizeNumericSuffixControlSequences = (
+  declarations: string,
+  block: string,
+): { declarations: string; block: string } => {
+  // Keep original TeX semantics for delimited macros like \def\alpha0{...}.
+  // Rewriting such tokens can desync define/use sites across extracted blocks.
+  const apply = (source: string): string => source;
+  return {
+    declarations: apply(declarations),
+    block: apply(block),
+  };
 };
 
 const runCommand = (
@@ -541,23 +1113,28 @@ const ensureCommandSucceeded = (
 const compileTikzToSvg = async ({
   storage,
   preamble,
+  bodyDeclarations,
   block,
   timeoutMs,
 }: {
   storage: WorkerObjectStorageService;
   preamble: string;
+  bodyDeclarations: string;
   block: string;
   timeoutMs: number;
 }): Promise<{ assetKey: string; contentType: 'image/svg+xml'; logSnippet?: string }> => {
-  const assetKey = buildTikzAssetKey(preamble, block);
+  const assetKey = buildTikzAssetKey(preamble, block, bodyDeclarations);
   if (await storage.objectExists(assetKey)) {
     return { assetKey, contentType: 'image/svg+xml' };
   }
 
-  const compiled = await compileLatexToDvi(buildTikzStandaloneDocument(preamble, block), {
-    timeoutMs,
-    tempDirPrefix: 'continuum-tikz-dvi-',
-  });
+  const compiled = await compileLatexToDvi(
+    buildTikzStandaloneDocument(preamble, block, bodyDeclarations),
+    {
+      timeoutMs,
+      tempDirPrefix: 'continuum-tikz-dvi-',
+    },
+  );
   const converted = await convertDviToSvg(compiled.bytes, {
     timeoutMs,
     tempDirPrefix: 'continuum-tikz-svg-',
@@ -634,6 +1211,16 @@ const injectExtractedFigures = (html: string, figures: FigureDescriptor[]): stri
   return next;
 };
 
+const injectNameHeadings = (html: string, headings: NameHeading[]): string => {
+  let next = html;
+  for (const heading of headings) {
+    const headingHtml = `<h1 class="unit-html-title">${normalizeLatexInlineForHtml(heading.titleLatex)}</h1>`;
+    next = next.replace(new RegExp(`<p>\\s*${heading.placeholder}\\s*</p>`, 'g'), headingHtml);
+    next = next.replaceAll(heading.placeholder, headingHtml);
+  }
+  return next;
+};
+
 const replaceFigureReferences = (html: string, figures: FigureDescriptor[]): string => {
   let next = html;
   const references = buildFigureReferenceMap(figures);
@@ -671,6 +1258,26 @@ const buildFigureReferenceMap = (figures: FigureDescriptor[]): Map<string, strin
       }
     }
   }
+  return references;
+};
+
+const buildTableReferenceMap = (tex: string): Map<string, string> => {
+  const references = new Map<string, string>();
+  let tableCounter = 0;
+  const tableEnvPattern = /\\begin\{table\*?\}(?:\[[^\]]*])?([\s\S]*?)\\end\{table\*?\}/g;
+
+  for (const match of tex.matchAll(tableEnvPattern)) {
+    const body = match[1] ?? '';
+    const bodyLabels = extractLabels(body);
+    if (bodyLabels.length === 0) {
+      continue;
+    }
+    const referenceText = String(++tableCounter);
+    for (const label of bodyLabels) {
+      references.set(label, referenceText);
+    }
+  }
+
   return references;
 };
 
@@ -786,6 +1393,7 @@ const buildEquationReferenceMap = (tex: string): Map<string, string> => {
 const buildReferenceMap = (
   equationReferences: Map<string, string>,
   figureReferences: Map<string, string>,
+  tableReferences: Map<string, string>,
 ): Map<string, string> => {
   const references = new Map<string, string>();
 
@@ -795,8 +1403,59 @@ const buildReferenceMap = (
   for (const [label, refText] of figureReferences) {
     references.set(label, refText);
   }
+  for (const [label, refText] of tableReferences) {
+    references.set(label, refText);
+  }
 
   return references;
+};
+
+const stripHtmlTags = (html: string): string => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+const extractHtmlAttribute = (attributes: string, attributeName: string): string | null => {
+  const escapedAttribute = escapeRegExp(attributeName);
+  const pattern = new RegExp(`${escapedAttribute}\\s*=\\s*"([^"]+)"`, 'i');
+  const match = attributes.match(pattern);
+  return match?.[1]?.trim() || null;
+};
+
+const injectTableCaptionNumbers = (
+  html: string,
+  tableReferences: Map<string, string>,
+): string => {
+  let sequentialCounter = 0;
+
+  return html.replace(/<table\b([^>]*)>([\s\S]*?)<\/table>/gi, (tableHtml, tableAttributes, tableBody) => {
+    const captionMatch = tableBody.match(/<caption\b([^>]*)>([\s\S]*?)<\/caption>/i);
+    if (!captionMatch) {
+      return tableHtml;
+    }
+
+    const captionAttributes = captionMatch[1] ?? '';
+    const captionContent = captionMatch[2] ?? '';
+    const captionText = stripHtmlTags(captionContent);
+    const hasNumberPrefix =
+      /unit-html-table-number/.test(captionContent) ||
+      /^(?:таблица|table)\s+[0-9]+[.:]?\s*/i.test(captionText);
+    if (hasNumberPrefix) {
+      return tableHtml;
+    }
+    sequentialCounter += 1;
+
+    const tableId = extractHtmlAttribute(tableAttributes ?? '', 'id');
+    const captionId = extractHtmlAttribute(captionAttributes, 'id');
+    const resolvedReference =
+      (tableId ? tableReferences.get(tableId) : null) ??
+      (captionId ? tableReferences.get(captionId) : null) ??
+      String(sequentialCounter);
+
+    const normalizedCaptionContent = captionContent.trim();
+    const numberedCaption = `<caption${captionAttributes}><span class="unit-html-table-number">Таблица ${escapeHtml(
+      resolvedReference,
+    )}. </span>${normalizedCaptionContent}</caption>`;
+
+    return tableHtml.replace(captionMatch[0], numberedCaption);
+  });
 };
 
 const buildMathRanges = (tex: string): Array<{ start: number; end: number }> => {
@@ -883,6 +1542,8 @@ const resolveLatexReferencesInTex = (
               : `рис. ${resolved}`;
         } else if (label.startsWith('eq:')) {
           replacement = `(${resolved})`;
+        } else if (label.startsWith('tab:')) {
+          replacement = `табл. ${resolved}`;
         } else {
           replacement = resolved;
         }
@@ -937,21 +1598,25 @@ export const renderLatexToHtml = async (
   const normalizedTex = normalizeLatexSource(texSource);
   const wrappedTex = ensurePdflatexDocumentEnvelope(normalizedTex);
   assertPdflatexCompatible(wrappedTex);
-  const tex = expandFigureMacros(wrappedTex);
+  const texWithoutResizebox = unwrapResizeboxAroundTikzBlocks(expandFigureMacros(wrappedTex));
+  const { modifiedTex: tex, headings } = extractNameHeadings(texWithoutResizebox);
   const timeoutMs = resolveLatexTimeoutMs();
   const tempDir = await fs.mkdtemp(join(tmpdir(), 'continuum-tex-html-'));
   const logChunks: string[] = [];
 
   try {
     const preamble = extractPreamble(tex);
+    const bodyDeclarations = extractBodyTikzDeclarations(tex);
     const { modifiedTex: texWithTikzPlaceholders, blocks } = extractTikzBlocks(tex);
     const { modifiedTex, figures } = extractFigures(texWithTikzPlaceholders);
     const equationReferences = buildEquationReferenceMap(modifiedTex);
     const figureReferences = buildFigureReferenceMap(figures);
-    const references = buildReferenceMap(equationReferences, figureReferences);
+    const tableReferences = buildTableReferenceMap(modifiedTex);
+    const references = buildReferenceMap(equationReferences, figureReferences, tableReferences);
     const resolvedTex = resolveLatexReferencesInTex(modifiedTex, references, equationReferences, {
       preserveFigureRefTokens: true,
     });
+    const pandocInputTex = normalizeMhchemForMathJax(normalizeSiunitxForMathJax(resolvedTex));
     const assetRefs: UnitHtmlAssetRef[] = [];
 
     for (const block of blocks) {
@@ -960,10 +1625,18 @@ export const renderLatexToHtml = async (
         references,
         equationReferences,
       );
+      const mergedDeclarations = [bodyDeclarations, block.localDeclarations]
+        .filter((chunk) => chunk.trim().length > 0)
+        .join('\n');
+      const normalizedTikzInput = normalizeNumericSuffixControlSequences(
+        mergedDeclarations,
+        resolvedBlockContent,
+      );
       const compiled = await compileTikzToSvg({
         storage,
         preamble,
-        block: resolvedBlockContent,
+        bodyDeclarations: normalizedTikzInput.declarations,
+        block: normalizedTikzInput.block,
         timeoutMs,
       });
       assetRefs.push({
@@ -976,7 +1649,7 @@ export const renderLatexToHtml = async (
       }
     }
 
-    await fs.writeFile(join(tempDir, 'render-input.tex'), resolvedTex, 'utf8');
+    await fs.writeFile(join(tempDir, 'render-input.tex'), pandocInputTex, 'utf8');
     const pandocResult = await runCommand(
       'pandoc',
       ['render-input.tex', '-f', 'latex', '-t', 'html5', '--mathjax', '-o', 'render-output.html'],
@@ -992,7 +1665,13 @@ export const renderLatexToHtml = async (
     const html = sanitizeHtml(
       replaceResolvedReferencesInHtml(
         replaceFigureReferences(
-          injectFigurePlaceholders(injectExtractedFigures(rawHtml, figures), assetRefs),
+          injectTableCaptionNumbers(
+            injectNameHeadings(
+              injectFigurePlaceholders(injectExtractedFigures(rawHtml, figures), assetRefs),
+              headings,
+            ),
+            tableReferences,
+          ),
           figures,
         ),
         references,
@@ -1037,13 +1716,24 @@ export const renderLatexToHtml = async (
 export const __test__ = {
   buildTikzAssetKey,
   buildTikzStandaloneDocument,
+  extractBodyTikzDeclarations,
+  extractInlineTikzDeclarationsBeforeBlock,
+  normalizeNumericSuffixControlSequences,
+  extractTikzBlocks,
   extractPreamble,
   expandFigureMacros,
+  unwrapResizeboxAroundTikzBlocks,
+  extractNameHeadings,
+  normalizeSiunitxForMathJax,
+  normalizeMhchemForMathJax,
   extractFigures,
   injectFigurePlaceholders,
   injectExtractedFigures,
+  injectNameHeadings,
+  injectTableCaptionNumbers,
   replaceFigureReferences,
   buildEquationReferenceMap,
+  buildTableReferenceMap,
   resolveLatexReferencesInTex,
   replaceResolvedReferencesInHtml,
 };

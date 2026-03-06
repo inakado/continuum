@@ -36,21 +36,26 @@ export function StudentUnitHtmlPanel({
     if (downloading) return;
     setDownloading(true);
     setDownloadError(null);
+    const popup = window.open("", "_blank");
+    if (popup) {
+      popup.opener = null;
+    }
 
     try {
       const url = (await getFreshPdfUrl()) ?? content.pdfUrl;
       if (!url) {
+        popup?.close();
         setDownloadError("PDF временно недоступен. Повторите попытку.");
         return;
       }
 
-      const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
       if (popup) {
         popup.location.href = url;
       } else {
-        window.open(url, "_blank", "noopener,noreferrer");
+        window.location.assign(url);
       }
     } catch {
+      popup?.close();
       setDownloadError("Не удалось получить ссылку для скачивания PDF.");
     } finally {
       setDownloading(false);
