@@ -41,6 +41,7 @@ ENV NODE_ENV=production
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/worker/node_modules ./apps/worker/node_modules
+COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
 COPY --from=builder /app/packages/latex-runtime/dist ./packages/latex-runtime/dist
 COPY packages/latex-runtime/package.json ./packages/latex-runtime/package.json
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
