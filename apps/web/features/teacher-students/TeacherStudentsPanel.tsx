@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { MoreHorizontal } from "lucide-react";
 import AlertDialog from "@/components/ui/AlertDialog";
 import Button from "@/components/ui/Button";
+import Dialog from "@/components/ui/Dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,45 +36,32 @@ type Props = {
   studentId?: string;
 };
 
-type CreateStudentFormProps = {
-  createError: string | null;
-  createFirstName: string;
-  createLastName: string;
-  createLogin: string;
-  creating: boolean;
+type StudentIdentityFormProps = {
+  firstName: string;
+  lastName: string;
+  login?: string;
+  loginReadOnly?: boolean;
+  submitLabel: string;
+  submitDisabled: boolean;
+  error: string | null;
   onCancel: () => void;
-  onCreate: () => void;
   onFirstNameChange: (value: string) => void;
   onLastNameChange: (value: string) => void;
-  onLoginChange: (value: string) => void;
-};
-
-type PasswordRevealPanelProps = {
-  onCopyPassword: () => void;
-  onHide: () => void;
-  passwordReveal: PasswordReveal;
+  onLoginChange?: (value: string) => void;
+  onSubmit: () => void;
 };
 
 type StudentCardProps = {
   availableTeachers: TeacherSummary[];
   deleteBusyId: string | null;
-  editBusy: boolean;
-  editError: string | null;
-  editFirstName: string;
-  editLastName: string;
-  editStudentId: string | null;
   getDisplayName: (student: StudentSummary) => string;
   handleStartEdit: (student: StudentSummary) => void;
   handleStartTransfer: (student: StudentSummary) => void;
   onDeleteStudent: (student: StudentSummary) => void;
-  onEditCancel: () => void;
-  onEditFirstNameChange: (value: string) => void;
-  onEditLastNameChange: (value: string) => void;
   onOpenActionsChange: (open: boolean, studentId: string) => void;
   onOpenProfile: (studentId: string) => void;
   onOpenReviewInbox: (studentId: string) => void;
   onResetPassword: (student: StudentSummary) => void;
-  onSaveEdit: (student: StudentSummary) => void;
   onTransfer: (student: StudentSummary) => void;
   onTransferCancel: () => void;
   onTransferTeacherChange: (teacherId: string) => void;
@@ -95,49 +83,67 @@ type ConfirmDialogState = {
   title: string;
 };
 
-const CreateStudentForm = ({
-  createError,
-  createFirstName,
-  createLastName,
-  createLogin,
-  creating,
+const StudentIdentityForm = ({
+  error,
+  firstName,
+  lastName,
+  login,
+  loginReadOnly = false,
+  submitLabel,
+  submitDisabled,
   onCancel,
-  onCreate,
   onFirstNameChange,
   onLastNameChange,
   onLoginChange,
-}: CreateStudentFormProps) => (
-  <div className={styles.form}>
-    <label className={styles.label}>
-      Логин ученика
-      <Input
-        value={createLogin}
-        placeholder="student_login"
-        onChange={(event) => onLoginChange(event.target.value)}
-      />
-    </label>
-    <div className={styles.inlineRow}>
-      <label className={styles.label}>
-        Имя
-        <Input
-          value={createFirstName}
-          placeholder="Имя (необязательно)"
-          onChange={(event) => onFirstNameChange(event.target.value)}
-        />
-      </label>
-      <label className={styles.label}>
-        Фамилия
-        <Input
-          value={createLastName}
-          placeholder="Фамилия (необязательно)"
-          onChange={(event) => onLastNameChange(event.target.value)}
-        />
-      </label>
+  onSubmit,
+}: StudentIdentityFormProps) => (
+  <div className={styles.dialogBody}>
+    <div className={styles.dialogFields}>
+      {onLoginChange ? (
+        <label className={styles.label}>
+          Логин ученика
+          <Input
+            autoFocus
+            className={styles.dialogInput}
+            value={login ?? ""}
+            placeholder="student_login"
+            readOnly={loginReadOnly}
+            onChange={(event) => onLoginChange(event.target.value)}
+          />
+        </label>
+      ) : null}
+      {loginReadOnly && login ? (
+        <div className={styles.dialogMeta}>
+          <span className={styles.dialogMetaLabel}>Логин</span>
+          <span className={styles.dialogMetaValue}>{login}</span>
+        </div>
+      ) : null}
+      <div className={styles.inlineRow}>
+        <label className={styles.label}>
+          Имя
+          <Input
+            autoFocus={!onLoginChange}
+            className={styles.dialogInput}
+            value={firstName}
+            placeholder="Имя (необязательно)"
+            onChange={(event) => onFirstNameChange(event.target.value)}
+          />
+        </label>
+        <label className={styles.label}>
+          Фамилия
+          <Input
+            className={styles.dialogInput}
+            value={lastName}
+            placeholder="Фамилия (необязательно)"
+            onChange={(event) => onLastNameChange(event.target.value)}
+          />
+        </label>
+      </div>
     </div>
-    {createError ? <div className={styles.formError}>{createError}</div> : null}
-    <div className={styles.formActions}>
-      <Button onClick={onCreate} disabled={creating || !createLogin.trim()}>
-        Создать
+    {error ? <div className={styles.formError}>{error}</div> : null}
+    <div className={styles.dialogActions}>
+      <Button onClick={onSubmit} disabled={submitDisabled}>
+        {submitLabel}
       </Button>
       <Button variant="ghost" onClick={onCancel}>
         Отмена
@@ -150,28 +156,33 @@ const PasswordRevealPanel = ({
   onCopyPassword,
   onHide,
   passwordReveal,
-}: PasswordRevealPanelProps) => (
-  <div className={styles.passwordReveal}>
-    <div className={styles.passwordTitle}>{passwordReveal.label}</div>
-    <div className={styles.passwordRow}>
-      <div>
-        <div className={styles.passwordLabel}>Логин</div>
-        <div className={styles.passwordValue}>{passwordReveal.login}</div>
+}: {
+  onCopyPassword: () => void;
+  onHide: () => void;
+  passwordReveal: PasswordReveal;
+}) => (
+  <div className={styles.passwordDialogBody}>
+    <div className={styles.passwordReveal}>
+      <div className={styles.passwordRow}>
+        <div>
+          <div className={styles.passwordLabel}>Логин</div>
+          <div className={styles.passwordValue}>{passwordReveal.login}</div>
+        </div>
+        <div>
+          <div className={styles.passwordLabel}>Пароль</div>
+          <div className={styles.passwordValue}>{passwordReveal.password}</div>
+        </div>
       </div>
-      <div>
-        <div className={styles.passwordLabel}>Пароль</div>
-        <div className={styles.passwordValue}>{passwordReveal.password}</div>
-      </div>
-      <div className={styles.passwordActions}>
-        <Button variant="ghost" onClick={onCopyPassword}>
-          Скопировать
-        </Button>
-        <Button variant="ghost" onClick={onHide}>
-          Скрыть
-        </Button>
-      </div>
+      <div className={styles.passwordHint}>Пароль показывается один раз. Сохраните его.</div>
     </div>
-    <div className={styles.passwordHint}>Пароль показывается один раз. Сохраните его.</div>
+    <div className={styles.dialogActions}>
+      <Button variant="ghost" onClick={onCopyPassword}>
+        Скопировать
+      </Button>
+      <Button onClick={onHide}>
+        Закрыть
+      </Button>
+    </div>
   </div>
 );
 
@@ -212,23 +223,14 @@ const getConfirmDialogState = (
 const StudentCard = ({
   availableTeachers,
   deleteBusyId,
-  editBusy,
-  editError,
-  editFirstName,
-  editLastName,
-  editStudentId,
   getDisplayName,
   handleStartEdit,
   handleStartTransfer,
   onDeleteStudent,
-  onEditCancel,
-  onEditFirstNameChange,
-  onEditLastNameChange,
   onOpenActionsChange,
   onOpenProfile,
   onOpenReviewInbox,
   onResetPassword,
-  onSaveEdit,
   onTransfer,
   onTransferCancel,
   onTransferTeacherChange,
@@ -324,38 +326,6 @@ const StudentCard = ({
         </div>
       </div>
 
-      {editStudentId === student.id ? (
-        <div className={styles.editPanel} onClick={(event) => event.stopPropagation()}>
-          <div className={styles.inlineRow}>
-            <label className={styles.label}>
-              Имя
-              <Input
-                value={editFirstName}
-                placeholder="Имя"
-                onChange={(event) => onEditFirstNameChange(event.target.value)}
-              />
-            </label>
-            <label className={styles.label}>
-              Фамилия
-              <Input
-                value={editLastName}
-                placeholder="Фамилия"
-                onChange={(event) => onEditLastNameChange(event.target.value)}
-              />
-            </label>
-          </div>
-          {editError ? <div className={styles.formError}>{editError}</div> : null}
-          <div className={styles.formActions}>
-            <Button onClick={() => onSaveEdit(student)} disabled={editBusy}>
-              Сохранить
-            </Button>
-            <Button variant="ghost" onClick={onEditCancel}>
-              Отмена
-            </Button>
-          </div>
-        </div>
-      ) : null}
-
       {isTransferActive ? (
         <div className={styles.transferPanel} onClick={(event) => event.stopPropagation()}>
           <label className={styles.label}>
@@ -389,6 +359,7 @@ const StudentCard = ({
     </article>
   );
 };
+
 
 export default function TeacherStudentsPanel({ studentId }: Props) {
   const router = useRouter();
@@ -477,6 +448,15 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
     setOpenActionsStudentId(null);
   }, [openActionsStudentId, students]);
 
+  useEffect(() => {
+    if (!editStudentId) return;
+    if (students.some((student) => student.id === editStudentId)) return;
+    setEditStudentId(null);
+    setEditFirstName("");
+    setEditLastName("");
+    setEditError(null);
+  }, [editStudentId, students]);
+
   const handleCreate = useCallback(async () => {
     const trimmed = createLogin.trim();
     if (!trimmed || creating) return;
@@ -525,6 +505,7 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
 
   const handleStartTransfer = (student: StudentSummary) => {
     setTransferError(null);
+    setOpenActionsStudentId(null);
     if (transferStudentId === student.id) {
       setTransferStudentId(null);
       setTransferTeacherId("");
@@ -555,12 +536,9 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
 
   const handleStartEdit = (student: StudentSummary) => {
     setEditError(null);
-    if (editStudentId === student.id) {
-      setEditStudentId(null);
-      setEditFirstName("");
-      setEditLastName("");
-      return;
-    }
+    setOpenActionsStudentId(null);
+    setTransferStudentId(null);
+    setTransferTeacherId("");
     setEditStudentId(student.id);
     setEditFirstName(student.firstName ?? "");
     setEditLastName(student.lastName ?? "");
@@ -711,6 +689,11 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
     return student.login;
   };
 
+  const editingStudent = useMemo(
+    () => students.find((student) => student.id === editStudentId) ?? null,
+    [editStudentId, students],
+  );
+
   if (studentId) {
     return (
       <section className={styles.panel}>
@@ -740,36 +723,16 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
         </div>
         <Button
           onClick={() => {
-            setShowCreateForm((prev) => !prev);
+            setShowCreateForm(true);
             setCreateError(null);
+            setPasswordReveal(null);
+            setTransferStudentId(null);
+            setTransferTeacherId("");
           }}
         >
           Добавить ученика
         </Button>
       </div>
-
-      {showCreateForm ? (
-        <CreateStudentForm
-          createError={createError}
-          createFirstName={createFirstName}
-          createLastName={createLastName}
-          createLogin={createLogin}
-          creating={creating}
-          onCancel={handleCreateCancel}
-          onCreate={() => void handleCreate()}
-          onFirstNameChange={setCreateFirstName}
-          onLastNameChange={setCreateLastName}
-          onLoginChange={setCreateLogin}
-        />
-      ) : null}
-
-      {passwordReveal ? (
-        <PasswordRevealPanel
-          onCopyPassword={() => void handleCopyPassword()}
-          onHide={() => setPasswordReveal(null)}
-          passwordReveal={passwordReveal}
-        />
-      ) : null}
 
       {visibleError ? (
         <div className={styles.error} role="status" aria-live="polite">
@@ -790,25 +753,16 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
                     key={student.id}
                     availableTeachers={availableTeachers}
                     deleteBusyId={deleteBusyId}
-                    editBusy={editBusy}
-                    editError={editError}
-                    editFirstName={editFirstName}
-                    editLastName={editLastName}
-                    editStudentId={editStudentId}
                     getDisplayName={getDisplayName}
                     handleStartEdit={handleStartEdit}
                     handleStartTransfer={handleStartTransfer}
                     onDeleteStudent={handleDeleteConfirm}
-                    onEditCancel={handleEditCancel}
-                    onEditFirstNameChange={setEditFirstName}
-                    onEditLastNameChange={setEditLastName}
                     onOpenActionsChange={(open, targetStudentId) =>
                       setOpenActionsStudentId(open ? targetStudentId : null)
                     }
                     onOpenProfile={openStudentProfile}
                     onOpenReviewInbox={openStudentReviewInbox}
                     onResetPassword={handleResetPasswordConfirm}
-                    onSaveEdit={(targetStudent) => void handleSaveEdit(targetStudent)}
                     onTransfer={(targetStudent) => void handleTransfer(targetStudent)}
                     onTransferCancel={handleTransferCancel}
                     onTransferTeacherChange={setTransferTeacherId}
@@ -826,6 +780,77 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
             : null}
         </div>
       </div>
+      <Dialog
+        open={showCreateForm}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCreateCancel();
+          }
+        }}
+        title="Создание ученика"
+        className={styles.dialog}
+        overlayClassName={styles.dialogOverlay}
+      >
+        <StudentIdentityForm
+          login={createLogin}
+          firstName={createFirstName}
+          lastName={createLastName}
+          submitLabel="Создать"
+          submitDisabled={creating || !createLogin.trim()}
+          error={createError}
+          onCancel={handleCreateCancel}
+          onFirstNameChange={setCreateFirstName}
+          onLastNameChange={setCreateLastName}
+          onLoginChange={setCreateLogin}
+          onSubmit={() => void handleCreate()}
+        />
+      </Dialog>
+      <Dialog
+        open={Boolean(editingStudent)}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleEditCancel();
+          }
+        }}
+        title={editingStudent ? `Редактирование ученика ${editingStudent.login}` : undefined}
+        className={styles.dialog}
+        overlayClassName={styles.dialogOverlay}
+      >
+        {editingStudent ? (
+          <StudentIdentityForm
+            login={editingStudent.login}
+            loginReadOnly
+            firstName={editFirstName}
+            lastName={editLastName}
+            submitLabel="Сохранить"
+            submitDisabled={editBusy}
+            error={editError}
+            onCancel={handleEditCancel}
+            onFirstNameChange={setEditFirstName}
+            onLastNameChange={setEditLastName}
+            onSubmit={() => void handleSaveEdit(editingStudent)}
+          />
+        ) : null}
+      </Dialog>
+      <Dialog
+        open={Boolean(passwordReveal)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPasswordReveal(null);
+          }
+        }}
+        title={passwordReveal?.label}
+        className={styles.dialog}
+        overlayClassName={styles.dialogOverlay}
+      >
+        {passwordReveal ? (
+          <PasswordRevealPanel
+            onCopyPassword={() => void handleCopyPassword()}
+            onHide={() => setPasswordReveal(null)}
+            passwordReveal={passwordReveal}
+          />
+        ) : null}
+      </Dialog>
       <AlertDialog
         open={Boolean(confirmState)}
         onOpenChange={(open) => {

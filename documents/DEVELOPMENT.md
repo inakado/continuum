@@ -112,6 +112,8 @@ Auth smoke проверяет:
 - Подробный production deploy runbook хранится в [deploy/README.md](../deploy/README.md).
 - `DEVELOPMENT.md` хранит только минимальные operational инварианты и команды.
 - Dev storage использует MinIO; production storage использует внешний S3-провайдер.
+- Для production deploy применяется cache-first policy: по умолчанию пересобирается только изменившийся сервис (обычно `api`), а `worker` пересобирается только при изменениях в worker/runtime контуре.
+- Для production deploy действует disk hygiene policy (проверки `df -h`/`df -i`/`docker system df`, регулярный cleanup image/container без удаления volumes); детали в `deploy/README.md`.
 
 ### Lockfile discipline
 
@@ -291,6 +293,24 @@ Auth smoke проверяет:
 - **Причина:** первый build после смены Dockerfile/install-layer заполняет BuildKit cache для `apt` и `pnpm`; при ручной очистке builder cache он заполняется снова.
 - **Фикс:**
   - не очищать без необходимости Docker builder cache;
-  - не делать `docker builder prune` / `docker system prune -a`, если цель только пересоздать `api` и `worker`;
+  - не делать `docker builder prune` / `docker system prune -a` (policy запрет для production deploy цикла);
   - для dev-перезапуска использовать `docker compose up -d --build api worker`, чтобы переиспользовать слои и named volumes.
 - **Проверка:** повторный `docker compose build api worker` использует cached steps для `install-texlive-runtime.sh` и `pnpm install`, если не менялись Dockerfile и lockfile.
+
+- **Симптом:** production `api`/`worker` уходит в restart-loop с `Error: Cannot find module 'zod'` (stack из `/app/packages/shared/dist/...`).
+- **Команда:** `docker compose -f docker-compose.prod.yml logs --no-color --tail=200 api` или `... worker`
+- **Причина:** runtime image собран до фикса, где `packages/shared/node_modules` не попадал в runner stage.
+- **Фикс:**
+  - убедиться, что на сервере подтянут commit с Dockerfile-фиксом (`fix(docker): include shared runtime deps in api/worker images`);
+  - пересобрать только затронутый сервис (`docker compose -f docker-compose.prod.yml build api` или `build worker`);
+  - перезапустить сервис через `docker compose -f docker-compose.prod.yml up -d --no-deps --force-recreate <service>`.
+- **Проверка:** в логах нет `Cannot find module 'zod'`, сервис в статусе `healthy`/`up`.
+
+- **Симптом:** `docker compose ... build worker` падает с `no space left on device` во время `exporting/unpacking` слоёв (`texlive-full`).
+- **Команда:** `docker compose -f docker-compose.prod.yml build worker`
+- **Причина:** недостаточно свободного места/инодов для тяжёлого worker image.
+- **Фикс:**
+  - проверить ресурсы: `df -h`, `df -i`, `docker system df -v`;
+  - очистить неиспользуемые образы/контейнеры: `docker image prune -a -f` и `docker container prune -f`;
+  - не удалять build cache; при недостатке места чистить host-level логи/кеши и при необходимости расширять диск.
+- **Проверка:** после cleanup `docker compose -f docker-compose.prod.yml build worker` завершается успешно.

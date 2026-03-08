@@ -145,6 +145,84 @@ cd /srv/continuum
 docker compose -f docker-compose.prod.yml up -d --build api worker
 ```
 
+### Cache-first policy для `worker` (TeX Live)
+
+`worker` image содержит тяжёлый слой `texlive-full`, поэтому для обычных релизов используем селективную пересборку:
+
+```bash
+# Обязательный минимум для большинства релизов
+docker compose -f docker-compose.prod.yml build api
+docker compose -f docker-compose.prod.yml up -d api
+
+# worker пересобираем только если реально менялся worker/runtime слой
+docker compose -f docker-compose.prod.yml build worker
+docker compose -f docker-compose.prod.yml up -d worker
+```
+
+Когда `worker` обычно НЕ нужно пересобирать:
+- изменения только в `apps/api/*`, web или docs.
+
+Когда `worker` нужно пересобирать:
+- изменения в `apps/worker/*`;
+- изменения в `packages/latex-runtime/*`;
+- изменения в `packages/shared/*` (worker импортирует `@continuum/shared`);
+- изменения в `apps/worker/Dockerfile`, `scripts/install-texlive-runtime.sh`, `pnpm-lock.yaml`, `package.json`.
+
+Чтобы не терять кэш `texlive`-слоя:
+- не использовать `docker build --no-cache` для обычного релиза;
+- не запускать `docker builder prune -a` и `docker system prune -a` (policy запрет для production deploy цикла).
+
+### Disk hygiene policy (production VPS)
+
+Цель: не копить мусорные старые образы и держать стабильный запас места без регулярной потери `TeX Live` кэша.
+
+Операционные пороги:
+- `warning`: свободно < `12G` на `/`.
+- `critical`: свободно < `8G` на `/`.
+
+Базовая проверка перед/после deploy:
+
+```bash
+df -h
+df -i
+docker system df
+```
+
+Регулярный cleanup после успешного deploy (безопасный, fast):
+
+```bash
+docker image prune -f
+docker container prune -f
+docker system df
+```
+
+Периодический cleanup (например, раз в неделю, в тихое окно):
+
+```bash
+docker image prune -a -f --filter "until=168h"
+docker container prune -f
+docker system df
+```
+
+Аварийный cleanup при `no space left on device`:
+
+```bash
+df -h
+df -i
+docker system df -v
+docker image prune -a -f
+docker container prune -f
+```
+
+Если после этого всё ещё мало места:
+- не удалять Docker build cache;
+- освободить место на хосте вне Docker cache (`journalctl --vacuum-time=7d`, `apt-get clean`, cleanup логов/артефактов);
+- при необходимости увеличить диск VPS перед следующей пересборкой `worker`.
+
+Что делать запрещено (чтобы не сбрасывать TeX Live cache):
+- `docker volume prune` (может удалить данные runtime-сервисов);
+- `docker system prune -a` и `docker builder prune -a` (ломают TeX Live cache и провоцируют долгую пересборку).
+
 Validate backend:
 
 ```bash
@@ -332,6 +410,22 @@ curl -fsS http://127.0.0.1:3001/login >/dev/null
 - `sudo` под `deploy` просит пароль:
   - без отдельного sudoers-правила это ожидаемо;
   - минимально для deploy-пайплайна: NOPASSWD на `systemctl restart continuum-web`.
+
+- `worker` build снова скачивает `TeX Live` и занимает много времени:
+  - причина: потерян Docker build cache или запущена лишняя полная пересборка `api+worker`;
+  - исправление:
+    - для обычного релиза собирать только изменившийся сервис (чаще `api`);
+    - `worker` собирать отдельно только при изменениях в `apps/worker`, `packages/latex-runtime`, `packages/shared` или worker Docker/runtime слоя;
+    - не использовать `docker builder prune -a` / `docker system prune -a` (policy запрет для production deploy цикла).
+
+- build падает с `no space left on device`:
+  - причина: закончился disk space (или inode) во время сборки/распаковки тяжёлых слоёв (включая TeX Live);
+  - исправление:
+    - `df -h` и `df -i`;
+    - `docker system df -v`;
+    - `docker image prune -a -f` и `docker container prune -f`;
+    - не удалять build cache; если места всё равно мало — чистить host-level логи/кеши и расширять диск VPS;
+  - проверка: после cleanup есть устойчивый запас места, затем `docker compose -f docker-compose.prod.yml build worker` завершается успешно.
 
 - API 500 с Prisma `P2022` / `column sections.description does not exist` после `git pull`:
   - причина: код уже использует новую колонку, но миграция не была применена в текущий контейнерный образ;

@@ -1,24 +1,19 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { motion, type Variants } from "framer-motion";
+import { AnimatePresence, motion, type Variants } from "framer-motion";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import type { CSSProperties, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   BookOpen,
   ChevronLeft,
   Clock3,
-  Layers3,
-  Orbit,
   PlayCircle,
   Sparkles,
-  Trophy,
 } from "lucide-react";
 import DashboardShell from "@/components/DashboardShell";
-import Button from "@/components/ui/Button";
 import {
   studentApi,
   type Course,
@@ -28,7 +23,6 @@ import {
   type StudentDashboardOverview,
 } from "@/lib/api/student";
 import { contentQueryKeys } from "@/lib/query/keys";
-import { getContentStatusLabel } from "@/lib/status-labels";
 import { useStudentLogout } from "@/features/student-content/auth/use-student-logout";
 import { useStudentIdentity } from "@/features/student-content/shared/use-student-identity";
 import styles from "./student-dashboard.module.css";
@@ -51,10 +45,9 @@ type StudentDashboardHistoryState = {
   sectionTitle: string | null;
 };
 
-type DashboardHeaderState = {
-  title: string;
-  subtitle: string;
-  showBackToCourses: boolean;
+type QueryErrorState = {
+  error: Error | null;
+  isError: boolean;
 };
 
 type StudentDashboardPanelProps = {
@@ -75,76 +68,37 @@ type StudentDashboardPanelProps = {
   view: View;
 };
 
-type QueryErrorState = {
-  error: Error | null;
-  isError: boolean;
-};
-
-type DashboardTone = {
-  accent: string;
-  accentSoft: string;
-  glow: string;
-  edge: string;
-  ink: string;
-};
-
-const DASHBOARD_TONES: readonly DashboardTone[] = [
-  {
-    accent: "#2f6fed",
-    accentSoft: "rgba(47, 111, 237, 0.16)",
-    glow: "rgba(114, 167, 255, 0.42)",
-    edge: "rgba(47, 111, 237, 0.2)",
-    ink: "#17305f",
-  },
-  {
-    accent: "#0f8a83",
-    accentSoft: "rgba(15, 138, 131, 0.14)",
-    glow: "rgba(114, 224, 213, 0.38)",
-    edge: "rgba(15, 138, 131, 0.18)",
-    ink: "#123f3b",
-  },
-  {
-    accent: "#b5671b",
-    accentSoft: "rgba(181, 103, 27, 0.14)",
-    glow: "rgba(244, 183, 110, 0.34)",
-    edge: "rgba(181, 103, 27, 0.18)",
-    ink: "#4f2c0b",
-  },
-  {
-    accent: "#7b4ce0",
-    accentSoft: "rgba(123, 76, 224, 0.14)",
-    glow: "rgba(173, 141, 255, 0.38)",
-    edge: "rgba(123, 76, 224, 0.18)",
-    ink: "#35205f",
-  },
-];
-
-const motionEase = "easeOut" as const;
-
 const motionContainer: Variants = {
-  hidden: { opacity: 0, y: 18 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.45,
-      ease: motionEase,
-      staggerChildren: 0.08,
-    },
-  },
-};
-
-const motionItem: Variants = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0, y: 14 },
   show: {
     opacity: 1,
     y: 0,
     transition: {
       duration: 0.42,
-      ease: motionEase,
+      ease: [0.16, 1, 0.3, 1],
+      staggerChildren: 0.07,
     },
   },
 };
+
+const motionItem: Variants = {
+  hidden: { opacity: 0, y: 16 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.38,
+      ease: [0.16, 1, 0.3, 1],
+    },
+  },
+};
+
+const carouselSwapMotion = {
+  initial: { opacity: 0, scale: 0.98, filter: "blur(8px)" },
+  animate: { opacity: 1, scale: 1, filter: "blur(0px)" },
+  exit: { opacity: 0, scale: 1.02, filter: "blur(8px)" },
+  transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] },
+} as const;
 
 const isStudentDashboardHistoryState = (value: unknown): value is StudentDashboardHistoryState => {
   if (!value || typeof value !== "object") return false;
@@ -173,30 +127,6 @@ const buildHistoryState = (
   sectionTitle,
 });
 
-const getDashboardHeaderState = (view: View, sectionTitle: string | null): DashboardHeaderState => {
-  if (view === "courses") {
-    return {
-      title: "Маршрут обучения",
-      subtitle: "Курсы, следующий шаг и общий темп в одном экране.",
-      showBackToCourses: false,
-    };
-  }
-
-  if (view === "sections") {
-    return {
-      title: "Разделы курса",
-      subtitle: "Откройте нужный раздел и перейдите в граф обучения.",
-      showBackToCourses: true,
-    };
-  }
-
-  return {
-    title: sectionTitle ? `Граф раздела: ${sectionTitle}` : "Граф раздела",
-    subtitle: "Линейный возврат в список разделов сохраняется через историю навигации.",
-    showBackToCourses: false,
-  };
-};
-
 const getRequestError = (
   coursesQuery: QueryErrorState,
   selectedCourseQuery: QueryErrorState,
@@ -211,93 +141,208 @@ const getRequestError = (
   return null;
 };
 
-const hashSeed = (seed: string) => {
-  let hash = 0;
-  for (let index = 0; index < seed.length; index += 1) {
-    hash = (hash * 31 + seed.charCodeAt(index)) >>> 0;
-  }
-  return hash;
-};
-
-const getToneStyle = (seed: string): CSSProperties => {
-  const tone = DASHBOARD_TONES[hashSeed(seed) % DASHBOARD_TONES.length] ?? DASHBOARD_TONES[0];
-  return {
-    "--dash-accent": tone.accent,
-    "--dash-accent-soft": tone.accentSoft,
-    "--dash-glow": tone.glow,
-    "--dash-edge": tone.edge,
-    "--dash-ink": tone.ink,
-  } as CSSProperties;
-};
-
 const getCourseSummary = (
   overview: StudentDashboardOverview | null,
   courseId: string,
 ): StudentDashboardCourseSummary | null =>
   overview?.courses.find((course) => course.id === courseId) ?? null;
 
-const getCourseMeta = (summary: StudentDashboardCourseSummary | null) => {
-  if (!summary) {
-    return {
-      sectionCount: null,
-      unitCount: null,
-      progressPercent: null,
-      coverImageUrl: null,
-    };
-  }
+const getCourseProgress = (overview: StudentDashboardOverview | null, courseId: string) =>
+  getCourseSummary(overview, courseId)?.progressPercent ?? 0;
 
-  return {
-    sectionCount: summary.sectionCount,
-    unitCount: summary.unitCount,
-    progressPercent: summary.progressPercent,
-    coverImageUrl: summary.coverImageUrl,
-  };
-};
+const getCourseUnitCount = (overview: StudentDashboardOverview | null, courseId: string) =>
+  getCourseSummary(overview, courseId)?.unitCount ?? 0;
+
+const getCourseSectionCount = (overview: StudentDashboardOverview | null, courseId: string) =>
+  getCourseSummary(overview, courseId)?.sectionCount ?? 0;
+
+const getCourseCoverUrl = (overview: StudentDashboardOverview | null, courseId: string) =>
+  getCourseSummary(overview, courseId)?.coverImageUrl ?? null;
 
 const getSectionDescription = (section: Section, index: number, courseTitle: string) =>
   section.description?.trim() ||
-  `Раздел ${String(index + 1).padStart(2, "0")} курса «${courseTitle}». Откройте граф, чтобы продолжить обучение по узлам.`;
+  `Раздел ${String(index + 1).padStart(2, "0")} курса «${courseTitle}». Откройте его, чтобы перейти в граф юнитов.`;
 
 const ProgressBar = ({
   value,
   label,
+  showValue = true,
 }: {
   value: number;
   label: string;
+  showValue?: boolean;
 }) => (
-  <div className={styles.progressBlock}>
-    <div className={styles.progressLabelRow}>
+  <div className={styles.progressMetric}>
+    <div className={styles.progressMetricRow}>
       <span>{label}</span>
-      <span>{value}%</span>
+      {showValue ? <span>{value}%</span> : null}
     </div>
     <div className={styles.progressTrack} aria-hidden="true">
       <motion.div
         className={styles.progressFill}
         initial={{ width: 0 }}
         animate={{ width: `${value}%` }}
-        transition={{ duration: 0.8, ease: motionEase }}
+        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
       />
     </div>
   </div>
 );
 
-const DashboardStatCard = ({
-  icon,
-  label,
-  value,
-  toneSeed,
+const StudentCourseCarousel = ({
+  courses,
+  dashboardOverview,
+  initialCourseId,
+  onCourseClick,
 }: {
-  icon: ReactNode;
-  label: string;
-  value: string | number;
-  toneSeed: string;
-}) => (
-  <motion.div variants={motionItem} className={styles.statCard} style={getToneStyle(toneSeed)}>
-    <div className={styles.statIcon}>{icon}</div>
-    <div className={styles.statValue}>{value}</div>
-    <div className={styles.statLabel}>{label}</div>
-  </motion.div>
-);
+  courses: Course[];
+  dashboardOverview: StudentDashboardOverview | null;
+  initialCourseId: string | null;
+  onCourseClick: (courseId: string) => void;
+}) => {
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    if (courses.length === 0) {
+      setActiveIndex(0);
+      return;
+    }
+    const preferredIndex = initialCourseId ? courses.findIndex((course) => course.id === initialCourseId) : 0;
+    if (preferredIndex >= 0) {
+      setActiveIndex(preferredIndex);
+      return;
+    }
+    setActiveIndex((current) => (current >= courses.length ? 0 : current));
+  }, [courses, initialCourseId]);
+
+  if (courses.length === 0) {
+    return <div className={styles.empty}>Пока нет опубликованных курсов</div>;
+  }
+
+  const safeIndex = Math.min(activeIndex, courses.length - 1);
+  const activeCourse = courses[safeIndex] ?? courses[0];
+  const deckCourses = courses.filter((_, index) => index !== safeIndex);
+  const activeCourseProgress = getCourseProgress(dashboardOverview, activeCourse.id);
+  const activeCourseSections = getCourseSectionCount(dashboardOverview, activeCourse.id);
+  const activeCourseCoverUrl = getCourseCoverUrl(dashboardOverview, activeCourse.id);
+
+  return (
+    <div className={styles.carouselRoot}>
+      <div className={styles.carouselActiveArea}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeCourse.id}
+            className={styles.carouselActiveCard}
+            initial={carouselSwapMotion.initial}
+            animate={carouselSwapMotion.animate}
+            exit={carouselSwapMotion.exit}
+            transition={carouselSwapMotion.transition}
+          >
+            <div className={styles.carouselMainRow}>
+              <div className={styles.carouselContent}>
+                <h2 className={styles.carouselTitle}>{activeCourse.title}</h2>
+                <div className={styles.carouselDescriptionWrap}>
+                  <div className={styles.carouselDescriptionLine} />
+                  <p className={styles.carouselDescription}>
+                    {activeCourse.description ?? "Описание курса появится после публикации преподавателем."}
+                  </p>
+                </div>
+              </div>
+
+              <div className={styles.carouselMediaPane}>
+                {activeCourseCoverUrl ? (
+                  <div className={styles.carouselDecoration}>
+                    <img alt="" className={styles.carouselDecorationImage} src={activeCourseCoverUrl} />
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className={styles.carouselFooter}>
+              <div className={styles.carouselStats}>
+                <div className={styles.carouselStat}>
+                  <div className={styles.carouselStatLabel}>Прогресс</div>
+                  <div className={styles.carouselStatValue}>{activeCourseProgress}%</div>
+                </div>
+                <div className={styles.carouselDivider} />
+                <div className={styles.carouselStat}>
+                  <div className={styles.carouselStatLabel}>
+                    <BookOpen size={12} /> Разделов
+                  </div>
+                  <div className={styles.carouselStatValue}>{activeCourseSections}</div>
+                </div>
+              </div>
+
+              <div className={styles.carouselActionCell}>
+                <button
+                  type="button"
+                  aria-label={activeCourse.title}
+                  className={styles.darkActionButton}
+                  onClick={() => onCourseClick(activeCourse.id)}
+                >
+                  Перейти к курсу
+                  <ArrowRight size={18} />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      <div className={styles.carouselDeckArea}>
+        <div className={styles.carouselDeckStack}>
+          <AnimatePresence>
+            {deckCourses.map((course, index) => {
+              const originalIndex = courses.findIndex((candidate) => candidate.id === course.id);
+              const courseCoverUrl = getCourseCoverUrl(dashboardOverview, course.id);
+              return (
+                <motion.button
+                  key={course.id}
+                  type="button"
+                  className={styles.deckCard}
+                  onClick={() => setActiveIndex(originalIndex)}
+                  initial={{ opacity: 0, x: 30, scale: 0.9 }}
+                  animate={{
+                    opacity: 1,
+                    x: 0,
+                    y: index * -18,
+                    scale: 1 - index * 0.04,
+                    rotateZ: index === 0 ? 0 : index % 2 === 0 ? 2 : -2,
+                  }}
+                  exit={{ opacity: 0, x: -30, scale: 0.9 }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 300,
+                    damping: 25,
+                    delay: index * 0.05,
+                  }}
+                >
+                  <div className={styles.deckCardHeader}>
+                    <div className={styles.deckArrowIcon}>
+                      <ArrowRight size={12} />
+                    </div>
+                  </div>
+
+                  <div>
+                    {courseCoverUrl ? (
+                      <div className={styles.deckCoverFrame}>
+                        <img alt="" className={styles.deckCoverImage} src={courseCoverUrl} />
+                      </div>
+                    ) : null}
+                    <h3 className={styles.deckTitle}>{course.title}</h3>
+                  </div>
+                </motion.button>
+              );
+            })}
+          </AnimatePresence>
+        </div>
+
+        <div className={styles.carouselDeckInfo}>
+          <span className={styles.carouselDeckInfoActive}>{safeIndex + 1}</span> / {courses.length}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const StudentCoursesView = ({
   courses,
@@ -313,221 +358,89 @@ const StudentCoursesView = ({
   onCourseClick: (courseId: string) => void;
 }) => {
   const continueLearning = dashboardOverview?.continueLearning ?? null;
-  const continueCourseSummary =
-    continueLearning && dashboardOverview
-      ? getCourseSummary(dashboardOverview, continueLearning.courseId)
-      : null;
+  const continueCourseCoverUrl = continueLearning
+    ? getCourseCoverUrl(dashboardOverview, continueLearning.courseId)
+    : null;
 
   return (
     <motion.div variants={motionContainer} initial="hidden" animate="show" className={styles.panel}>
-      <div className={styles.heroBackdrop} aria-hidden="true">
-        <div className={styles.heroGlowPrimary} />
-        <div className={styles.heroGlowSecondary} />
-      </div>
+      <div className={styles.pageGlow} aria-hidden="true" />
 
-      <div className={styles.coursesTopGrid}>
-        <motion.section
-          variants={motionItem}
-          className={styles.continueCard}
-          style={getToneStyle(continueLearning?.courseId ?? "continue-learning")}
-        >
-          <div className={styles.heroEyebrow}>
-            <Clock3 size={14} />
-            <span>Продолжить обучение</span>
-          </div>
-          {continueLearning ? (
-            <>
-              <div className={styles.continueContent}>
-                <div className={styles.continueCopy}>
-                  <h2 className={styles.continueTitle}>{continueLearning.unitTitle}</h2>
-                  <p className={styles.continueMeta}>
-                    {continueLearning.courseTitle} · {continueLearning.sectionTitle}
-                  </p>
-                  <p className={styles.continueDescription}>
-                    Вернитесь в последний доступный узел и продолжите движение по курсу без поиска
-                    нужного раздела вручную.
-                  </p>
-                </div>
-                <div className={styles.continueVisual}>
-                  {continueCourseSummary?.coverImageUrl ? (
-                    <img
-                      alt=""
-                      className={styles.heroCoverImage}
-                      src={continueCourseSummary.coverImageUrl}
-                    />
-                  ) : (
-                    <div className={styles.heroGlyph}>
-                      <Orbit size={34} />
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className={styles.continueFooter}>
-                <div className={styles.continueMetrics}>
-                  <ProgressBar value={continueLearning.completionPercent} label="Прогресс юнита" />
-                  <ProgressBar value={continueLearning.solvedPercent} label="Решено задач" />
-                </div>
-                <Button
-                  className={styles.heroButton}
-                  onClick={() => onContinueLearning(continueLearning.href)}
-                >
-                  Продолжить обучение
-                </Button>
-              </div>
-            </>
-          ) : (
-            <div className={styles.emptyState}>
-              <div className={styles.emptyIcon}>
-                <Sparkles size={18} />
-              </div>
-              <div>
-                <h2 className={styles.emptyTitle}>Следующий шаг появится здесь</h2>
-                <p className={styles.emptyText}>
-                  Как только станет доступен новый юнит, дашборд покажет прямую точку входа.
-                </p>
-              </div>
-            </div>
-          )}
-        </motion.section>
+      <motion.section variants={motionItem} className={styles.pageIntro}>
+        <h1 className={styles.pageTitle}>Мои курсы</h1>
+        <p className={styles.pageSubtitle}>
+          Выберите курс, чтобы продолжить обучение. Здесь собраны все доступные программы.
+        </p>
+      </motion.section>
 
-        <motion.aside variants={motionItem} className={styles.summaryCard}>
-          <div className={styles.heroEyebrow}>
-            <BookOpen size={14} />
-            <span>Темп и обзор</span>
-          </div>
-          <div className={styles.summaryStack}>
-            <div className={styles.summaryHighlight}>
-              <div className={styles.summaryHighlightValue}>{courses.length}</div>
-              <div className={styles.summaryHighlightLabel}>активных курсов в кабинете</div>
-            </div>
-            <div className={styles.summaryMiniGrid}>
-              <div className={styles.summaryMiniMetric}>
-                <span className={styles.summaryMiniLabel}>Доступно</span>
-                <span className={styles.summaryMiniValue}>
-                  {dashboardOverview?.stats.availableUnits ?? 0}
-                </span>
-              </div>
-              <div className={styles.summaryMiniMetric}>
-                <span className={styles.summaryMiniLabel}>В процессе</span>
-                <span className={styles.summaryMiniValue}>
-                  {dashboardOverview?.stats.inProgressUnits ?? 0}
-                </span>
-              </div>
-              <div className={styles.summaryMiniMetric}>
-                <span className={styles.summaryMiniLabel}>Завершено</span>
-                <span className={styles.summaryMiniValue}>
-                  {dashboardOverview?.stats.completedUnits ?? 0}
-                </span>
-              </div>
-              <div className={styles.summaryMiniMetric}>
-                <span className={styles.summaryMiniLabel}>Всего юнитов</span>
-                <span className={styles.summaryMiniValue}>{dashboardOverview?.stats.totalUnits ?? 0}</span>
-              </div>
-            </div>
-          </div>
-        </motion.aside>
-      </div>
-
-      <motion.div variants={motionItem} className={styles.statGrid}>
-        <DashboardStatCard
-          icon={<Layers3 size={16} />}
-          label="Разделов во всех курсах"
-          value={dashboardOverview?.courses.reduce((sum, course) => sum + course.sectionCount, 0) ?? 0}
-          toneSeed="stats-sections"
-        />
-        <DashboardStatCard
-          icon={<Trophy size={16} />}
-          label="Средний прогресс по курсам"
-          value={
-            dashboardOverview?.courses.length
-              ? `${Math.round(
-                  dashboardOverview.courses.reduce((sum, course) => sum + course.progressPercent, 0) /
-                    dashboardOverview.courses.length,
-                )}%`
-              : "0%"
-          }
-          toneSeed="stats-progress"
-        />
-        <DashboardStatCard
-          icon={<Orbit size={16} />}
-          label="Точек входа прямо сейчас"
-          value={dashboardOverview?.stats.availableUnits ?? 0}
-          toneSeed="stats-entry"
-        />
-      </motion.div>
-
-      <motion.section variants={motionItem} className={styles.courseRailSection}>
-        <div className={styles.sectionHeading}>
-          <div>
-            <div className={styles.sectionHeadingKicker}>Курсы</div>
-            <h2 className={styles.sectionHeadingTitle}>Выберите траекторию</h2>
-          </div>
-          <p className={styles.sectionHeadingText}>
-            Крупные карточки ниже повторяют стилистику референса, но живут на наших контрактах и
-            server-state слое.
-          </p>
-        </div>
-
+      <motion.section variants={motionItem}>
         {loadingCourses ? (
           <div className={styles.empty}>Загрузка курсов…</div>
-        ) : courses.length === 0 ? (
-          <div className={styles.empty}>Пока нет опубликованных курсов</div>
         ) : (
-          <div className={styles.courseRail} aria-label="Список курсов">
-            {courses.map((course) => {
-              const summary = getCourseSummary(dashboardOverview, course.id);
-              const meta = getCourseMeta(summary);
-              return (
-                <motion.button
-                  key={course.id}
-                  type="button"
-                  variants={motionItem}
-                  className={styles.courseCard}
-                  style={getToneStyle(course.id)}
-                  whileHover={{ y: -4 }}
-                  whileTap={{ scale: 0.99 }}
-                  onClick={() => onCourseClick(course.id)}
-                >
-                  <div className={styles.courseArt}>
-                    {meta.coverImageUrl ? (
-                      <img alt="" className={styles.courseCoverImage} src={meta.coverImageUrl} />
-                    ) : (
-                      <div className={styles.courseGlyph}>
-                        <BookOpen size={30} />
-                      </div>
-                    )}
-                    <div className={styles.courseBadge}>
-                      <span>{getContentStatusLabel(course.status)}</span>
-                    </div>
-                  </div>
-
-                  <div className={styles.courseBody}>
-                    <div className={styles.courseTitleRow}>
-                      <h3 className={styles.courseTitle}>{course.title}</h3>
-                      <ArrowRight size={18} />
-                    </div>
-                    <p className={styles.courseDescription}>{course.description ?? "Без описания курса"}</p>
-
-                    <div className={styles.courseMetaGrid}>
-                      <div className={styles.courseMetaPill}>
-                        <span className={styles.courseMetaLabel}>Разделов</span>
-                        <span className={styles.courseMetaValue}>{meta.sectionCount ?? "—"}</span>
-                      </div>
-                      <div className={styles.courseMetaPill}>
-                        <span className={styles.courseMetaLabel}>Юнитов</span>
-                        <span className={styles.courseMetaValue}>{meta.unitCount ?? "—"}</span>
-                      </div>
-                    </div>
-
-                    <div className={styles.courseProgressFooter}>
-                      <ProgressBar value={meta.progressPercent ?? 0} label="Общий прогресс" />
-                    </div>
-                  </div>
-                </motion.button>
-              );
-            })}
-          </div>
+          <StudentCourseCarousel
+            courses={courses}
+            dashboardOverview={dashboardOverview}
+            initialCourseId={continueLearning?.courseId ?? null}
+            onCourseClick={onCourseClick}
+          />
         )}
+      </motion.section>
+
+      <motion.section variants={motionItem} className={styles.bottomGrid}>
+        <div className={styles.continueCard}>
+          <div className={styles.continueGlow} aria-hidden="true" />
+
+          <div>
+            <div className={styles.pillLabel}>
+              <Clock3 size={12} className={styles.pillLabelBlue} />
+              <span>Продолжить обучение</span>
+            </div>
+
+            {continueLearning ? (
+              <>
+                <h2 className={styles.continueTitle}>{continueLearning.unitTitle}</h2>
+                <p className={styles.continueMeta}>
+                  Раздел: {continueLearning.sectionTitle} • Курс: {continueLearning.courseTitle}
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className={styles.continueTitle}>Следующий шаг появится здесь</h2>
+                <p className={styles.continueMeta}>
+                  Как только преподаватель откроет новый юнит, на карточке появится точка возврата.
+                </p>
+              </>
+            )}
+          </div>
+
+          <div className={styles.continueBottom}>
+            <div className={styles.continueProgressBox}>
+              <div className={styles.progressCaption}>Прогресс раздела</div>
+              <div className={styles.progressValue}>
+                {continueLearning ? `${continueLearning.completionPercent}%` : "0%"}
+              </div>
+            </div>
+
+            {continueLearning ? (
+              <button
+                type="button"
+                className={styles.darkActionButton}
+                onClick={() => onContinueLearning(continueLearning.href)}
+              >
+                Продолжить обучение
+                <ArrowRight size={16} />
+              </button>
+            ) : (
+              <div className={styles.continueImagePlaceholder}>
+                {continueCourseCoverUrl ? (
+                  <img alt="" className={styles.continuePreviewImage} src={continueCourseCoverUrl} />
+                ) : (
+                  <Sparkles size={22} />
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </motion.section>
     </motion.div>
   );
@@ -546,88 +459,92 @@ const StudentSectionsView = ({
   onSectionClick: (section: Section) => void;
   sections: Section[];
 }) => (
-  <motion.div variants={motionContainer} initial="hidden" animate="show" className={styles.panel}>
-    <motion.section variants={motionItem} className={styles.courseHero} style={getToneStyle(course.id)}>
-      <div className={styles.courseHeroCopy}>
-        <button type="button" className={styles.inlineBackButton} onClick={onBackToCourses}>
-          <ChevronLeft size={16} />
-          <span>Курсы</span>
-        </button>
+  <motion.div variants={motionContainer} initial="hidden" animate="show" className={styles.sectionsPage}>
+    <div className={styles.pageGlow} aria-hidden="true" />
 
-        <div className={styles.heroEyebrow}>
-          <Sparkles size={14} />
-          <span>Курс</span>
+    <motion.div variants={motionItem} className={styles.sectionsBackRow}>
+      <button type="button" className={styles.backChip} onClick={onBackToCourses}>
+        <ChevronLeft size={14} aria-hidden="true" />
+        <span>Курсы</span>
+      </button>
+    </motion.div>
+
+    <motion.header variants={motionItem} className={styles.sectionsHeader}>
+      <div className={styles.sectionsMainCard}>
+        <div className={styles.sectionsHero}>
+          <div className={styles.sectionsHeroCopy}>
+            <h1 className={styles.sectionsCourseTitle}>{course.title}</h1>
+            {course.description ? (
+              <p className={styles.sectionsCourseDescription}>{course.description}</p>
+            ) : null}
+          </div>
+
+          <div className={styles.sectionsHeaderDecoration}>
+            {courseSummary?.coverImageUrl ? (
+              <img alt="" className={styles.sectionsHeaderDecorationImage} src={courseSummary.coverImageUrl} />
+            ) : null}
+          </div>
         </div>
-        <h2 className={styles.courseHeroTitle}>{course.title}</h2>
-        <p className={styles.courseHeroDescription}>
-          {course.description ?? "Откройте нужный раздел и продолжите движение по учебному графу."}
-        </p>
-      </div>
 
-      <div className={styles.courseHeroSide}>
-        <div className={styles.heroSummaryCard}>
-          <span className={styles.heroSummaryLabel}>Общий прогресс</span>
-          <strong className={styles.heroSummaryValue}>{courseSummary?.progressPercent ?? 0}%</strong>
-          <ProgressBar value={courseSummary?.progressPercent ?? 0} label="Пройдено по курсу" />
-          <div className={styles.heroSummaryMeta}>
-            <span>{courseSummary?.sectionCount ?? sections.length} разделов</span>
-            <span>{courseSummary?.unitCount ?? 0} юнитов</span>
+        <div className={styles.sectionsHeroFooter}>
+          <div className={styles.sectionsProgressPanel}>
+            <div className={styles.progressCaption}>Общий прогресс</div>
+            <div className={styles.overallProgressValue}>{courseSummary?.progressPercent ?? 0}%</div>
+            <ProgressBar value={courseSummary?.progressPercent ?? 0} label="По курсу" showValue={false} />
           </div>
         </div>
       </div>
-    </motion.section>
+    </motion.header>
 
-    <motion.section variants={motionItem} className={styles.sectionDeck}>
-      <div className={styles.sectionHeading}>
-        <div>
-          <div className={styles.sectionHeadingKicker}>Разделы</div>
-          <h2 className={styles.sectionHeadingTitle}>Маршрут по курсу</h2>
-        </div>
-        <p className={styles.sectionHeadingText}>
-          Каждый раздел открывает граф юнитов. Визуально это уже closer к референсу, но остаётся
-          встроенным в текущую student navigation model.
-        </p>
+    <motion.section variants={motionItem} className={styles.sectionsListWrap}>
+      <div className={styles.sectionsListHead}>
+        <h2 className={styles.sectionsListTitle}>Разделы курса</h2>
       </div>
 
-      {sections.length === 0 ? (
-        <div className={styles.empty}>Разделов пока нет</div>
-      ) : (
-        <div className={styles.sectionList}>
-          {sections.map((section, index) => (
+      <div className={styles.sectionsList}>
+        {sections.length === 0 ? (
+          <div className={styles.empty}>Разделов пока нет</div>
+        ) : (
+          sections.map((section, index) => (
             <motion.button
               key={section.id}
               type="button"
               variants={motionItem}
               className={styles.sectionCard}
-              style={getToneStyle(section.id)}
-              whileHover={{ y: -3 }}
-              whileTap={{ scale: 0.99 }}
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.995 }}
               onClick={() => onSectionClick(section)}
             >
-              <div className={styles.sectionCardVisual}>
-                <span className={styles.sectionOrdinal}>{String(index + 1).padStart(2, "0")}</span>
-                <div className={styles.sectionVisualBadge}>
-                  <PlayCircle size={16} />
+              <div className={styles.sectionMediaBlock}>
+                <div className={styles.sectionOrdinalPill}>{String(index + 1).padStart(2, "0")}</div>
+                <div className={styles.sectionPlayBadge}>
+                  <PlayCircle size={18} />
                 </div>
               </div>
 
-              <div className={styles.sectionCardBody}>
-                <div className={styles.sectionCardHeading}>
-                  <h3 className={styles.sectionCardTitle}>{section.title}</h3>
-                  <span className={styles.status}>{getContentStatusLabel(section.status)}</span>
+              <div className={styles.sectionContentBlock}>
+                <div className={styles.sectionTitleRow}>
+                  <h3 className={styles.sectionTitle}>{section.title}</h3>
                 </div>
-                <p className={styles.sectionCardDescription}>
+                <p className={styles.sectionDescription}>
                   {getSectionDescription(section, index, course.title)}
                 </p>
-                <div className={styles.sectionCardFooter}>
-                  <span className={styles.sectionFootnote}>Открыть граф раздела</span>
-                  <ArrowRight size={18} />
+                <div className={styles.sectionProgressInline}>
+                  <div className={styles.progressCaption}>Прогресс</div>
+                  <div className={styles.sectionProgressBadge}>{section.completionPercent ?? 0}%</div>
                 </div>
               </div>
+
+              <div className={styles.sectionActionBlock}>
+                <span className={styles.sectionOpenButton}>
+                  Открыть
+                  <ArrowRight size={14} />
+                </span>
+              </div>
             </motion.button>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
     </motion.section>
   </motion.div>
 );
@@ -907,6 +824,7 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
   const [selectedSectionTitle, setSelectedSectionTitle] = useState<string | null>(null);
+
   const coursesQuery = useQuery({
     queryKey: contentQueryKeys.studentCourses(),
     queryFn: () => studentApi.listCourses(),
@@ -927,6 +845,7 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
     queryFn: () => studentApi.getSection(selectedSectionId as string),
     enabled: boot === "ready" && view === "graph" && Boolean(selectedSectionId),
   });
+
   const courses: Course[] = coursesQuery.data ?? [];
   const selectedCourse: CourseWithSections | null = selectedCourseQuery.data ?? null;
   const loadingCourses = coursesQuery.isPending;
@@ -966,15 +885,12 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
     if (!selectedCourse) return [];
     return [...selectedCourse.sections].sort((a, b) => a.sortOrder - b.sortOrder);
   }, [selectedCourse]);
+
   const requestError = useMemo(
     () => getRequestError(coursesQuery, selectedCourseQuery, view),
     [coursesQuery, selectedCourseQuery, view],
   );
   const visibleError = error ?? requestError;
-  const headerState = useMemo(
-    () => getDashboardHeaderState(view, selectedSectionTitle),
-    [selectedSectionTitle, view],
-  );
 
   const openCourse = useCallback(
     async (courseId: string, mode: HistoryMode = "push") => {
@@ -1097,9 +1013,7 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
     }
     if (selectedCourseId) {
       const opened = await openCourse(selectedCourseId, "push");
-      if (opened) {
-        return;
-      }
+      if (opened) return;
     }
     forceShowCourses();
     writeHistoryState(buildHistoryState("courses", null, null, null), "push");
@@ -1113,21 +1027,6 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
       onLogout={handleLogout}
     >
       <div className={styles.content}>
-        <div className={styles.header}>
-          <div>
-            <div className={styles.headerEyebrow}>Student Dashboard</div>
-            <h1 className={styles.title}>{headerState.title}</h1>
-            <p className={styles.subtitle}>{headerState.subtitle}</p>
-          </div>
-          <div className={styles.actions}>
-            {headerState.showBackToCourses ? (
-              <Button variant="ghost" onClick={handleBackToCourses}>
-                ← Курсы
-              </Button>
-            ) : null}
-          </div>
-        </div>
-
         {visibleError ? (
           <div className={styles.error} role="status" aria-live="polite">
             {visibleError}

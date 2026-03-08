@@ -30,6 +30,7 @@ export const StudentSectionSchema = z
     title: z.string(),
     description: z.string().nullable().optional(),
     coverImageAssetKey: z.string().nullable().optional(),
+    completionPercent: z.number().int().nonnegative().max(100).optional(),
     status: ContentStatusSchema,
     sortOrder: z.number(),
     createdAt: z.string(),

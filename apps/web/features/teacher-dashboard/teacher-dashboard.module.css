@@ -160,6 +160,77 @@
   -webkit-backdrop-filter: var(--glass-filter);
 }
 
+.createDialogBody {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.createDialogFields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.createDialogInput,
+.createDialogTextarea {
+  --control-bg: color-mix(in srgb, var(--surface-2) 92%, white 8%);
+  --control-border: color-mix(in srgb, var(--glass-border) 78%, var(--border-primary) 22%);
+  --control-radius: 20px;
+}
+
+.createDialogInput {
+  min-height: 56px;
+  padding-inline: 18px;
+  font-size: 15px;
+}
+
+.createDialogTextarea {
+  min-height: 168px;
+  padding: 16px 18px;
+  font-size: 15px;
+}
+
+.createDialogError {
+  margin-top: -2px;
+}
+
+.createDialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 84%, transparent);
+}
+
+.createDialogPrimaryAction {
+  min-width: 208px;
+}
+
+.createDialogSecondaryAction {
+  min-width: 140px;
+}
+
+.editDialogOverlay {
+  background: color-mix(in srgb, var(--bg-primary) 48%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.editDialog {
+  width: min(760px, calc(100vw - 24px));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-1) 94%, white 6%), var(--surface-1));
+}
+
+.editDialogBody {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
 .label {
   display: flex;
   flex-direction: column;
@@ -193,6 +264,30 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.coverActionButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  line-height: 1;
+}
+
+.coverActionButton svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.coverActionDanger {
+  --button-bg: color-mix(in srgb, #ef4444 6%, var(--surface-1));
+  --button-border: color-mix(in srgb, #ef4444 34%, var(--glass-border));
+  --button-text: color-mix(in srgb, #ef4444 72%, var(--text-primary));
+  --button-hover-bg: color-mix(in srgb, #ef4444 10%, var(--surface-2));
+  --button-hover-border: color-mix(in srgb, #ef4444 44%, var(--border-primary));
+  --button-hover-text: color-mix(in srgb, #ef4444 78%, var(--text-primary));
+  --button-hover-shadow: none;
 }
 
 .coverInput {
@@ -246,7 +341,7 @@
 .cardGrid {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .card {
@@ -432,4 +527,16 @@
   color: var(--text-muted);
   background: var(--card-bg);
   border-radius: var(--card-radius);
+}
+
+@media (max-width: 720px) {
+  .createDialogActions {
+    flex-direction: column-reverse;
+  }
+
+  .createDialogPrimaryAction,
+  .createDialogSecondaryAction {
+    width: 100%;
+    min-width: 0;
+  }
 }

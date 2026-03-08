@@ -91,6 +91,24 @@ vi.mock("@/components/ui/AlertDialog", () => ({
     ) : null,
 }));
 
+vi.mock("@/components/ui/Dialog", () => ({
+  default: ({
+    open,
+    title,
+    children,
+  }: {
+    open: boolean;
+    title?: React.ReactNode;
+    children: React.ReactNode;
+  }) =>
+    open ? (
+      <div role="dialog" aria-label={typeof title === "string" ? title : "dialog"}>
+        {title ? <div>{title}</div> : null}
+        {children}
+      </div>
+    ) : null,
+}));
+
 vi.mock("@/lib/api/teacher", async () => {
   const actual = await vi.importActual<typeof TeacherApiModule>("@/lib/api/teacher");
   return {
@@ -175,6 +193,7 @@ describe("TeacherStudentsPanel", () => {
     expect(await screen.findByText("Иванов Иван")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Добавить ученика" }));
+    expect(screen.getByRole("dialog", { name: "Создание ученика" })).toBeInTheDocument();
     await user.type(screen.getByLabelText("Логин ученика"), "student2");
     await user.type(screen.getByLabelText("Имя"), "Пётр");
     await user.type(screen.getByLabelText("Фамилия"), "Петров");
@@ -192,7 +211,7 @@ describe("TeacherStudentsPanel", () => {
         queryKey: contentQueryKeys.teacherStudentsList(),
       });
     });
-    expect(await screen.findByText("Новый ученик создан")).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "Новый ученик создан" })).toBeInTheDocument();
     expect(screen.getByText("Pass123!")).toBeInTheDocument();
   }, 10000);
 
@@ -240,6 +259,7 @@ describe("TeacherStudentsPanel", () => {
     expect(await screen.findByText("Иванов Иван")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Редактировать" }));
+    expect(screen.getByRole("dialog", { name: "Редактирование ученика student1" })).toBeInTheDocument();
     const [firstNameInput, lastNameInput] = screen.getAllByRole("textbox", { name: /Имя|Фамилия/ });
     await user.clear(firstNameInput);
     await user.type(firstNameInput, "Пётр");
@@ -279,7 +299,7 @@ describe("TeacherStudentsPanel", () => {
     await waitFor(() => {
       expect(teacherApi.resetStudentPassword).toHaveBeenCalledWith("student-1");
     });
-    expect(await screen.findByText("Пароль обновлён")).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "Пароль обновлён" })).toBeInTheDocument();
     expect(screen.getByText("Reset123!")).toBeInTheDocument();
   });
 

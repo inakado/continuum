@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { ContentModule } from '../content/content.module';
+import { StudentCoursesController } from '../content/student-courses.controller';
 import { EventsLogModule } from '../events/events.module';
 import { ObjectStorageModule } from '../infra/storage/object-storage.module';
 import { StudentsModule } from '../students/students.module';
@@ -38,6 +39,7 @@ import { TeacherUnitOverrideOpenController } from './teacher-unit-override-open.
     LearningRecomputeModule,
   ],
   controllers: [
+    StudentCoursesController,
     StudentAttemptsController,
     StudentDashboardController,
     StudentPhotoTasksController,

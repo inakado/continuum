@@ -120,6 +120,8 @@
 - Teacher dashboard edit flow и student dashboard синхронизируют внутридашбордную навигацию с `window.history.state`.
 - Browser `Back/Forward` должен возвращать предыдущий UI-шаг внутри dashboard, а не ломать user journey.
 - В student и teacher view `Раздел → Граф` canvas-контейнер должен занимать почти весь viewport по высоте (viewport-aware `dvh`) с сохранением нижнего визуального зазора.
+- Teacher create/edit flow для `Course/Section` открывает формы в modal `Dialog` с overlay/focus trap; inline-формы внутри списка карточек не используются, а create modal поддерживает тот же cover image flow (`pick preview -> create -> presign upload -> apply`) что и edit.
+- Teacher students flow использует focused modal `Dialog` для создания и редактирования ученика, а также для одноразового показа нового/сброшенного пароля; inline-формы внутри списка учеников не используются.
 
 ## Related Source Links
 

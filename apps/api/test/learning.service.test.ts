@@ -3,7 +3,11 @@ import { StudentUnitStatus } from '@prisma/client';
 import { LearningService } from '../src/learning/learning.service';
 
 describe('LearningService', () => {
-  const prisma = {};
+  const prisma = {
+    course: {
+      findFirst: vi.fn(),
+    },
+  };
   const contentService = {
     getPublishedSectionGraph: vi.fn(),
   };
@@ -25,6 +29,7 @@ describe('LearningService', () => {
   );
 
   beforeEach(() => {
+    prisma.course.findFirst.mockReset();
     contentService.getPublishedSectionGraph.mockReset();
     learningAvailabilityService.getSectionGraphAvailabilitySnapshot.mockReset();
     learningAvailabilityService.recomputeSectionAvailability.mockReset();
@@ -98,5 +103,67 @@ describe('LearningService', () => {
       'section-1',
     );
     expect(learningAvailabilityService.recomputeSectionAvailability).not.toHaveBeenCalled();
+  });
+
+  it('returns published student course with per-section completion percent', async () => {
+    prisma.course.findFirst.mockResolvedValue({
+      id: 'course-1',
+      title: 'Физика',
+      description: 'Описание',
+      coverImageAssetKey: null,
+      status: 'published',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+      sections: [
+        {
+          id: 'section-1',
+          courseId: 'course-1',
+          title: 'Механика',
+          description: 'Раздел',
+          coverImageAssetKey: null,
+          status: 'published',
+          sortOrder: 1,
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+          units: [{ id: 'unit-1' }, { id: 'unit-2' }],
+        },
+      ],
+    });
+    learningAvailabilityService.recomputeSectionAvailability.mockResolvedValue(
+      new Map([
+        ['unit-1', { completionPercent: 100 }],
+        ['unit-2', { completionPercent: 50 }],
+      ]),
+    );
+
+    const result = await service.getPublishedCourseForStudent('student-1', 'course-1');
+
+    expect(result).toEqual({
+      id: 'course-1',
+      title: 'Физика',
+      description: 'Описание',
+      coverImageAssetKey: null,
+      status: 'published',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-02T00:00:00.000Z',
+      sections: [
+        {
+          id: 'section-1',
+          courseId: 'course-1',
+          title: 'Механика',
+          description: 'Раздел',
+          coverImageAssetKey: null,
+          completionPercent: 75,
+          status: 'published',
+          sortOrder: 1,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-02T00:00:00.000Z',
+        },
+      ],
+    });
+    expect(learningAvailabilityService.recomputeSectionAvailability).toHaveBeenCalledWith(
+      'student-1',
+      'section-1',
+    );
   });
 });

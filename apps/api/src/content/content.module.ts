@@ -8,7 +8,6 @@ import { LatexCompileQueueService } from './latex-compile-queue.service';
 import { ContentGraphService } from './content-graph.service';
 import { ContentService } from './content.service';
 import { ContentWriteService } from './content-write.service';
-import { StudentCoursesController } from './student-courses.controller';
 import { StudentSectionsController } from './student-sections.controller';
 import { TeacherCoursesController } from './teacher-courses.controller';
 import { TeacherLatexController } from './teacher-latex.controller';
@@ -25,7 +24,6 @@ import { UnitPdfPolicyService } from './unit-pdf-policy.service';
   imports: [AuthModule, EventsLogModule, ObjectStorageModule, LearningRecomputeModule],
   controllers: [
     InternalLatexController,
-    StudentCoursesController,
     StudentSectionsController,
     TeacherCoursesController,
     TeacherLatexController,

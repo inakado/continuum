@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  StudentCourseDetailResponseSchema,
   StudentDashboardOverviewResponseSchema,
   StudentCourseListResponseSchema,
   StudentSectionGraphResponseSchema,
@@ -78,6 +79,30 @@ describe("content non-learning contracts", () => {
     expect(list[0].id).toBe("course-1");
     expect(graph.sectionId).toBe("section-1");
     expect(overview.continueLearning?.unitId).toBe("unit-2");
+
+    const courseDetail = StudentCourseDetailResponseSchema.parse({
+      id: "course-1",
+      title: "Алгебра",
+      description: null,
+      status: "published",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+      sections: [
+        {
+          id: "section-1",
+          courseId: "course-1",
+          title: "Линейные уравнения",
+          description: null,
+          completionPercent: 45,
+          status: "published",
+          sortOrder: 1,
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-02T00:00:00.000Z",
+        },
+      ],
+    });
+
+    expect(courseDetail.sections[0]?.completionPercent).toBe(45);
   });
 
   it("accepts valid teacher students query/request shapes", () => {

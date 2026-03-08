@@ -137,6 +137,7 @@ describe("StudentDashboardScreen", () => {
           id: "section-1",
           courseId: "course-1",
           title: "Линейные уравнения",
+          completionPercent: 45,
           status: "published",
           sortOrder: 1,
           createdAt: "2026-01-01T00:00:00.000Z",
@@ -151,7 +152,7 @@ describe("StudentDashboardScreen", () => {
     await user.click(await screen.findByRole("button", { name: /Алгебра/i }));
 
     expect(await screen.findByText("Линейные уравнения")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "← Курсы" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Курсы" })).toBeInTheDocument();
     await waitFor(() => {
       expect(studentApi.getCourse).toHaveBeenCalledWith("course-1");
     });
@@ -177,6 +178,7 @@ describe("StudentDashboardScreen", () => {
           id: "section-1",
           courseId: "course-1",
           title: "Линейные уравнения",
+          completionPercent: 45,
           status: "published",
           sortOrder: 1,
           createdAt: "2026-01-01T00:00:00.000Z",
@@ -313,6 +315,6 @@ describe("StudentDashboardScreen", () => {
     await user.click(screen.getByRole("button", { name: "Назад к разделам" }));
 
     expect(await screen.findByText("Линейные уравнения")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "← Курсы" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Курсы" })).toBeInTheDocument();
   });
 });

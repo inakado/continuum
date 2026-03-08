@@ -1,6 +1,6 @@
 # Task Solution HTML Render
 
-Статус: `Active`
+Статус: `Completed` (2026-03-06)
 
 ## Цель и контекст
 
@@ -59,3 +59,9 @@
 
 - 2026-03-05: выбран on-demand путь для legacy task revisions без backfill.
 - 2026-03-05: legacy `.../solution/pdf-presign` удаляется в этой волне.
+
+## Финальное состояние
+
+- migration `task_solution` на backend HTML render path завершена;
+- legacy `.../solution/pdf-presign` удалён из API/web read-path;
+- SoR-документы и тестовый контур обновлены под `TaskSolutionHtmlCompiled`.

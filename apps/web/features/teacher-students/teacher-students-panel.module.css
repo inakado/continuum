@@ -42,8 +42,7 @@
   letter-spacing: 0.08em;
 }
 
-.form,
-.passwordReveal {
+.form {
   border: var(--border-width) solid var(--card-border);
   background: var(--card-bg);
   padding: 12px;
@@ -53,6 +52,77 @@
   box-shadow: var(--card-shadow);
   backdrop-filter: var(--glass-filter);
   -webkit-backdrop-filter: var(--glass-filter);
+}
+
+.passwordReveal {
+  display: grid;
+  gap: 16px;
+}
+
+.dialogOverlay {
+  background: color-mix(in srgb, var(--bg-primary) 48%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.dialog {
+  width: min(720px, calc(100vw - 24px));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-1) 94%, white 6%), var(--surface-1));
+}
+
+.dialogBody,
+.passwordDialogBody {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dialogFields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dialogInput {
+  --control-bg: color-mix(in srgb, var(--surface-2) 92%, white 8%);
+  --control-border: color-mix(in srgb, var(--glass-border) 78%, var(--border-primary) 22%);
+  --control-radius: 20px;
+  min-height: 56px;
+  padding-inline: 18px;
+  font-size: 15px;
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 84%, transparent);
+}
+
+.dialogMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 80%, transparent);
+  border-radius: calc(var(--control-radius) + 2px);
+  background: color-mix(in srgb, var(--surface-2) 92%, white 8%);
+}
+
+.dialogMetaLabel {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.dialogMetaValue {
+  font-size: 14px;
+  font-weight: 600;
+  word-break: break-all;
 }
 
 .inlineRow {
@@ -307,4 +377,14 @@
   border-radius: var(--card-radius);
   padding: 12px;
   background: var(--card-bg);
+}
+
+@media (max-width: 720px) {
+  .dialogActions {
+    flex-direction: column-reverse;
+  }
+
+  .dialogActions > button {
+    width: 100%;
+  }
 }

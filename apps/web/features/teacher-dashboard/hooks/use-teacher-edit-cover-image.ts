@@ -1,14 +1,13 @@
 import {
-  ContentCoverImageAllowedContentTypes,
-  ContentCoverImageMaxSizeBytes,
-} from "@continuum/shared";
+  type TeacherCoverEntity,
+  deleteTeacherCoverImage,
+  fetchTeacherCoverView,
+  uploadTeacherCoverImage,
+  validateTeacherCoverImageFile,
+  type TeacherCoverPreviewResponse,
+} from "./teacher-cover-image.shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import {
-  teacherApi,
-  type CourseCoverImagePresignViewResponse,
-  type SectionCoverImagePresignViewResponse,
-} from "@/lib/api/teacher";
 import { contentQueryKeys } from "@/lib/query/keys";
 import { getApiErrorMessage } from "@/features/teacher-content/shared/api-errors";
 
@@ -37,12 +36,6 @@ type Params = {
   editingEntity: EditingCoverEntity;
   onAfterChange: () => Promise<unknown>;
 };
-
-type CoverImagePreviewResponse =
-  | CourseCoverImagePresignViewResponse
-  | SectionCoverImagePresignViewResponse;
-
-const ALLOWED_TYPES = new Set(ContentCoverImageAllowedContentTypes);
 const NOOP_PREVIEW_QUERY_KEY = ["content", "teacher", "cover-image", "noop"] as const;
 
 const createInitialCoverImageState = (editingEntity: EditingCoverEntity): CoverImageState => ({
@@ -58,60 +51,6 @@ const getPreviewQueryKey = (entity: Exclude<EditingCoverEntity, null>, assetKey:
     ? contentQueryKeys.teacherCourseCoverImagePreview(entity.id, assetKey)
     : contentQueryKeys.teacherSectionCoverImagePreview(entity.id, assetKey);
 
-const fetchCoverView = (entity: Exclude<EditingCoverEntity, null>) =>
-  entity.kind === "course"
-    ? teacherApi.presignCourseCoverImageView(entity.id, 600)
-    : teacherApi.presignSectionCoverImageView(entity.id, 600);
-
-const uploadCover = async (entity: Exclude<EditingCoverEntity, null>, file: File) => {
-  if (entity.kind === "course") {
-    const presigned = await teacherApi.presignCourseCoverImageUpload(entity.id, {
-      filename: file.name,
-      contentType: file.type,
-      sizeBytes: file.size,
-    });
-    const headers = new Headers(presigned.headers ?? {});
-    if (!headers.has("Content-Type")) {
-      headers.set("Content-Type", file.type);
-    }
-    const uploadResponse = await fetch(presigned.uploadUrl, {
-      method: "PUT",
-      headers,
-      body: file,
-    });
-    if (!uploadResponse.ok) {
-      throw new Error(`Не удалось загрузить файл (${uploadResponse.status}).`);
-    }
-    await teacherApi.applyCourseCoverImage(entity.id, presigned.assetKey);
-    return teacherApi.presignCourseCoverImageView(entity.id, 600);
-  }
-
-  const presigned = await teacherApi.presignSectionCoverImageUpload(entity.id, {
-    filename: file.name,
-    contentType: file.type,
-    sizeBytes: file.size,
-  });
-  const headers = new Headers(presigned.headers ?? {});
-  if (!headers.has("Content-Type")) {
-    headers.set("Content-Type", file.type);
-  }
-  const uploadResponse = await fetch(presigned.uploadUrl, {
-    method: "PUT",
-    headers,
-    body: file,
-  });
-  if (!uploadResponse.ok) {
-    throw new Error(`Не удалось загрузить файл (${uploadResponse.status}).`);
-  }
-  await teacherApi.applySectionCoverImage(entity.id, presigned.assetKey);
-  return teacherApi.presignSectionCoverImageView(entity.id, 600);
-};
-
-const deleteCover = (entity: Exclude<EditingCoverEntity, null>) =>
-  entity.kind === "course"
-    ? teacherApi.deleteCourseCoverImage(entity.id)
-    : teacherApi.deleteSectionCoverImage(entity.id);
-
 export const useTeacherEditCoverImage = ({ editingEntity, onAfterChange }: Params) => {
   const queryClient = useQueryClient();
   const coverImageInputRef = useRef<HTMLInputElement | null>(null);
@@ -119,21 +58,21 @@ export const useTeacherEditCoverImage = ({ editingEntity, onAfterChange }: Param
     createInitialCoverImageState(editingEntity),
   );
 
-  const previewQuery = useQuery<CoverImagePreviewResponse, Error>({
+  const previewQuery = useQuery<TeacherCoverPreviewResponse, Error>({
     queryKey:
       editingEntity && coverImageState.key
         ? getPreviewQueryKey(editingEntity, coverImageState.key)
         : NOOP_PREVIEW_QUERY_KEY,
-    queryFn: () => fetchCoverView(editingEntity!),
+    queryFn: () => fetchTeacherCoverView(editingEntity as TeacherCoverEntity),
     enabled: Boolean(editingEntity && coverImageState.key),
     retry: false,
   });
 
   const refreshPreviewUrl = useCallback(async () => {
     if (!editingEntity || !coverImageState.key) return null;
-    const response = await queryClient.fetchQuery<CoverImagePreviewResponse>({
+    const response = await queryClient.fetchQuery<TeacherCoverPreviewResponse>({
       queryKey: getPreviewQueryKey(editingEntity, coverImageState.key),
-      queryFn: () => fetchCoverView(editingEntity),
+      queryFn: () => fetchTeacherCoverView(editingEntity as TeacherCoverEntity),
       staleTime: 0,
     });
     setCoverImageState((prev) => ({
@@ -147,7 +86,7 @@ export const useTeacherEditCoverImage = ({ editingEntity, onAfterChange }: Param
 
   useEffect(() => {
     setCoverImageState(createInitialCoverImageState(editingEntity));
-  }, [editingEntity?.id, editingEntity?.assetKey, editingEntity?.kind]);
+  }, [editingEntity?.id, editingEntity?.kind]);
 
   useEffect(() => {
     if (!previewQuery.data) return;
@@ -169,7 +108,7 @@ export const useTeacherEditCoverImage = ({ editingEntity, onAfterChange }: Param
 
   const uploadMutation = useMutation({
     mutationFn: async ({ entity, file }: { entity: Exclude<EditingCoverEntity, null>; file: File }) => {
-      const view = await uploadCover(entity, file);
+      const view = await uploadTeacherCoverImage(entity as TeacherCoverEntity, file);
       queryClient.setQueryData(getPreviewQueryKey(entity, view.key), view);
       return view;
     },
@@ -177,7 +116,7 @@ export const useTeacherEditCoverImage = ({ editingEntity, onAfterChange }: Param
 
   const removeMutation = useMutation({
     mutationFn: async (entity: Exclude<EditingCoverEntity, null>) => {
-      await deleteCover(entity);
+      await deleteTeacherCoverImage(entity as TeacherCoverEntity);
     },
   });
 
@@ -187,20 +126,11 @@ export const useTeacherEditCoverImage = ({ editingEntity, onAfterChange }: Param
       event.currentTarget.value = "";
       if (!editingEntity || !file) return;
 
-      if (!ALLOWED_TYPES.has(file.type.toLowerCase() as (typeof ContentCoverImageAllowedContentTypes)[number])) {
+      const validationError = validateTeacherCoverImageFile(file);
+      if (validationError) {
         setCoverImageState((prev) => ({
           ...prev,
-          error: "Разрешены только JPEG, PNG и WEBP.",
-        }));
-        return;
-      }
-
-      if (file.size > ContentCoverImageMaxSizeBytes) {
-        setCoverImageState((prev) => ({
-          ...prev,
-          error: `Максимальный размер файла: ${Math.round(
-            ContentCoverImageMaxSizeBytes / (1024 * 1024),
-          )} MB.`,
+          error: validationError,
         }));
         return;
       }

@@ -1,769 +1,1137 @@
 .content {
-  --dashboard-paper: color-mix(in srgb, var(--surface-0) 84%, rgba(255, 255, 255, 0.72));
-  --dashboard-line: color-mix(in srgb, var(--border-primary) 18%, rgba(255, 255, 255, 0.6));
-  --dashboard-shadow: 0 28px 70px rgba(15, 23, 42, 0.1);
+  --sd-text: var(--text-primary);
+  --sd-muted: var(--text-muted);
+  --sd-panel-bg: var(--panel-bg);
+  --sd-card-bg: var(--card-bg);
+  --sd-surface-1: var(--surface-1);
+  --sd-surface-2: var(--surface-2);
+  --sd-border: var(--card-border);
+  --sd-border-soft: color-mix(in srgb, var(--card-border) 24%, transparent);
+  --sd-border-strong: color-mix(in srgb, var(--card-border) 42%, transparent);
+  --sd-shadow: var(--card-shadow);
+  --sd-panel-shadow: var(--panel-shadow);
+  --sd-glass-filter: var(--glass-filter);
   display: flex;
   flex-direction: column;
-  gap: clamp(20px, 3vw, 28px);
+  gap: 22px;
+  width: min(100%, 1360px);
+  margin: 0 auto;
+  min-height: 100%;
   position: relative;
 }
 
-.header {
+.panel,
+.sectionsPage {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
+  flex-direction: column;
   gap: 16px;
-  flex-wrap: wrap;
+  position: relative;
+  width: 100%;
 }
 
-.headerEyebrow {
-  margin-bottom: 10px;
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--text-muted);
+.pageGlow {
+  display: none;
 }
 
-.title {
+.pageIntro,
+.sectionsHeader,
+.bottomGrid,
+.sectionsListWrap,
+.carouselRoot,
+.empty,
+.error {
+  position: relative;
+  z-index: 1;
+}
+
+.pageIntro,
+.sectionsBackRow,
+.sectionsHeader,
+.sectionsListWrap {
+  width: 100%;
+  max-width: 1320px;
+  margin: 0 auto;
+}
+
+.pageTitle,
+.sectionsCourseTitle {
   font-family: var(--font-onest), sans-serif;
   font-weight: 500;
-  font-size: clamp(28px, 4vw, 46px);
-  line-height: 0.98;
+  color: var(--sd-text);
+  letter-spacing: -0.03em;
   text-wrap: balance;
-  max-width: 14ch;
 }
 
-.subtitle {
-  margin-top: 10px;
-  color: var(--text-muted);
-  font-size: 14px;
+.pageTitle {
+  font-size: clamp(30px, 3vw, 40px);
+  margin-bottom: 8px;
+}
+
+.pageSubtitle,
+.sectionsCourseDescription {
+  color: var(--sd-muted);
+  font-size: 15px;
   line-height: 1.6;
-  max-width: 560px;
-}
-
-.actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.actions button {
-  --button-bg: rgba(255, 255, 255, 0.74);
-  --button-border: var(--dashboard-line);
-  --button-text: var(--text-primary);
-  --button-hover-bg: rgba(255, 255, 255, 0.92);
-  --button-hover-border: color-mix(in srgb, var(--border-primary) 28%, rgba(255, 255, 255, 0.86));
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: 0 16px 34px rgba(15, 23, 42, 0.12);
+  max-width: 42rem;
 }
 
 .error {
-  border: 1px solid color-mix(in srgb, var(--status-error) 28%, rgba(255, 255, 255, 0.74));
-  background: color-mix(in srgb, var(--status-error) 10%, rgba(255, 255, 255, 0.9));
-  color: var(--text-primary);
-  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, #ef4444 35%, var(--sd-border));
+  background: color-mix(in srgb, #ef4444 10%, var(--sd-card-bg));
+  color: var(--sd-text);
+  padding: 12px 14px;
+  border-radius: 16px;
+  backdrop-filter: var(--sd-glass-filter);
+  -webkit-backdrop-filter: var(--sd-glass-filter);
+}
+
+.empty,
+.emptyCompact {
+  border: 1px dashed var(--sd-border-soft);
+  background: var(--sd-card-bg);
+  color: var(--sd-muted);
+  border-radius: 16px;
+}
+
+.empty {
+  padding: 16px;
+}
+
+.emptyCompact {
+  padding: 12px;
   font-size: 13px;
-  border-radius: 24px;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
 }
 
-.panel {
-  position: relative;
-  display: grid;
-  gap: clamp(18px, 2.8vw, 28px);
-}
-
-.heroBackdrop {
-  position: absolute;
-  inset: -44px 10% auto;
-  height: 360px;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.heroGlowPrimary,
-.heroGlowSecondary {
-  position: absolute;
-  border-radius: 999px;
-  filter: blur(72px);
-  opacity: 0.7;
-}
-
-.heroGlowPrimary {
-  width: min(58vw, 560px);
-  height: min(30vw, 280px);
-  left: 0;
-  top: 36px;
-  background:
-    radial-gradient(circle, rgba(117, 171, 255, 0.4) 0%, rgba(117, 171, 255, 0) 74%);
-}
-
-.heroGlowSecondary {
-  width: min(36vw, 340px);
-  height: min(24vw, 220px);
-  right: 8%;
-  top: 0;
-  background:
-    radial-gradient(circle, rgba(242, 246, 255, 0.94) 0%, rgba(242, 246, 255, 0) 74%);
-}
-
-.coursesTopGrid {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  gap: 16px;
-  grid-template-columns: minmax(0, 1.8fr) minmax(300px, 0.95fr);
-}
-
-.continueCard,
-.summaryCard,
-.courseHero,
-.courseCard,
-.sectionCard,
-.statCard {
-  position: relative;
+.carouselRoot {
+  width: 100%;
+  max-width: 1320px;
+  height: 344px;
+  min-height: 344px;
+  display: flex;
+  margin: 0 auto;
   overflow: hidden;
-  border: 1px solid var(--dashboard-line);
-  border-radius: 30px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(248, 251, 255, 0.74));
-  box-shadow: var(--dashboard-shadow);
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
+  border: 1px solid var(--sd-border-soft);
+  border-radius: 16px;
+  background: var(--sd-panel-bg);
+  box-shadow: var(--sd-panel-shadow);
 }
 
-.continueCard::before,
-.summaryCard::before,
-.courseHero::before,
-.courseCard::before,
-.sectionCard::before,
-.statCard::before {
-  content: "";
-  position: absolute;
-  inset: -20% auto auto -10%;
-  width: 180px;
-  height: 180px;
-  border-radius: 999px;
-  background: radial-gradient(circle, var(--dash-glow, rgba(117, 171, 255, 0.36)) 0%, transparent 72%);
-  pointer-events: none;
+.carouselActiveArea {
+  width: 80%;
+  height: 100%;
+  min-height: 344px;
+  border-right: 1px solid var(--sd-border-soft);
+  background: var(--sd-card-bg);
 }
 
-.continueCard,
-.summaryCard,
-.courseHero {
-  padding: clamp(20px, 3vw, 30px);
-}
-
-.heroEyebrow {
+.carouselActiveCard {
   position: relative;
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  width: fit-content;
-  padding: 8px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--dash-edge, rgba(47, 111, 237, 0.2));
-  background: rgba(255, 255, 255, 0.66);
-  color: var(--dash-ink, var(--text-primary));
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.continueContent {
-  position: relative;
-  z-index: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(148px, 210px);
-  gap: 20px;
-  align-items: center;
-  margin-top: 16px;
-}
-
-.continueCopy {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.continueTitle,
-.courseHeroTitle {
-  font-family: var(--font-onest), sans-serif;
-  font-size: clamp(30px, 4vw, 48px);
-  line-height: 0.98;
-  letter-spacing: -0.03em;
-  color: var(--text-primary);
-  text-wrap: balance;
-}
-
-.continueMeta,
-.courseHeroDescription,
-.sectionHeadingText,
-.courseDescription,
-.sectionCardDescription,
-.continueDescription {
-  color: var(--text-muted);
-  line-height: 1.65;
-}
-
-.continueMeta {
-  font-size: 14px;
-}
-
-.continueDescription {
-  max-width: 58ch;
-  font-size: 14px;
-}
-
-.continueVisual {
-  position: relative;
-  min-height: 176px;
-  border-radius: 26px;
-  border: 1px solid var(--dash-edge, rgba(47, 111, 237, 0.2));
-  background:
-    linear-gradient(160deg, var(--dash-accent-soft, rgba(47, 111, 237, 0.12)), rgba(255, 255, 255, 0.2));
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  grid-template-rows: minmax(0, 264px) 80px;
+  height: 100%;
+  min-height: 100%;
   overflow: hidden;
 }
 
-.heroCoverImage,
-.courseCoverImage {
+.carouselMainRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(320px, 0.62fr);
+  min-height: 0;
+  height: 100%;
+  align-items: stretch;
+}
+
+.carouselDecoration {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  opacity: 1;
+  pointer-events: none;
+  mix-blend-mode: unset;
+  filter: none;
+  transform-origin: center;
+}
+
+.carouselMediaPane {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  min-height: 0;
+  overflow: hidden;
+  border-left: 1px solid var(--sd-border-soft);
+  background: var(--sd-surface-1);
+}
+
+.carouselDecorationImage,
+.continuePreviewImage,
+.deckCoverImage,
+.carouselCoverImage {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
 }
 
-.heroGlyph,
-.courseGlyph {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 88px;
-  height: 88px;
-  border-radius: 28px;
-  color: var(--dash-accent, #2f6fed);
-  background: rgba(255, 255, 255, 0.72);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.65);
+.sectionsHeaderDecorationImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
 }
 
-.continueFooter {
+.carouselContent {
   position: relative;
   z-index: 1;
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 18px;
-  margin-top: 22px;
-  padding-top: 18px;
-  border-top: 1px solid rgba(148, 163, 184, 0.18);
-}
-
-.continueMetrics {
-  display: grid;
-  gap: 12px;
-  width: min(100%, 420px);
-}
-
-.heroButton {
-  min-width: 210px;
-}
-
-.summaryCard {
-  z-index: 1;
-}
-
-.summaryStack {
-  display: flex;
   flex-direction: column;
-  gap: 18px;
-  margin-top: 18px;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 28px 40px 24px 28px;
 }
 
-.summaryHighlight {
-  padding: 20px;
-  border-radius: 26px;
-  background:
-    linear-gradient(145deg, rgba(248, 250, 255, 0.96), rgba(239, 245, 255, 0.84));
-  border: 1px solid rgba(148, 163, 184, 0.16);
-}
-
-.summaryHighlightValue {
+.carouselTitle {
   font-family: var(--font-onest), sans-serif;
-  font-size: clamp(36px, 4vw, 52px);
-  line-height: 0.95;
+  font-weight: 500;
+  font-size: clamp(36px, 4.4vw, 58px);
+  line-height: 1.1;
+  color: var(--sd-text);
+  margin-bottom: 8px;
+  max-width: 42rem;
+  word-break: break-word;
 }
 
-.summaryHighlightLabel {
-  margin-top: 8px;
-  color: var(--text-muted);
-  font-size: 13px;
+.carouselDescriptionWrap {
+  display: flex;
+  gap: 24px;
+  max-width: 34rem;
 }
 
-.summaryMiniGrid {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.carouselDescriptionLine {
+  width: 3px;
+  border-radius: 999px;
+  background: var(--sd-border-soft);
+  flex-shrink: 0;
 }
 
-.summaryMiniMetric,
-.heroSummaryCard,
-.courseMetaPill {
-  padding: 14px 16px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.66);
-  border: 1px solid rgba(148, 163, 184, 0.14);
+.carouselDescription {
+  font-size: clamp(14px, 1.4vw, 18px);
+  color: var(--sd-muted);
+  line-height: 1.75;
+  font-weight: 300;
 }
 
-.summaryMiniLabel,
-.heroSummaryLabel,
-.courseMetaLabel,
-.sectionHeadingKicker,
-.statLabel,
-.sectionFootnote {
-  font-size: 11px;
-  letter-spacing: 0.14em;
+.carouselFooter {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  min-height: 80px;
+  border-top: 1px solid var(--sd-border-soft);
+  background: var(--sd-card-bg);
+  backdrop-filter: var(--sd-glass-filter);
+  -webkit-backdrop-filter: var(--sd-glass-filter);
+}
+
+.carouselStats {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 0 24px 0 32px;
+  border-right: 1px solid var(--sd-border-soft);
+}
+
+.carouselStatLabel,
+.progressCaption,
+.pillLabel,
+.notificationsPill,
+.sectionsCountPill {
+  font-size: 10px;
+  font-weight: 500;
   text-transform: uppercase;
-  color: var(--text-muted);
+  letter-spacing: 0.14em;
 }
 
-.summaryMiniValue,
-.heroSummaryValue,
-.courseMetaValue,
-.statValue {
-  display: block;
-  margin-top: 8px;
+.carouselStatLabel,
+.progressCaption {
+  color: var(--sd-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.carouselStatValue,
+.progressValue,
+.overallProgressValue {
+  color: var(--sd-text);
+  font-weight: 300;
   font-family: var(--font-onest), sans-serif;
-  font-size: 24px;
   line-height: 1;
-  color: var(--text-primary);
 }
 
-.statGrid {
-  display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.carouselStatValue {
+  font-size: clamp(28px, 3vw, 42px);
 }
 
-.statCard {
+.carouselDivider {
+  width: 1px;
+  height: 40px;
+  background: var(--sd-border-soft);
+}
+
+.carouselActionCell {
+  min-width: 220px;
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 20px;
 }
 
-.statIcon {
+.darkActionButton,
+.sectionOpenButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 16px;
-  background: var(--dash-accent-soft, rgba(47, 111, 237, 0.16));
-  color: var(--dash-accent, #2f6fed);
-}
-
-.courseRailSection,
-.sectionDeck {
-  display: grid;
-  gap: 16px;
-}
-
-.sectionHeading {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.sectionHeadingTitle {
-  margin-top: 6px;
-  font-family: var(--font-onest), sans-serif;
-  font-size: clamp(24px, 2.5vw, 34px);
-  line-height: 1.02;
-}
-
-.sectionHeadingText {
-  max-width: 520px;
+  gap: 10px;
+  border: none;
+  border-radius: 12px;
+  background: var(--bg-accent);
+  color: var(--text-accent);
   font-size: 14px;
+  font-weight: 500;
+  padding: 14px 24px;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: var(--button-shadow);
 }
 
-.courseRail {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(300px, 360px);
-  gap: 18px;
-  overflow-x: auto;
-  padding-bottom: 6px;
-  scroll-snap-type: x proximity;
+.darkActionButton svg,
+.sectionOpenButton svg {
+  transition: transform 0.2s ease;
 }
 
-.courseRail::-webkit-scrollbar {
-  height: 8px;
+.darkActionButton:hover,
+.sectionOpenButton:hover {
+  background: var(--button-hover-bg);
+  color: var(--button-hover-text);
 }
 
-.courseRail::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: rgba(148, 163, 184, 0.35);
+.darkActionButton:hover svg,
+.sectionOpenButton:hover svg,
+.sectionCard:hover .sectionOpenButton svg {
+  transform: translateX(4px);
 }
 
-.courseCard {
-  scroll-snap-align: start;
+.darkActionButton:active,
+.sectionOpenButton:active {
+  transform: scale(0.98);
+}
+
+.carouselActionCell .darkActionButton {
+  width: 100%;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.carouselDeckArea {
+  width: 20%;
+  position: relative;
+  background: var(--sd-surface-1);
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 20px 16px;
+  overflow: visible;
+}
+
+.carouselDeckStack {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0;
+}
+
+.deckCard {
+  position: absolute;
+  width: 100%;
+  max-width: 140px;
+  aspect-ratio: 4 / 5;
+  border: 1px solid var(--sd-border-soft);
+  border-radius: 18px;
+  background: var(--sd-card-bg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   text-align: left;
   cursor: pointer;
-  min-height: 430px;
-  transition:
-    box-shadow 0.25s ease,
-    border-color 0.25s ease;
+  box-shadow: var(--sd-shadow);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease, background 0.3s ease;
+  backdrop-filter: var(--sd-glass-filter);
+  -webkit-backdrop-filter: var(--sd-glass-filter);
 }
 
-.courseCard:focus-visible,
-.sectionCard:focus-visible,
-.inlineBackButton:focus-visible {
-  outline: 2px solid var(--border-primary);
-  outline-offset: 3px;
+.deckCard:hover {
+  border-color: var(--sd-border-strong);
+  box-shadow: var(--sd-panel-shadow);
+  background: var(--sd-surface-2);
 }
 
-.courseCard:hover,
-.sectionCard:hover {
-  box-shadow: 0 32px 90px rgba(15, 23, 42, 0.14);
-  border-color: var(--dash-edge, rgba(47, 111, 237, 0.22));
-}
-
-.courseArt {
-  position: relative;
-  min-height: 190px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
-  background:
-    linear-gradient(160deg, var(--dash-accent-soft, rgba(47, 111, 237, 0.16)), rgba(255, 255, 255, 0.14));
+.deckCardHeader {
   display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.deckArrowIcon {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--sd-surface-1);
+  color: var(--sd-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.deckCard:hover .deckArrowIcon {
+  opacity: 1;
+}
+
+.deckCoverFrame {
+  width: 100%;
+  height: 48px;
+  margin-bottom: 12px;
+  opacity: 0.3;
+  filter: grayscale(1);
+  mix-blend-mode: multiply;
+  transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
+.deckCard:hover .deckCoverFrame {
+  opacity: 0.8;
+  filter: grayscale(0);
+}
+
+.deckTitle {
+  color: var(--sd-text);
+  font-weight: 500;
+  line-height: 1.35;
+  font-size: 13px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.carouselDeckInfo {
+  position: absolute;
+  bottom: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--sd-muted);
+  background: var(--sd-surface-1);
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--sd-border-soft);
+}
+
+.carouselDeckInfoActive {
+  color: var(--sd-text);
+}
+
+.bottomGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  max-width: 1320px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.continueCard,
+.notificationsCard,
+.sectionsProgressPanel,
+.overallProgressCard,
+.sectionCard {
+  border: 1px solid var(--sd-border-soft);
+  background: var(--sd-card-bg);
+  backdrop-filter: var(--sd-glass-filter);
+  -webkit-backdrop-filter: var(--sd-glass-filter);
+  box-shadow: var(--sd-shadow);
+}
+
+.continueCard,
+.notificationsCard {
+  border-radius: 24px;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.continueGlow {
+  display: none;
+}
+
+.pillLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--sd-surface-1);
+  border: 1px solid var(--sd-border-soft);
+  box-shadow: var(--sd-shadow);
+  color: var(--sd-muted);
+  margin-bottom: 24px;
+}
+
+.pillLabelBlue {
+  color: #3b82f6;
+}
+
+.continueTitle {
+  font-family: var(--font-onest), sans-serif;
+  font-weight: 500;
+  font-size: clamp(28px, 3vw, 36px);
+  line-height: 1.12;
+  color: var(--sd-text);
+  margin-bottom: 8px;
+}
+
+.continueMeta {
+  color: var(--sd-muted);
+  font-size: 15px;
+  font-weight: 300;
+  max-width: 34rem;
+}
+
+.continueBottom {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--sd-border-soft);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+
+.continueProgressBox {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.progressValue,
+.overallProgressValue {
+  font-size: 32px;
+}
+
+.continueImagePlaceholder {
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
+  background: var(--sd-surface-1);
+  color: var(--sd-muted);
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
 }
 
-.courseBadge {
-  position: absolute;
-  top: 16px;
-  left: 16px;
+.notificationsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  gap: 12px;
+}
+
+.notificationsPill {
   display: inline-flex;
   align-items: center;
-  min-height: 34px;
-  padding: 0 12px;
+  gap: 8px;
+  padding: 8px 12px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.82);
-  color: var(--dash-ink, var(--text-primary));
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  color: var(--sd-text);
+  background: var(--sd-surface-1);
+  border: 1px solid var(--sd-border-soft);
+  box-shadow: var(--sd-shadow);
 }
 
-.courseBody {
+.notificationsCount {
+  font-size: 12px;
+  color: var(--sd-muted);
+  font-weight: 500;
+}
+
+.pingWrap {
+  position: relative;
+  display: inline-flex;
+  width: 8px;
+  height: 8px;
+}
+
+.pingPulse,
+.pingDot {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+}
+
+.pingPulse {
+  background: rgba(96, 165, 250, 0.75);
+  animation: dashboard-ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.pingDot {
+  background: #3b82f6;
+}
+
+.notificationsList {
   display: flex;
-  flex: 1;
   flex-direction: column;
-  gap: 16px;
-  padding: 20px;
+  gap: 14px;
+  min-height: 164px;
 }
 
-.courseTitleRow,
-.sectionCardHeading,
-.sectionCardFooter,
-.progressLabelRow,
-.heroSummaryMeta {
+.notificationItem {
+  display: flex;
+  gap: 14px;
+  padding: 12px;
+  border-radius: 16px;
+  position: relative;
+  transition: background 0.2s ease;
+}
+
+.notificationItem:hover {
+  background: var(--sd-surface-1);
+}
+
+.notificationUnread::before {
+  content: "";
+  position: absolute;
+  top: 18px;
+  left: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #3b82f6;
+}
+
+.notificationIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+}
+
+.notificationIconGreen {
+  background: #f0fdf4;
+  border-color: #dcfce7;
+  color: #22c55e;
+}
+
+.notificationIconBlue {
+  background: #eff6ff;
+  border-color: #dbeafe;
+  color: #2563eb;
+}
+
+.notificationIconSlate {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #475569;
+}
+
+.notificationBody {
+  min-width: 0;
+}
+
+.notificationTitle {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--sd-text);
+  margin-bottom: 4px;
+}
+
+.notificationText {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--sd-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.notificationTime,
+.notificationsFooter {
+  font-size: 10px;
+  color: var(--sd-muted);
+}
+
+.notificationTime {
+  display: block;
+  margin-top: 8px;
+}
+
+.notificationsFooter {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--sd-border-soft);
+  text-align: center;
+  color: var(--sd-text);
+  font-weight: 500;
+}
+
+.sectionsPage {
+  padding-top: 8px;
+}
+
+.sectionsBackRow {
+  display: flex;
+  align-items: center;
+}
+
+.backChip {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--sd-surface-1);
+  border: 1px solid var(--sd-border-soft);
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: var(--sd-muted);
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.backChip:hover {
+  background: var(--sd-surface-2);
+  border-color: var(--sd-border-strong);
+}
+
+.backChip:active {
+  transform: scale(0.98);
+}
+
+.sectionsHero {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 28%);
+  align-items: stretch;
+  gap: 0;
+}
+
+.sectionsHeroCopy {
+  max-width: 34rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 18px 22px;
+}
+
+.sectionsCourseTitle {
+  font-size: clamp(24px, 2.6vw, 36px);
+  line-height: 1.1;
+  margin-bottom: 10px;
+  max-width: 30rem;
+}
+
+.sectionsProgressPanel,
+.overallProgressCard {
+  min-width: 0;
+  padding: 0;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.sectionsHeaderDecoration {
+  min-height: 154px;
+  height: 100%;
+  overflow: hidden;
+  border-left: 1px solid var(--sd-border-soft);
+  background: var(--sd-surface-1);
+}
+
+.progressMetric {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progressMetricRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-}
-
-.courseTitle {
-  font-family: var(--font-onest), sans-serif;
-  font-size: 26px;
-  line-height: 1.02;
-  letter-spacing: -0.03em;
-  text-wrap: balance;
-}
-
-.courseDescription,
-.sectionCardDescription {
-  font-size: 14px;
-}
-
-.courseMetaGrid {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.courseProgressFooter {
-  margin-top: auto;
-}
-
-.progressBlock {
-  display: grid;
-  gap: 8px;
-}
-
-.progressLabelRow {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--sd-muted);
 }
 
 .progressTrack {
-  height: 9px;
+  width: 100%;
+  height: 6px;
+  background: var(--sd-border-soft);
   border-radius: 999px;
-  background: rgba(148, 163, 184, 0.14);
   overflow: hidden;
 }
 
 .progressFill {
   height: 100%;
+  background: #3b82f6;
   border-radius: inherit;
-  background:
-    linear-gradient(90deg, var(--dash-accent, #2f6fed), color-mix(in srgb, var(--dash-accent, #2f6fed) 58%, white));
 }
 
-.courseHero {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
-  gap: 20px;
-}
-
-.courseHeroCopy,
-.courseHeroSide {
+.sectionsHeader {
   position: relative;
-  z-index: 1;
+  overflow: visible;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  min-height: 0;
 }
 
-.inlineBackButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 18px;
-  padding: 10px 14px;
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.72);
-  color: var(--text-primary);
-  cursor: pointer;
+.sectionsMainCard {
+  border: 1px solid var(--sd-border-soft);
+  border-radius: 24px;
+  overflow: hidden;
+  background: var(--sd-card-bg);
+  box-shadow: 0 6px 18px -18px rgba(15, 23, 42, 0.14);
 }
 
-.courseHeroDescription {
-  max-width: 62ch;
-  margin-top: 16px;
+.sectionsHeroFooter {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: 20px;
+  padding: 14px 22px 16px;
+  border-top: 1px solid var(--sd-border-soft);
 }
 
-.heroSummaryCard {
+.sectionsListWrap {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  height: 100%;
-  justify-content: center;
+  gap: 12px;
 }
 
-.heroSummaryMeta {
-  margin-top: 2px;
-  color: var(--text-muted);
-  font-size: 13px;
-  flex-wrap: wrap;
+.sectionsListHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  padding-inline: 0;
 }
 
-.sectionList {
-  display: grid;
+.sectionsListTitle {
+  font-family: var(--font-onest), sans-serif;
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--sd-text);
+}
+
+.sectionsList {
+  display: flex;
+  flex-direction: column;
   gap: 16px;
 }
 
 .sectionCard {
   display: grid;
-  grid-template-columns: minmax(118px, 148px) minmax(0, 1fr);
-  gap: 18px;
-  padding: 18px;
+  grid-template-columns: 160px minmax(0, 1fr) 168px;
+  align-items: stretch;
+  gap: 20px;
+  padding: 24px;
   text-align: left;
-  cursor: pointer;
-}
-
-.sectionCardVisual {
-  position: relative;
-  min-height: 150px;
   border-radius: 24px;
-  border: 1px solid var(--dash-edge, rgba(47, 111, 237, 0.2));
-  background:
-    linear-gradient(160deg, var(--dash-accent-soft, rgba(47, 111, 237, 0.16)), rgba(255, 255, 255, 0.08));
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  padding: 18px;
+  cursor: pointer;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
-.sectionOrdinal {
-  font-family: var(--font-onest), sans-serif;
-  font-size: clamp(34px, 5vw, 56px);
-  line-height: 0.9;
-  color: color-mix(in srgb, var(--dash-accent, #2f6fed) 78%, white);
+.sectionCard:hover {
+  box-shadow: 0 18px 30px -24px rgba(15, 23, 42, 0.35);
 }
 
-.sectionVisualBadge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 42px;
-  height: 42px;
+.sectionMediaBlock {
+  position: relative;
+  width: 160px;
+  aspect-ratio: 1;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.74);
-  color: var(--dash-accent, #2f6fed);
-}
-
-.sectionCardBody {
+  background: var(--sd-surface-1);
+  border: 1px solid var(--sd-border-soft);
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  justify-content: center;
-}
-
-.sectionCardTitle {
-  font-family: var(--font-onest), sans-serif;
-  font-size: clamp(22px, 2.4vw, 30px);
-  line-height: 1.04;
-  letter-spacing: -0.03em;
-}
-
-.status {
-  display: inline-flex;
   align-items: center;
-  min-height: 32px;
-  padding: 0 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  background: rgba(255, 255, 255, 0.68);
-  color: var(--text-muted);
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  justify-content: center;
+  overflow: hidden;
   flex-shrink: 0;
 }
 
-.sectionCardFooter {
-  margin-top: 6px;
-  color: var(--dash-ink, var(--text-primary));
+.sectionOrdinalPill {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 1;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--sd-muted);
+  background: var(--sd-surface-2);
+  border-radius: 8px;
+  padding: 3px 8px;
+  border: 1px solid var(--sd-border-soft);
 }
 
-.empty,
-.emptyState {
-  display: flex;
-  gap: 14px;
-  align-items: flex-start;
-  padding: 18px;
-  border-radius: 24px;
-  border: 1px dashed rgba(148, 163, 184, 0.24);
-  background: rgba(255, 255, 255, 0.72);
-  color: var(--text-muted);
-}
-
-.emptyState {
-  margin-top: 18px;
-}
-
-.emptyIcon {
+.sectionPlayBadge {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  background: var(--sd-surface-2);
+  border: 1px solid var(--sd-border-soft);
+  box-shadow: var(--sd-shadow);
+  color: var(--sd-text);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.86);
-  color: var(--dash-accent, #2f6fed);
 }
 
-.emptyTitle {
-  font-family: var(--font-onest), sans-serif;
-  font-size: 22px;
-  line-height: 1.05;
-  color: var(--text-primary);
+.sectionContentBlock {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
-.emptyText {
-  margin-top: 6px;
+.sectionTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.sectionTitle {
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--sd-text);
+  letter-spacing: -0.02em;
+}
+
+.sectionDescription {
+  color: var(--sd-muted);
+  margin-bottom: 20px;
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.7;
+  max-width: 34rem;
 }
 
-@media (max-width: 1080px) {
-  .coursesTopGrid,
-  .courseHero,
-  .statGrid {
+.sectionProgressInline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sectionProgressBadge {
+  font-size: 12px;
+  color: var(--sd-text);
+  background: var(--sd-surface-1);
+  border-radius: 8px;
+  padding: 2px 10px;
+  border: 1px solid var(--sd-border-soft);
+}
+
+.sectionActionBlock {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  border-left: 1px solid var(--sd-border-soft);
+  padding-left: 20px;
+}
+
+.sectionOpenButton {
+  width: 100%;
+}
+
+@keyframes dashboard-ping {
+  75%,
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+@media (max-width: 1200px) {
+  .carouselRoot {
+    height: 340px;
+    min-height: 340px;
+  }
+
+  .carouselActionCell {
+    min-width: 190px;
+  }
+
+  .sectionsHero {
+    grid-template-columns: minmax(0, 1fr) minmax(200px, 260px);
+  }
+
+}
+
+@media (max-width: 1024px) {
+  .bottomGrid {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .sectionsHero {
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 900px) {
+  .carouselRoot {
+    flex-direction: column;
+    height: auto;
+    min-height: auto;
+  }
+
+  .carouselActiveArea,
+  .carouselDeckArea {
+    width: 100%;
+  }
+
+  .carouselActiveArea {
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+  }
+
+  .carouselActiveCard {
+    grid-template-rows: minmax(0, 1fr) auto;
+    height: auto;
+  }
+
+  .carouselDeckArea {
+    padding-block: 20px 60px;
+    min-height: 220px;
+  }
+
+  .carouselDeckStack {
+    height: 150px;
+    margin-top: 0;
+  }
+
+  .deckCard {
+    max-width: 180px;
+  }
+
+  .sectionCard {
     grid-template-columns: 1fr;
   }
 
-  .continueFooter {
+  .carouselMainRow {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .carouselMediaPane {
+    min-height: 220px;
+    border-left: none;
+    border-top: 1px solid rgba(226, 232, 240, 0.45);
+  }
+
+  .sectionsHero {
+    grid-template-columns: 1fr;
+  }
+
+  .sectionsHeaderDecoration {
+    border-left: none;
+    border-top: 1px solid rgba(226, 232, 240, 0.45);
+    min-height: 160px;
+  }
+
+  .sectionsHeroFooter {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .heroButton {
+  .sectionMediaBlock {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+  }
+
+  .sectionActionBlock {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid rgba(226, 232, 240, 0.5);
+    padding-left: 0;
+    padding-top: 20px;
+    justify-content: stretch;
+  }
+}
+
+@media (max-width: 640px) {
+  .carouselContent {
+    padding: 24px 20px;
+  }
+
+  .carouselFooter,
+  .continueBottom,
+  .sectionsListHead,
+  .sectionsHeroFooter {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .carouselStats {
+    border-right: none;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+    padding: 16px 20px;
+    gap: 20px;
+  }
+
+  .carouselActionCell {
     width: 100%;
   }
-}
 
-@media (max-width: 780px) {
-  .continueContent,
+  .continueCard,
   .sectionCard {
-    grid-template-columns: 1fr;
+    padding: 18px;
   }
 
-  .courseRail {
-    grid-auto-columns: minmax(270px, 88vw);
-  }
-
-  .courseMetaGrid,
-  .summaryMiniGrid {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .courseTitleRow,
-  .sectionCardHeading,
-  .sectionCardFooter,
-  .sectionHeading {
-    align-items: flex-start;
-  }
-}
-
-@media (max-width: 560px) {
-  .title {
+  .pageTitle,
+  .sectionsCourseTitle {
     max-width: none;
   }
 
-  .courseCard,
-  .continueCard,
-  .summaryCard,
-  .courseHero,
-  .sectionCard,
-  .statCard {
-    border-radius: 24px;
-  }
-
-  .courseBody,
-  .continueCard,
-  .summaryCard,
-  .courseHero,
-  .sectionCard {
-    padding: 16px;
-  }
-
-  .courseMetaGrid,
-  .summaryMiniGrid,
-  .statGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .sectionCardVisual {
-    min-height: 124px;
+  .deckCard {
+    max-width: 150px;
   }
 }

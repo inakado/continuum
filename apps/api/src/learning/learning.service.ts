@@ -173,6 +173,66 @@ export class LearningService {
     };
   }
 
+  async getPublishedCourseForStudent(studentId: string, courseId: string) {
+    const course = await this.prisma.course.findFirst({
+      where: { id: courseId, status: ContentStatus.published },
+      include: {
+        sections: {
+          where: { status: ContentStatus.published },
+          orderBy: { sortOrder: 'asc' },
+          include: {
+            units: {
+              where: { status: ContentStatus.published },
+              orderBy: { sortOrder: 'asc' },
+              select: {
+                id: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!course) {
+      throw new NotFoundException('Course not found');
+    }
+
+    const sections = await Promise.all(
+      course.sections.map(async (section) => {
+        const snapshots = await this.learningAvailabilityService.recomputeSectionAvailability(studentId, section.id);
+        const progressSum = section.units.reduce(
+          (sum, unit) => sum + (snapshots.get(unit.id)?.completionPercent ?? 0),
+          0,
+        );
+        const unitCount = section.units.length;
+
+        return {
+          id: section.id,
+          courseId: section.courseId,
+          title: section.title,
+          description: section.description,
+          coverImageAssetKey: section.coverImageAssetKey ?? null,
+          completionPercent: unitCount > 0 ? Math.floor(progressSum / unitCount) : 0,
+          status: section.status,
+          sortOrder: section.sortOrder,
+          createdAt: section.createdAt.toISOString(),
+          updatedAt: section.updatedAt.toISOString(),
+        };
+      }),
+    );
+
+    return {
+      id: course.id,
+      title: course.title,
+      description: course.description,
+      coverImageAssetKey: course.coverImageAssetKey ?? null,
+      status: course.status,
+      createdAt: course.createdAt.toISOString(),
+      updatedAt: course.updatedAt.toISOString(),
+      sections,
+    };
+  }
+
   async getPublishedSectionGraphForStudent(studentId: string, sectionId: string) {
     const graph = await this.contentService.getPublishedSectionGraph(sectionId);
     const snapshots = await this.learningAvailabilityService.getSectionGraphAvailabilitySnapshot(

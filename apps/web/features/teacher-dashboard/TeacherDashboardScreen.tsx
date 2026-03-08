@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useMemo, type ChangeEvent, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, type ChangeEvent, type RefObject } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { ImagePlus, Pencil, Trash2 } from "lucide-react";
 import DashboardShell from "@/components/DashboardShell";
 import AlertDialog from "@/components/ui/AlertDialog";
 import Button from "@/components/ui/Button";
+import Dialog from "@/components/ui/Dialog";
 import Input from "@/components/ui/Input";
 import Switch from "@/components/ui/Switch";
 import Textarea from "@/components/ui/Textarea";
@@ -17,6 +18,7 @@ import { useTeacherIdentity } from "@/features/teacher-content/shared/use-teache
 import TeacherStudentsPanel from "@/features/teacher-students/TeacherStudentsPanel";
 import TeacherReviewInboxPanel from "@/features/teacher-review/TeacherReviewInboxPanel";
 import TeacherReviewSubmissionDetailPanel from "@/features/teacher-review/TeacherReviewSubmissionDetailPanel";
+import { useTeacherCreateCoverImage } from "./hooks/use-teacher-create-cover-image";
 import { useTeacherEditCoverImage } from "./hooks/use-teacher-edit-cover-image";
 import { useTeacherEditMode } from "./hooks/use-teacher-edit-mode";
 import styles from "./teacher-dashboard.module.css";
@@ -114,52 +116,147 @@ function TeacherAnalyticsMode({ content }: { content: ContentConfig }) {
 type TeacherCourseCreateFormProps = {
   title: string;
   description: string;
+  coverImageUrl: string | null;
+  coverImageStatusText: string;
   error: string | null;
   saving: boolean;
   onTitleChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
+  onPickCoverImage: () => void;
+  onRemoveCoverImage: () => void;
+  onCoverImageSelected: (event: ChangeEvent<HTMLInputElement>) => void;
+  coverImageInputRef: RefObject<HTMLInputElement | null>;
   onSave: () => void;
   onCancel: () => void;
 };
 
+type TeacherCoverImageEditorProps = {
+  inputName: string;
+  coverImageUrl: string | null;
+  coverImageStatusText: string;
+  placeholderText: string;
+  onPickCoverImage: () => void;
+  onRemoveCoverImage: () => void;
+  onCoverImageSelected: (event: ChangeEvent<HTMLInputElement>) => void;
+  onCoverImagePreviewError?: () => void;
+  coverImageInputRef: RefObject<HTMLInputElement | null>;
+};
+
+function TeacherCoverImageEditor({
+  inputName,
+  coverImageUrl,
+  coverImageStatusText,
+  placeholderText,
+  onPickCoverImage,
+  onRemoveCoverImage,
+  onCoverImageSelected,
+  onCoverImagePreviewError,
+  coverImageInputRef,
+}: TeacherCoverImageEditorProps) {
+  return (
+    <div className={styles.coverEditor}>
+      <div className={styles.coverEditorHeader}>
+        <span className={styles.labelTitle}>Обложка</span>
+        <input
+          ref={coverImageInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          name={inputName}
+          className={styles.coverInput}
+          onChange={onCoverImageSelected}
+        />
+        <div className={styles.coverActions}>
+          <Button variant="ghost" className={styles.coverActionButton} onClick={onPickCoverImage}>
+            <ImagePlus size={14} aria-hidden="true" />
+            Загрузить
+          </Button>
+          {coverImageUrl ? (
+            <Button
+              variant="ghost"
+              className={`${styles.coverActionButton} ${styles.coverActionDanger}`}
+              onClick={onRemoveCoverImage}
+            >
+              Удалить
+            </Button>
+          ) : null}
+        </div>
+      </div>
+      {coverImageUrl ? (
+        <div className={styles.coverPreviewWrap}>
+          <img
+            src={coverImageUrl}
+            alt=""
+            className={styles.coverPreview}
+            onError={onCoverImagePreviewError}
+          />
+        </div>
+      ) : (
+        <div className={styles.coverPlaceholder}>{placeholderText}</div>
+      )}
+      <div className={styles.coverStatus}>{coverImageStatusText}</div>
+    </div>
+  );
+}
+
 function TeacherCourseCreateForm({
   title,
   description,
+  coverImageUrl,
+  coverImageStatusText,
   error,
   saving,
   onTitleChange,
   onDescriptionChange,
+  onPickCoverImage,
+  onRemoveCoverImage,
+  onCoverImageSelected,
+  coverImageInputRef,
   onSave,
   onCancel,
 }: TeacherCourseCreateFormProps) {
   return (
-    <div className={styles.inlineForm}>
-      <label className={styles.label}>
-        Название курса
-        <Input
-          value={title}
-          onChange={(event) => onTitleChange(event.target.value)}
-          name="courseTitle"
-          autoComplete="off"
-          placeholder="Например, Математика 7 класс…"
-        />
-      </label>
-      <label className={styles.label}>
-        Описание курса
-        <Textarea
-          value={description}
-          onChange={(event) => onDescriptionChange(event.target.value)}
-          name="courseDescription"
-          rows={3}
-          placeholder="Коротко опишите курс..."
-        />
-      </label>
-      {error ? <div className={styles.formError}>{error}</div> : null}
-      <div className={styles.actions}>
-        <Button onClick={onSave} disabled={!title.trim() || saving}>
+    <div className={styles.createDialogBody}>
+      <div className={styles.createDialogFields}>
+        <label className={styles.label}>
+          Название курса
+          <Input
+            autoFocus
+            className={styles.createDialogInput}
+            value={title}
+            onChange={(event) => onTitleChange(event.target.value)}
+            name="courseTitle"
+            autoComplete="off"
+            placeholder="Например, Математика 7 класс…"
+          />
+        </label>
+        <label className={styles.label}>
+          Описание курса
+          <Textarea
+            className={styles.createDialogTextarea}
+            value={description}
+            onChange={(event) => onDescriptionChange(event.target.value)}
+            name="courseDescription"
+            rows={4}
+            placeholder="Коротко опишите курс..."
+          />
+        </label>
+      </div>
+      <TeacherCoverImageEditor
+        inputName="courseCoverImage"
+        coverImageUrl={coverImageUrl}
+        coverImageStatusText={coverImageStatusText}
+        placeholderText="Обложка пока не загружена."
+        onPickCoverImage={onPickCoverImage}
+        onRemoveCoverImage={onRemoveCoverImage}
+        onCoverImageSelected={onCoverImageSelected}
+        coverImageInputRef={coverImageInputRef}
+      />
+      {error ? <div className={`${styles.formError} ${styles.createDialogError}`}>{error}</div> : null}
+      <div className={styles.createDialogActions}>
+        <Button className={styles.createDialogPrimaryAction} onClick={onSave} disabled={!title.trim() || saving}>
           Сохранить курс
         </Button>
-        <Button variant="ghost" onClick={onCancel}>
+        <Button variant="ghost" className={styles.createDialogSecondaryAction} onClick={onCancel}>
           Отмена
         </Button>
       </div>
@@ -170,10 +267,16 @@ function TeacherCourseCreateForm({
 type TeacherSectionCreateFormProps = {
   title: string;
   description: string;
+  coverImageUrl: string | null;
+  coverImageStatusText: string;
   error: string | null;
   saving: boolean;
   onTitleChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
+  onPickCoverImage: () => void;
+  onRemoveCoverImage: () => void;
+  onCoverImageSelected: (event: ChangeEvent<HTMLInputElement>) => void;
+  coverImageInputRef: RefObject<HTMLInputElement | null>;
   onSave: () => void;
   onCancel: () => void;
 };
@@ -181,41 +284,62 @@ type TeacherSectionCreateFormProps = {
 function TeacherSectionCreateForm({
   title,
   description,
+  coverImageUrl,
+  coverImageStatusText,
   error,
   saving,
   onTitleChange,
   onDescriptionChange,
+  onPickCoverImage,
+  onRemoveCoverImage,
+  onCoverImageSelected,
+  coverImageInputRef,
   onSave,
   onCancel,
 }: TeacherSectionCreateFormProps) {
   return (
-    <div className={styles.inlineForm}>
-      <label className={styles.label}>
-        Название раздела
-        <Input
-          value={title}
-          onChange={(event) => onTitleChange(event.target.value)}
-          name="sectionTitle"
-          autoComplete="off"
-          placeholder="Например, Дроби и проценты…"
-        />
-      </label>
-      <label className={styles.label}>
-        Описание раздела
-        <Textarea
-          value={description}
-          onChange={(event) => onDescriptionChange(event.target.value)}
-          name="sectionDescription"
-          rows={3}
-          placeholder="Коротко опишите, что изучают в этом разделе..."
-        />
-      </label>
-      {error ? <div className={styles.formError}>{error}</div> : null}
-      <div className={styles.actions}>
-        <Button onClick={onSave} disabled={!title.trim() || saving}>
+    <div className={styles.createDialogBody}>
+      <div className={styles.createDialogFields}>
+        <label className={styles.label}>
+          Название раздела
+          <Input
+            autoFocus
+            className={styles.createDialogInput}
+            value={title}
+            onChange={(event) => onTitleChange(event.target.value)}
+            name="sectionTitle"
+            autoComplete="off"
+            placeholder="Например, Дроби и проценты…"
+          />
+        </label>
+        <label className={styles.label}>
+          Описание раздела
+          <Textarea
+            className={styles.createDialogTextarea}
+            value={description}
+            onChange={(event) => onDescriptionChange(event.target.value)}
+            name="sectionDescription"
+            rows={4}
+            placeholder="Коротко опишите, что изучают в этом разделе..."
+          />
+        </label>
+      </div>
+      <TeacherCoverImageEditor
+        inputName="sectionCoverImage"
+        coverImageUrl={coverImageUrl}
+        coverImageStatusText={coverImageStatusText}
+        placeholderText="Обложка пока не загружена."
+        onPickCoverImage={onPickCoverImage}
+        onRemoveCoverImage={onRemoveCoverImage}
+        onCoverImageSelected={onCoverImageSelected}
+        coverImageInputRef={coverImageInputRef}
+      />
+      {error ? <div className={`${styles.formError} ${styles.createDialogError}`}>{error}</div> : null}
+      <div className={styles.createDialogActions}>
+        <Button className={styles.createDialogPrimaryAction} onClick={onSave} disabled={!title.trim() || saving}>
           Сохранить раздел
         </Button>
-        <Button variant="ghost" onClick={onCancel}>
+        <Button variant="ghost" className={styles.createDialogSecondaryAction} onClick={onCancel}>
           Отмена
         </Button>
       </div>
@@ -389,10 +513,11 @@ function TeacherEditDialogPanel({
   onCancel,
 }: TeacherEditDialogPanelProps) {
   return (
-    <div className={styles.inlineForm} role="dialog" aria-label="Редактирование">
+    <div className={styles.editDialogBody}>
       <label className={styles.label}>
         Название
         <Input
+          autoFocus
           value={title}
           onChange={(event) => onTitleChange(event.target.value)}
           name="editTitle"
@@ -410,42 +535,17 @@ function TeacherEditDialogPanel({
           placeholder="Введите описание..."
         />
       </label>
-      <div className={styles.coverEditor}>
-        <div className={styles.coverEditorHeader}>
-          <span className={styles.labelTitle}>Обложка</span>
-          <input
-            ref={coverImageInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            className={styles.coverInput}
-            onChange={onCoverImageSelected}
-          />
-          <div className={styles.coverActions}>
-            <Button variant="ghost" onClick={onPickCoverImage}>
-              <ImagePlus size={14} aria-hidden="true" />
-              Загрузить
-            </Button>
-            {coverImageUrl ? (
-              <Button variant="ghost" onClick={onRemoveCoverImage}>
-                Удалить
-              </Button>
-            ) : null}
-          </div>
-        </div>
-        {coverImageUrl ? (
-          <div className={styles.coverPreviewWrap}>
-            <img
-              src={coverImageUrl}
-              alt=""
-              className={styles.coverPreview}
-              onError={onCoverImagePreviewError}
-            />
-          </div>
-        ) : (
-          <div className={styles.coverPlaceholder}>Обложка пока не загружена.</div>
-        )}
-        <div className={styles.coverStatus}>{coverImageStatusText}</div>
-      </div>
+      <TeacherCoverImageEditor
+        inputName="editCoverImage"
+        coverImageUrl={coverImageUrl}
+        coverImageStatusText={coverImageStatusText}
+        placeholderText="Обложка пока не загружена."
+        onPickCoverImage={onPickCoverImage}
+        onRemoveCoverImage={onRemoveCoverImage}
+        onCoverImageSelected={onCoverImageSelected}
+        onCoverImagePreviewError={onCoverImagePreviewError}
+        coverImageInputRef={coverImageInputRef}
+      />
       {error ? <div className={styles.formError}>{error}</div> : null}
       <div className={styles.actions}>
         <Button onClick={onSave} disabled={!title.trim() || saving}>
@@ -463,17 +563,8 @@ type TeacherCourseListPanelProps = {
   courses: Course[];
   selectedCourseId: string | null;
   loadingCourses: boolean;
-  showCourseForm: boolean;
-  courseTitle: string;
-  courseDescription: string;
-  courseFormError: string | null;
-  creatingCourse: boolean;
   formatCreatedAt: (value: string) => string;
   onToggleCourseForm: () => void;
-  onCourseTitleChange: (value: string) => void;
-  onCourseDescriptionChange: (value: string) => void;
-  onCreateCourse: () => void;
-  onCancelCourseForm: () => void;
   onOpenCourse: (courseId: string) => void;
   onPublishCourseToggle: (course: Course) => void;
   onEditCourse: (course: Course) => void;
@@ -484,17 +575,8 @@ function TeacherCourseListPanel({
   courses,
   selectedCourseId,
   loadingCourses,
-  showCourseForm,
-  courseTitle,
-  courseDescription,
-  courseFormError,
-  creatingCourse,
   formatCreatedAt,
   onToggleCourseForm,
-  onCourseTitleChange,
-  onCourseDescriptionChange,
-  onCreateCourse,
-  onCancelCourseForm,
   onOpenCourse,
   onPublishCourseToggle,
   onEditCourse,
@@ -512,19 +594,6 @@ function TeacherCourseListPanel({
       </div>
 
       <div className={styles.panelBody}>
-        {showCourseForm ? (
-          <TeacherCourseCreateForm
-            title={courseTitle}
-            description={courseDescription}
-            error={courseFormError}
-            saving={creatingCourse}
-            onTitleChange={onCourseTitleChange}
-            onDescriptionChange={onCourseDescriptionChange}
-            onSave={onCreateCourse}
-            onCancel={onCancelCourseForm}
-          />
-        ) : null}
-
         {loadingCourses ? (
           <div className={styles.empty}>Загрузка курсов…</div>
         ) : courses.length === 0 ? (
@@ -554,18 +623,9 @@ type TeacherSectionListPanelProps = {
   selectedCourse: CourseWithSections;
   sortedSections: Section[];
   loadingSections: boolean;
-  showSectionForm: boolean;
-  sectionTitle: string;
-  sectionDescription: string;
-  sectionFormError: string | null;
-  creatingSection: boolean;
   formatCreatedAt: (value: string) => string;
   onBackToCourses: () => void;
   onToggleSectionForm: () => void;
-  onSectionTitleChange: (value: string) => void;
-  onSectionDescriptionChange: (value: string) => void;
-  onCreateSection: () => void;
-  onCancelSectionForm: () => void;
   onOpenSection: (section: Section) => void;
   onPublishSectionToggle: (section: Section) => void;
   onEditSection: (section: Section) => void;
@@ -576,18 +636,9 @@ function TeacherSectionListPanel({
   selectedCourse,
   sortedSections,
   loadingSections,
-  showSectionForm,
-  sectionTitle,
-  sectionDescription,
-  sectionFormError,
-  creatingSection,
   formatCreatedAt,
   onBackToCourses,
   onToggleSectionForm,
-  onSectionTitleChange,
-  onSectionDescriptionChange,
-  onCreateSection,
-  onCancelSectionForm,
   onOpenSection,
   onPublishSectionToggle,
   onEditSection,
@@ -609,19 +660,6 @@ function TeacherSectionListPanel({
       </div>
 
       <div className={styles.panelBody}>
-        {showSectionForm ? (
-          <TeacherSectionCreateForm
-            title={sectionTitle}
-            description={sectionDescription}
-            error={sectionFormError}
-            saving={creatingSection}
-            onTitleChange={onSectionTitleChange}
-            onDescriptionChange={onSectionDescriptionChange}
-            onSave={onCreateSection}
-            onCancel={onCancelSectionForm}
-          />
-        ) : null}
-
         {loadingSections ? (
           <div className={styles.empty}>Загрузка разделов…</div>
         ) : sortedSections.length === 0 ? (
@@ -744,6 +782,26 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
   }, [refreshCourses, refreshSelectedCourse, selectedCourseId]);
 
   const {
+    coverImageInputRef: courseCreateCoverImageInputRef,
+    coverImageState: courseCreateCoverImageState,
+    coverImageStatusText: courseCreateCoverImageStatusText,
+    handleCoverImageSelected: handleCourseCreateCoverImageSelected,
+    handleCoverImageRemove: handleCourseCreateCoverImageRemove,
+    uploadAfterCreate: uploadCourseCreateCoverImageAfterCreate,
+    reset: resetCourseCreateCoverImage,
+  } = useTeacherCreateCoverImage();
+
+  const {
+    coverImageInputRef: sectionCreateCoverImageInputRef,
+    coverImageState: sectionCreateCoverImageState,
+    coverImageStatusText: sectionCreateCoverImageStatusText,
+    handleCoverImageSelected: handleSectionCreateCoverImageSelected,
+    handleCoverImageRemove: handleSectionCreateCoverImageRemove,
+    uploadAfterCreate: uploadSectionCreateCoverImageAfterCreate,
+    reset: resetSectionCreateCoverImage,
+  } = useTeacherCreateCoverImage();
+
+  const {
     coverImageInputRef,
     coverImageState,
     coverImageStatusText,
@@ -754,6 +812,10 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
     editingEntity,
     onAfterChange: handleRefreshEditEntity,
   });
+
+  useEffect(() => {
+    resetSectionCreateCoverImage();
+  }, [resetSectionCreateCoverImage, selectedCourseId]);
 
   return (
     <>
@@ -780,11 +842,6 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
           selectedCourse={selectedCourse}
           sortedSections={sortedSections}
           loadingSections={loadingSections}
-          showSectionForm={showSectionForm}
-          sectionTitle={sectionTitle}
-          sectionDescription={sectionDescription}
-          sectionFormError={sectionFormError}
-          creatingSection={creatingSection}
           formatCreatedAt={formatCreatedAt}
           onBackToCourses={handleBackToCoursesRoot}
           onToggleSectionForm={() => {
@@ -792,10 +849,6 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
             setSectionFormError(null);
             setSectionDescription("");
           }}
-          onSectionTitleChange={setSectionTitle}
-          onSectionDescriptionChange={setSectionDescription}
-          onCreateSection={handleCreateSection}
-          onCancelSectionForm={() => setShowSectionForm(false)}
           onOpenSection={handleSectionClick}
           onPublishSectionToggle={(section) => void handlePublishSectionToggle(section)}
           onEditSection={handleStartEditSection}
@@ -806,21 +859,12 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
           courses={courses}
           selectedCourseId={selectedCourseId}
           loadingCourses={loadingCourses}
-          showCourseForm={showCourseForm}
-          courseTitle={courseTitle}
-          courseDescription={courseDescription}
-          courseFormError={courseFormError}
-          creatingCourse={creatingCourse}
           formatCreatedAt={formatCreatedAt}
           onToggleCourseForm={() => {
             setShowCourseForm((prev) => !prev);
             setCourseFormError(null);
             setCourseDescription("");
           }}
-          onCourseTitleChange={setCourseTitle}
-          onCourseDescriptionChange={setCourseDescription}
-          onCreateCourse={handleCreateCourse}
-          onCancelCourseForm={() => setShowCourseForm(false)}
           onOpenCourse={(courseId) => void openCourse(courseId, "push")}
           onPublishCourseToggle={(course) => void handlePublishCourseToggle(course)}
           onEditCourse={handleStartEditCourse}
@@ -828,25 +872,127 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
         />
       )}
 
-      {editDialog ? (
-        <TeacherEditDialogPanel
-          title={editTitle}
-          description={editDescription}
-          coverImageUrl={coverImageState.previewUrl}
-          coverImageStatusText={coverImageStatusText}
-          error={editError}
-          saving={savingEdit}
-          onTitleChange={setEditTitle}
-          onDescriptionChange={setEditDescription}
-          onPickCoverImage={() => coverImageInputRef.current?.click()}
-          onRemoveCoverImage={() => void handleCoverImageRemove()}
-          onCoverImageSelected={handleCoverImageSelected}
-          onCoverImagePreviewError={handleCoverImagePreviewError}
-          coverImageInputRef={coverImageInputRef}
-          onSave={handleSaveEdit}
-          onCancel={() => setEditDialog(null)}
+      <Dialog
+        open={showCourseForm}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowCourseForm(false);
+          }
+        }}
+        title="Создание курса"
+        className={styles.editDialog}
+        overlayClassName={styles.editDialogOverlay}
+      >
+        <TeacherCourseCreateForm
+          title={courseTitle}
+          description={courseDescription}
+          coverImageUrl={courseCreateCoverImageState.previewUrl}
+          coverImageStatusText={courseCreateCoverImageStatusText}
+          error={courseFormError}
+          saving={creatingCourse || courseCreateCoverImageState.loading}
+          onTitleChange={setCourseTitle}
+          onDescriptionChange={setCourseDescription}
+          onPickCoverImage={() => courseCreateCoverImageInputRef.current?.click()}
+          onRemoveCoverImage={handleCourseCreateCoverImageRemove}
+          onCoverImageSelected={handleCourseCreateCoverImageSelected}
+          coverImageInputRef={courseCreateCoverImageInputRef}
+          onSave={() =>
+            void handleCreateCourse({
+              afterCreate: async (created) => {
+                try {
+                  await uploadCourseCreateCoverImageAfterCreate({
+                    kind: "course",
+                    id: created.id,
+                  });
+                } finally {
+                  resetCourseCreateCoverImage();
+                }
+              },
+            })
+          }
+          onCancel={() => setShowCourseForm(false)}
         />
-      ) : null}
+      </Dialog>
+
+      <Dialog
+        open={Boolean(selectedCourse) && showSectionForm}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowSectionForm(false);
+          }
+        }}
+        title="Создание раздела"
+        className={styles.editDialog}
+        overlayClassName={styles.editDialogOverlay}
+      >
+        <TeacherSectionCreateForm
+          title={sectionTitle}
+          description={sectionDescription}
+          coverImageUrl={sectionCreateCoverImageState.previewUrl}
+          coverImageStatusText={sectionCreateCoverImageStatusText}
+          error={sectionFormError}
+          saving={creatingSection || sectionCreateCoverImageState.loading}
+          onTitleChange={setSectionTitle}
+          onDescriptionChange={setSectionDescription}
+          onPickCoverImage={() => sectionCreateCoverImageInputRef.current?.click()}
+          onRemoveCoverImage={handleSectionCreateCoverImageRemove}
+          onCoverImageSelected={handleSectionCreateCoverImageSelected}
+          coverImageInputRef={sectionCreateCoverImageInputRef}
+          onSave={() =>
+            void handleCreateSection({
+              afterCreate: async (created) => {
+                try {
+                  await uploadSectionCreateCoverImageAfterCreate({
+                    kind: "section",
+                    id: created.id,
+                  });
+                } finally {
+                  resetSectionCreateCoverImage();
+                }
+              },
+            })
+          }
+          onCancel={() => setShowSectionForm(false)}
+        />
+      </Dialog>
+
+      <Dialog
+        open={Boolean(editDialog)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditDialog(null);
+          }
+        }}
+        title={
+          editDialog
+            ? editDialog.kind === "course"
+              ? "Редактирование курса"
+              : "Редактирование раздела"
+            : undefined
+        }
+        className={styles.editDialog}
+        overlayClassName={styles.editDialogOverlay}
+      >
+        {editDialog ? (
+          <TeacherEditDialogPanel
+            title={editTitle}
+            description={editDescription}
+            coverImageUrl={coverImageState.previewUrl}
+            coverImageStatusText={coverImageStatusText}
+            error={editError}
+            saving={savingEdit}
+            onTitleChange={setEditTitle}
+            onDescriptionChange={setEditDescription}
+            onPickCoverImage={() => coverImageInputRef.current?.click()}
+            onRemoveCoverImage={() => void handleCoverImageRemove()}
+            onCoverImageSelected={handleCoverImageSelected}
+            onCoverImagePreviewError={handleCoverImagePreviewError}
+            coverImageInputRef={coverImageInputRef}
+            onSave={handleSaveEdit}
+            onCancel={() => setEditDialog(null)}
+          />
+        ) : null}
+      </Dialog>
       <AlertDialog
         open={Boolean(deleteDialog)}
         onOpenChange={(open) => {

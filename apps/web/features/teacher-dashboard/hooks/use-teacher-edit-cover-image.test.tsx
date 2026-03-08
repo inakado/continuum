@@ -141,6 +141,57 @@ describe("useTeacherEditCoverImage", () => {
     expect(result.current.coverImageState.previewUrl).toBe("https://cdn.example.com/section-cover-next.webp");
   });
 
+  it("keeps preview visible after same entity receives refreshed asset key", async () => {
+    const onAfterChange = vi.fn().mockResolvedValue(null);
+    vi.mocked(teacherApi.presignCourseCoverImageUpload).mockResolvedValue({
+      assetKey: "course-cover-next",
+      uploadUrl: "https://upload.example.com/object",
+      headers: {},
+      expiresInSec: 600,
+    } as never);
+    vi.mocked(teacherApi.applyCourseCoverImage).mockResolvedValue({
+      ok: true,
+      courseId: "course-1",
+      assetKey: "course-cover-next",
+    } as never);
+    vi.mocked(teacherApi.presignCourseCoverImageView).mockResolvedValue({
+      ok: true,
+      courseId: "course-1",
+      key: "course-cover-next",
+      expiresInSec: 600,
+      url: "https://cdn.example.com/course-cover-next.webp",
+    } as never);
+
+    const { Wrapper } = createWrapper();
+    const { result, rerender } = renderHook(
+      ({ assetKey }: { assetKey: string | null }) =>
+        useTeacherEditCoverImage({
+          editingEntity: {
+            kind: "course",
+            id: "course-1",
+            assetKey,
+          },
+          onAfterChange,
+        }),
+      {
+        wrapper: Wrapper,
+        initialProps: { assetKey: null as string | null },
+      },
+    );
+
+    await act(async () => {
+      await result.current.handleCoverImageSelected(
+        createFileChangeEvent(new File(["image"], "cover.webp", { type: "image/webp" })),
+      );
+    });
+
+    expect(result.current.coverImageState.previewUrl).toBe("https://cdn.example.com/course-cover-next.webp");
+
+    rerender({ assetKey: "course-cover-next" });
+
+    expect(result.current.coverImageState.previewUrl).toBe("https://cdn.example.com/course-cover-next.webp");
+  });
+
   it("deletes course cover image and clears preview", async () => {
     const onAfterChange = vi.fn().mockResolvedValue(null);
     vi.mocked(teacherApi.presignCourseCoverImageView).mockResolvedValue({

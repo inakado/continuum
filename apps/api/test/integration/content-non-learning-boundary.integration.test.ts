@@ -42,6 +42,7 @@ describe('content non-learning boundary integration', () => {
     getPublishedSection: vi.fn(),
   };
   const learningService = {
+    getPublishedCourseForStudent: vi.fn(),
     getPublishedSectionGraphForStudent: vi.fn(),
     getStudentDashboardOverview: vi.fn(),
   };
@@ -120,7 +121,7 @@ describe('content non-learning boundary integration', () => {
         },
         {
           target: StudentCoursesController,
-          deps: [ContentService],
+          deps: [ContentService, LearningService],
         },
         {
           target: StudentSectionsController,
@@ -431,6 +432,19 @@ describe('content non-learning boundary integration', () => {
 
   it('covers student published content read paths', async () => {
     const publishedCourse = courseFixture('published');
+    const publishedCourseForStudent = {
+      ...publishedCourse,
+      sections: [
+        {
+          ...sectionFixture('published'),
+          completionPercent: 45,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-02T00:00:00.000Z',
+        },
+      ],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-02T00:00:00.000Z',
+    };
     const publishedSection = sectionFixture('published');
     const graphResponse = {
       sectionId: 'section-1',
@@ -445,7 +459,7 @@ describe('content non-learning boundary integration', () => {
     };
 
     contentService.listPublishedCourses.mockResolvedValue([publishedCourse]);
-    contentService.getPublishedCourse.mockResolvedValue(publishedCourse);
+    learningService.getPublishedCourseForStudent.mockResolvedValue(publishedCourseForStudent);
     contentService.getPublishedSection.mockResolvedValue(publishedSection);
     learningService.getPublishedSectionGraphForStudent.mockResolvedValue(graphResponse);
 
@@ -459,12 +473,13 @@ describe('content non-learning boundary integration', () => {
     expect(sectionResponse.status).toBe(200);
     expect(graphResponseHttp.status).toBe(200);
     expect(contentService.listPublishedCourses).toHaveBeenCalledTimes(1);
-    expect(contentService.getPublishedCourse).toHaveBeenCalledWith('course-1');
+    expect(learningService.getPublishedCourseForStudent).toHaveBeenCalledWith('teacher-1', 'course-1');
     expect(contentService.getPublishedSection).toHaveBeenCalledWith('section-1');
     expect(learningService.getPublishedSectionGraphForStudent).toHaveBeenCalledWith(
       'teacher-1',
       'section-1',
     );
+    expect(courseResponse.body.sections[0].completionPercent).toBe(45);
     expect(graphResponseHttp.body.sectionId).toBe('section-1');
   });
 

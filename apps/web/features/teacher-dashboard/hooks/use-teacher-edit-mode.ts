@@ -5,6 +5,9 @@ import { contentQueryKeys } from "@/lib/query/keys";
 import { getApiErrorMessage } from "@/features/teacher-content/shared/api-errors";
 
 type HistoryUpdateMode = "push" | "replace" | "none";
+type CreateFlowOptions<TCreated> = {
+  afterCreate?: (created: TCreated) => Promise<void> | void;
+};
 
 type TeacherEditHistoryState = {
   __continuumTeacherEditNav: true;
@@ -261,7 +264,7 @@ export const useTeacherEditMode = ({
   const creatingSection = createSectionMutation.isPending;
   const savingEdit = updateCourseMutation.isPending || updateSectionMutation.isPending;
 
-  const handleCreateCourse = useCallback(async () => {
+  const handleCreateCourse = useCallback(async (options?: CreateFlowOptions<Course>) => {
     if (!courseTitle.trim() || creatingCourse) return;
     setCourseFormError(null);
     try {
@@ -269,6 +272,11 @@ export const useTeacherEditMode = ({
         title: courseTitle.trim(),
         description: normalizeDescription(courseDescription),
       });
+      try {
+        await options?.afterCreate?.(created);
+      } catch (err) {
+        setError(`Курс создан, но обложку загрузить не удалось: ${getApiErrorMessage(err)}`);
+      }
       setCourseTitle("");
       setCourseDescription("");
       setShowCourseForm(false);
@@ -279,16 +287,21 @@ export const useTeacherEditMode = ({
     }
   }, [courseDescription, courseTitle, createCourseMutation, creatingCourse, openCourse, refreshCourses]);
 
-  const handleCreateSection = useCallback(async () => {
+  const handleCreateSection = useCallback(async (options?: CreateFlowOptions<Section>) => {
     if (!selectedCourse || !sectionTitle.trim() || creatingSection) return;
     setSectionFormError(null);
     try {
-      await createSectionMutation.mutateAsync({
+      const created = await createSectionMutation.mutateAsync({
         courseId: selectedCourse.id,
         title: sectionTitle.trim(),
         description: normalizeDescription(sectionDescription),
         sortOrder: 0,
       });
+      try {
+        await options?.afterCreate?.(created);
+      } catch (err) {
+        setError(`Раздел создан, но обложку загрузить не удалось: ${getApiErrorMessage(err)}`);
+      }
       setSectionTitle("");
       setSectionDescription("");
       setShowSectionForm(false);
