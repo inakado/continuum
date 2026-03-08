@@ -73,6 +73,9 @@
 - Ручные anti-race паттерны, `cancelled` guards и `requestIdRef` допустимы только там, где их нельзя заменить query lifecycle.
 - Read-path и write-path должны быть разделены: чтение через query, запись через mutation/hook orchestration.
 - Student dashboard overview читает aggregated read-model через отдельный query (`/student/dashboard`), а не собирает hero/continue-learning сводку вручную из нескольких client-side запросов.
+- Student dashboard course landing использует hybrid read-path:
+  - overview/hero/stat cards — из aggregated query `/student/dashboard`;
+  - sections landing — из `GET /courses/:id`, где student UI использует section descriptions для навигационных карточек.
 
 ## Presigned Assets and CORS
 

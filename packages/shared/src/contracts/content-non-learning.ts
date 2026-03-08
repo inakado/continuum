@@ -28,6 +28,7 @@ export const StudentSectionSchema = z
     id: z.string().min(1),
     courseId: z.string().min(1),
     title: z.string(),
+    description: z.string().nullable().optional(),
     coverImageAssetKey: z.string().nullable().optional(),
     status: ContentStatusSchema,
     sortOrder: z.number(),

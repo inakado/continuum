@@ -1,9 +1,22 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { motion, type Variants } from "framer-motion";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
+import type { CSSProperties, ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ArrowRight,
+  BookOpen,
+  ChevronLeft,
+  Clock3,
+  Layers3,
+  Orbit,
+  PlayCircle,
+  Sparkles,
+  Trophy,
+} from "lucide-react";
 import DashboardShell from "@/components/DashboardShell";
 import Button from "@/components/ui/Button";
 import {
@@ -11,6 +24,7 @@ import {
   type Course,
   type CourseWithSections,
   type Section,
+  type StudentDashboardCourseSummary,
   type StudentDashboardOverview,
 } from "@/lib/api/student";
 import { contentQueryKeys } from "@/lib/query/keys";
@@ -48,13 +62,14 @@ type StudentDashboardPanelProps = {
   courses: Course[];
   dashboardOverview: StudentDashboardOverview | null;
   loadingCourses: boolean;
+  onBackToCourses: () => void;
   onCourseClick: (courseId: string) => void;
   onContinueLearning: (href: string) => void;
   onGraphNotFound: () => void;
   onSectionClick: (section: Section) => void;
   onSectionsBack: () => void;
   sections: Section[];
-  selectedCourseId: string | null;
+  selectedCourse: CourseWithSections | null;
   selectedSectionId: string | null;
   selectedSectionTitle: string | null;
   view: View;
@@ -63,6 +78,72 @@ type StudentDashboardPanelProps = {
 type QueryErrorState = {
   error: Error | null;
   isError: boolean;
+};
+
+type DashboardTone = {
+  accent: string;
+  accentSoft: string;
+  glow: string;
+  edge: string;
+  ink: string;
+};
+
+const DASHBOARD_TONES: readonly DashboardTone[] = [
+  {
+    accent: "#2f6fed",
+    accentSoft: "rgba(47, 111, 237, 0.16)",
+    glow: "rgba(114, 167, 255, 0.42)",
+    edge: "rgba(47, 111, 237, 0.2)",
+    ink: "#17305f",
+  },
+  {
+    accent: "#0f8a83",
+    accentSoft: "rgba(15, 138, 131, 0.14)",
+    glow: "rgba(114, 224, 213, 0.38)",
+    edge: "rgba(15, 138, 131, 0.18)",
+    ink: "#123f3b",
+  },
+  {
+    accent: "#b5671b",
+    accentSoft: "rgba(181, 103, 27, 0.14)",
+    glow: "rgba(244, 183, 110, 0.34)",
+    edge: "rgba(181, 103, 27, 0.18)",
+    ink: "#4f2c0b",
+  },
+  {
+    accent: "#7b4ce0",
+    accentSoft: "rgba(123, 76, 224, 0.14)",
+    glow: "rgba(173, 141, 255, 0.38)",
+    edge: "rgba(123, 76, 224, 0.18)",
+    ink: "#35205f",
+  },
+];
+
+const motionEase = "easeOut" as const;
+
+const motionContainer: Variants = {
+  hidden: { opacity: 0, y: 18 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.45,
+      ease: motionEase,
+      staggerChildren: 0.08,
+    },
+  },
+};
+
+const motionItem: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.42,
+      ease: motionEase,
+    },
+  },
 };
 
 const isStudentDashboardHistoryState = (value: unknown): value is StudentDashboardHistoryState => {
@@ -92,30 +173,26 @@ const buildHistoryState = (
   sectionTitle,
 });
 
-const getDashboardHeaderState = (
-  view: View,
-  courseTitle: string | null | undefined,
-  sectionTitle: string | null,
-): DashboardHeaderState => {
+const getDashboardHeaderState = (view: View, sectionTitle: string | null): DashboardHeaderState => {
   if (view === "courses") {
     return {
-      title: "Курсы",
-      subtitle: "Выберите курс",
+      title: "Маршрут обучения",
+      subtitle: "Курсы, следующий шаг и общий темп в одном экране.",
       showBackToCourses: false,
     };
   }
 
   if (view === "sections") {
     return {
-      title: courseTitle ?? "Курс",
-      subtitle: "Выберите раздел",
+      title: "Разделы курса",
+      subtitle: "Откройте нужный раздел и перейдите в граф обучения.",
       showBackToCourses: true,
     };
   }
 
   return {
-    title: `Раздел: ${sectionTitle ?? "Раздел"}`,
-    subtitle: "",
+    title: sectionTitle ? `Граф раздела: ${sectionTitle}` : "Граф раздела",
+    subtitle: "Линейный возврат в список разделов сохраняется через историю навигации.",
     showBackToCourses: false,
   };
 };
@@ -134,18 +211,440 @@ const getRequestError = (
   return null;
 };
 
+const hashSeed = (seed: string) => {
+  let hash = 0;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = (hash * 31 + seed.charCodeAt(index)) >>> 0;
+  }
+  return hash;
+};
+
+const getToneStyle = (seed: string): CSSProperties => {
+  const tone = DASHBOARD_TONES[hashSeed(seed) % DASHBOARD_TONES.length] ?? DASHBOARD_TONES[0];
+  return {
+    "--dash-accent": tone.accent,
+    "--dash-accent-soft": tone.accentSoft,
+    "--dash-glow": tone.glow,
+    "--dash-edge": tone.edge,
+    "--dash-ink": tone.ink,
+  } as CSSProperties;
+};
+
+const getCourseSummary = (
+  overview: StudentDashboardOverview | null,
+  courseId: string,
+): StudentDashboardCourseSummary | null =>
+  overview?.courses.find((course) => course.id === courseId) ?? null;
+
+const getCourseMeta = (summary: StudentDashboardCourseSummary | null) => {
+  if (!summary) {
+    return {
+      sectionCount: null,
+      unitCount: null,
+      progressPercent: null,
+      coverImageUrl: null,
+    };
+  }
+
+  return {
+    sectionCount: summary.sectionCount,
+    unitCount: summary.unitCount,
+    progressPercent: summary.progressPercent,
+    coverImageUrl: summary.coverImageUrl,
+  };
+};
+
+const getSectionDescription = (section: Section, index: number, courseTitle: string) =>
+  section.description?.trim() ||
+  `Раздел ${String(index + 1).padStart(2, "0")} курса «${courseTitle}». Откройте граф, чтобы продолжить обучение по узлам.`;
+
+const ProgressBar = ({
+  value,
+  label,
+}: {
+  value: number;
+  label: string;
+}) => (
+  <div className={styles.progressBlock}>
+    <div className={styles.progressLabelRow}>
+      <span>{label}</span>
+      <span>{value}%</span>
+    </div>
+    <div className={styles.progressTrack} aria-hidden="true">
+      <motion.div
+        className={styles.progressFill}
+        initial={{ width: 0 }}
+        animate={{ width: `${value}%` }}
+        transition={{ duration: 0.8, ease: motionEase }}
+      />
+    </div>
+  </div>
+);
+
+const DashboardStatCard = ({
+  icon,
+  label,
+  value,
+  toneSeed,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string | number;
+  toneSeed: string;
+}) => (
+  <motion.div variants={motionItem} className={styles.statCard} style={getToneStyle(toneSeed)}>
+    <div className={styles.statIcon}>{icon}</div>
+    <div className={styles.statValue}>{value}</div>
+    <div className={styles.statLabel}>{label}</div>
+  </motion.div>
+);
+
+const StudentCoursesView = ({
+  courses,
+  dashboardOverview,
+  loadingCourses,
+  onContinueLearning,
+  onCourseClick,
+}: {
+  courses: Course[];
+  dashboardOverview: StudentDashboardOverview | null;
+  loadingCourses: boolean;
+  onContinueLearning: (href: string) => void;
+  onCourseClick: (courseId: string) => void;
+}) => {
+  const continueLearning = dashboardOverview?.continueLearning ?? null;
+  const continueCourseSummary =
+    continueLearning && dashboardOverview
+      ? getCourseSummary(dashboardOverview, continueLearning.courseId)
+      : null;
+
+  return (
+    <motion.div variants={motionContainer} initial="hidden" animate="show" className={styles.panel}>
+      <div className={styles.heroBackdrop} aria-hidden="true">
+        <div className={styles.heroGlowPrimary} />
+        <div className={styles.heroGlowSecondary} />
+      </div>
+
+      <div className={styles.coursesTopGrid}>
+        <motion.section
+          variants={motionItem}
+          className={styles.continueCard}
+          style={getToneStyle(continueLearning?.courseId ?? "continue-learning")}
+        >
+          <div className={styles.heroEyebrow}>
+            <Clock3 size={14} />
+            <span>Продолжить обучение</span>
+          </div>
+          {continueLearning ? (
+            <>
+              <div className={styles.continueContent}>
+                <div className={styles.continueCopy}>
+                  <h2 className={styles.continueTitle}>{continueLearning.unitTitle}</h2>
+                  <p className={styles.continueMeta}>
+                    {continueLearning.courseTitle} · {continueLearning.sectionTitle}
+                  </p>
+                  <p className={styles.continueDescription}>
+                    Вернитесь в последний доступный узел и продолжите движение по курсу без поиска
+                    нужного раздела вручную.
+                  </p>
+                </div>
+                <div className={styles.continueVisual}>
+                  {continueCourseSummary?.coverImageUrl ? (
+                    <img
+                      alt=""
+                      className={styles.heroCoverImage}
+                      src={continueCourseSummary.coverImageUrl}
+                    />
+                  ) : (
+                    <div className={styles.heroGlyph}>
+                      <Orbit size={34} />
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className={styles.continueFooter}>
+                <div className={styles.continueMetrics}>
+                  <ProgressBar value={continueLearning.completionPercent} label="Прогресс юнита" />
+                  <ProgressBar value={continueLearning.solvedPercent} label="Решено задач" />
+                </div>
+                <Button
+                  className={styles.heroButton}
+                  onClick={() => onContinueLearning(continueLearning.href)}
+                >
+                  Продолжить обучение
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className={styles.emptyState}>
+              <div className={styles.emptyIcon}>
+                <Sparkles size={18} />
+              </div>
+              <div>
+                <h2 className={styles.emptyTitle}>Следующий шаг появится здесь</h2>
+                <p className={styles.emptyText}>
+                  Как только станет доступен новый юнит, дашборд покажет прямую точку входа.
+                </p>
+              </div>
+            </div>
+          )}
+        </motion.section>
+
+        <motion.aside variants={motionItem} className={styles.summaryCard}>
+          <div className={styles.heroEyebrow}>
+            <BookOpen size={14} />
+            <span>Темп и обзор</span>
+          </div>
+          <div className={styles.summaryStack}>
+            <div className={styles.summaryHighlight}>
+              <div className={styles.summaryHighlightValue}>{courses.length}</div>
+              <div className={styles.summaryHighlightLabel}>активных курсов в кабинете</div>
+            </div>
+            <div className={styles.summaryMiniGrid}>
+              <div className={styles.summaryMiniMetric}>
+                <span className={styles.summaryMiniLabel}>Доступно</span>
+                <span className={styles.summaryMiniValue}>
+                  {dashboardOverview?.stats.availableUnits ?? 0}
+                </span>
+              </div>
+              <div className={styles.summaryMiniMetric}>
+                <span className={styles.summaryMiniLabel}>В процессе</span>
+                <span className={styles.summaryMiniValue}>
+                  {dashboardOverview?.stats.inProgressUnits ?? 0}
+                </span>
+              </div>
+              <div className={styles.summaryMiniMetric}>
+                <span className={styles.summaryMiniLabel}>Завершено</span>
+                <span className={styles.summaryMiniValue}>
+                  {dashboardOverview?.stats.completedUnits ?? 0}
+                </span>
+              </div>
+              <div className={styles.summaryMiniMetric}>
+                <span className={styles.summaryMiniLabel}>Всего юнитов</span>
+                <span className={styles.summaryMiniValue}>{dashboardOverview?.stats.totalUnits ?? 0}</span>
+              </div>
+            </div>
+          </div>
+        </motion.aside>
+      </div>
+
+      <motion.div variants={motionItem} className={styles.statGrid}>
+        <DashboardStatCard
+          icon={<Layers3 size={16} />}
+          label="Разделов во всех курсах"
+          value={dashboardOverview?.courses.reduce((sum, course) => sum + course.sectionCount, 0) ?? 0}
+          toneSeed="stats-sections"
+        />
+        <DashboardStatCard
+          icon={<Trophy size={16} />}
+          label="Средний прогресс по курсам"
+          value={
+            dashboardOverview?.courses.length
+              ? `${Math.round(
+                  dashboardOverview.courses.reduce((sum, course) => sum + course.progressPercent, 0) /
+                    dashboardOverview.courses.length,
+                )}%`
+              : "0%"
+          }
+          toneSeed="stats-progress"
+        />
+        <DashboardStatCard
+          icon={<Orbit size={16} />}
+          label="Точек входа прямо сейчас"
+          value={dashboardOverview?.stats.availableUnits ?? 0}
+          toneSeed="stats-entry"
+        />
+      </motion.div>
+
+      <motion.section variants={motionItem} className={styles.courseRailSection}>
+        <div className={styles.sectionHeading}>
+          <div>
+            <div className={styles.sectionHeadingKicker}>Курсы</div>
+            <h2 className={styles.sectionHeadingTitle}>Выберите траекторию</h2>
+          </div>
+          <p className={styles.sectionHeadingText}>
+            Крупные карточки ниже повторяют стилистику референса, но живут на наших контрактах и
+            server-state слое.
+          </p>
+        </div>
+
+        {loadingCourses ? (
+          <div className={styles.empty}>Загрузка курсов…</div>
+        ) : courses.length === 0 ? (
+          <div className={styles.empty}>Пока нет опубликованных курсов</div>
+        ) : (
+          <div className={styles.courseRail} aria-label="Список курсов">
+            {courses.map((course) => {
+              const summary = getCourseSummary(dashboardOverview, course.id);
+              const meta = getCourseMeta(summary);
+              return (
+                <motion.button
+                  key={course.id}
+                  type="button"
+                  variants={motionItem}
+                  className={styles.courseCard}
+                  style={getToneStyle(course.id)}
+                  whileHover={{ y: -4 }}
+                  whileTap={{ scale: 0.99 }}
+                  onClick={() => onCourseClick(course.id)}
+                >
+                  <div className={styles.courseArt}>
+                    {meta.coverImageUrl ? (
+                      <img alt="" className={styles.courseCoverImage} src={meta.coverImageUrl} />
+                    ) : (
+                      <div className={styles.courseGlyph}>
+                        <BookOpen size={30} />
+                      </div>
+                    )}
+                    <div className={styles.courseBadge}>
+                      <span>{getContentStatusLabel(course.status)}</span>
+                    </div>
+                  </div>
+
+                  <div className={styles.courseBody}>
+                    <div className={styles.courseTitleRow}>
+                      <h3 className={styles.courseTitle}>{course.title}</h3>
+                      <ArrowRight size={18} />
+                    </div>
+                    <p className={styles.courseDescription}>{course.description ?? "Без описания курса"}</p>
+
+                    <div className={styles.courseMetaGrid}>
+                      <div className={styles.courseMetaPill}>
+                        <span className={styles.courseMetaLabel}>Разделов</span>
+                        <span className={styles.courseMetaValue}>{meta.sectionCount ?? "—"}</span>
+                      </div>
+                      <div className={styles.courseMetaPill}>
+                        <span className={styles.courseMetaLabel}>Юнитов</span>
+                        <span className={styles.courseMetaValue}>{meta.unitCount ?? "—"}</span>
+                      </div>
+                    </div>
+
+                    <div className={styles.courseProgressFooter}>
+                      <ProgressBar value={meta.progressPercent ?? 0} label="Общий прогресс" />
+                    </div>
+                  </div>
+                </motion.button>
+              );
+            })}
+          </div>
+        )}
+      </motion.section>
+    </motion.div>
+  );
+};
+
+const StudentSectionsView = ({
+  course,
+  courseSummary,
+  onBackToCourses,
+  onSectionClick,
+  sections,
+}: {
+  course: CourseWithSections;
+  courseSummary: StudentDashboardCourseSummary | null;
+  onBackToCourses: () => void;
+  onSectionClick: (section: Section) => void;
+  sections: Section[];
+}) => (
+  <motion.div variants={motionContainer} initial="hidden" animate="show" className={styles.panel}>
+    <motion.section variants={motionItem} className={styles.courseHero} style={getToneStyle(course.id)}>
+      <div className={styles.courseHeroCopy}>
+        <button type="button" className={styles.inlineBackButton} onClick={onBackToCourses}>
+          <ChevronLeft size={16} />
+          <span>Курсы</span>
+        </button>
+
+        <div className={styles.heroEyebrow}>
+          <Sparkles size={14} />
+          <span>Курс</span>
+        </div>
+        <h2 className={styles.courseHeroTitle}>{course.title}</h2>
+        <p className={styles.courseHeroDescription}>
+          {course.description ?? "Откройте нужный раздел и продолжите движение по учебному графу."}
+        </p>
+      </div>
+
+      <div className={styles.courseHeroSide}>
+        <div className={styles.heroSummaryCard}>
+          <span className={styles.heroSummaryLabel}>Общий прогресс</span>
+          <strong className={styles.heroSummaryValue}>{courseSummary?.progressPercent ?? 0}%</strong>
+          <ProgressBar value={courseSummary?.progressPercent ?? 0} label="Пройдено по курсу" />
+          <div className={styles.heroSummaryMeta}>
+            <span>{courseSummary?.sectionCount ?? sections.length} разделов</span>
+            <span>{courseSummary?.unitCount ?? 0} юнитов</span>
+          </div>
+        </div>
+      </div>
+    </motion.section>
+
+    <motion.section variants={motionItem} className={styles.sectionDeck}>
+      <div className={styles.sectionHeading}>
+        <div>
+          <div className={styles.sectionHeadingKicker}>Разделы</div>
+          <h2 className={styles.sectionHeadingTitle}>Маршрут по курсу</h2>
+        </div>
+        <p className={styles.sectionHeadingText}>
+          Каждый раздел открывает граф юнитов. Визуально это уже closer к референсу, но остаётся
+          встроенным в текущую student navigation model.
+        </p>
+      </div>
+
+      {sections.length === 0 ? (
+        <div className={styles.empty}>Разделов пока нет</div>
+      ) : (
+        <div className={styles.sectionList}>
+          {sections.map((section, index) => (
+            <motion.button
+              key={section.id}
+              type="button"
+              variants={motionItem}
+              className={styles.sectionCard}
+              style={getToneStyle(section.id)}
+              whileHover={{ y: -3 }}
+              whileTap={{ scale: 0.99 }}
+              onClick={() => onSectionClick(section)}
+            >
+              <div className={styles.sectionCardVisual}>
+                <span className={styles.sectionOrdinal}>{String(index + 1).padStart(2, "0")}</span>
+                <div className={styles.sectionVisualBadge}>
+                  <PlayCircle size={16} />
+                </div>
+              </div>
+
+              <div className={styles.sectionCardBody}>
+                <div className={styles.sectionCardHeading}>
+                  <h3 className={styles.sectionCardTitle}>{section.title}</h3>
+                  <span className={styles.status}>{getContentStatusLabel(section.status)}</span>
+                </div>
+                <p className={styles.sectionCardDescription}>
+                  {getSectionDescription(section, index, course.title)}
+                </p>
+                <div className={styles.sectionCardFooter}>
+                  <span className={styles.sectionFootnote}>Открыть граф раздела</span>
+                  <ArrowRight size={18} />
+                </div>
+              </div>
+            </motion.button>
+          ))}
+        </div>
+      )}
+    </motion.section>
+  </motion.div>
+);
+
 const StudentDashboardPanel = ({
   boot,
   courses,
   dashboardOverview,
   loadingCourses,
+  onBackToCourses,
   onCourseClick,
   onContinueLearning,
   onGraphNotFound,
   onSectionClick,
   onSectionsBack,
   sections,
-  selectedCourseId,
+  selectedCourse,
   selectedSectionId,
   selectedSectionTitle,
   view,
@@ -165,106 +664,26 @@ const StudentDashboardPanel = ({
     );
   }
 
-  if (view === "sections") {
+  if (view === "sections" && selectedCourse) {
     return (
-      <div className={styles.panel}>
-        <div className={styles.cardGrid}>
-          {sections.length === 0 ? (
-            <div className={styles.empty}>Разделов пока нет</div>
-          ) : (
-            sections.map((section) => (
-              <button
-                key={section.id}
-                type="button"
-                className={styles.card}
-                onClick={() => onSectionClick(section)}
-              >
-                <div className={styles.cardTitleRow}>
-                  <div className={styles.cardTitle}>{section.title}</div>
-                  <span className={styles.status}>{getContentStatusLabel(section.status)}</span>
-                </div>
-              </button>
-            ))
-          )}
-        </div>
-      </div>
+      <StudentSectionsView
+        course={selectedCourse}
+        courseSummary={getCourseSummary(dashboardOverview, selectedCourse.id)}
+        onBackToCourses={onBackToCourses}
+        onSectionClick={onSectionClick}
+        sections={sections}
+      />
     );
   }
 
   return (
-    <div className={styles.panel}>
-      {view === "courses" && dashboardOverview ? (
-        <div className={styles.overviewGrid}>
-          <section className={styles.spotlightCard}>
-            <div className={styles.spotlightKicker}>Продолжить обучение</div>
-            {dashboardOverview.continueLearning ? (
-              <>
-                <h2 className={styles.spotlightTitle}>{dashboardOverview.continueLearning.unitTitle}</h2>
-                <p className={styles.spotlightMeta}>
-                  {dashboardOverview.continueLearning.courseTitle} · {dashboardOverview.continueLearning.sectionTitle}
-                </p>
-                <div className={styles.spotlightStats}>
-                  <span>Выполнение: {dashboardOverview.continueLearning.completionPercent}%</span>
-                  <span>Решено: {dashboardOverview.continueLearning.solvedPercent}%</span>
-                </div>
-                <div className={styles.actions}>
-                  <Button onClick={() => onContinueLearning(dashboardOverview.continueLearning!.href)}>
-                    Открыть юнит
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <div className={styles.empty}>Пока нет доступного следующего шага.</div>
-            )}
-          </section>
-
-          <section className={styles.summaryCard}>
-            <div className={styles.spotlightKicker}>Сводка</div>
-            <div className={styles.summaryGrid}>
-              <div className={styles.summaryMetric}>
-                <span className={styles.summaryLabel}>Всего юнитов</span>
-                <span className={styles.summaryValue}>{dashboardOverview.stats.totalUnits}</span>
-              </div>
-              <div className={styles.summaryMetric}>
-                <span className={styles.summaryLabel}>Доступно</span>
-                <span className={styles.summaryValue}>{dashboardOverview.stats.availableUnits}</span>
-              </div>
-              <div className={styles.summaryMetric}>
-                <span className={styles.summaryLabel}>В процессе</span>
-                <span className={styles.summaryValue}>{dashboardOverview.stats.inProgressUnits}</span>
-              </div>
-              <div className={styles.summaryMetric}>
-                <span className={styles.summaryLabel}>Завершено</span>
-                <span className={styles.summaryValue}>{dashboardOverview.stats.completedUnits}</span>
-              </div>
-            </div>
-          </section>
-        </div>
-      ) : null}
-
-      <div className={styles.cardGrid}>
-        {loadingCourses ? (
-          <div className={styles.empty}>Загрузка курсов…</div>
-        ) : courses.length === 0 ? (
-          <div className={styles.empty}>Пока нет опубликованных курсов</div>
-        ) : (
-          courses.map((course) => (
-            <button
-              key={course.id}
-              type="button"
-              className={`${styles.card} ${selectedCourseId === course.id ? styles.cardActive : ""}`}
-              onClick={() => onCourseClick(course.id)}
-            >
-              <div className={styles.cardTitleRow}>
-                <div className={styles.cardTitle}>{course.title}</div>
-                <span className={styles.status}>Курс</span>
-              </div>
-              <div className={styles.cardMeta}>{course.description ?? "Без описания"}</div>
-            </button>
-          ))
-        )}
-      </div>
-    </div>
+    <StudentCoursesView
+      courses={courses}
+      dashboardOverview={dashboardOverview}
+      loadingCourses={loadingCourses}
+      onContinueLearning={onContinueLearning}
+      onCourseClick={onCourseClick}
+    />
   );
 };
 
@@ -553,8 +972,8 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
   );
   const visibleError = error ?? requestError;
   const headerState = useMemo(
-    () => getDashboardHeaderState(view, selectedCourse?.title, selectedSectionTitle),
-    [selectedCourse?.title, selectedSectionTitle, view],
+    () => getDashboardHeaderState(view, selectedSectionTitle),
+    [selectedSectionTitle, view],
   );
 
   const openCourse = useCallback(
@@ -650,17 +1069,20 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
     [router],
   );
 
-  const handleSectionClick = useCallback((section: Section) => {
-    setSelectedSectionId(section.id);
-    setSelectedSectionTitle(section.title);
-    setView("graph");
-    writeHistoryState(buildHistoryState("graph", selectedCourseId, section.id, section.title), "push");
-    try {
-      window.localStorage.setItem(LAST_SECTION_KEY, section.id);
-    } catch {
-      // ignore
-    }
-  }, [selectedCourseId, writeHistoryState]);
+  const handleSectionClick = useCallback(
+    (section: Section) => {
+      setSelectedSectionId(section.id);
+      setSelectedSectionTitle(section.title);
+      setView("graph");
+      writeHistoryState(buildHistoryState("graph", selectedCourseId, section.id, section.title), "push");
+      try {
+        window.localStorage.setItem(LAST_SECTION_KEY, section.id);
+      } catch {
+        // ignore
+      }
+    },
+    [selectedCourseId, writeHistoryState],
+  );
 
   const handleBackToCourses = useCallback(() => {
     forceShowCourses();
@@ -679,7 +1101,6 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
         return;
       }
     }
-    // If we restored a graph without knowing its course context, go back to courses.
     forceShowCourses();
     writeHistoryState(buildHistoryState("courses", null, null, null), "push");
   }, [forceShowCourses, openCourse, selectedCourse, selectedCourseId, writeHistoryState]);
@@ -694,6 +1115,7 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
       <div className={styles.content}>
         <div className={styles.header}>
           <div>
+            <div className={styles.headerEyebrow}>Student Dashboard</div>
             <h1 className={styles.title}>{headerState.title}</h1>
             <p className={styles.subtitle}>{headerState.subtitle}</p>
           </div>
@@ -717,13 +1139,14 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
           courses={courses}
           dashboardOverview={dashboardOverview}
           loadingCourses={loadingCourses}
+          onBackToCourses={handleBackToCourses}
           onCourseClick={handleCourseClick}
           onContinueLearning={handleContinueLearning}
           onGraphNotFound={handleGraphNotFound}
           onSectionClick={handleSectionClick}
           onSectionsBack={handleBackToSections}
           sections={sortedSections}
-          selectedCourseId={selectedCourseId}
+          selectedCourse={selectedCourse}
           selectedSectionId={selectedSectionId}
           selectedSectionTitle={selectedSectionTitle}
           view={view}

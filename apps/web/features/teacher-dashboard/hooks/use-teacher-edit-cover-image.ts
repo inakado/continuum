@@ -4,7 +4,11 @@ import {
 } from "@continuum/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { teacherApi } from "@/lib/api/teacher";
+import {
+  teacherApi,
+  type CourseCoverImagePresignViewResponse,
+  type SectionCoverImagePresignViewResponse,
+} from "@/lib/api/teacher";
 import { contentQueryKeys } from "@/lib/query/keys";
 import { getApiErrorMessage } from "@/features/teacher-content/shared/api-errors";
 
@@ -34,7 +38,12 @@ type Params = {
   onAfterChange: () => Promise<unknown>;
 };
 
+type CoverImagePreviewResponse =
+  | CourseCoverImagePresignViewResponse
+  | SectionCoverImagePresignViewResponse;
+
 const ALLOWED_TYPES = new Set(ContentCoverImageAllowedContentTypes);
+const NOOP_PREVIEW_QUERY_KEY = ["content", "teacher", "cover-image", "noop"] as const;
 
 const createInitialCoverImageState = (editingEntity: EditingCoverEntity): CoverImageState => ({
   loading: false,
@@ -110,9 +119,11 @@ export const useTeacherEditCoverImage = ({ editingEntity, onAfterChange }: Param
     createInitialCoverImageState(editingEntity),
   );
 
-  const previewQuery = useQuery({
+  const previewQuery = useQuery<CoverImagePreviewResponse, Error>({
     queryKey:
-      editingEntity && coverImageState.key ? getPreviewQueryKey(editingEntity, coverImageState.key) : ["noop"],
+      editingEntity && coverImageState.key
+        ? getPreviewQueryKey(editingEntity, coverImageState.key)
+        : NOOP_PREVIEW_QUERY_KEY,
     queryFn: () => fetchCoverView(editingEntity!),
     enabled: Boolean(editingEntity && coverImageState.key),
     retry: false,
@@ -120,7 +131,7 @@ export const useTeacherEditCoverImage = ({ editingEntity, onAfterChange }: Param
 
   const refreshPreviewUrl = useCallback(async () => {
     if (!editingEntity || !coverImageState.key) return null;
-    const response = await queryClient.fetchQuery({
+    const response = await queryClient.fetchQuery<CoverImagePreviewResponse>({
       queryKey: getPreviewQueryKey(editingEntity, coverImageState.key),
       queryFn: () => fetchCoverView(editingEntity),
       staleTime: 0,
