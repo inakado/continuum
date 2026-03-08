@@ -1,4 +1,5 @@
 import {
+  StudentDashboardOverviewResponseSchema,
   StudentCourseDetailResponseSchema,
   StudentCourseListResponseSchema,
   StudentSectionDetailResponseSchema,
@@ -10,6 +11,7 @@ import {
   StudentTaskSolutionRenderedContentResponseSchema,
   StudentUnitRenderedContentResponseSchema,
   type StudentCourse as SharedStudentCourse,
+  type StudentDashboardOverviewResponse as SharedStudentDashboardOverviewResponse,
   type StudentCourseDetailResponse as SharedStudentCourseDetailResponse,
   type StudentGraphEdge as SharedStudentGraphEdge,
   type StudentGraphNode as SharedStudentGraphNode,
@@ -37,6 +39,8 @@ export type ContentStatus = "draft" | "published";
 export type StudentUnitStatus = "locked" | "available" | "in_progress" | "completed";
 
 export type Course = SharedStudentCourse;
+export type StudentDashboardOverview = SharedStudentDashboardOverviewResponse;
+export type StudentDashboardCourseSummary = StudentDashboardOverview["courses"][number];
 
 export type UnitVideo = { id: string; title: string; embedUrl: string };
 export type UnitAttachment = { id: string; name: string; urlOrKey?: string | null };
@@ -192,6 +196,14 @@ export const studentApi = {
 
   listCourses() {
     return apiRequestParsed("/courses", StudentCourseListResponseSchema);
+  },
+
+  getDashboardOverview(ttlSec = 180) {
+    const search = new URLSearchParams({ ttlSec: String(ttlSec) });
+    return apiRequestParsed(
+      `/student/dashboard?${search.toString()}`,
+      StudentDashboardOverviewResponseSchema,
+    );
   },
 
   getCourse(id: string) {

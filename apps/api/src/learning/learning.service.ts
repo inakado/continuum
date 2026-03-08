@@ -43,6 +43,136 @@ export class LearningService {
     private readonly learningTeacherActionsService: LearningTeacherActionsService,
   ) {}
 
+  async getStudentDashboardOverview(studentId: string) {
+    const publishedCourses = await this.prisma.course.findMany({
+      where: { status: ContentStatus.published },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        sections: {
+          where: { status: ContentStatus.published },
+          orderBy: { sortOrder: 'asc' },
+          include: {
+            units: {
+              where: { status: ContentStatus.published },
+              orderBy: { sortOrder: 'asc' },
+              select: {
+                id: true,
+                sectionId: true,
+                title: true,
+                sortOrder: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const snapshotsBySectionId = new Map<
+      string,
+      Map<
+        string,
+        {
+          status: StudentUnitStatus;
+          completionPercent: number;
+          solvedPercent: number;
+        }
+      >
+    >();
+
+    for (const course of publishedCourses) {
+      for (const section of course.sections) {
+        const snapshots = await this.learningAvailabilityService.recomputeSectionAvailability(
+          studentId,
+          section.id,
+        );
+        const normalized = new Map<
+          string,
+          {
+            status: StudentUnitStatus;
+            completionPercent: number;
+            solvedPercent: number;
+          }
+        >();
+        snapshots.forEach((snapshot, unitId) => {
+          normalized.set(unitId, {
+            status: snapshot.status,
+            completionPercent: snapshot.completionPercent,
+            solvedPercent: snapshot.solvedPercent,
+          });
+        });
+        snapshotsBySectionId.set(section.id, normalized);
+      }
+    }
+
+    const allUnitEntries = publishedCourses.flatMap((course) =>
+      course.sections.flatMap((section) =>
+        section.units.map((unit) => {
+          const snapshot = snapshotsBySectionId.get(section.id)?.get(unit.id);
+          return {
+            courseId: course.id,
+            courseTitle: course.title,
+            sectionId: section.id,
+            sectionTitle: section.title,
+            unitId: unit.id,
+            unitTitle: unit.title,
+            unitSortOrder: unit.sortOrder,
+            status: snapshot?.status ?? StudentUnitStatus.locked,
+            completionPercent: snapshot?.completionPercent ?? 0,
+            solvedPercent: snapshot?.solvedPercent ?? 0,
+          };
+        }),
+      ),
+    );
+
+    const continueLearning =
+      allUnitEntries.find((entry) => entry.status === StudentUnitStatus.in_progress) ??
+      allUnitEntries.find((entry) => entry.status === StudentUnitStatus.available) ??
+      null;
+
+    return {
+      courses: publishedCourses.map((course) => {
+        const units = course.sections.flatMap((section) => section.units);
+        const progressSum = units.reduce((sum, unit) => {
+          const snapshot = snapshotsBySectionId.get(unit.sectionId)?.get(unit.id);
+          return sum + (snapshot?.completionPercent ?? 0);
+        }, 0);
+        const unitCount = units.length;
+
+        return {
+          id: course.id,
+          title: course.title,
+          description: course.description,
+          coverImageAssetKey: course.coverImageAssetKey ?? null,
+          status: course.status,
+          createdAt: course.createdAt.toISOString(),
+          updatedAt: course.updatedAt.toISOString(),
+          sectionCount: course.sections.length,
+          unitCount,
+          progressPercent: unitCount > 0 ? Math.floor(progressSum / unitCount) : 0,
+        };
+      }),
+      continueLearning: continueLearning
+        ? {
+            courseId: continueLearning.courseId,
+            courseTitle: continueLearning.courseTitle,
+            sectionId: continueLearning.sectionId,
+            sectionTitle: continueLearning.sectionTitle,
+            unitId: continueLearning.unitId,
+            unitTitle: continueLearning.unitTitle,
+            completionPercent: continueLearning.completionPercent,
+            solvedPercent: continueLearning.solvedPercent,
+            href: `/student/units/${continueLearning.unitId}`,
+          }
+        : null,
+      stats: {
+        totalUnits: allUnitEntries.length,
+        availableUnits: allUnitEntries.filter((entry) => entry.status === StudentUnitStatus.available).length,
+        inProgressUnits: allUnitEntries.filter((entry) => entry.status === StudentUnitStatus.in_progress).length,
+        completedUnits: allUnitEntries.filter((entry) => entry.status === StudentUnitStatus.completed).length,
+      },
+    };
+  }
+
   async getPublishedSectionGraphForStudent(studentId: string, sectionId: string) {
     const graph = await this.contentService.getPublishedSectionGraph(sectionId);
     const snapshots = await this.learningAvailabilityService.getSectionGraphAvailabilitySnapshot(

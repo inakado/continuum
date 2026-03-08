@@ -50,6 +50,7 @@ vi.mock("@/lib/api/student", async () => {
     ...actual,
     studentApi: {
       ...actual.studentApi,
+      getDashboardOverview: vi.fn(),
       listCourses: vi.fn(),
       getCourse: vi.fn(),
       getSection: vi.fn(),
@@ -64,6 +65,7 @@ describe("StudentDashboardScreen", () => {
     vi.mocked(useRouter).mockReturnValue({ replace: replaceMock } as never);
     replaceMock.mockReset();
     vi.mocked(studentApi.listCourses).mockReset();
+    vi.mocked(studentApi.getDashboardOverview).mockReset();
     vi.mocked(studentApi.getCourse).mockReset();
     vi.mocked(studentApi.getSection).mockReset();
     window.localStorage.clear();
@@ -71,6 +73,11 @@ describe("StudentDashboardScreen", () => {
   });
 
   it("loads and shows student courses", async () => {
+    vi.mocked(studentApi.getDashboardOverview).mockResolvedValueOnce({
+      courses: [],
+      continueLearning: null,
+      stats: { totalUnits: 0, availableUnits: 0, inProgressUnits: 0, completedUnits: 0 },
+    } as never);
     vi.mocked(studentApi.listCourses).mockResolvedValueOnce([
       {
         id: "course-1",
@@ -90,6 +97,11 @@ describe("StudentDashboardScreen", () => {
   });
 
   it("shows request error when courses loading fails", async () => {
+    vi.mocked(studentApi.getDashboardOverview).mockResolvedValueOnce({
+      courses: [],
+      continueLearning: null,
+      stats: { totalUnits: 0, availableUnits: 0, inProgressUnits: 0, completedUnits: 0 },
+    } as never);
     vi.mocked(studentApi.listCourses).mockRejectedValueOnce(new ApiError(404, "Ошибка загрузки курсов"));
 
     renderWithQueryClient(<StudentDashboardScreen />);
@@ -98,6 +110,11 @@ describe("StudentDashboardScreen", () => {
   });
 
   it("opens course and renders sections list", async () => {
+    vi.mocked(studentApi.getDashboardOverview).mockResolvedValueOnce({
+      courses: [],
+      continueLearning: null,
+      stats: { totalUnits: 0, availableUnits: 0, inProgressUnits: 0, completedUnits: 0 },
+    } as never);
     vi.mocked(studentApi.listCourses).mockResolvedValueOnce([
       {
         id: "course-1",
@@ -142,6 +159,11 @@ describe("StudentDashboardScreen", () => {
 
   it("restores graph from localStorage and hydrates section context", async () => {
     window.localStorage.setItem(LAST_SECTION_KEY, "section-1");
+    vi.mocked(studentApi.getDashboardOverview).mockResolvedValueOnce({
+      courses: [],
+      continueLearning: null,
+      stats: { totalUnits: 0, availableUnits: 0, inProgressUnits: 0, completedUnits: 0 },
+    } as never);
     vi.mocked(studentApi.listCourses).mockResolvedValueOnce([]);
     vi.mocked(studentApi.getCourse).mockResolvedValueOnce({
       id: "course-1",
@@ -184,6 +206,11 @@ describe("StudentDashboardScreen", () => {
 
   it("queryOverride disables auto-restore and canonicalizes route", async () => {
     window.localStorage.setItem(LAST_SECTION_KEY, "section-1");
+    vi.mocked(studentApi.getDashboardOverview).mockResolvedValueOnce({
+      courses: [],
+      continueLearning: null,
+      stats: { totalUnits: 0, availableUnits: 0, inProgressUnits: 0, completedUnits: 0 },
+    } as never);
     vi.mocked(studentApi.listCourses).mockResolvedValueOnce([
       {
         id: "course-1",
@@ -204,6 +231,11 @@ describe("StudentDashboardScreen", () => {
   });
 
   it("shows error when course opening fails", async () => {
+    vi.mocked(studentApi.getDashboardOverview).mockResolvedValueOnce({
+      courses: [],
+      continueLearning: null,
+      stats: { totalUnits: 0, availableUnits: 0, inProgressUnits: 0, completedUnits: 0 },
+    } as never);
     vi.mocked(studentApi.listCourses).mockResolvedValueOnce([
       {
         id: "course-1",
@@ -225,6 +257,11 @@ describe("StudentDashboardScreen", () => {
   });
 
   it("returns from graph to sections when course context is known", async () => {
+    vi.mocked(studentApi.getDashboardOverview).mockResolvedValueOnce({
+      courses: [],
+      continueLearning: null,
+      stats: { totalUnits: 0, availableUnits: 0, inProgressUnits: 0, completedUnits: 0 },
+    } as never);
     vi.mocked(studentApi.listCourses).mockResolvedValueOnce([
       {
         id: "course-1",

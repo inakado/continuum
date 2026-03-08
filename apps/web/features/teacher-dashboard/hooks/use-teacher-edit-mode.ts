@@ -499,5 +499,7 @@ export const useTeacherEditMode = ({
     handleBackToList,
     handleBackToCoursesRoot,
     openCourse,
+    refreshCourses,
+    refreshSelectedCourse,
   };
 };

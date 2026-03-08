@@ -16,6 +16,7 @@ import { TeacherSectionGraphController } from './teacher-section-graph.controlle
 import { TeacherSectionsController } from './teacher-sections.controller';
 import { TeacherUnitsController } from './teacher-units.controller';
 import { TeacherTasksController } from './teacher-tasks.controller';
+import { ContentCoverImagePolicyService } from './content-cover-image-policy.service';
 import { TaskStatementImagePolicyService } from './task-statement-image-policy.service';
 import { TaskRevisionPayloadService } from './task-revision-payload.service';
 import { UnitPdfPolicyService } from './unit-pdf-policy.service';
@@ -37,6 +38,7 @@ import { UnitPdfPolicyService } from './unit-pdf-policy.service';
     ContentService,
     ContentGraphService,
     ContentWriteService,
+    ContentCoverImagePolicyService,
     TaskRevisionPayloadService,
     UnitPdfPolicyService,
     TaskStatementImagePolicyService,
@@ -44,6 +46,7 @@ import { UnitPdfPolicyService } from './unit-pdf-policy.service';
   ],
   exports: [
     ContentService,
+    ContentCoverImagePolicyService,
     UnitPdfPolicyService,
     TaskStatementImagePolicyService,
     LatexCompileQueueService,

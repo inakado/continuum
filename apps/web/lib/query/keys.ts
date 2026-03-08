@@ -32,7 +32,11 @@ export const contentQueryKeys = {
   }) => ["content", "teacher", "events", params ?? {}] as const,
   teacherCourses: () => ["content", "teacher", "courses"] as const,
   teacherCourse: (courseId: string) => ["content", "teacher", "course", courseId] as const,
+  teacherCourseCoverImagePreview: (courseId: string, assetKey: string) =>
+    ["content", "teacher", "course", courseId, "cover-image", assetKey] as const,
   teacherSection: (sectionId: string) => ["content", "teacher", "section", sectionId] as const,
+  teacherSectionCoverImagePreview: (sectionId: string, assetKey: string) =>
+    ["content", "teacher", "section", sectionId, "cover-image", assetKey] as const,
   teacherSectionMeta: (sectionId: string) =>
     ["content", "teacher", "section-meta", sectionId] as const,
   teacherUnit: (unitId: string) => ["content", "teacher", "unit", unitId] as const,
@@ -52,6 +56,7 @@ export const contentQueryKeys = {
     ["content", "teacher", "student-profile", studentId, { courseId: courseId ?? null }] as const,
   teacherStudentReviewPendingTotal: (studentId: string) =>
     ["content", "teacher", "student-review-pending-total", studentId] as const,
+  studentDashboardOverview: () => ["content", "student", "dashboard-overview"] as const,
   studentCourses: () => ["content", "student", "courses"] as const,
   studentCourse: (courseId: string) => ["content", "student", "course", courseId] as const,
   studentSection: (sectionId: string) => ["content", "student", "section", sectionId] as const,

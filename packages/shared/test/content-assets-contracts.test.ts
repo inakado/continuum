@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
+  ContentCoverImageApplyRequestSchema,
+  ContentCoverImageAllowedContentTypes,
+  ContentCoverImageMaxSizeBytes,
+  ContentCoverImagePresignUploadResponseSchema,
+  ContentCoverImagePresignViewQuerySchema,
   TaskStatementImageApplyRequestSchema,
   TaskStatementImageAllowedContentTypes,
   TaskStatementImageMaxSizeBytes,
   TaskStatementImagePresignUploadResponseSchema,
   TaskStatementImagePresignViewQuerySchema,
+  TeacherContentCoverImagePresignUploadRequestSchema,
   TeacherTaskStatementImagePresignUploadRequestSchema,
 } from "../src/contracts/content-assets";
 
@@ -82,6 +88,85 @@ describe("content assets contracts", () => {
     const result = TaskStatementImagePresignUploadResponseSchema.safeParse({
       uploadUrl: "https://storage.example/upload",
       assetKey: "tasks/t1/revisions/r1/statement-image/file.png",
+      expiresInSec: "300",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts content cover image upload request in envelope and direct body forms", () => {
+    expect(
+      TeacherContentCoverImagePresignUploadRequestSchema.parse({
+        file: {
+          filename: "cover.png",
+          contentType: "image/png",
+          sizeBytes: 1024,
+        },
+        ttlSec: 300,
+      }),
+    ).toEqual({
+      file: {
+        filename: "cover.png",
+        contentType: "image/png",
+        sizeBytes: 1024,
+      },
+      ttlSec: 300,
+    });
+
+    expect(
+      TeacherContentCoverImagePresignUploadRequestSchema.parse({
+        filename: "cover.webp",
+        contentType: "image/webp",
+        sizeBytes: 2048,
+      }),
+    ).toEqual({
+      file: {
+        filename: "cover.webp",
+        contentType: "image/webp",
+        sizeBytes: 2048,
+      },
+    });
+  });
+
+  it("rejects invalid content cover image request fields", () => {
+    expect(
+      TeacherContentCoverImagePresignUploadRequestSchema.safeParse({
+        file: {
+          filename: "",
+          contentType: ContentCoverImageAllowedContentTypes[0],
+          sizeBytes: 1,
+        },
+      }).success,
+    ).toBe(false);
+
+    expect(
+      TeacherContentCoverImagePresignUploadRequestSchema.safeParse({
+        file: {
+          filename: "cover.png",
+          contentType: "image/gif",
+          sizeBytes: 1,
+        },
+      }).success,
+    ).toBe(false);
+
+    expect(
+      TeacherContentCoverImagePresignUploadRequestSchema.safeParse({
+        file: {
+          filename: "cover.png",
+          contentType: "image/png",
+          sizeBytes: ContentCoverImageMaxSizeBytes + 1,
+        },
+      }).success,
+    ).toBe(false);
+
+    expect(ContentCoverImagePresignViewQuerySchema.safeParse({ ttlSec: "0" }).success).toBe(false);
+    expect(ContentCoverImageApplyRequestSchema.safeParse({ assetKey: "" }).success).toBe(false);
+  });
+
+  it("rejects invalid content cover image upload response shape", () => {
+    const result = ContentCoverImagePresignUploadResponseSchema.safeParse({
+      uploadUrl: "https://storage.example/upload",
+      assetKey: "courses/course-1/cover/file.png",
       expiresInSec: "300",
     });
 

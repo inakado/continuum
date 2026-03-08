@@ -72,11 +72,16 @@
 - Query-driven read flows и mutation + invalidation model являются default для экранов с server-state.
 - Ручные anti-race паттерны, `cancelled` guards и `requestIdRef` допустимы только там, где их нельзя заменить query lifecycle.
 - Read-path и write-path должны быть разделены: чтение через query, запись через mutation/hook orchestration.
+- Student dashboard overview читает aggregated read-model через отдельный query (`/student/dashboard`), а не собирает hero/continue-learning сводку вручную из нескольких client-side запросов.
 
 ## Presigned Assets and CORS
 
 - Presigned PDF/asset preview из object storage рендерится без credentials (`withCredentials = false`).
 - Это исключает отправку auth-cookie на внешний storage origin и предотвращает CORS-блокировку при `credentials: include`.
+- Teacher cover image flow для `Course/Section` использует тот же presign pattern, что и другие content assets:
+  - backend выдаёт upload/view URLs;
+  - web делает direct upload в storage;
+  - сохранение asset key подтверждается отдельным apply step.
 - В student unit PDF tabs zoom хранится отдельно по target; теория и методика открываются с масштабом `50%`.
 - Для student unit `theory/method` primary read-path теперь идёт через backend endpoint `rendered-content`, который отдаёт уже подписанный HTML fragment и optional `pdfUrl`.
 - Для student task solution primary read-path идёт через `GET /student/tasks/:taskId/solution/rendered-content`; PDF viewer для решения задачи не используется.

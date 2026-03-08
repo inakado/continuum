@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  StudentDashboardOverviewResponseSchema,
   StudentCourseListResponseSchema,
   StudentSectionGraphResponseSchema,
   TeacherCreateStudentRequestSchema,
@@ -38,8 +39,45 @@ describe("content non-learning contracts", () => {
       edges: [{ id: "edge-1", fromUnitId: "unit-1", toUnitId: "unit-2" }],
     });
 
+    const overview = StudentDashboardOverviewResponseSchema.parse({
+      courses: [
+        {
+          id: "course-1",
+          title: "Алгебра",
+          description: null,
+          coverImageAssetKey: "courses/course-1/cover/1700000000000-abcd1234.webp",
+          status: "published",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-02T00:00:00.000Z",
+          sectionCount: 3,
+          unitCount: 12,
+          progressPercent: 40,
+          coverImageKey: "courses/course-1/cover/1700000000000-abcd1234.webp",
+          coverImageUrl: "https://cdn.example.com/course-1.webp",
+        },
+      ],
+      continueLearning: {
+        courseId: "course-1",
+        courseTitle: "Алгебра",
+        sectionId: "section-1",
+        sectionTitle: "Линейные уравнения",
+        unitId: "unit-2",
+        unitTitle: "Системы уравнений",
+        completionPercent: 50,
+        solvedPercent: 25,
+        href: "/student/units/unit-2",
+      },
+      stats: {
+        totalUnits: 12,
+        availableUnits: 2,
+        inProgressUnits: 1,
+        completedUnits: 4,
+      },
+    });
+
     expect(list[0].id).toBe("course-1");
     expect(graph.sectionId).toBe("section-1");
+    expect(overview.continueLearning?.unitId).toBe("unit-2");
   });
 
   it("accepts valid teacher students query/request shapes", () => {

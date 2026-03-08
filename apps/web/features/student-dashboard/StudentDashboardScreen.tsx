@@ -6,7 +6,13 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import DashboardShell from "@/components/DashboardShell";
 import Button from "@/components/ui/Button";
-import { studentApi, type Course, type CourseWithSections, type Section } from "@/lib/api/student";
+import {
+  studentApi,
+  type Course,
+  type CourseWithSections,
+  type Section,
+  type StudentDashboardOverview,
+} from "@/lib/api/student";
 import { contentQueryKeys } from "@/lib/query/keys";
 import { getContentStatusLabel } from "@/lib/status-labels";
 import { useStudentLogout } from "@/features/student-content/auth/use-student-logout";
@@ -40,8 +46,10 @@ type DashboardHeaderState = {
 type StudentDashboardPanelProps = {
   boot: Boot;
   courses: Course[];
+  dashboardOverview: StudentDashboardOverview | null;
   loadingCourses: boolean;
   onCourseClick: (courseId: string) => void;
+  onContinueLearning: (href: string) => void;
   onGraphNotFound: () => void;
   onSectionClick: (section: Section) => void;
   onSectionsBack: () => void;
@@ -129,8 +137,10 @@ const getRequestError = (
 const StudentDashboardPanel = ({
   boot,
   courses,
+  dashboardOverview,
   loadingCourses,
   onCourseClick,
+  onContinueLearning,
   onGraphNotFound,
   onSectionClick,
   onSectionsBack,
@@ -183,6 +193,55 @@ const StudentDashboardPanel = ({
 
   return (
     <div className={styles.panel}>
+      {view === "courses" && dashboardOverview ? (
+        <div className={styles.overviewGrid}>
+          <section className={styles.spotlightCard}>
+            <div className={styles.spotlightKicker}>Продолжить обучение</div>
+            {dashboardOverview.continueLearning ? (
+              <>
+                <h2 className={styles.spotlightTitle}>{dashboardOverview.continueLearning.unitTitle}</h2>
+                <p className={styles.spotlightMeta}>
+                  {dashboardOverview.continueLearning.courseTitle} · {dashboardOverview.continueLearning.sectionTitle}
+                </p>
+                <div className={styles.spotlightStats}>
+                  <span>Выполнение: {dashboardOverview.continueLearning.completionPercent}%</span>
+                  <span>Решено: {dashboardOverview.continueLearning.solvedPercent}%</span>
+                </div>
+                <div className={styles.actions}>
+                  <Button onClick={() => onContinueLearning(dashboardOverview.continueLearning!.href)}>
+                    Открыть юнит
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className={styles.empty}>Пока нет доступного следующего шага.</div>
+            )}
+          </section>
+
+          <section className={styles.summaryCard}>
+            <div className={styles.spotlightKicker}>Сводка</div>
+            <div className={styles.summaryGrid}>
+              <div className={styles.summaryMetric}>
+                <span className={styles.summaryLabel}>Всего юнитов</span>
+                <span className={styles.summaryValue}>{dashboardOverview.stats.totalUnits}</span>
+              </div>
+              <div className={styles.summaryMetric}>
+                <span className={styles.summaryLabel}>Доступно</span>
+                <span className={styles.summaryValue}>{dashboardOverview.stats.availableUnits}</span>
+              </div>
+              <div className={styles.summaryMetric}>
+                <span className={styles.summaryLabel}>В процессе</span>
+                <span className={styles.summaryValue}>{dashboardOverview.stats.inProgressUnits}</span>
+              </div>
+              <div className={styles.summaryMetric}>
+                <span className={styles.summaryLabel}>Завершено</span>
+                <span className={styles.summaryValue}>{dashboardOverview.stats.completedUnits}</span>
+              </div>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
       <div className={styles.cardGrid}>
         {loadingCourses ? (
           <div className={styles.empty}>Загрузка курсов…</div>
@@ -434,6 +493,11 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
     queryFn: () => studentApi.listCourses(),
     enabled: boot === "ready",
   });
+  const overviewQuery = useQuery({
+    queryKey: contentQueryKeys.studentDashboardOverview(),
+    queryFn: () => studentApi.getDashboardOverview(),
+    enabled: boot === "ready",
+  });
   const selectedCourseQuery = useQuery({
     queryKey: contentQueryKeys.studentCourse(selectedCourseId ?? ""),
     queryFn: () => studentApi.getCourse(selectedCourseId as string),
@@ -447,6 +511,7 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
   const courses: Course[] = coursesQuery.data ?? [];
   const selectedCourse: CourseWithSections | null = selectedCourseQuery.data ?? null;
   const loadingCourses = coursesQuery.isPending;
+  const dashboardOverview = overviewQuery.data ?? null;
 
   const writeHistoryState = useCallback(
     (
@@ -578,6 +643,13 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
     [openCourse],
   );
 
+  const handleContinueLearning = useCallback(
+    (href: string) => {
+      router.push(href);
+    },
+    [router],
+  );
+
   const handleSectionClick = useCallback((section: Section) => {
     setSelectedSectionId(section.id);
     setSelectedSectionTitle(section.title);
@@ -643,8 +715,10 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
         <StudentDashboardPanel
           boot={boot}
           courses={courses}
+          dashboardOverview={dashboardOverview}
           loadingCourses={loadingCourses}
           onCourseClick={handleCourseClick}
+          onContinueLearning={handleContinueLearning}
           onGraphNotFound={handleGraphNotFound}
           onSectionClick={handleSectionClick}
           onSectionsBack={handleBackToSections}

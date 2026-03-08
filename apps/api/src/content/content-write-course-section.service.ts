@@ -27,6 +27,16 @@ export class ContentWriteCourseSectionService {
     return this.prisma.course.update({ where: { id }, data });
   }
 
+  async setCourseCoverImageAssetKey(id: string, key: string | null) {
+    const exists = await this.prisma.course.findUnique({ where: { id } });
+    if (!exists) throw new NotFoundException('Course not found');
+
+    return this.prisma.course.update({
+      where: { id },
+      data: { coverImageAssetKey: key },
+    });
+  }
+
   async publishCourse(id: string) {
     const exists = await this.prisma.course.findUnique({ where: { id } });
     if (!exists) throw new NotFoundException('Course not found');
@@ -83,6 +93,16 @@ export class ContentWriteCourseSectionService {
     if (dto.sortOrder !== undefined) data.sortOrder = dto.sortOrder;
 
     return this.prisma.section.update({ where: { id }, data });
+  }
+
+  async setSectionCoverImageAssetKey(id: string, key: string | null) {
+    const exists = await this.prisma.section.findUnique({ where: { id } });
+    if (!exists) throw new NotFoundException('Section not found');
+
+    return this.prisma.section.update({
+      where: { id },
+      data: { coverImageAssetKey: key },
+    });
   }
 
   async publishSection(id: string) {

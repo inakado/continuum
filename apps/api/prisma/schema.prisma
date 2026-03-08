@@ -178,6 +178,7 @@ model Course {
   id                  String        @id @default(uuid()) @db.Uuid
   title               String
   description         String?
+  coverImageAssetKey  String?       @map("cover_image_asset_key")
   status              ContentStatus @default(draft)
   lockDurationMinutes Int           @default(30) @map("lock_duration_minutes")
   createdAt           DateTime      @default(now()) @map("created_at")
@@ -194,6 +195,7 @@ model Section {
   courseId  String        @map("course_id") @db.Uuid
   title     String
   description String?
+  coverImageAssetKey String? @map("cover_image_asset_key")
   status    ContentStatus @default(draft)
   sortOrder Int           @default(0) @map("sort_order")
   createdAt DateTime      @default(now()) @map("created_at")

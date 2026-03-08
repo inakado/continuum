@@ -2,12 +2,15 @@ import { NotFoundException, type INestApplication } from '@nestjs/common';
 import { Role, type CourseStatus, type SectionStatus } from '@prisma/client';
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ContentCoverImagePolicyService } from '../../src/content/content-cover-image-policy.service';
 import { ContentService } from '../../src/content/content.service';
 import { StudentCoursesController } from '../../src/content/student-courses.controller';
 import { StudentSectionsController } from '../../src/content/student-sections.controller';
 import { TeacherCoursesController } from '../../src/content/teacher-courses.controller';
 import { TeacherSectionsController } from '../../src/content/teacher-sections.controller';
 import { EventsLogService } from '../../src/events/events-log.service';
+import { ObjectStorageService } from '../../src/infra/storage/object-storage.service';
+import { StudentDashboardController } from '../../src/learning/student-dashboard.controller';
 import { LearningService } from '../../src/learning/learning.service';
 import { StudentSectionGraphController } from '../../src/learning/student-section-graph.controller';
 import { createIntegrationApp } from './test-app.factory';
@@ -20,6 +23,8 @@ describe('content non-learning boundary integration', () => {
     getCourse: vi.fn(),
     createCourse: vi.fn(),
     updateCourse: vi.fn(),
+    getCourseCoverImageState: vi.fn(),
+    setCourseCoverImageAssetKey: vi.fn(),
     publishCourse: vi.fn(),
     unpublishCourse: vi.fn(),
     deleteCourse: vi.fn(),
@@ -27,6 +32,8 @@ describe('content non-learning boundary integration', () => {
     getSectionMeta: vi.fn(),
     createSection: vi.fn(),
     updateSection: vi.fn(),
+    getSectionCoverImageState: vi.fn(),
+    setSectionCoverImageAssetKey: vi.fn(),
     publishSection: vi.fn(),
     unpublishSection: vi.fn(),
     deleteSection: vi.fn(),
@@ -36,9 +43,25 @@ describe('content non-learning boundary integration', () => {
   };
   const learningService = {
     getPublishedSectionGraphForStudent: vi.fn(),
+    getStudentDashboardOverview: vi.fn(),
   };
   const eventsLogService = {
     append: vi.fn(),
+  };
+  const objectStorageService = {
+    presignPutObject: vi.fn(),
+    getObjectMeta: vi.fn(),
+    presignGetObject: vi.fn(),
+  };
+  const contentCoverImagePolicyService = {
+    resolveUploadTtl: vi.fn(),
+    resolveViewTtl: vi.fn(),
+    createCourseAssetKey: vi.fn(),
+    createSectionAssetKey: vi.fn(),
+    buildCourseAssetPrefix: vi.fn(),
+    buildSectionAssetPrefix: vi.fn(),
+    assertAssetKeyGeneratedPattern: vi.fn(),
+    inferResponseContentType: vi.fn(),
   };
 
   beforeEach(async () => {
@@ -46,6 +69,29 @@ describe('content non-learning boundary integration', () => {
     Object.values(learningService).forEach((mockFn) => mockFn.mockReset());
     eventsLogService.append.mockReset();
     eventsLogService.append.mockResolvedValue(undefined);
+    Object.values(objectStorageService).forEach((mockFn) => mockFn.mockReset());
+    Object.values(contentCoverImagePolicyService).forEach((mockFn) => mockFn.mockReset());
+    contentCoverImagePolicyService.resolveUploadTtl.mockReturnValue(300);
+    contentCoverImagePolicyService.resolveViewTtl.mockReturnValue(180);
+    contentCoverImagePolicyService.createCourseAssetKey.mockReturnValue(
+      'courses/course-1/cover/1700000000000-abcd1234.webp',
+    );
+    contentCoverImagePolicyService.createSectionAssetKey.mockReturnValue(
+      'sections/section-1/cover/1700000000000-abcd1234.webp',
+    );
+    contentCoverImagePolicyService.buildCourseAssetPrefix.mockReturnValue('courses/course-1/cover/');
+    contentCoverImagePolicyService.buildSectionAssetPrefix.mockReturnValue('sections/section-1/cover/');
+    contentCoverImagePolicyService.inferResponseContentType.mockReturnValue('image/webp');
+    objectStorageService.presignPutObject.mockResolvedValue({
+      url: 'https://upload.example.com/object',
+      headers: { 'Content-Type': 'image/webp' },
+    });
+    objectStorageService.getObjectMeta.mockResolvedValue({
+      exists: true,
+      sizeBytes: 1024,
+      etag: 'etag-1',
+    });
+    objectStorageService.presignGetObject.mockResolvedValue('https://cdn.example.com/object.webp');
 
     app = await createIntegrationApp({
       controllers: [
@@ -54,20 +100,23 @@ describe('content non-learning boundary integration', () => {
         StudentCoursesController,
         StudentSectionsController,
         StudentSectionGraphController,
+        StudentDashboardController,
       ],
       providers: [
         { provide: ContentService, useValue: contentService },
         { provide: LearningService, useValue: learningService },
         { provide: EventsLogService, useValue: eventsLogService },
+        { provide: ObjectStorageService, useValue: objectStorageService },
+        { provide: ContentCoverImagePolicyService, useValue: contentCoverImagePolicyService },
       ],
       constructorParams: [
         {
           target: TeacherCoursesController,
-          deps: [ContentService, EventsLogService],
+          deps: [ContentService, EventsLogService, ObjectStorageService, ContentCoverImagePolicyService],
         },
         {
           target: TeacherSectionsController,
-          deps: [ContentService, EventsLogService],
+          deps: [ContentService, EventsLogService, ObjectStorageService, ContentCoverImagePolicyService],
         },
         {
           target: StudentCoursesController,
@@ -80,6 +129,10 @@ describe('content non-learning boundary integration', () => {
         {
           target: StudentSectionGraphController,
           deps: [LearningService],
+        },
+        {
+          target: StudentDashboardController,
+          deps: [LearningService, ObjectStorageService, ContentCoverImagePolicyService],
         },
       ],
       user: {
@@ -99,6 +152,7 @@ describe('content non-learning boundary integration', () => {
       id: 'course-1',
       title: 'Algebra',
       description: 'Numbers',
+      coverImageAssetKey: null,
       status,
     };
   }
@@ -109,6 +163,7 @@ describe('content non-learning boundary integration', () => {
       courseId: 'course-1',
       title: 'Linear equations',
       description: 'Section body',
+      coverImageAssetKey: null,
       status,
       sortOrder: 1,
     };
@@ -189,6 +244,43 @@ describe('content non-learning boundary integration', () => {
         entityType: 'course',
         entityId: 'course-1',
       }),
+    );
+  });
+
+  it('covers teacher course cover image upload/apply/view/delete HTTP paths', async () => {
+    contentService.getCourseCoverImageState.mockResolvedValue({
+      courseId: 'course-1',
+      coverImageAssetKey: 'courses/course-1/cover/1700000000000-abcd1234.webp',
+    });
+    contentService.setCourseCoverImageAssetKey.mockResolvedValue({
+      id: 'course-1',
+      coverImageAssetKey: 'courses/course-1/cover/1700000000000-abcd1234.webp',
+    });
+
+    const uploadResponse = await request(app.getHttpServer())
+      .post('/teacher/courses/course-1/cover-image/presign-upload')
+      .send({
+        file: {
+          filename: 'cover.webp',
+          contentType: 'image/webp',
+          sizeBytes: 1024,
+        },
+      });
+    const applyResponse = await request(app.getHttpServer())
+      .post('/teacher/courses/course-1/cover-image/apply')
+      .send({
+        assetKey: 'courses/course-1/cover/1700000000000-abcd1234.webp',
+      });
+    const viewResponse = await request(app.getHttpServer()).get('/teacher/courses/course-1/cover-image/presign-view');
+    const deleteResponse = await request(app.getHttpServer()).delete('/teacher/courses/course-1/cover-image');
+
+    expect(uploadResponse.status).toBe(200);
+    expect(applyResponse.status).toBe(200);
+    expect(viewResponse.status).toBe(200);
+    expect(deleteResponse.status).toBe(200);
+    expect(contentService.setCourseCoverImageAssetKey).toHaveBeenCalledWith(
+      'course-1',
+      'courses/course-1/cover/1700000000000-abcd1234.webp',
     );
   });
 
@@ -290,6 +382,44 @@ describe('content non-learning boundary integration', () => {
     );
   });
 
+  it('covers teacher section cover image upload/apply/view/delete HTTP paths', async () => {
+    contentService.getSectionCoverImageState.mockResolvedValue({
+      sectionId: 'section-1',
+      courseId: 'course-1',
+      coverImageAssetKey: 'sections/section-1/cover/1700000000000-abcd1234.webp',
+    });
+    contentService.setSectionCoverImageAssetKey.mockResolvedValue({
+      id: 'section-1',
+      coverImageAssetKey: 'sections/section-1/cover/1700000000000-abcd1234.webp',
+    });
+
+    const uploadResponse = await request(app.getHttpServer())
+      .post('/teacher/sections/section-1/cover-image/presign-upload')
+      .send({
+        file: {
+          filename: 'cover.webp',
+          contentType: 'image/webp',
+          sizeBytes: 1024,
+        },
+      });
+    const applyResponse = await request(app.getHttpServer())
+      .post('/teacher/sections/section-1/cover-image/apply')
+      .send({
+        assetKey: 'sections/section-1/cover/1700000000000-abcd1234.webp',
+      });
+    const viewResponse = await request(app.getHttpServer()).get('/teacher/sections/section-1/cover-image/presign-view');
+    const deleteResponse = await request(app.getHttpServer()).delete('/teacher/sections/section-1/cover-image');
+
+    expect(uploadResponse.status).toBe(200);
+    expect(applyResponse.status).toBe(200);
+    expect(viewResponse.status).toBe(200);
+    expect(deleteResponse.status).toBe(200);
+    expect(contentService.setSectionCoverImageAssetKey).toHaveBeenCalledWith(
+      'section-1',
+      'sections/section-1/cover/1700000000000-abcd1234.webp',
+    );
+  });
+
   it('returns 404 for missing teacher section meta', async () => {
     contentService.getSectionMeta.mockRejectedValueOnce(new NotFoundException('Section not found'));
 
@@ -336,5 +466,47 @@ describe('content non-learning boundary integration', () => {
       'section-1',
     );
     expect(graphResponseHttp.body.sectionId).toBe('section-1');
+  });
+
+  it('covers student dashboard overview HTTP path', async () => {
+    learningService.getStudentDashboardOverview.mockResolvedValue({
+      courses: [
+        {
+          id: 'course-1',
+          title: 'Algebra',
+          description: 'Numbers',
+          coverImageAssetKey: 'courses/course-1/cover/1700000000000-abcd1234.webp',
+          status: 'published',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-02T00:00:00.000Z',
+          sectionCount: 2,
+          unitCount: 8,
+          progressPercent: 50,
+        },
+      ],
+      continueLearning: {
+        courseId: 'course-1',
+        courseTitle: 'Algebra',
+        sectionId: 'section-1',
+        sectionTitle: 'Linear equations',
+        unitId: 'unit-1',
+        unitTitle: 'Unit 1',
+        completionPercent: 40,
+        solvedPercent: 20,
+        href: '/student/units/unit-1',
+      },
+      stats: {
+        totalUnits: 8,
+        availableUnits: 2,
+        inProgressUnits: 1,
+        completedUnits: 3,
+      },
+    });
+
+    const response = await request(app.getHttpServer()).get('/student/dashboard');
+
+    expect(response.status).toBe(200);
+    expect(response.body.courses[0].coverImageUrl).toBe('https://cdn.example.com/object.webp');
+    expect(learningService.getStudentDashboardOverview).toHaveBeenCalledWith('teacher-1');
   });
 });

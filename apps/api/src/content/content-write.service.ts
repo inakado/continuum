@@ -32,6 +32,10 @@ export class ContentWriteService {
     return this.courseSectionWriteService.updateCourse(id, dto);
   }
 
+  setCourseCoverImageAssetKey(id: string, key: string | null) {
+    return this.courseSectionWriteService.setCourseCoverImageAssetKey(id, key);
+  }
+
   publishCourse(id: string) {
     return this.courseSectionWriteService.publishCourse(id);
   }
@@ -50,6 +54,10 @@ export class ContentWriteService {
 
   updateSection(id: string, dto: UpdateSectionDto) {
     return this.courseSectionWriteService.updateSection(id, dto);
+  }
+
+  setSectionCoverImageAssetKey(id: string, key: string | null) {
+    return this.courseSectionWriteService.setSectionCoverImageAssetKey(id, key);
   }
 
   publishSection(id: string) {

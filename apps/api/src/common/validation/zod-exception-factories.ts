@@ -343,6 +343,15 @@ export const taskStatementImageViewExceptionFactory: ZodExceptionFactory = (erro
   });
 };
 
+export const contentCoverImageUploadExceptionFactory: ZodExceptionFactory =
+  taskStatementImageUploadExceptionFactory;
+
+export const contentCoverImageApplyExceptionFactory: ZodExceptionFactory =
+  taskStatementImageApplyExceptionFactory;
+
+export const contentCoverImageViewExceptionFactory: ZodExceptionFactory =
+  taskStatementImageViewExceptionFactory;
+
 export const teacherUnitLatexCompileExceptionFactory: ZodExceptionFactory = (error) => {
   const issue = firstIssue(error);
 

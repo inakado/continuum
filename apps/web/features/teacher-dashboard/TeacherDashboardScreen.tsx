@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, type ChangeEvent, type RefObject } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2 } from "lucide-react";
+import { ImagePlus, Pencil, Trash2 } from "lucide-react";
 import DashboardShell from "@/components/DashboardShell";
 import AlertDialog from "@/components/ui/AlertDialog";
 import Button from "@/components/ui/Button";
@@ -17,6 +17,7 @@ import { useTeacherIdentity } from "@/features/teacher-content/shared/use-teache
 import TeacherStudentsPanel from "@/features/teacher-students/TeacherStudentsPanel";
 import TeacherReviewInboxPanel from "@/features/teacher-review/TeacherReviewInboxPanel";
 import TeacherReviewSubmissionDetailPanel from "@/features/teacher-review/TeacherReviewSubmissionDetailPanel";
+import { useTeacherEditCoverImage } from "./hooks/use-teacher-edit-cover-image";
 import { useTeacherEditMode } from "./hooks/use-teacher-edit-mode";
 import styles from "./teacher-dashboard.module.css";
 
@@ -355,10 +356,17 @@ function TeacherSectionCard({
 type TeacherEditDialogPanelProps = {
   title: string;
   description: string;
+  coverImageUrl: string | null;
+  coverImageStatusText: string;
   error: string | null;
   saving: boolean;
   onTitleChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
+  onPickCoverImage: () => void;
+  onRemoveCoverImage: () => void;
+  onCoverImageSelected: (event: ChangeEvent<HTMLInputElement>) => void;
+  onCoverImagePreviewError: () => void;
+  coverImageInputRef: RefObject<HTMLInputElement | null>;
   onSave: () => void;
   onCancel: () => void;
 };
@@ -366,10 +374,17 @@ type TeacherEditDialogPanelProps = {
 function TeacherEditDialogPanel({
   title,
   description,
+  coverImageUrl,
+  coverImageStatusText,
   error,
   saving,
   onTitleChange,
   onDescriptionChange,
+  onPickCoverImage,
+  onRemoveCoverImage,
+  onCoverImageSelected,
+  onCoverImagePreviewError,
+  coverImageInputRef,
   onSave,
   onCancel,
 }: TeacherEditDialogPanelProps) {
@@ -395,6 +410,42 @@ function TeacherEditDialogPanel({
           placeholder="Введите описание..."
         />
       </label>
+      <div className={styles.coverEditor}>
+        <div className={styles.coverEditorHeader}>
+          <span className={styles.labelTitle}>Обложка</span>
+          <input
+            ref={coverImageInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className={styles.coverInput}
+            onChange={onCoverImageSelected}
+          />
+          <div className={styles.coverActions}>
+            <Button variant="ghost" onClick={onPickCoverImage}>
+              <ImagePlus size={14} aria-hidden="true" />
+              Загрузить
+            </Button>
+            {coverImageUrl ? (
+              <Button variant="ghost" onClick={onRemoveCoverImage}>
+                Удалить
+              </Button>
+            ) : null}
+          </div>
+        </div>
+        {coverImageUrl ? (
+          <div className={styles.coverPreviewWrap}>
+            <img
+              src={coverImageUrl}
+              alt=""
+              className={styles.coverPreview}
+              onError={onCoverImagePreviewError}
+            />
+          </div>
+        ) : (
+          <div className={styles.coverPlaceholder}>Обложка пока не загружена.</div>
+        )}
+        <div className={styles.coverStatus}>{coverImageStatusText}</div>
+      </div>
       {error ? <div className={styles.formError}>{error}</div> : null}
       <div className={styles.actions}>
         <Button onClick={onSave} disabled={!title.trim() || saving}>
@@ -659,9 +710,49 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
     handleBackToList,
     handleBackToCoursesRoot,
     openCourse,
+    refreshCourses,
+    refreshSelectedCourse,
   } = useTeacherEditMode({
     initialSectionId,
     onPushToTeacherRoot: () => router.push("/teacher"),
+  });
+
+  const editingEntity = useMemo(() => {
+    if (!editDialog) return null;
+    if (editDialog.kind === "course") {
+      const course = courses.find((item) => item.id === editDialog.id) ?? null;
+      return {
+        kind: "course" as const,
+        id: editDialog.id,
+        assetKey: course?.coverImageAssetKey ?? null,
+      };
+    }
+
+    const section = sortedSections.find((item) => item.id === editDialog.id) ?? null;
+    return {
+      kind: "section" as const,
+      id: editDialog.id,
+      assetKey: section?.coverImageAssetKey ?? null,
+    };
+  }, [courses, editDialog, sortedSections]);
+
+  const handleRefreshEditEntity = useCallback(async () => {
+    await refreshCourses();
+    if (selectedCourseId) {
+      await refreshSelectedCourse(selectedCourseId);
+    }
+  }, [refreshCourses, refreshSelectedCourse, selectedCourseId]);
+
+  const {
+    coverImageInputRef,
+    coverImageState,
+    coverImageStatusText,
+    handleCoverImageSelected,
+    handleCoverImageRemove,
+    handleCoverImagePreviewError,
+  } = useTeacherEditCoverImage({
+    editingEntity,
+    onAfterChange: handleRefreshEditEntity,
   });
 
   return (
@@ -741,10 +832,17 @@ function TeacherEditMode({ initialSectionId }: TeacherEditModeProps) {
         <TeacherEditDialogPanel
           title={editTitle}
           description={editDescription}
+          coverImageUrl={coverImageState.previewUrl}
+          coverImageStatusText={coverImageStatusText}
           error={editError}
           saving={savingEdit}
           onTitleChange={setEditTitle}
           onDescriptionChange={setEditDescription}
+          onPickCoverImage={() => coverImageInputRef.current?.click()}
+          onRemoveCoverImage={() => void handleCoverImageRemove()}
+          onCoverImageSelected={handleCoverImageSelected}
+          onCoverImagePreviewError={handleCoverImagePreviewError}
+          coverImageInputRef={coverImageInputRef}
           onSave={handleSaveEdit}
           onCancel={() => setEditDialog(null)}
         />

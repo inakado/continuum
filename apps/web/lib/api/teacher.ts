@@ -1,6 +1,11 @@
 import {
+  ContentCoverImagePresignUploadResponseSchema,
+  CourseCoverImageApplyResponseSchema,
+  CourseCoverImagePresignViewResponseSchema,
   StudentUnitRenderedContentResponseSchema,
   StudentTaskSolutionRenderedContentResponseSchema,
+  SectionCoverImageApplyResponseSchema,
+  SectionCoverImagePresignViewResponseSchema,
   TeacherCourseDetailResponseSchema,
   TeacherCourseListResponseSchema,
   TeacherCourseSchema,
@@ -59,6 +64,11 @@ import {
   type TeacherUpdateCourseRequest as SharedTeacherUpdateCourseRequest,
   type TeacherUpdateSectionRequest as SharedTeacherUpdateSectionRequest,
   type TeacherUpdateStudentProfileRequest as SharedTeacherUpdateStudentProfileRequest,
+  type ContentCoverImagePresignUploadResponse as SharedContentCoverImagePresignUploadResponse,
+  type CourseCoverImageApplyResponse as SharedCourseCoverImageApplyResponse,
+  type CourseCoverImagePresignViewResponse as SharedCourseCoverImagePresignViewResponse,
+  type SectionCoverImageApplyResponse as SharedSectionCoverImageApplyResponse,
+  type SectionCoverImagePresignViewResponse as SharedSectionCoverImagePresignViewResponse,
 } from "@continuum/shared";
 import { apiRequest, apiRequestParsed } from "./client";
 import type { MeResponse } from "./auth";
@@ -299,6 +309,12 @@ export type TaskStatementImagePresignUploadResponse = {
   expiresInSec: number;
 };
 
+export type ContentCoverImagePresignUploadResponse = SharedContentCoverImagePresignUploadResponse;
+export type CourseCoverImageApplyResponse = SharedCourseCoverImageApplyResponse;
+export type CourseCoverImagePresignViewResponse = SharedCourseCoverImagePresignViewResponse;
+export type SectionCoverImageApplyResponse = SharedSectionCoverImageApplyResponse;
+export type SectionCoverImagePresignViewResponse = SharedSectionCoverImagePresignViewResponse;
+
 export type TaskStatementImageApplyResponse = {
   ok: true;
   taskId: string;
@@ -451,6 +467,51 @@ export const teacherApi = {
     return apiRequestParsed(`/teacher/courses/${id}`, TeacherCourseSchema, { method: "PATCH", body: data });
   },
 
+  presignCourseCoverImageUpload(
+    courseId: string,
+    file: { filename: string; contentType: string; sizeBytes: number },
+    ttlSec?: number,
+  ) {
+    return apiRequestParsed(
+      `/teacher/courses/${courseId}/cover-image/presign-upload`,
+      ContentCoverImagePresignUploadResponseSchema,
+      {
+        method: "POST",
+        body: {
+          file,
+          ...(ttlSec !== undefined ? { ttlSec } : null),
+        },
+      },
+    );
+  },
+
+  applyCourseCoverImage(courseId: string, assetKey: string) {
+    return apiRequestParsed(
+      `/teacher/courses/${courseId}/cover-image/apply`,
+      CourseCoverImageApplyResponseSchema,
+      {
+        method: "POST",
+        body: { assetKey },
+      },
+    );
+  },
+
+  deleteCourseCoverImage(courseId: string) {
+    return apiRequestParsed(
+      `/teacher/courses/${courseId}/cover-image`,
+      CourseCoverImageApplyResponseSchema,
+      { method: "DELETE" },
+    );
+  },
+
+  presignCourseCoverImageView(courseId: string, ttlSec = 600) {
+    const search = new URLSearchParams({ ttlSec: String(ttlSec) });
+    return apiRequestParsed(
+      `/teacher/courses/${courseId}/cover-image/presign-view?${search.toString()}`,
+      CourseCoverImagePresignViewResponseSchema,
+    );
+  },
+
   publishCourse(id: string) {
     return apiRequestParsed(`/teacher/courses/${id}/publish`, TeacherCourseSchema, { method: "POST" });
   },
@@ -484,6 +545,51 @@ export const teacherApi = {
 
   updateSection(id: string, data: SharedTeacherUpdateSectionRequest) {
     return apiRequestParsed(`/teacher/sections/${id}`, TeacherSectionSchema, { method: "PATCH", body: data });
+  },
+
+  presignSectionCoverImageUpload(
+    sectionId: string,
+    file: { filename: string; contentType: string; sizeBytes: number },
+    ttlSec?: number,
+  ) {
+    return apiRequestParsed(
+      `/teacher/sections/${sectionId}/cover-image/presign-upload`,
+      ContentCoverImagePresignUploadResponseSchema,
+      {
+        method: "POST",
+        body: {
+          file,
+          ...(ttlSec !== undefined ? { ttlSec } : null),
+        },
+      },
+    );
+  },
+
+  applySectionCoverImage(sectionId: string, assetKey: string) {
+    return apiRequestParsed(
+      `/teacher/sections/${sectionId}/cover-image/apply`,
+      SectionCoverImageApplyResponseSchema,
+      {
+        method: "POST",
+        body: { assetKey },
+      },
+    );
+  },
+
+  deleteSectionCoverImage(sectionId: string) {
+    return apiRequestParsed(
+      `/teacher/sections/${sectionId}/cover-image`,
+      SectionCoverImageApplyResponseSchema,
+      { method: "DELETE" },
+    );
+  },
+
+  presignSectionCoverImageView(sectionId: string, ttlSec = 600) {
+    const search = new URLSearchParams({ ttlSec: String(ttlSec) });
+    return apiRequestParsed(
+      `/teacher/sections/${sectionId}/cover-image/presign-view?${search.toString()}`,
+      SectionCoverImagePresignViewResponseSchema,
+    );
   },
 
   publishSection(id: string) {

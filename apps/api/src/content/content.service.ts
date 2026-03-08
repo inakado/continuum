@@ -57,6 +57,21 @@ export class ContentService {
     return course;
   }
 
+  async getCourseCoverImageState(id: string) {
+    const course = await this.prisma.course.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        coverImageAssetKey: true,
+      },
+    });
+    if (!course) throw new NotFoundException('Course not found');
+    return {
+      courseId: course.id,
+      coverImageAssetKey: course.coverImageAssetKey,
+    };
+  }
+
   async getPublishedCourse(id: string) {
     const course = await this.prisma.course.findFirst({
       where: { id, status: ContentStatus.published },
@@ -79,6 +94,10 @@ export class ContentService {
     return this.contentWriteService.updateCourse(id, dto);
   }
 
+  async setCourseCoverImageAssetKey(id: string, key: string | null) {
+    return this.contentWriteService.setCourseCoverImageAssetKey(id, key);
+  }
+
   async publishCourse(id: string) {
     return this.contentWriteService.publishCourse(id);
   }
@@ -98,6 +117,23 @@ export class ContentService {
     });
     if (!section) throw new NotFoundException('Section not found');
     return section;
+  }
+
+  async getSectionCoverImageState(id: string) {
+    const section = await this.prisma.section.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        courseId: true,
+        coverImageAssetKey: true,
+      },
+    });
+    if (!section) throw new NotFoundException('Section not found');
+    return {
+      sectionId: section.id,
+      courseId: section.courseId,
+      coverImageAssetKey: section.coverImageAssetKey,
+    };
   }
 
   async getSectionMeta(id: string) {
@@ -154,6 +190,10 @@ export class ContentService {
 
   async updateSection(id: string, dto: UpdateSectionDto) {
     return this.contentWriteService.updateSection(id, dto);
+  }
+
+  async setSectionCoverImageAssetKey(id: string, key: string | null) {
+    return this.contentWriteService.setSectionCoverImageAssetKey(id, key);
   }
 
   async publishSection(id: string) {

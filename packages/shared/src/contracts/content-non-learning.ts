@@ -16,6 +16,7 @@ export const StudentCourseSchema = z
     id: z.string().min(1),
     title: z.string(),
     description: z.string().nullable(),
+    coverImageAssetKey: z.string().nullable().optional(),
     status: ContentStatusSchema,
     createdAt: z.string(),
     updatedAt: z.string(),
@@ -27,6 +28,7 @@ export const StudentSectionSchema = z
     id: z.string().min(1),
     courseId: z.string().min(1),
     title: z.string(),
+    coverImageAssetKey: z.string().nullable().optional(),
     status: ContentStatusSchema,
     sortOrder: z.number(),
     createdAt: z.string(),
@@ -94,6 +96,7 @@ export const TeacherCourseSchema = z
     id: z.string().min(1),
     title: z.string(),
     description: z.string().nullable(),
+    coverImageAssetKey: z.string().nullable().optional(),
     status: ContentStatusSchema,
     createdAt: z.string(),
     updatedAt: z.string(),
@@ -106,6 +109,7 @@ export const TeacherSectionSchema = z
     courseId: z.string().min(1),
     title: z.string(),
     description: z.string().nullable(),
+    coverImageAssetKey: z.string().nullable().optional(),
     status: ContentStatusSchema,
     sortOrder: z.number(),
     createdAt: z.string(),
@@ -252,6 +256,45 @@ export const TeacherCreateUnitRequestSchema = z
     sectionId: z.string().min(1),
     title: z.string().min(1),
     sortOrder: z.number().optional(),
+  })
+  .passthrough();
+
+export const StudentDashboardCourseSummarySchema = StudentCourseSchema.extend({
+  sectionCount: z.number().int().nonnegative(),
+  unitCount: z.number().int().nonnegative(),
+  progressPercent: z.number().int().nonnegative().max(100),
+  coverImageKey: z.string().nullable(),
+  coverImageUrl: z.string().nullable(),
+}).passthrough();
+
+export const StudentDashboardContinueLearningSchema = z
+  .object({
+    courseId: z.string().min(1),
+    courseTitle: z.string(),
+    sectionId: z.string().min(1),
+    sectionTitle: z.string(),
+    unitId: z.string().min(1),
+    unitTitle: z.string(),
+    completionPercent: z.number().int().nonnegative().max(100),
+    solvedPercent: z.number().int().nonnegative().max(100),
+    href: z.string().min(1),
+  })
+  .passthrough();
+
+export const StudentDashboardStatsSchema = z
+  .object({
+    totalUnits: z.number().int().nonnegative(),
+    availableUnits: z.number().int().nonnegative(),
+    inProgressUnits: z.number().int().nonnegative(),
+    completedUnits: z.number().int().nonnegative(),
+  })
+  .passthrough();
+
+export const StudentDashboardOverviewResponseSchema = z
+  .object({
+    courses: z.array(StudentDashboardCourseSummarySchema),
+    continueLearning: StudentDashboardContinueLearningSchema.nullable(),
+    stats: StudentDashboardStatsSchema,
   })
   .passthrough();
 
@@ -518,6 +561,10 @@ export type TeacherUnit = z.infer<typeof TeacherUnitSchema>;
 export type TeacherGraphNode = z.infer<typeof TeacherGraphNodeSchema>;
 export type TeacherGraphEdge = z.infer<typeof TeacherGraphEdgeSchema>;
 export type TeacherSectionGraphUpdateRequest = z.infer<typeof TeacherSectionGraphUpdateRequestSchema>;
+export type StudentDashboardCourseSummary = z.infer<typeof StudentDashboardCourseSummarySchema>;
+export type StudentDashboardContinueLearning = z.infer<typeof StudentDashboardContinueLearningSchema>;
+export type StudentDashboardStats = z.infer<typeof StudentDashboardStatsSchema>;
+export type StudentDashboardOverviewResponse = z.infer<typeof StudentDashboardOverviewResponseSchema>;
 export type TeacherCourseListResponse = z.infer<typeof TeacherCourseListResponseSchema>;
 export type TeacherCourseDetailResponse = z.infer<typeof TeacherCourseDetailResponseSchema>;
 export type TeacherSectionDetailResponse = z.infer<typeof TeacherSectionDetailResponseSchema>;

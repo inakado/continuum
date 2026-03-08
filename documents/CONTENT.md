@@ -33,8 +33,8 @@
 
 ## Content Entities (`Implemented`)
 
-- `Course`: содержит `lockDurationMinutes`.
-- `Section`: внутри course, хранит `description`, сортировку и unit graph.
+- `Course`: содержит `lockDurationMinutes`, может хранить `coverImageAssetKey`.
+- `Section`: внутри course, хранит `description`, сортировку, unit graph и может хранить `coverImageAssetKey`.
 - `Unit`:
   - контент: `theoryRichLatex`, `methodRichLatex`, `videosJson`, `attachmentsJson`
   - render asset keys: `theoryPdfAssetKey`, `theoryHtmlAssetKey`, `methodPdfAssetKey`, `methodHtmlAssetKey`
@@ -115,6 +115,19 @@
 
 - Unit PDF preview во фронтенде рендерится через `PdfCanvasPreview` (presign из `GET /teacher/latex/jobs/:jobId` и `.../pdf-presign`).
 - Загрузка PDF по storage URL выполняется без credentials (`withCredentials = false`).
+
+## Cover Images (`Implemented`)
+
+- Teacher authoring для `Course` и `Section` использует S3-compatible upload flow:
+  - `presign-upload`
+  - прямой `PUT` в storage
+  - `apply assetKey`
+  - `presign-view`
+- Asset keys для обложек хранятся в доменных сущностях:
+  - `Course.coverImageAssetKey`
+  - `Section.coverImageAssetKey`
+- Dev runtime использует тот же MinIO/S3-compatible contour, что и остальные object storage assets.
+- Student dashboard overview (`GET /student/dashboard`) подписывает course cover image URLs на read-path и не даёт UI прямой доступ к bucket.
 
 ## LaTeX → HTML Pipeline (`Implemented`)
 
