@@ -43,6 +43,7 @@ describe('content non-learning boundary integration', () => {
   };
   const learningService = {
     getPublishedCourseForStudent: vi.fn(),
+    getPublishedSectionForStudent: vi.fn(),
     getPublishedSectionGraphForStudent: vi.fn(),
     getStudentDashboardOverview: vi.fn(),
   };
@@ -125,7 +126,7 @@ describe('content non-learning boundary integration', () => {
         },
         {
           target: StudentSectionsController,
-          deps: [ContentService],
+          deps: [LearningService],
         },
         {
           target: StudentSectionGraphController,
@@ -438,6 +439,7 @@ describe('content non-learning boundary integration', () => {
         {
           ...sectionFixture('published'),
           completionPercent: 45,
+          accessStatus: 'available',
           createdAt: '2026-01-01T00:00:00.000Z',
           updatedAt: '2026-01-02T00:00:00.000Z',
         },
@@ -445,7 +447,11 @@ describe('content non-learning boundary integration', () => {
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-02T00:00:00.000Z',
     };
-    const publishedSection = sectionFixture('published');
+    const publishedSection = {
+      ...sectionFixture('published'),
+      accessStatus: 'available',
+      units: [],
+    };
     const graphResponse = {
       sectionId: 'section-1',
       units: [
@@ -460,7 +466,7 @@ describe('content non-learning boundary integration', () => {
 
     contentService.listPublishedCourses.mockResolvedValue([publishedCourse]);
     learningService.getPublishedCourseForStudent.mockResolvedValue(publishedCourseForStudent);
-    contentService.getPublishedSection.mockResolvedValue(publishedSection);
+    learningService.getPublishedSectionForStudent.mockResolvedValue(publishedSection);
     learningService.getPublishedSectionGraphForStudent.mockResolvedValue(graphResponse);
 
     const listResponse = await request(app.getHttpServer()).get('/courses');
@@ -474,7 +480,7 @@ describe('content non-learning boundary integration', () => {
     expect(graphResponseHttp.status).toBe(200);
     expect(contentService.listPublishedCourses).toHaveBeenCalledTimes(1);
     expect(learningService.getPublishedCourseForStudent).toHaveBeenCalledWith('teacher-1', 'course-1');
-    expect(contentService.getPublishedSection).toHaveBeenCalledWith('section-1');
+    expect(learningService.getPublishedSectionForStudent).toHaveBeenCalledWith('teacher-1', 'section-1');
     expect(learningService.getPublishedSectionGraphForStudent).toHaveBeenCalledWith(
       'teacher-1',
       'section-1',

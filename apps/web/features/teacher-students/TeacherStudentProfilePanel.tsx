@@ -216,9 +216,11 @@ const CoursesStage = ({
 const SectionsStage = ({
   courseTree,
   onOpenSection,
+  onOpenSectionWorkspace,
 }: {
   courseTree: TeacherStudentProfileCourseTree | null;
   onOpenSection: (sectionId: string) => void;
+  onOpenSectionWorkspace: (sectionId: string) => void;
 }) => (
   <section>
     {!courseTree || courseTree.sections.length === 0 ? (
@@ -228,22 +230,30 @@ const SectionsStage = ({
         {courseTree.sections.map((section) => {
           const sectionPendingCount = section.units.reduce((acc, unit) => acc + countPendingInUnit(unit), 0);
           return (
-            <article
-              key={section.id}
-              className={`${styles.card} ${styles.clickableCard}`}
-              onClick={() => onOpenSection(section.id)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  onOpenSection(section.id);
-                }
-              }}
-              role="button"
-              tabIndex={0}
-            >
-              <div className={styles.cardTitle}>{section.title}</div>
-              <div className={styles.metaRow}>Юнитов: {section.units.length}</div>
-              <div className={styles.metaRow}>На проверке фото: {sectionPendingCount}</div>
+            <article key={section.id} className={styles.card}>
+              <button
+                type="button"
+                className={styles.cardPrimaryButton}
+                onClick={() => onOpenSection(section.id)}
+              >
+                <div className={styles.cardBody}>
+                  <div className={styles.cardTitle}>{section.title}</div>
+                  <div className={styles.metaRow}>Юнитов: {section.units.length}</div>
+                  <div className={styles.metaRow}>На проверке фото: {sectionPendingCount}</div>
+                </div>
+              </button>
+              <div className={styles.cardActionsRow}>
+                <Button
+                  variant="ghost"
+                  className={`${styles.inlineActionButton} ${styles.inlineActionAccent}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onOpenSectionWorkspace(section.id);
+                  }}
+                >
+                  Открыть раздел
+                </Button>
+              </div>
             </article>
           );
         })}
@@ -514,6 +524,7 @@ const StudentProfileContent = ({
   openCourse,
   openReviewInbox,
   openSection,
+  openSectionWorkspace,
   openUnit,
   overrideBusyUnitId,
   selectedCourse,
@@ -534,6 +545,7 @@ const StudentProfileContent = ({
   openCourse: (courseId: string) => void;
   openReviewInbox: (params?: ProfileContext) => void;
   openSection: (sectionId: string) => void;
+  openSectionWorkspace: (sectionId: string) => void;
   openUnit: (unitId: string) => void;
   overrideBusyUnitId: string | null;
   selectedCourse: TeacherStudentProfileDetails["courses"][number] | null;
@@ -563,7 +575,13 @@ const StudentProfileContent = ({
     {!loading && details ? (
       <>
         {stage === "courses" ? <CoursesStage courses={details.courses} onOpenCourse={openCourse} /> : null}
-        {stage === "sections" ? <SectionsStage courseTree={courseTree} onOpenSection={openSection} /> : null}
+        {stage === "sections" ? (
+          <SectionsStage
+            courseTree={courseTree}
+            onOpenSection={openSection}
+            onOpenSectionWorkspace={openSectionWorkspace}
+          />
+        ) : null}
         {stage === "units" ? (
           <UnitsStage
             onOpenUnit={openUnit}
@@ -671,6 +689,10 @@ export default function TeacherStudentProfilePanel({
     studentId,
   });
 
+  const openSectionWorkspace = (sectionId: string) => {
+    router.push(`/teacher/sections/${sectionId}`);
+  };
+
   return (
     <section className={styles.panel}>
       <StudentProfileHeader
@@ -706,6 +728,7 @@ export default function TeacherStudentProfilePanel({
           openCourse={openCourse}
           openReviewInbox={openReviewInbox}
           openSection={openSection}
+          openSectionWorkspace={openSectionWorkspace}
           openUnit={openUnit}
           overrideBusyUnitId={overrideBusyUnitId}
           selectedCourse={selectedCourse}

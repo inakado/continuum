@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const ContentStatusSchema = z.enum(["draft", "published"]);
 export const StudentUnitStatusSchema = z.enum(["locked", "available", "in_progress", "completed"]);
+export const StudentSectionAccessStatusSchema = z.enum(["locked", "available", "completed"]);
 export const TaskAnswerTypeSchema = z.enum(["numeric", "single_choice", "multi_choice", "photo"]);
 export const UnitHtmlAssetRefSchema = z
   .object({
@@ -31,6 +32,7 @@ export const StudentSectionSchema = z
     description: z.string().nullable().optional(),
     coverImageAssetKey: z.string().nullable().optional(),
     completionPercent: z.number().int().nonnegative().max(100).optional(),
+    accessStatus: StudentSectionAccessStatusSchema,
     status: ContentStatusSchema,
     sortOrder: z.number(),
     createdAt: z.string(),

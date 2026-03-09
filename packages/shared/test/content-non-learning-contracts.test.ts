@@ -94,6 +94,7 @@ describe("content non-learning contracts", () => {
           title: "Линейные уравнения",
           description: null,
           completionPercent: 45,
+          accessStatus: "available",
           status: "published",
           sortOrder: 1,
           createdAt: "2026-01-01T00:00:00.000Z",
@@ -103,6 +104,7 @@ describe("content non-learning contracts", () => {
     });
 
     expect(courseDetail.sections[0]?.completionPercent).toBe(45);
+    expect(courseDetail.sections[0]?.accessStatus).toBe("available");
   });
 
   it("accepts valid teacher students query/request shapes", () => {

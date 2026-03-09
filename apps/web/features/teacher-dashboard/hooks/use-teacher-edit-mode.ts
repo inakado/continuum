@@ -85,7 +85,10 @@ export const useTeacherEditMode = ({
   const loadingSections = Boolean(selectedCourseId) && selectedCourseQuery.isPending;
   const sortedSections = useMemo(() => {
     if (!selectedCourse) return [];
-    return [...selectedCourse.sections].sort((a, b) => a.sortOrder - b.sortOrder);
+    return [...selectedCourse.sections].sort((a, b) => {
+      if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
   }, [selectedCourse]);
   const requestError = useMemo(() => {
     if (coursesQuery.isError) return getApiErrorMessage(coursesQuery.error);
@@ -295,7 +298,6 @@ export const useTeacherEditMode = ({
         courseId: selectedCourse.id,
         title: sectionTitle.trim(),
         description: normalizeDescription(sectionDescription),
-        sortOrder: 0,
       });
       try {
         await options?.afterCreate?.(created);

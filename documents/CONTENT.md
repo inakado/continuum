@@ -49,6 +49,12 @@
   - HTML asset manifests: `solutionHtmlAssetsJson`
   - auto-check данные: numeric parts / choices / correct choices
 
+### Section ordering
+
+- `Section.sortOrder` внутри `Course` является teacher-facing порядком разделов.
+- На create-path backend сам назначает следующий `sortOrder = max(existing sortOrder) + 1`; клиентский `sortOrder` при создании раздела не считается source of truth.
+- Read-path курса сортирует разделы по `sortOrder`, а при равенстве дополнительно по `createdAt`, чтобы legacy-данные с одинаковым `sortOrder` оставались детерминированными.
+
 ## Unit Graph (`Implemented`)
 
 - Directed edges: `UnitGraphEdge` (A → B означает “A prerequisite для B”).

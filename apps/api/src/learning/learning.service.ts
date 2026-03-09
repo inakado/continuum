@@ -26,6 +26,27 @@ const TASK_SOLUTION_ALLOWED_STATUSES = new Set<StudentTaskStatus>([
   StudentTaskStatus.teacher_credited,
 ]);
 
+type StudentSectionAccessStatus = 'locked' | 'available' | 'completed';
+
+type PublishedSectionWithUnitIds = {
+  id: string;
+  courseId: string;
+  title: string;
+  description: string | null;
+  coverImageAssetKey: string | null;
+  status: ContentStatus;
+  sortOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+  units: Array<{ id: string }>;
+};
+
+type StudentSectionSequenceState = {
+  section: PublishedSectionWithUnitIds;
+  completionPercent: number;
+  accessStatus: StudentSectionAccessStatus;
+};
+
 @Injectable()
 export class LearningService {
   constructor(
@@ -174,52 +195,13 @@ export class LearningService {
   }
 
   async getPublishedCourseForStudent(studentId: string, courseId: string) {
-    const course = await this.prisma.course.findFirst({
-      where: { id: courseId, status: ContentStatus.published },
-      include: {
-        sections: {
-          where: { status: ContentStatus.published },
-          orderBy: { sortOrder: 'asc' },
-          include: {
-            units: {
-              where: { status: ContentStatus.published },
-              orderBy: { sortOrder: 'asc' },
-              select: {
-                id: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    const course = await this.loadPublishedCourseWithSections(courseId);
 
     if (!course) {
       throw new NotFoundException('Course not found');
     }
 
-    const sections = await Promise.all(
-      course.sections.map(async (section) => {
-        const snapshots = await this.learningAvailabilityService.recomputeSectionAvailability(studentId, section.id);
-        const progressSum = section.units.reduce(
-          (sum, unit) => sum + (snapshots.get(unit.id)?.completionPercent ?? 0),
-          0,
-        );
-        const unitCount = section.units.length;
-
-        return {
-          id: section.id,
-          courseId: section.courseId,
-          title: section.title,
-          description: section.description,
-          coverImageAssetKey: section.coverImageAssetKey ?? null,
-          completionPercent: unitCount > 0 ? Math.floor(progressSum / unitCount) : 0,
-          status: section.status,
-          sortOrder: section.sortOrder,
-          createdAt: section.createdAt.toISOString(),
-          updatedAt: section.updatedAt.toISOString(),
-        };
-      }),
-    );
+    const sections = await this.buildStudentSectionSequence(studentId, course.sections);
 
     return {
       id: course.id,
@@ -229,11 +211,39 @@ export class LearningService {
       status: course.status,
       createdAt: course.createdAt.toISOString(),
       updatedAt: course.updatedAt.toISOString(),
-      sections,
+      sections: sections.map(({ section, completionPercent, accessStatus }) => ({
+        id: section.id,
+        courseId: section.courseId,
+        title: section.title,
+        description: section.description,
+        coverImageAssetKey: section.coverImageAssetKey ?? null,
+        completionPercent,
+        accessStatus,
+        status: section.status,
+        sortOrder: section.sortOrder,
+        createdAt: section.createdAt.toISOString(),
+        updatedAt: section.updatedAt.toISOString(),
+      })),
+    };
+  }
+
+  async getPublishedSectionForStudent(studentId: string, sectionId: string) {
+    const sectionState = await this.getPublishedSectionSequenceState(studentId, sectionId);
+    this.assertStudentSectionUnlocked(sectionState.accessStatus);
+
+    const section = await this.contentService.getPublishedSection(sectionId);
+
+    return {
+      ...section,
+      completionPercent: sectionState.completionPercent,
+      accessStatus: sectionState.accessStatus,
     };
   }
 
   async getPublishedSectionGraphForStudent(studentId: string, sectionId: string) {
+    const sectionState = await this.getPublishedSectionSequenceState(studentId, sectionId);
+    this.assertStudentSectionUnlocked(sectionState.accessStatus);
+
     const graph = await this.contentService.getPublishedSectionGraph(sectionId);
     const snapshots = await this.learningAvailabilityService.getSectionGraphAvailabilitySnapshot(
       studentId,
@@ -279,6 +289,9 @@ export class LearningService {
         message: 'Unit not found',
       });
     }
+
+    const sectionState = await this.getPublishedSectionSequenceState(studentId, unitMeta.sectionId);
+    this.assertStudentSectionUnlocked(sectionState.accessStatus);
 
     const sectionSnapshots = await this.learningAvailabilityService.recomputeSectionAvailability(
       studentId,
@@ -413,6 +426,114 @@ export class LearningService {
   ) {
     const unit = await this.getPublishedUnitForStudent(studentId, unitId);
     return target === 'theory' ? unit.theoryPdfAssetKey : unit.methodPdfAssetKey;
+  }
+
+  private async loadPublishedCourseWithSections(courseId: string) {
+    return this.prisma.course.findFirst({
+      where: { id: courseId, status: ContentStatus.published },
+      include: {
+        sections: {
+          where: { status: ContentStatus.published },
+          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+          include: {
+            units: {
+              where: { status: ContentStatus.published },
+              orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+              select: {
+                id: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  private async buildStudentSectionSequence(
+    studentId: string,
+    sections: PublishedSectionWithUnitIds[],
+  ): Promise<StudentSectionSequenceState[]> {
+    const sectionProgress = new Map<string, number>();
+
+    await Promise.all(
+      sections.map(async (section) => {
+        const snapshots = await this.learningAvailabilityService.recomputeSectionAvailability(studentId, section.id);
+        const progressSum = section.units.reduce(
+          (sum, unit) => sum + (snapshots.get(unit.id)?.completionPercent ?? 0),
+          0,
+        );
+        const unitCount = section.units.length;
+        const completionPercent = unitCount > 0 ? Math.floor(progressSum / unitCount) : 0;
+        sectionProgress.set(section.id, completionPercent);
+      }),
+    );
+
+    let allPreviousSectionsCompleted = true;
+
+    return sections.map((section) => {
+      const completionPercent = sectionProgress.get(section.id) ?? 0;
+      const isCompleted = section.units.length === 0 || completionPercent >= 100;
+      const accessStatus: StudentSectionAccessStatus = allPreviousSectionsCompleted
+        ? isCompleted
+          ? 'completed'
+          : 'available'
+        : 'locked';
+
+      if (!isCompleted) {
+        allPreviousSectionsCompleted = false;
+      }
+
+      return {
+        section,
+        completionPercent,
+        accessStatus,
+      };
+    });
+  }
+
+  private async getPublishedSectionSequenceState(studentId: string, sectionId: string) {
+    const sectionMeta = await this.prisma.section.findFirst({
+      where: {
+        id: sectionId,
+        status: ContentStatus.published,
+        course: { status: ContentStatus.published },
+      },
+      select: {
+        id: true,
+        courseId: true,
+      },
+    });
+
+    if (!sectionMeta) {
+      throw new NotFoundException({
+        code: 'SECTION_NOT_FOUND',
+        message: 'Section not found',
+      });
+    }
+
+    const course = await this.loadPublishedCourseWithSections(sectionMeta.courseId);
+    if (!course) {
+      throw new NotFoundException({
+        code: 'SECTION_NOT_FOUND',
+        message: 'Section not found',
+      });
+    }
+
+    const sections = await this.buildStudentSectionSequence(studentId, course.sections);
+    const currentSection = sections.find(({ section }) => section.id === sectionId);
+    if (!currentSection) {
+      throw new NotFoundException({
+        code: 'SECTION_NOT_FOUND',
+        message: 'Section not found',
+      });
+    }
+
+    return currentSection;
+  }
+
+  private assertStudentSectionUnlocked(accessStatus: StudentSectionAccessStatus) {
+    if (accessStatus !== 'locked') return;
+    throw new ConflictException({ code: 'SECTION_LOCKED', message: 'Section is locked' });
   }
 
   async getPublishedUnitRenderedAssetStateForStudent(

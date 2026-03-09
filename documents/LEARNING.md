@@ -61,6 +61,18 @@
   - после teacher actions;
   - после publish/unpublish и graph update через `LearningRecomputeService`.
 
+### Последовательность разделов курса
+
+- Student read-path для `Course.sections` считает не только `completionPercent`, но и student-specific `accessStatus` раздела:
+  - `available` — текущий открытый раздел;
+  - `completed` — раздел полностью завершён;
+  - `locked` — раздел пока закрыт предыдущей последовательностью.
+- Первый опубликованный раздел курса открыт сразу.
+- Каждый следующий раздел открывается только после полного завершения предыдущего раздела.
+- Published section без published units не должен блокировать последовательность следующих разделов.
+- `GET /sections/:id` и `GET /sections/:id/graph` для student fail-fast отвечают `SECTION_LOCKED`, если раздел ещё не открыт по последовательности курса.
+- Direct access к `GET /units/:id` также защищён section-level gate, чтобы student не обходил последовательность разделов прямой ссылкой.
+
 ### Counted vs solved
 
 - `counted` статусы: `correct | accepted | credited_without_progress | teacher_credited`

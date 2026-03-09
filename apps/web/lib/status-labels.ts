@@ -17,6 +17,7 @@ export type PhotoReviewStatus = "pending_review" | "accepted" | "rejected";
 
 export type ApiErrorCode =
   | "UNIT_LOCKED"
+  | "SECTION_LOCKED"
   | "STUDENT_NOT_ASSIGNED_TO_TEACHER"
   | "STUDENT_NOT_FOUND"
   | "TEACHER_NOT_FOUND"
@@ -68,6 +69,7 @@ const photoReviewStatusLabels: Record<PhotoReviewStatus, string> = {
 
 const apiErrorCodeLabels: Record<ApiErrorCode, string> = {
   UNIT_LOCKED: "Юнит пока заблокирован.",
+  SECTION_LOCKED: "Раздел пока заблокирован.",
   STUDENT_NOT_ASSIGNED_TO_TEACHER: "Ученик не назначен этому преподавателю.",
   STUDENT_NOT_FOUND: "Ученик не найден.",
   TEACHER_NOT_FOUND: "Преподаватель не найден.",

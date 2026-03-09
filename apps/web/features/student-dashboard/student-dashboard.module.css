@@ -735,24 +735,25 @@
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 28%);
+  grid-template-columns: minmax(0, 1fr) 240px;
   align-items: stretch;
   gap: 0;
+  min-height: 156px;
 }
 
 .sectionsHeroCopy {
-  max-width: 34rem;
+  max-width: 30rem;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 18px 22px;
+  padding: 14px 18px;
 }
 
 .sectionsCourseTitle {
-  font-size: clamp(24px, 2.6vw, 36px);
+  font-size: clamp(22px, 2.2vw, 30px);
   line-height: 1.1;
-  margin-bottom: 10px;
-  max-width: 30rem;
+  margin-bottom: 8px;
+  max-width: 26rem;
 }
 
 .sectionsProgressPanel,
@@ -772,8 +773,8 @@
 }
 
 .sectionsHeaderDecoration {
-  min-height: 154px;
-  height: 100%;
+  min-height: 156px;
+  height: 156px;
   overflow: hidden;
   border-left: 1px solid var(--sd-border-soft);
   background: var(--sd-surface-1);
@@ -821,7 +822,7 @@
 
 .sectionsMainCard {
   border: 1px solid var(--sd-border-soft);
-  border-radius: 24px;
+  border-radius: 20px;
   overflow: hidden;
   background: var(--sd-card-bg);
   box-shadow: 0 6px 18px -18px rgba(15, 23, 42, 0.14);
@@ -829,17 +830,17 @@
 
 .sectionsHeroFooter {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: flex-start;
-  gap: 20px;
-  padding: 14px 22px 16px;
+  gap: 16px;
+  padding: 10px 18px 12px;
   border-top: 1px solid var(--sd-border-soft);
 }
 
 .sectionsListWrap {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .sectionsListHead {
@@ -860,17 +861,17 @@
 .sectionsList {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .sectionCard {
   display: grid;
-  grid-template-columns: 160px minmax(0, 1fr) 168px;
+  grid-template-columns: 124px minmax(0, 1fr) 152px;
   align-items: stretch;
-  gap: 20px;
-  padding: 24px;
+  gap: 16px;
+  padding: 18px;
   text-align: left;
-  border-radius: 24px;
+  border-radius: 20px;
   cursor: pointer;
   transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
@@ -879,11 +880,20 @@
   box-shadow: 0 18px 30px -24px rgba(15, 23, 42, 0.35);
 }
 
+.sectionCardLocked {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.sectionCardLocked:hover {
+  box-shadow: none;
+}
+
 .sectionMediaBlock {
   position: relative;
-  width: 160px;
+  width: 124px;
   aspect-ratio: 1;
-  border-radius: 16px;
+  border-radius: 14px;
   background: var(--sd-surface-1);
   border: 1px solid var(--sd-border-soft);
   display: flex;
@@ -909,10 +919,10 @@
 
 .sectionPlayBadge {
   position: absolute;
-  right: 12px;
-  bottom: 12px;
-  width: 42px;
-  height: 42px;
+  right: 10px;
+  bottom: 10px;
+  width: 34px;
+  height: 34px;
   border-radius: 999px;
   background: var(--sd-surface-2);
   border: 1px solid var(--sd-border-soft);
@@ -934,11 +944,11 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .sectionTitle {
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 500;
   color: var(--sd-text);
   letter-spacing: -0.02em;
@@ -946,10 +956,10 @@
 
 .sectionDescription {
   color: var(--sd-muted);
-  margin-bottom: 20px;
-  font-size: 14px;
-  line-height: 1.7;
-  max-width: 34rem;
+  margin-bottom: 14px;
+  font-size: 13px;
+  line-height: 1.55;
+  max-width: 28rem;
 }
 
 .sectionProgressInline {
@@ -957,6 +967,12 @@
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.sectionLockHint {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--sd-muted);
 }
 
 .sectionProgressBadge {
@@ -973,11 +989,27 @@
   align-items: center;
   justify-content: flex-end;
   border-left: 1px solid var(--sd-border-soft);
-  padding-left: 20px;
+  padding-left: 16px;
 }
 
 .sectionOpenButton {
   width: 100%;
+}
+
+.sectionOpenButtonLocked {
+  background: var(--sd-surface-1);
+  color: var(--sd-muted);
+  box-shadow: none;
+}
+
+.sectionCardLocked .sectionOpenButton:hover,
+.sectionCardLocked .sectionOpenButtonLocked:hover {
+  background: var(--sd-surface-1);
+  color: var(--sd-muted);
+}
+
+.sectionOpenButtonLocked svg {
+  transform: none;
 }
 
 @keyframes dashboard-ping {
@@ -999,7 +1031,7 @@
   }
 
   .sectionsHero {
-    grid-template-columns: minmax(0, 1fr) minmax(200px, 260px);
+    grid-template-columns: minmax(0, 1fr) 220px;
   }
 
 }
@@ -1074,7 +1106,8 @@
   .sectionsHeaderDecoration {
     border-left: none;
     border-top: 1px solid rgba(226, 232, 240, 0.45);
-    min-height: 160px;
+    min-height: 140px;
+    height: 140px;
   }
 
   .sectionsHeroFooter {

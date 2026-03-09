@@ -75,7 +75,8 @@
 - Student dashboard overview читает aggregated read-model через отдельный query (`/student/dashboard`), а не собирает hero/continue-learning сводку вручную из нескольких client-side запросов.
 - Student dashboard course landing использует hybrid read-path:
   - overview/hero/stat cards — из aggregated query `/student/dashboard`;
-  - sections landing — из `GET /courses/:id`, где student UI использует section descriptions для навигационных карточек.
+  - sections landing — из `GET /courses/:id`, где student UI использует section descriptions и student-specific `accessStatus` для навигационных карточек.
+- Locked section cards на student dashboard не ведут в graph view: UI рендерит их disabled-state, а backend дополнительно защищает `GET /sections/:id`, `GET /sections/:id/graph` и direct unit access от обхода последовательности курса.
 
 ## Presigned Assets and CORS
 
@@ -122,6 +123,7 @@
 - В student и teacher view `Раздел → Граф` canvas-контейнер должен занимать почти весь viewport по высоте (viewport-aware `dvh`) с сохранением нижнего визуального зазора.
 - Teacher create/edit flow для `Course/Section` открывает формы в modal `Dialog` с overlay/focus trap; inline-формы внутри списка карточек не используются, а create modal поддерживает тот же cover image flow (`pick preview -> create -> presign upload -> apply`) что и edit.
 - Teacher students flow использует focused modal `Dialog` для создания и редактирования ученика, а также для одноразового показа нового/сброшенного пароля; inline-формы внутри списка учеников не используются.
+- В teacher student profile drilldown (`/teacher/students/[studentId]`) карточки курсов и разделов рендерятся вертикальным списком; для раздела сохраняется внутренний drilldown в прогресс ученика и отдельное прямое действие `Открыть раздел`, ведущее в `/teacher/sections/[id]`.
 
 ## Related Source Links
 

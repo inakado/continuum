@@ -215,7 +215,7 @@ export class TeacherStudentsService {
         include: {
           sections: {
             where: { status: ContentStatus.published },
-            orderBy: { sortOrder: 'asc' },
+            orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
             include: {
               units: {
                 where: { status: ContentStatus.published },

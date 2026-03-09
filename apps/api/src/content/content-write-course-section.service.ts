@@ -73,12 +73,19 @@ export class ContentWriteCourseSectionService {
     const course = await this.prisma.course.findUnique({ where: { id: dto.courseId } });
     if (!course) throw new NotFoundException('Course not found');
 
+    const lastSection = await this.prisma.section.findFirst({
+      where: { courseId: dto.courseId },
+      orderBy: [{ sortOrder: 'desc' }, { createdAt: 'desc' }],
+      select: { sortOrder: true },
+    });
+    const nextSortOrder = (lastSection?.sortOrder ?? -1) + 1;
+
     return this.prisma.section.create({
       data: {
         courseId: dto.courseId,
         title: dto.title,
         description: dto.description ?? null,
-        sortOrder: dto.sortOrder ?? 0,
+        sortOrder: nextSortOrder,
       },
     });
   }

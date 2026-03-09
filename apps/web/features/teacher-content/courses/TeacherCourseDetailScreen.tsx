@@ -49,7 +49,7 @@ export default function TeacherCourseDetailScreen({ courseId }: Props) {
     if (authRequired) return;
     setFormError(null);
     try {
-      await teacherApi.createSection({ courseId, title: sectionTitle, sortOrder: 0 });
+      await teacherApi.createSection({ courseId, title: sectionTitle });
       setSectionTitle("");
       fetchCourse();
     } catch (err) {

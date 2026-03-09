@@ -1,3 +1,4 @@
+import { ConflictException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { StudentUnitStatus } from '@prisma/client';
 import { LearningService } from '../src/learning/learning.service';
@@ -5,6 +6,9 @@ import { LearningService } from '../src/learning/learning.service';
 describe('LearningService', () => {
   const prisma = {
     course: {
+      findFirst: vi.fn(),
+    },
+    section: {
       findFirst: vi.fn(),
     },
   };
@@ -30,12 +34,46 @@ describe('LearningService', () => {
 
   beforeEach(() => {
     prisma.course.findFirst.mockReset();
+    prisma.section.findFirst.mockReset();
     contentService.getPublishedSectionGraph.mockReset();
     learningAvailabilityService.getSectionGraphAvailabilitySnapshot.mockReset();
     learningAvailabilityService.recomputeSectionAvailability.mockReset();
   });
 
   it('maps student graph from graph-specific availability snapshot path', async () => {
+    prisma.section.findFirst.mockResolvedValue({
+      id: 'section-1',
+      courseId: 'course-1',
+    });
+    prisma.course.findFirst.mockResolvedValue({
+      id: 'course-1',
+      title: 'Физика',
+      description: 'Описание',
+      coverImageAssetKey: null,
+      status: 'published',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+      sections: [
+        {
+          id: 'section-1',
+          courseId: 'course-1',
+          title: 'Механика',
+          description: 'Раздел',
+          coverImageAssetKey: null,
+          status: 'published',
+          sortOrder: 1,
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+          units: [{ id: 'unit-1' }, { id: 'unit-2' }],
+        },
+      ],
+    });
+    learningAvailabilityService.recomputeSectionAvailability.mockResolvedValue(
+      new Map([
+        ['unit-1', { completionPercent: 100 }],
+        ['unit-2', { completionPercent: 100 }],
+      ]),
+    );
     contentService.getPublishedSectionGraph.mockResolvedValue({
       sectionId: 'section-1',
       nodes: [
@@ -102,7 +140,10 @@ describe('LearningService', () => {
       'student-1',
       'section-1',
     );
-    expect(learningAvailabilityService.recomputeSectionAvailability).not.toHaveBeenCalled();
+    expect(learningAvailabilityService.recomputeSectionAvailability).toHaveBeenCalledWith(
+      'student-1',
+      'section-1',
+    );
   });
 
   it('returns published student course with per-section completion percent', async () => {
@@ -154,6 +195,7 @@ describe('LearningService', () => {
           description: 'Раздел',
           coverImageAssetKey: null,
           completionPercent: 75,
+          accessStatus: 'available',
           status: 'published',
           sortOrder: 1,
           createdAt: '2026-01-01T00:00:00.000Z',
@@ -165,5 +207,105 @@ describe('LearningService', () => {
       'student-1',
       'section-1',
     );
+  });
+
+  it('locks later sections until previous section is completed', async () => {
+    prisma.course.findFirst.mockResolvedValue({
+      id: 'course-1',
+      title: 'Физика',
+      description: 'Описание',
+      coverImageAssetKey: null,
+      status: 'published',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+      sections: [
+        {
+          id: 'section-1',
+          courseId: 'course-1',
+          title: 'Механика',
+          description: 'Раздел 1',
+          coverImageAssetKey: null,
+          status: 'published',
+          sortOrder: 1,
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+          units: [{ id: 'unit-1' }],
+        },
+        {
+          id: 'section-2',
+          courseId: 'course-1',
+          title: 'Оптика',
+          description: 'Раздел 2',
+          coverImageAssetKey: null,
+          status: 'published',
+          sortOrder: 2,
+          createdAt: new Date('2026-01-03T00:00:00.000Z'),
+          updatedAt: new Date('2026-01-04T00:00:00.000Z'),
+          units: [{ id: 'unit-2' }],
+        },
+      ],
+    });
+    learningAvailabilityService.recomputeSectionAvailability
+      .mockResolvedValueOnce(new Map([['unit-1', { completionPercent: 40 }]]))
+      .mockResolvedValueOnce(new Map([['unit-2', { completionPercent: 0 }]]));
+
+    const result = await service.getPublishedCourseForStudent('student-1', 'course-1');
+
+    expect(result.sections).toMatchObject([
+      { id: 'section-1', accessStatus: 'available', completionPercent: 40 },
+      { id: 'section-2', accessStatus: 'locked', completionPercent: 0 },
+    ]);
+  });
+
+  it('rejects student section graph when previous section is not completed', async () => {
+    prisma.section.findFirst.mockResolvedValue({
+      id: 'section-2',
+      courseId: 'course-1',
+    });
+    prisma.course.findFirst.mockResolvedValue({
+      id: 'course-1',
+      title: 'Физика',
+      description: 'Описание',
+      coverImageAssetKey: null,
+      status: 'published',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+      sections: [
+        {
+          id: 'section-1',
+          courseId: 'course-1',
+          title: 'Механика',
+          description: 'Раздел 1',
+          coverImageAssetKey: null,
+          status: 'published',
+          sortOrder: 1,
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+          units: [{ id: 'unit-1' }],
+        },
+        {
+          id: 'section-2',
+          courseId: 'course-1',
+          title: 'Оптика',
+          description: 'Раздел 2',
+          coverImageAssetKey: null,
+          status: 'published',
+          sortOrder: 2,
+          createdAt: new Date('2026-01-03T00:00:00.000Z'),
+          updatedAt: new Date('2026-01-04T00:00:00.000Z'),
+          units: [{ id: 'unit-2' }],
+        },
+      ],
+    });
+    learningAvailabilityService.recomputeSectionAvailability
+      .mockResolvedValueOnce(new Map([['unit-1', { completionPercent: 40 }]]))
+      .mockResolvedValueOnce(new Map([['unit-2', { completionPercent: 0 }]]));
+
+    await expect(service.getPublishedSectionGraphForStudent('student-1', 'section-2')).rejects.toMatchObject({
+      response: {
+        code: 'SECTION_LOCKED',
+      },
+    } satisfies Partial<ConflictException>);
+    expect(contentService.getPublishedSectionGraph).not.toHaveBeenCalled();
   });
 });

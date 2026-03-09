@@ -138,6 +138,7 @@ describe("StudentDashboardScreen", () => {
           courseId: "course-1",
           title: "Линейные уравнения",
           completionPercent: 45,
+          accessStatus: "available",
           status: "published",
           sortOrder: 1,
           createdAt: "2026-01-01T00:00:00.000Z",
@@ -179,6 +180,7 @@ describe("StudentDashboardScreen", () => {
           courseId: "course-1",
           title: "Линейные уравнения",
           completionPercent: 45,
+          accessStatus: "available",
           status: "published",
           sortOrder: 1,
           createdAt: "2026-01-01T00:00:00.000Z",
@@ -190,6 +192,7 @@ describe("StudentDashboardScreen", () => {
       id: "section-1",
       courseId: "course-1",
       title: "Линейные уравнения",
+      accessStatus: "available",
       status: "published",
       sortOrder: 1,
       createdAt: "2026-01-01T00:00:00.000Z",
@@ -204,6 +207,64 @@ describe("StudentDashboardScreen", () => {
       expect(studentApi.getSection).toHaveBeenCalledWith("section-1");
     });
     expect(await screen.findByTestId("student-graph-title")).toHaveTextContent("Линейные уравнения");
+  });
+
+  it("renders locked sections as unavailable for navigation", async () => {
+    vi.mocked(studentApi.getDashboardOverview).mockResolvedValueOnce({
+      courses: [],
+      continueLearning: null,
+      stats: { totalUnits: 0, availableUnits: 0, inProgressUnits: 0, completedUnits: 0 },
+    } as never);
+    vi.mocked(studentApi.listCourses).mockResolvedValueOnce([
+      {
+        id: "course-1",
+        title: "Алгебра",
+        description: null,
+        status: "published",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-02T00:00:00.000Z",
+      },
+    ]);
+    vi.mocked(studentApi.getCourse).mockResolvedValueOnce({
+      id: "course-1",
+      title: "Алгебра",
+      description: null,
+      status: "published",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+      sections: [
+        {
+          id: "section-1",
+          courseId: "course-1",
+          title: "Линейные уравнения",
+          completionPercent: 100,
+          accessStatus: "completed",
+          status: "published",
+          sortOrder: 1,
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-02T00:00:00.000Z",
+        },
+        {
+          id: "section-2",
+          courseId: "course-1",
+          title: "Квадратные уравнения",
+          completionPercent: 0,
+          accessStatus: "locked",
+          status: "published",
+          sortOrder: 2,
+          createdAt: "2026-01-03T00:00:00.000Z",
+          updatedAt: "2026-01-04T00:00:00.000Z",
+        },
+      ],
+    });
+
+    renderWithQueryClient(<StudentDashboardScreen />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: /Алгебра/i }));
+
+    expect(screen.getByRole("button", { name: /Квадратные уравнения/i })).toBeDisabled();
+    expect(screen.getByText("Сначала завершите предыдущий раздел")).toBeInTheDocument();
   });
 
   it("queryOverride disables auto-restore and canonicalizes route", async () => {
@@ -286,6 +347,7 @@ describe("StudentDashboardScreen", () => {
           id: "section-1",
           courseId: "course-1",
           title: "Линейные уравнения",
+          accessStatus: "available",
           status: "published",
           sortOrder: 1,
           createdAt: "2026-01-01T00:00:00.000Z",
@@ -297,6 +359,7 @@ describe("StudentDashboardScreen", () => {
       id: "section-1",
       courseId: "course-1",
       title: "Линейные уравнения",
+      accessStatus: "available",
       status: "published",
       sortOrder: 1,
       createdAt: "2026-01-01T00:00:00.000Z",

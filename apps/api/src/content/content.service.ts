@@ -50,7 +50,7 @@ export class ContentService {
     const course = await this.prisma.course.findUnique({
       where: { id },
       include: {
-        sections: { orderBy: { sortOrder: 'asc' } },
+        sections: { orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] },
       },
     });
     if (!course) throw new NotFoundException('Course not found');
@@ -78,7 +78,7 @@ export class ContentService {
       include: {
         sections: {
           where: { status: ContentStatus.published },
-          orderBy: { sortOrder: 'asc' },
+          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
         },
       },
     });

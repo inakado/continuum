@@ -214,8 +214,8 @@
 }
 
 .list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 
@@ -533,6 +533,36 @@
   gap: 10px;
 }
 
+.cardBody {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cardPrimaryButton {
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cardPrimaryButton:focus-visible {
+  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: 8px;
+}
+
+.cardActionsRow {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding-top: 8px;
+  border-top: var(--border-width-thin) solid var(--card-border);
+}
+
 .clickableCard {
   cursor: pointer;
   transition:
@@ -678,10 +708,6 @@
 }
 
 @media (max-width: 1024px) {
-  .list {
-    grid-template-columns: 1fr;
-  }
-
   .drillHeader {
     align-items: flex-start;
   }

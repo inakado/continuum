@@ -268,6 +268,18 @@ describe("TeacherStudentProfilePanel", () => {
     );
   });
 
+  it("opens section workspace from sections list", async () => {
+    renderWithQueryClient(
+      <TeacherStudentProfilePanel studentId="student-1" fallbackName="student1" />,
+    );
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: /Алгебра/i }));
+    await user.click(screen.getByRole("button", { name: "Открыть раздел" }));
+
+    expect(pushMock).toHaveBeenCalledWith("/teacher/sections/section-1");
+  });
+
   it("hydrates drilldown state from search params", async () => {
     vi.mocked(useSearchParams).mockReturnValue(
       createSearchParams({

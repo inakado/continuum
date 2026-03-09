@@ -163,6 +163,13 @@ const getSectionDescription = (section: Section, index: number, courseTitle: str
   section.description?.trim() ||
   `Раздел ${String(index + 1).padStart(2, "0")} курса «${courseTitle}». Откройте его, чтобы перейти в граф юнитов.`;
 
+const compareSections = (left: Section, right: Section) => {
+  if (left.sortOrder !== right.sortOrder) {
+    return left.sortOrder - right.sortOrder;
+  }
+  return new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
+};
+
 const ProgressBar = ({
   value,
   label,
@@ -510,10 +517,12 @@ const StudentSectionsView = ({
               key={section.id}
               type="button"
               variants={motionItem}
-              className={styles.sectionCard}
-              whileHover={{ y: -2 }}
+              className={`${styles.sectionCard} ${section.accessStatus === "locked" ? styles.sectionCardLocked : ""}`}
+              whileHover={section.accessStatus === "locked" ? undefined : { y: -2 }}
               whileTap={{ scale: 0.995 }}
               onClick={() => onSectionClick(section)}
+              disabled={section.accessStatus === "locked"}
+              aria-disabled={section.accessStatus === "locked"}
             >
               <div className={styles.sectionMediaBlock}>
                 <div className={styles.sectionOrdinalPill}>{String(index + 1).padStart(2, "0")}</div>
@@ -533,11 +542,18 @@ const StudentSectionsView = ({
                   <div className={styles.progressCaption}>Прогресс</div>
                   <div className={styles.sectionProgressBadge}>{section.completionPercent ?? 0}%</div>
                 </div>
+                {section.accessStatus === "locked" ? (
+                  <div className={styles.sectionLockHint}>Сначала завершите предыдущий раздел</div>
+                ) : null}
               </div>
 
               <div className={styles.sectionActionBlock}>
-                <span className={styles.sectionOpenButton}>
-                  Открыть
+                <span
+                  className={`${styles.sectionOpenButton} ${
+                    section.accessStatus === "locked" ? styles.sectionOpenButtonLocked : ""
+                  }`}
+                >
+                  {section.accessStatus === "locked" ? "Заблокирован" : "Открыть"}
                   <ArrowRight size={14} />
                 </span>
               </div>
@@ -883,7 +899,7 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
 
   const sortedSections = useMemo(() => {
     if (!selectedCourse) return [];
-    return [...selectedCourse.sections].sort((a, b) => a.sortOrder - b.sortOrder);
+    return [...selectedCourse.sections].sort(compareSections);
   }, [selectedCourse]);
 
   const requestError = useMemo(
@@ -987,6 +1003,11 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
 
   const handleSectionClick = useCallback(
     (section: Section) => {
+      if (section.accessStatus === "locked") {
+        setError("Раздел заблокирован. Сначала завершите предыдущий раздел.");
+        return;
+      }
+      setError(null);
       setSelectedSectionId(section.id);
       setSelectedSectionTitle(section.title);
       setView("graph");
