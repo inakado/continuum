@@ -31,7 +31,7 @@ export function TeacherTaskStatementImageSection({
           <div className={styles.taskStatementImageActions}>
             <Button
               type="button"
-              variant="ghost"
+              variant="secondary"
               onClick={() => inputRef.current?.click()}
               disabled={state.loading}
             >
@@ -40,7 +40,7 @@ export function TeacherTaskStatementImageSection({
             {state.key ? (
               <Button
                 type="button"
-                variant="ghost"
+                variant="danger"
                 onClick={() => void onRemove()}
                 disabled={state.loading}
               >

@@ -21,22 +21,25 @@
   z-index: 131;
   padding: 18px;
   outline: none;
+  overscroll-behavior: contain;
   display: grid;
   gap: 12px;
 }
 
 .title {
   margin: 0;
-  font-size: 16px;
-  line-height: 1.25;
-  font-family: var(--font-unbounded), sans-serif;
-  font-weight: 500;
+  font-size: var(--text-title-section-size);
+  line-height: var(--text-title-section-line-height);
+  font-family: var(--text-title-section-family), sans-serif;
+  font-weight: var(--text-title-section-weight);
+  letter-spacing: var(--text-title-section-tracking);
   color: var(--text-primary);
 }
 
 .description {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line-height);
   color: var(--text-muted);
 }
 
@@ -48,32 +51,11 @@
 }
 
 .cancelButton {
-  --button-bg: var(--surface-1);
-  --button-border: var(--glass-border);
-  --button-text: var(--text-primary);
-  --button-border-width: var(--border-width-thin);
-  --button-hover-bg: var(--surface-2);
-  --button-hover-border: var(--border-primary);
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
+  min-width: 116px;
 }
 
 .confirmButton {
-  --button-bg: var(--surface-1);
-  --button-border: var(--glass-border);
-  --button-text: var(--text-primary);
-  --button-border-width: var(--border-width-thin);
-  --button-hover-bg: var(--surface-2);
-  --button-hover-border: var(--border-primary);
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
+  min-width: 132px;
 }
 
-.confirmButtonDanger {
-  --button-bg: color-mix(in srgb, #ef4444 6%, var(--surface-1));
-  --button-border: color-mix(in srgb, #ef4444 34%, var(--glass-border));
-  --button-text: color-mix(in srgb, #ef4444 72%, var(--text-primary));
-  --button-hover-bg: color-mix(in srgb, #ef4444 10%, var(--surface-2));
-  --button-hover-border: color-mix(in srgb, #ef4444 44%, var(--border-primary));
-  --button-hover-text: color-mix(in srgb, #ef4444 78%, var(--text-primary));
-}
+.confirmButtonDanger {}

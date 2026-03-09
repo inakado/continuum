@@ -5,9 +5,15 @@
   background: var(--control-bg, var(--bg-primary));
   color: var(--text-primary);
   padding: 10px 12px;
-  font-size: 16px;
+  min-height: var(--action-control-height-md);
+  font-family: var(--text-body-md-family), system-ui, sans-serif;
+  font-size: var(--text-body-md-size);
+  line-height: var(--text-body-md-line-height);
+  letter-spacing: var(--text-body-md-tracking);
   outline: none;
   border-radius: var(--control-radius);
+  transition: border-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease,
+    background var(--motion-fast) ease;
 }
 
 .input::placeholder {

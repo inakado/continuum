@@ -17,29 +17,13 @@
   justify-content: space-between;
 }
 
-.toolbar button {
-  --button-bg: var(--glass-tint);
-  --button-text: var(--text-primary);
-  --button-border: var(--panel-border);
-  --button-border-width: var(--border-width-thin);
-  --button-hover-bg: var(--surface-2);
-  --button-hover-border: var(--border-primary);
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
-}
-
 .search {
   flex: 1;
   min-width: 240px;
 }
 
 .label {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  min-width: 0;
 }
 
 .form {
@@ -91,7 +75,10 @@
   --control-radius: 20px;
   min-height: 56px;
   padding-inline: 18px;
-  font-size: 15px;
+  font-family: var(--text-body-md-family), sans-serif;
+  font-size: var(--text-body-md-size);
+  line-height: var(--text-body-md-line-height);
+  letter-spacing: var(--text-body-md-tracking);
 }
 
 .dialogActions {
@@ -113,14 +100,19 @@
 }
 
 .dialogMetaLabel {
-  font-size: 10px;
+  font-family: var(--text-overline-family), sans-serif;
+  font-size: var(--text-overline-size);
+  line-height: var(--text-overline-line-height);
+  font-weight: var(--text-overline-weight);
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--text-overline-tracking);
 }
 
 .dialogMetaValue {
-  font-size: 14px;
+  font-family: var(--text-body-md-family), sans-serif;
+  font-size: var(--text-body-md-size);
+  line-height: var(--text-body-md-line-height);
   font-weight: 600;
   word-break: break-all;
 }
@@ -138,20 +130,15 @@
 }
 
 .formError {
-  font-size: 12px;
+  font-family: var(--text-caption-family), sans-serif;
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line-height);
+  letter-spacing: var(--text-caption-tracking);
   color: var(--text-primary);
   border: var(--border-width-thin) solid color-mix(in srgb, #ef4444 34%, var(--glass-border));
   background: color-mix(in srgb, #ef4444 10%, var(--surface-1));
   border-radius: var(--control-radius);
   padding: 8px 10px;
-}
-
-.passwordTitle {
-  font-family: var(--font-unbounded), sans-serif;
-  font-weight: 500;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
 }
 
 .passwordRow {
@@ -162,15 +149,14 @@
 }
 
 .passwordLabel {
-  font-size: 10px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  display: inline-flex;
 }
 
 .passwordValue {
+  font-family: var(--text-body-md-family), sans-serif;
   font-weight: 700;
-  font-size: 14px;
+  font-size: var(--text-body-md-size);
+  line-height: var(--text-body-md-line-height);
   word-break: break-all;
 }
 
@@ -181,7 +167,9 @@
 }
 
 .passwordHint {
-  font-size: 12px;
+  font-family: var(--text-caption-family), sans-serif;
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line-height);
   color: var(--text-muted);
 }
 
@@ -193,12 +181,20 @@
   border-radius: var(--card-radius);
   backdrop-filter: var(--glass-filter);
   -webkit-backdrop-filter: var(--glass-filter);
+  font-family: var(--text-body-sm-family), sans-serif;
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line-height);
 }
 
 .list {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.listSpacer {
+  width: 100%;
+  pointer-events: none;
 }
 
 .card {
@@ -219,7 +215,6 @@
     box-shadow 0.25s ease,
     background 0.25s ease,
     border-color 0.25s ease;
-  cursor: pointer;
 }
 
 .card:hover {
@@ -227,11 +222,6 @@
   box-shadow: var(--glass-shadow);
   border-color: var(--glass-border);
   background: var(--surface-2);
-}
-
-.card:focus-visible {
-  outline: var(--focus-ring-width) solid var(--border-primary);
-  outline-offset: var(--focus-ring-offset);
 }
 
 .cardActive {
@@ -255,14 +245,30 @@
   gap: 4px;
 }
 
+.primaryLink {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 10px;
+}
+
+.primaryLink:focus-visible {
+  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline-offset: var(--focus-ring-offset);
+}
+
 .studentName {
-  font-family: var(--font-unbounded), sans-serif;
-  font-weight: 500;
-  font-size: 17px;
+  font-family: var(--text-title-section-family), sans-serif;
+  font-weight: var(--text-title-section-weight);
+  font-size: var(--text-title-section-size);
+  line-height: var(--text-title-section-line-height);
+  letter-spacing: var(--text-title-section-tracking);
 }
 
 .studentMeta {
-  font-size: 12px;
+  font-family: var(--text-caption-family), sans-serif;
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line-height);
   color: var(--text-muted);
 }
 
@@ -297,8 +303,9 @@
 }
 
 .actionsMenuTrigger:focus-visible {
-  outline: none;
-  box-shadow: none;
+  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: 999px;
 }
 
 .actionsMenuIcon {
@@ -326,8 +333,9 @@
   background: transparent;
   color: var(--text-primary);
   text-align: left;
-  font-size: 13px;
-  line-height: 1.3;
+  font-family: var(--text-body-sm-family), sans-serif;
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line-height);
   padding: 8px 10px;
   cursor: pointer;
 }
@@ -365,13 +373,16 @@
   background: var(--control-bg, var(--surface-0));
   color: var(--text-primary);
   padding: 10px 12px;
-  font-size: 14px;
+  font-family: var(--text-body-md-family), sans-serif;
+  font-size: var(--action-font-size-md);
+  line-height: var(--action-line-height);
   border-radius: var(--control-radius);
 }
 
 .loading,
 .empty {
-  font-size: 13px;
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line-height);
   color: var(--text-muted);
   border: var(--border-width-thin) dashed var(--card-border);
   border-radius: var(--card-radius);

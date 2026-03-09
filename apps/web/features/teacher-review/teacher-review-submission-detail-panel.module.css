@@ -26,26 +26,14 @@
   flex-wrap: wrap;
 }
 
-.headerActions button,
-.reviewActions button,
-.queueActions button,
-.profileButton,
-.viewerRetryButton {
-  --button-bg: var(--surface-1);
-  --button-border: var(--glass-border);
-  --button-text: var(--text-primary);
-  --button-hover-bg: var(--surface-2);
-  --button-hover-border: var(--border-primary);
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
-}
-
 .error {
   border: var(--border-width-thin) solid color-mix(in srgb, #ef4444 34%, var(--glass-border));
   background: color-mix(in srgb, #ef4444 10%, var(--surface-1));
   border-radius: var(--card-radius);
   padding: 10px 12px;
-  font-size: 13px;
+  font-family: var(--text-body-sm-family), sans-serif;
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line-height);
   color: var(--text-primary);
 }
 
@@ -56,7 +44,9 @@
   padding: 14px;
   color: var(--text-muted);
   background: var(--card-bg);
-  font-size: 13px;
+  font-family: var(--text-body-sm-family), sans-serif;
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line-height);
 }
 
 .content {
@@ -101,8 +91,9 @@
   border-radius: 999px;
   background: var(--surface-1);
   color: var(--text-muted);
-  font-size: 12px;
-  line-height: 1;
+  font-family: var(--text-caption-family), sans-serif;
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line-height);
   padding: 7px 10px;
 }
 
@@ -165,7 +156,9 @@
 
 .viewerPlaceholder {
   color: var(--text-muted);
-  font-size: 13px;
+  font-family: var(--text-body-sm-family), sans-serif;
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line-height);
 }
 
 .viewerPlaceholderError {
@@ -173,7 +166,9 @@
   gap: 8px;
   justify-items: center;
   color: var(--text-muted);
-  font-size: 13px;
+  font-family: var(--text-body-sm-family), sans-serif;
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line-height);
 }
 
 .thumbRail {
@@ -213,7 +208,9 @@
 
 .thumbIndex {
   font-weight: 700;
-  font-size: 13px;
+  font-family: var(--text-body-sm-family), sans-serif;
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line-height);
 }
 
 .studentLine {
@@ -225,21 +222,24 @@
 }
 
 .studentName {
-  font-size: clamp(22px, 2vw, 30px);
-  font-family: var(--font-unbounded), sans-serif;
-  font-weight: 300;
-  line-height: 1.1;
+  font-family: var(--text-title-section-family), sans-serif;
+  font-size: var(--text-title-section-size);
+  font-weight: var(--text-title-section-weight);
+  line-height: var(--text-title-section-line-height);
+  letter-spacing: var(--text-title-section-tracking);
   color: var(--text-primary);
 }
 
 .studentLogin,
 .pathLine {
-  font-size: 12px;
+  font-family: var(--text-caption-family), sans-serif;
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line-height);
   color: var(--text-muted);
 }
 
 .pathLine {
-  line-height: 1.45;
+  line-height: var(--text-body-sm-line-height);
 }
 
 .metaGrid {
@@ -255,14 +255,19 @@
 }
 
 .metaLabel {
-  font-size: 11px;
-  letter-spacing: 0.08em;
+  font-family: var(--text-label-family), sans-serif;
+  font-size: var(--text-label-size);
+  line-height: var(--text-label-line-height);
+  font-weight: var(--text-label-weight);
+  letter-spacing: var(--text-label-tracking);
   text-transform: uppercase;
   color: var(--text-muted);
 }
 
 .metaValue {
-  font-size: 12px;
+  font-family: var(--text-caption-family), sans-serif;
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line-height);
   color: var(--text-primary);
   text-align: right;
 }
@@ -271,9 +276,12 @@
   border-radius: 999px;
   border: var(--border-width-thin) solid var(--glass-border);
   padding: 3px 9px;
+  font-family: var(--text-overline-family), sans-serif;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 10px;
+  letter-spacing: var(--text-overline-tracking);
+  font-size: var(--text-overline-size);
+  line-height: var(--text-overline-line-height);
+  font-weight: var(--text-overline-weight);
   color: var(--text-primary);
   white-space: nowrap;
 }
@@ -302,13 +310,18 @@
 }
 
 .taskNumber {
-  font-size: 16px;
+  font-family: var(--text-title-card-family), sans-serif;
+  font-size: var(--text-title-card-size);
+  line-height: var(--text-title-card-line-height);
   font-weight: 700;
+  letter-spacing: var(--text-title-card-tracking);
   color: var(--text-primary);
 }
 
 .taskTitle {
-  font-size: 13px;
+  font-family: var(--text-body-sm-family), sans-serif;
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line-height);
   font-weight: 600;
   color: var(--text-muted);
 }
@@ -333,26 +346,6 @@
   gap: 8px;
 }
 
-.acceptButton {
-  --button-bg: var(--surface-1);
-  --button-border: var(--glass-border);
-  --button-text: var(--text-primary);
-  --button-hover-bg: var(--surface-2);
-  --button-hover-border: var(--border-primary);
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
-}
-
-.rejectButton {
-  --button-bg: var(--surface-1);
-  --button-border: var(--glass-border);
-  --button-text: var(--text-primary);
-  --button-hover-bg: var(--surface-2);
-  --button-hover-border: var(--border-primary);
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
-}
-
 .queueActions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -365,8 +358,9 @@
 
 .noteText {
   color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1.5;
+  font-family: var(--text-body-sm-family), sans-serif;
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line-height);
 }
 
 @media (max-width: 1180px) {

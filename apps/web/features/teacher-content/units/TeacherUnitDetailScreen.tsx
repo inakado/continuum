@@ -24,6 +24,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Switch from "@/components/ui/Switch";
 import Tabs from "@/components/ui/Tabs";
+import useUnsavedChangesGuard from "@/components/useUnsavedChangesGuard";
 import type { Task, UnitVideo } from "@/lib/api/teacher";
 import { useTeacherLogout } from "../auth/use-teacher-logout";
 import { useTeacherIdentity } from "../shared/use-teacher-identity";
@@ -111,13 +112,13 @@ function TeacherUnitHeader({
             label="Опубликовано"
           />
           <Button
-            variant="ghost"
+            variant="danger"
             onClick={onDeleteUnit}
             disabled={isDeletingUnit}
             className={styles.deleteUnitButton}
           >
             <Trash2 size={18} />
-            {isDeletingUnit ? "Удаление..." : "Удалить юнит"}
+            {isDeletingUnit ? "Удаление…" : "Удалить юнит"}
           </Button>
           {saveStatusText ? (
             <div className={styles.saveStatus} role="status" aria-live="polite">
@@ -144,7 +145,9 @@ function TeacherUnitVideoPanel({
           <div className={styles.kicker}>Видео</div>
           <div className={styles.hint}>Ссылки сохраняются автоматически</div>
         </div>
-        <Button onClick={() => setVideos((prev) => [...prev, getVideoFactory()])}>Добавить видео</Button>
+        <Button variant="secondary" onClick={() => setVideos((prev) => [...prev, getVideoFactory()])}>
+          Добавить видео
+        </Button>
       </div>
 
       {videos.length === 0 ? (
@@ -184,7 +187,10 @@ function TeacherUnitVideoPanel({
                 />
               </label>
               <div className={styles.videoActions}>
-                <Button variant="ghost" onClick={() => setVideos((prev) => prev.filter((item) => item.id !== video.id))}>
+                <Button
+                  variant="danger"
+                  onClick={() => setVideos((prev) => prev.filter((item) => item.id !== video.id))}
+                >
                   Удалить
                 </Button>
               </div>
@@ -479,6 +485,9 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
   const fetchSave = useTeacherUnitFetchSave({ unitId });
   const [activeTab, setActiveTab] = useState<TabKey>("theory");
   const layout = useTeacherUnitEditorLayout();
+  const unsavedChangesGuard = useUnsavedChangesGuard({
+    isDirty: fetchSave.isDirty,
+  });
 
   useEffect(() => {
     if (!fetchSave.isOptionalMinEditing) return;
@@ -563,8 +572,8 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
           isPublished={fetchSave.unit?.status === "published"}
           isDeletingUnit={actions.isDeletingUnit}
           saveStatusText={actions.saveStatusText}
-          onBackToSection={actions.handleBackToSection}
-          onBackToCourses={actions.handleBackToCourses}
+          onBackToSection={() => unsavedChangesGuard.requestNavigation(actions.handleBackToSection)}
+          onBackToCourses={() => unsavedChangesGuard.requestNavigation(actions.handleBackToCourses)}
           onTogglePublish={() => void actions.handleUnitPublishToggle()}
           onDeleteUnit={actions.handleUnitDelete}
         />
@@ -626,6 +635,20 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
           if (!open) actions.setDeleteConfirmState(null);
         }}
         onConfirm={() => void actions.handleConfirmDelete()}
+      />
+      <AlertDialog
+        open={unsavedChangesGuard.isConfirmOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            unsavedChangesGuard.cancelNavigation();
+          }
+        }}
+        title="Есть несохранённые изменения"
+        description="Если выйти сейчас, несохранённые изменения в юните будут потеряны."
+        confirmText="Выйти без сохранения"
+        cancelText="Остаться"
+        destructive
+        onConfirm={unsavedChangesGuard.confirmNavigation}
       />
     </DashboardShell>
   );

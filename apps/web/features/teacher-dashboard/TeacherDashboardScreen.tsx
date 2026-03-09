@@ -7,8 +7,12 @@ import { ImagePlus, Pencil, Trash2 } from "lucide-react";
 import DashboardShell from "@/components/DashboardShell";
 import AlertDialog from "@/components/ui/AlertDialog";
 import Button from "@/components/ui/Button";
+import ButtonLink from "@/components/ui/ButtonLink";
 import Dialog from "@/components/ui/Dialog";
+import FieldLabel from "@/components/ui/FieldLabel";
 import Input from "@/components/ui/Input";
+import InlineStatus from "@/components/ui/InlineStatus";
+import PageHeader from "@/components/ui/PageHeader";
 import Switch from "@/components/ui/Switch";
 import Textarea from "@/components/ui/Textarea";
 import type { Course, CourseWithSections, Section } from "@/lib/api/teacher";
@@ -166,13 +170,14 @@ function TeacherCoverImageEditor({
           onChange={onCoverImageSelected}
         />
         <div className={styles.coverActions}>
-          <Button variant="ghost" className={styles.coverActionButton} onClick={onPickCoverImage}>
+          <Button variant="secondary" size="sm" className={styles.coverActionButton} onClick={onPickCoverImage}>
             <ImagePlus size={14} aria-hidden="true" />
             Загрузить
           </Button>
           {coverImageUrl ? (
             <Button
-              variant="ghost"
+              variant="danger"
+              size="sm"
               className={`${styles.coverActionButton} ${styles.coverActionDanger}`}
               onClick={onRemoveCoverImage}
             >
@@ -217,8 +222,7 @@ function TeacherCourseCreateForm({
   return (
     <div className={styles.createDialogBody}>
       <div className={styles.createDialogFields}>
-        <label className={styles.label}>
-          Название курса
+        <FieldLabel className={styles.label} label="Название курса">
           <Input
             autoFocus
             className={styles.createDialogInput}
@@ -228,18 +232,17 @@ function TeacherCourseCreateForm({
             autoComplete="off"
             placeholder="Например, Математика 7 класс…"
           />
-        </label>
-        <label className={styles.label}>
-          Описание курса
+        </FieldLabel>
+        <FieldLabel className={styles.label} label="Описание курса">
           <Textarea
             className={styles.createDialogTextarea}
             value={description}
             onChange={(event) => onDescriptionChange(event.target.value)}
             name="courseDescription"
             rows={4}
-            placeholder="Коротко опишите курс..."
+            placeholder="Коротко опишите курс…"
           />
-        </label>
+        </FieldLabel>
       </div>
       <TeacherCoverImageEditor
         inputName="courseCoverImage"
@@ -256,7 +259,7 @@ function TeacherCourseCreateForm({
         <Button className={styles.createDialogPrimaryAction} onClick={onSave} disabled={!title.trim() || saving}>
           Сохранить курс
         </Button>
-        <Button variant="ghost" className={styles.createDialogSecondaryAction} onClick={onCancel}>
+        <Button variant="secondary" className={styles.createDialogSecondaryAction} onClick={onCancel}>
           Отмена
         </Button>
       </div>
@@ -300,8 +303,7 @@ function TeacherSectionCreateForm({
   return (
     <div className={styles.createDialogBody}>
       <div className={styles.createDialogFields}>
-        <label className={styles.label}>
-          Название раздела
+        <FieldLabel className={styles.label} label="Название раздела">
           <Input
             autoFocus
             className={styles.createDialogInput}
@@ -311,18 +313,17 @@ function TeacherSectionCreateForm({
             autoComplete="off"
             placeholder="Например, Дроби и проценты…"
           />
-        </label>
-        <label className={styles.label}>
-          Описание раздела
+        </FieldLabel>
+        <FieldLabel className={styles.label} label="Описание раздела">
           <Textarea
             className={styles.createDialogTextarea}
             value={description}
             onChange={(event) => onDescriptionChange(event.target.value)}
             name="sectionDescription"
             rows={4}
-            placeholder="Коротко опишите, что изучают в этом разделе..."
+            placeholder="Коротко опишите, что изучают в этом разделе…"
           />
-        </label>
+        </FieldLabel>
       </div>
       <TeacherCoverImageEditor
         inputName="sectionCoverImage"
@@ -339,7 +340,7 @@ function TeacherSectionCreateForm({
         <Button className={styles.createDialogPrimaryAction} onClick={onSave} disabled={!title.trim() || saving}>
           Сохранить раздел
         </Button>
-        <Button variant="ghost" className={styles.createDialogSecondaryAction} onClick={onCancel}>
+        <Button variant="secondary" className={styles.createDialogSecondaryAction} onClick={onCancel}>
           Отмена
         </Button>
       </div>
@@ -378,9 +379,9 @@ function TeacherCourseCard({
         </div>
       </button>
       <div className={styles.cardControls}>
-        <span className={styles.status} data-status={course.status}>
+        <InlineStatus className={styles.status} data-status={course.status}>
           {getContentStatusLabel(course.status)}
-        </span>
+        </InlineStatus>
         <div className={styles.cardActions}>
           <Switch
             className={styles.cardPublishSwitch}
@@ -399,8 +400,8 @@ function TeacherCourseCard({
             <Pencil size={16} aria-hidden="true" />
           </Button>
           <Button
-            variant="ghost"
-            className={styles.cardIconAction}
+            variant="danger"
+            className={`${styles.cardIconAction} ${styles.cardDeleteAction}`}
             title="Удалить курс"
             aria-label="Удалить курс"
             onClick={() => onDelete(course)}
@@ -442,9 +443,9 @@ function TeacherSectionCard({
         </div>
       </button>
       <div className={styles.cardControls}>
-        <span className={styles.status} data-status={section.status}>
+        <InlineStatus className={styles.status} data-status={section.status}>
           {getContentStatusLabel(section.status)}
-        </span>
+        </InlineStatus>
         <div className={styles.cardActions}>
           <Switch
             className={styles.cardPublishSwitch}
@@ -463,8 +464,8 @@ function TeacherSectionCard({
             <Pencil size={16} aria-hidden="true" />
           </Button>
           <Button
-            variant="ghost"
-            className={styles.cardIconAction}
+            variant="danger"
+            className={`${styles.cardIconAction} ${styles.cardDeleteAction}`}
             title="Удалить раздел"
             aria-label="Удалить раздел"
             onClick={() => onDelete(section)}
@@ -514,27 +515,25 @@ function TeacherEditDialogPanel({
 }: TeacherEditDialogPanelProps) {
   return (
     <div className={styles.editDialogBody}>
-      <label className={styles.label}>
-        Название
+      <FieldLabel className={styles.label} label="Название">
         <Input
           autoFocus
           value={title}
           onChange={(event) => onTitleChange(event.target.value)}
           name="editTitle"
           autoComplete="off"
-          placeholder="Введите название..."
+          placeholder="Введите название…"
         />
-      </label>
-      <label className={styles.label}>
-        Описание
+      </FieldLabel>
+      <FieldLabel className={styles.label} label="Описание">
         <Textarea
           value={description}
           onChange={(event) => onDescriptionChange(event.target.value)}
           name="editDescription"
           rows={3}
-          placeholder="Введите описание..."
+          placeholder="Введите описание…"
         />
-      </label>
+      </FieldLabel>
       <TeacherCoverImageEditor
         inputName="editCoverImage"
         coverImageUrl={coverImageUrl}
@@ -549,9 +548,9 @@ function TeacherEditDialogPanel({
       {error ? <div className={styles.formError}>{error}</div> : null}
       <div className={styles.actions}>
         <Button onClick={onSave} disabled={!title.trim() || saving}>
-          {saving ? "Сохранение..." : "Сохранить изменения"}
+          {saving ? "Сохранение…" : "Сохранить изменения"}
         </Button>
-        <Button variant="ghost" onClick={onCancel}>
+        <Button variant="secondary" onClick={onCancel}>
           Отмена
         </Button>
       </div>
@@ -1050,19 +1049,17 @@ export default function TeacherDashboardScreen({
     >
       <div className={styles.content}>
         {showMainHeader ? (
-          <div className={styles.header}>
-            <div>
-              <h1 className={styles.title}>{content.title}</h1>
-              {content.subtitle ? <p className={styles.subtitle}>{content.subtitle}</p> : null}
-            </div>
-            {active === "students" && initialStudentId ? (
-              <div className={styles.panelActions}>
-                <Button variant="ghost" onClick={() => router.push("/teacher/students")}>
+          <PageHeader
+            title={content.title}
+            subtitle={content.subtitle || undefined}
+            actions={
+              active === "students" && initialStudentId ? (
+                <ButtonLink href="/teacher/students" variant="secondary">
                   Назад к ученикам
-                </Button>
-              </div>
-            ) : null}
-          </div>
+                </ButtonLink>
+              ) : undefined
+            }
+          />
         ) : null}
 
         {renderActiveMode()}

@@ -128,13 +128,11 @@ describe("TeacherStudentProfilePanel", () => {
     renderWithQueryClient(
       <TeacherStudentProfilePanel studentId="student-1" fallbackName="student1" />,
     );
-    const user = userEvent.setup();
 
     expect(await screen.findByText("Иванов Иван")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /Фото на проверке: 2/i }));
-
-    expect(pushMock).toHaveBeenCalledWith(
+    expect(screen.getByRole("link", { name: /Фото на проверке: 2/i })).toHaveAttribute(
+      "href",
       "/teacher/review?status=pending_review&sort=oldest&studentId=student-1",
     );
   });
@@ -275,9 +273,10 @@ describe("TeacherStudentProfilePanel", () => {
     const user = userEvent.setup();
 
     await user.click(await screen.findByRole("button", { name: /Алгебра/i }));
-    await user.click(screen.getByRole("button", { name: "Открыть раздел" }));
-
-    expect(pushMock).toHaveBeenCalledWith("/teacher/sections/section-1");
+    expect(screen.getByRole("link", { name: "Открыть раздел" })).toHaveAttribute(
+      "href",
+      "/teacher/sections/section-1",
+    );
   });
 
   it("hydrates drilldown state from search params", async () => {

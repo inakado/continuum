@@ -2,18 +2,21 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { MoreHorizontal } from "lucide-react";
 import AlertDialog from "@/components/ui/AlertDialog";
 import Button from "@/components/ui/Button";
 import Dialog from "@/components/ui/Dialog";
+import EmptyState from "@/components/ui/EmptyState";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/DropdownMenu";
+import FieldLabel from "@/components/ui/FieldLabel";
 import Input from "@/components/ui/Input";
+import Kicker from "@/components/ui/Kicker";
 import Select from "@/components/ui/Select";
 import { teacherApi, type StudentSummary, type TeacherSummary } from "@/lib/api/teacher";
 import { contentQueryKeys } from "@/lib/query/keys";
@@ -59,8 +62,6 @@ type StudentCardProps = {
   handleStartTransfer: (student: StudentSummary) => void;
   onDeleteStudent: (student: StudentSummary) => void;
   onOpenActionsChange: (open: boolean, studentId: string) => void;
-  onOpenProfile: (studentId: string) => void;
-  onOpenReviewInbox: (studentId: string) => void;
   onResetPassword: (student: StudentSummary) => void;
   onTransfer: (student: StudentSummary) => void;
   onTransferCancel: () => void;
@@ -73,6 +74,8 @@ type StudentCardProps = {
   transferError: string | null;
   transferStudentId: string | null;
   transferTeacherId: string;
+  profileHref: string;
+  reviewInboxHref: string;
 };
 
 type ConfirmDialogState = {
@@ -81,6 +84,65 @@ type ConfirmDialogState = {
   description: string;
   destructive: boolean;
   title: string;
+};
+
+const STUDENT_WINDOW_ROW_HEIGHT = 132;
+const STUDENT_WINDOW_OVERSCAN = 8;
+
+const useStudentWindowing = <T,>({
+  enabled,
+  items,
+}: {
+  enabled: boolean;
+  items: T[];
+}) => {
+  const [range, setRange] = useState({ start: 0, end: items.length });
+  const [listElement, setListElement] = useState<HTMLDivElement | null>(null);
+
+  const recalculate = useCallback(() => {
+    if (!enabled || !listElement) {
+      setRange({ start: 0, end: items.length });
+      return;
+    }
+
+    const rect = listElement.getBoundingClientRect();
+    const listTop = window.scrollY + rect.top;
+    const viewportOffset = Math.max(window.scrollY - listTop, 0);
+    const visibleRows = Math.ceil(window.innerHeight / STUDENT_WINDOW_ROW_HEIGHT) + STUDENT_WINDOW_OVERSCAN * 2;
+    const start = Math.max(0, Math.floor(viewportOffset / STUDENT_WINDOW_ROW_HEIGHT) - STUDENT_WINDOW_OVERSCAN);
+    const end = Math.min(items.length, start + visibleRows);
+
+    setRange((previous) =>
+      previous.start === start && previous.end === end ? previous : { start, end },
+    );
+  }, [enabled, items.length, listElement]);
+
+  useEffect(() => {
+    recalculate();
+  }, [recalculate]);
+
+  useEffect(() => {
+    if (!enabled || !listElement) return;
+
+    const handleViewportChange = () => {
+      recalculate();
+    };
+
+    window.addEventListener("scroll", handleViewportChange, { passive: true });
+    window.addEventListener("resize", handleViewportChange);
+
+    return () => {
+      window.removeEventListener("scroll", handleViewportChange);
+      window.removeEventListener("resize", handleViewportChange);
+    };
+  }, [enabled, listElement, recalculate]);
+
+  return {
+    visibleItems: enabled ? items.slice(range.start, range.end) : items,
+    topSpacerHeight: enabled ? range.start * STUDENT_WINDOW_ROW_HEIGHT : 0,
+    bottomSpacerHeight: enabled ? Math.max(0, (items.length - range.end) * STUDENT_WINDOW_ROW_HEIGHT) : 0,
+    setListElement,
+  };
 };
 
 const StudentIdentityForm = ({
@@ -98,19 +160,21 @@ const StudentIdentityForm = ({
   onSubmit,
 }: StudentIdentityFormProps) => (
   <div className={styles.dialogBody}>
-    <div className={styles.dialogFields}>
-      {onLoginChange ? (
-        <label className={styles.label}>
-          Логин ученика
+      <div className={styles.dialogFields}>
+        {onLoginChange ? (
+        <FieldLabel className={styles.label} label="Логин ученика">
           <Input
             autoFocus
             className={styles.dialogInput}
+            name="studentLogin"
             value={login ?? ""}
-            placeholder="student_login"
+            placeholder="student_login…"
+            autoComplete="username"
+            spellCheck={false}
             readOnly={loginReadOnly}
             onChange={(event) => onLoginChange(event.target.value)}
           />
-        </label>
+        </FieldLabel>
       ) : null}
       {loginReadOnly && login ? (
         <div className={styles.dialogMeta}>
@@ -119,8 +183,7 @@ const StudentIdentityForm = ({
         </div>
       ) : null}
       <div className={styles.inlineRow}>
-        <label className={styles.label}>
-          Имя
+        <FieldLabel className={styles.label} label="Имя">
           <Input
             autoFocus={!onLoginChange}
             className={styles.dialogInput}
@@ -128,16 +191,15 @@ const StudentIdentityForm = ({
             placeholder="Имя (необязательно)"
             onChange={(event) => onFirstNameChange(event.target.value)}
           />
-        </label>
-        <label className={styles.label}>
-          Фамилия
+        </FieldLabel>
+        <FieldLabel className={styles.label} label="Фамилия">
           <Input
             className={styles.dialogInput}
             value={lastName}
             placeholder="Фамилия (необязательно)"
             onChange={(event) => onLastNameChange(event.target.value)}
           />
-        </label>
+        </FieldLabel>
       </div>
     </div>
     {error ? <div className={styles.formError}>{error}</div> : null}
@@ -145,7 +207,7 @@ const StudentIdentityForm = ({
       <Button onClick={onSubmit} disabled={submitDisabled}>
         {submitLabel}
       </Button>
-      <Button variant="ghost" onClick={onCancel}>
+      <Button variant="secondary" onClick={onCancel}>
         Отмена
       </Button>
     </div>
@@ -165,21 +227,21 @@ const PasswordRevealPanel = ({
     <div className={styles.passwordReveal}>
       <div className={styles.passwordRow}>
         <div>
-          <div className={styles.passwordLabel}>Логин</div>
+          <Kicker className={styles.passwordLabel}>Логин</Kicker>
           <div className={styles.passwordValue}>{passwordReveal.login}</div>
         </div>
         <div>
-          <div className={styles.passwordLabel}>Пароль</div>
+          <Kicker className={styles.passwordLabel}>Пароль</Kicker>
           <div className={styles.passwordValue}>{passwordReveal.password}</div>
         </div>
       </div>
       <div className={styles.passwordHint}>Пароль показывается один раз. Сохраните его.</div>
     </div>
     <div className={styles.dialogActions}>
-      <Button variant="ghost" onClick={onCopyPassword}>
+      <Button variant="secondary" onClick={onCopyPassword}>
         Скопировать
       </Button>
-      <Button onClick={onHide}>
+      <Button variant="ghost" onClick={onHide}>
         Закрыть
       </Button>
     </div>
@@ -228,8 +290,6 @@ const StudentCard = ({
   handleStartTransfer,
   onDeleteStudent,
   onOpenActionsChange,
-  onOpenProfile,
-  onOpenReviewInbox,
   onResetPassword,
   onTransfer,
   onTransferCancel,
@@ -242,6 +302,8 @@ const StudentCard = ({
   transferError,
   transferStudentId,
   transferTeacherId,
+  profileHref,
+  reviewInboxHref,
 }: StudentCardProps) => {
   const isTransferActive = transferStudentId === student.id;
   const isActionsMenuOpen = openActionsStudentId === student.id;
@@ -253,24 +315,17 @@ const StudentCard = ({
       className={`${styles.card} ${isTransferActive ? styles.cardActive : ""} ${
         isActionsMenuOpen ? styles.cardMenuOpen : ""
       }`}
-      onClick={() => onOpenProfile(student.id)}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onOpenProfile(student.id);
-        }
-      }}
-      role="button"
-      tabIndex={0}
     >
       <div className={styles.cardHeader}>
-        <div className={styles.identity}>
-          <div className={styles.studentName}>{getDisplayName(student)}</div>
-          <div className={styles.studentMeta}>Логин: {student.login}</div>
-          <div className={styles.studentMeta}>
-            Ведущий: {student.leadTeacherDisplayName ?? student.leadTeacherLogin}
+        <Link href={profileHref} className={styles.primaryLink}>
+          <div className={styles.identity}>
+            <div className={styles.studentName}>{getDisplayName(student)}</div>
+            <div className={styles.studentMeta}>Логин: {student.login}</div>
+            <div className={styles.studentMeta}>
+              Ведущий: {student.leadTeacherDisplayName ?? student.leadTeacherLogin}
+            </div>
           </div>
-        </div>
+        </Link>
         <div className={styles.actionsMenu} onClick={(event) => event.stopPropagation()}>
           <DropdownMenu
             open={isActionsMenuOpen}
@@ -288,11 +343,8 @@ const StudentCard = ({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className={styles.actionsMenuList}>
               {hasPendingReview ? (
-                <DropdownMenuItem
-                  className={styles.actionsMenuItem}
-                  onSelect={() => onOpenReviewInbox(student.id)}
-                >
-                  К проверке фото
+                <DropdownMenuItem asChild className={styles.actionsMenuItem}>
+                  <Link href={reviewInboxHref}>К проверке фото</Link>
                 </DropdownMenuItem>
               ) : null}
               <DropdownMenuItem
@@ -327,9 +379,8 @@ const StudentCard = ({
       </div>
 
       {isTransferActive ? (
-        <div className={styles.transferPanel} onClick={(event) => event.stopPropagation()}>
-          <label className={styles.label}>
-            Новый ведущий
+        <div className={styles.transferPanel}>
+          <FieldLabel className={styles.label} label="Новый ведущий">
             <Select
               triggerClassName={styles.selectTrigger}
               value={transferTeacherId}
@@ -344,13 +395,13 @@ const StudentCard = ({
               ]}
               placeholder="Выберите преподавателя"
             />
-          </label>
+          </FieldLabel>
           {transferError ? <div className={styles.formError}>{transferError}</div> : null}
           <div className={styles.formActions}>
             <Button onClick={() => onTransfer(student)} disabled={!transferTeacherId || transferBusy}>
               Подтвердить
             </Button>
-            <Button variant="ghost" onClick={onTransferCancel}>
+            <Button variant="secondary" onClick={onTransferCancel}>
               Отмена
             </Button>
           </div>
@@ -362,7 +413,6 @@ const StudentCard = ({
 
 
 export default function TeacherStudentsPanel({ studentId }: Props) {
-  const router = useRouter();
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -610,21 +660,6 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
     setTransferError(null);
   }, []);
 
-  const openStudentProfile = useCallback(
-    (targetStudentId: string) => {
-      router.push(`/teacher/students/${targetStudentId}`);
-    },
-    [router],
-  );
-
-  const openStudentReviewInbox = useCallback(
-    (targetStudentId: string) => {
-      setOpenActionsStudentId(null);
-      router.push(`/teacher/review?status=pending_review&sort=oldest&studentId=${targetStudentId}`);
-    },
-    [router],
-  );
-
   const handleResetPasswordConfirm = useCallback(
     (student: StudentSummary) => {
       setOpenActionsStudentId(null);
@@ -670,6 +705,16 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
     if (students.length === 0) return "empty";
     return "ready";
   }, [loading, students.length]);
+  const virtualizedStudentsEnabled = listState === "ready" && students.length > 40;
+  const {
+    visibleItems: visibleStudents,
+    topSpacerHeight,
+    bottomSpacerHeight,
+    setListElement,
+  } = useStudentWindowing({
+    enabled: virtualizedStudentsEnabled,
+    items: students,
+  });
 
   const availableTeachersByLeadTeacherId = useMemo(() => {
     const map = new Map<string, TeacherSummary[]>();
@@ -712,14 +757,13 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
     <section className={styles.panel}>
       <div className={styles.toolbar}>
         <div className={styles.search}>
-          <label className={styles.label}>
-            Поиск по имени или логину
+          <FieldLabel className={styles.label} label="Поиск по имени или логину">
             <Input
               value={query}
-              placeholder="Например: Петров или student01"
+              placeholder="Например: Петров или student01…"
               onChange={(event) => setQuery(event.target.value)}
             />
-          </label>
+          </FieldLabel>
         </div>
         <Button
           onClick={() => {
@@ -741,11 +785,19 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
       ) : null}
 
       <div className={styles.listView}>
-        <div className={styles.list}>
+        <div ref={setListElement} className={styles.list}>
           {listState === "loading" ? <div className={styles.loading}>Загрузка…</div> : null}
-          {listState === "empty" ? <div className={styles.empty}>Ученики отсутствуют</div> : null}
+          {listState === "empty" ? (
+            <EmptyState
+              title="Ученики отсутствуют"
+              description="Добавьте первого ученика, чтобы открыть teacher review и progress drilldown."
+            />
+          ) : null}
+          {virtualizedStudentsEnabled && topSpacerHeight > 0 ? (
+            <div className={styles.listSpacer} style={{ height: topSpacerHeight }} aria-hidden="true" />
+          ) : null}
           {listState === "ready"
-            ? students.map((student) => {
+            ? visibleStudents.map((student) => {
                 const availableTeachers =
                   availableTeachersByLeadTeacherId.get(student.leadTeacherId) ?? teachers;
                 return (
@@ -760,8 +812,6 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
                     onOpenActionsChange={(open, targetStudentId) =>
                       setOpenActionsStudentId(open ? targetStudentId : null)
                     }
-                    onOpenProfile={openStudentProfile}
-                    onOpenReviewInbox={openStudentReviewInbox}
                     onResetPassword={handleResetPasswordConfirm}
                     onTransfer={(targetStudent) => void handleTransfer(targetStudent)}
                     onTransferCancel={handleTransferCancel}
@@ -774,10 +824,15 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
                     transferError={transferError}
                     transferStudentId={transferStudentId}
                     transferTeacherId={transferTeacherId}
+                    profileHref={`/teacher/students/${student.id}`}
+                    reviewInboxHref={`/teacher/review?status=pending_review&sort=oldest&studentId=${student.id}`}
                   />
                 );
               })
             : null}
+          {virtualizedStudentsEnabled && bottomSpacerHeight > 0 ? (
+            <div className={styles.listSpacer} style={{ height: bottomSpacerHeight }} aria-hidden="true" />
+          ) : null}
         </div>
       </div>
       <Dialog

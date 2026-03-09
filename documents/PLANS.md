@@ -42,6 +42,15 @@ Active execution plan обязателен, если изменение затр
   - исторический контекст;
   - финальные решения и итоги.
 
+### Superseded
+
+- Хранилище: `documents/exec-plans/completed/`
+- Используется для бывших active plans, которые сняты из исполнения из-за reprioritization или замены новой инициативой.
+- Содержит:
+  - исходный контекст и scope снятой инициативы;
+  - причину замены/переноса;
+  - ссылку на инициативу, которая стала новой активной работой.
+
 ### Deferred roadmap
 
 - Файл: `documents/exec-plans/deferred-roadmap.md`
@@ -65,6 +74,8 @@ Active execution plan обязателен, если изменение затр
   - `documents/exec-plans/active/*`
 - Завершённая инициатива:
   - `documents/exec-plans/completed/*`
+- Active plan, снятый как заменённый новой инициативой:
+  - `documents/exec-plans/completed/*` со статусом `Superseded`
 - Неактивная future idea, которая не является долгом:
   - `documents/exec-plans/deferred-roadmap.md`
 - Техдолг, баг, спорное engineering-решение или известная structural проблема:

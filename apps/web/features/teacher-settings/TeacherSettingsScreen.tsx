@@ -6,7 +6,13 @@ import DashboardShell from "@/components/DashboardShell";
 import AlertDialog from "@/components/ui/AlertDialog";
 import Button from "@/components/ui/Button";
 import Checkbox from "@/components/ui/Checkbox";
+import EmptyState from "@/components/ui/EmptyState";
+import FieldLabel from "@/components/ui/FieldLabel";
 import Input from "@/components/ui/Input";
+import InlineStatus from "@/components/ui/InlineStatus";
+import Kicker from "@/components/ui/Kicker";
+import PageHeader from "@/components/ui/PageHeader";
+import { SectionCard } from "@/components/ui/SurfaceCard";
 import { useTeacherLogout } from "@/features/teacher-content/auth/use-teacher-logout";
 import { getApiErrorMessage, getApiErrorPayload } from "@/features/teacher-content/shared/api-errors";
 import { teacherApi, type TeacherMeResponse, type TeacherSummary } from "@/lib/api/teacher";
@@ -71,17 +77,17 @@ const TeacherListSection = ({
   teachers,
   teachersLoading,
 }: TeacherListSectionProps) => (
-  <section className={styles.card}>
-    <div className={styles.cardTitle}>Список преподавателей</div>
+  <SectionCard className={styles.card}>
+    <Kicker>Список преподавателей</Kicker>
     <div className={styles.rowActions}>
-      <Button variant="ghost" onClick={onRefresh} disabled={teachersLoading}>
+      <Button variant="secondary" onClick={onRefresh} disabled={teachersLoading}>
         Обновить список
       </Button>
     </div>
     {teachersLoading ? (
       <div className={styles.stub}>Загрузка преподавателей…</div>
     ) : teachers.length === 0 ? (
-      <div className={styles.stub}>Преподавателей пока нет.</div>
+      <EmptyState title="Преподавателей пока нет" description="Создайте первого преподавателя в форме выше." />
     ) : (
       <div className={styles.teacherList}>
         {teachers.map((teacher) => {
@@ -95,10 +101,12 @@ const TeacherListSection = ({
                 <div className={styles.teacherLogin}>@{teacher.login}</div>
               </div>
               {isSelf ? (
-                <span className={styles.selfBadge}>Вы</span>
+                <InlineStatus tone="muted" className={styles.selfBadge}>
+                  Вы
+                </InlineStatus>
               ) : (
                 <Button
-                  variant="ghost"
+                  variant="danger"
                   onClick={() => onDeleteTeacher(teacher)}
                   disabled={deletingTeacherId === teacher.id}
                 >
@@ -113,7 +121,7 @@ const TeacherListSection = ({
     <div className={styles.status} role="status" aria-live="polite">
       {statusText}
     </div>
-  </section>
+  </SectionCard>
 );
 
 export default function TeacherSettingsScreen() {
@@ -373,7 +381,7 @@ export default function TeacherSettingsScreen() {
         <div className={styles.content}>
           <div className={styles.error}>{loadError}</div>
           <div className={styles.rowActions}>
-            <Button variant="ghost" onClick={() => void handleInitialReload()}>
+            <Button variant="secondary" onClick={() => void handleInitialReload()}>
               Обновить
             </Button>
           </div>
@@ -391,16 +399,15 @@ export default function TeacherSettingsScreen() {
       settingsHref="/teacher/settings"
     >
       <div className={styles.content}>
-        <div className={styles.header}>
-          <h1 className={styles.title}>Настройки преподавателя</h1>
-          <p className={styles.subtitle}>Профиль, пароль и управление преподавателями</p>
-        </div>
+        <PageHeader
+          title="Настройки преподавателя"
+          subtitle="Профиль, пароль и управление преподавателями"
+        />
 
-        <section className={styles.card}>
-          <div className={styles.cardTitle}>Профиль</div>
+        <SectionCard className={styles.card}>
+          <Kicker>Профиль</Kicker>
           <div className={styles.grid3}>
-            <label className={styles.field}>
-              Фамилия
+            <FieldLabel className={styles.field} label="Фамилия">
               <Input
                 value={profileForm.lastName}
                 onChange={(event) =>
@@ -409,9 +416,8 @@ export default function TeacherSettingsScreen() {
                 placeholder="Фамилия"
                 autoComplete="family-name"
               />
-            </label>
-            <label className={styles.field}>
-              Имя
+            </FieldLabel>
+            <FieldLabel className={styles.field} label="Имя">
               <Input
                 value={profileForm.firstName}
                 onChange={(event) =>
@@ -420,9 +426,8 @@ export default function TeacherSettingsScreen() {
                 placeholder="Имя"
                 autoComplete="given-name"
               />
-            </label>
-            <label className={styles.field}>
-              Отчество
+            </FieldLabel>
+            <FieldLabel className={styles.field} label="Отчество">
               <Input
                 value={profileForm.middleName}
                 onChange={(event) =>
@@ -431,7 +436,7 @@ export default function TeacherSettingsScreen() {
                 placeholder="Отчество (необязательно)"
                 autoComplete="additional-name"
               />
-            </label>
+            </FieldLabel>
           </div>
           <div className={styles.rowActions}>
             <Button onClick={() => void handleProfileSave()} disabled={profileState.state === "saving"}>
@@ -441,13 +446,12 @@ export default function TeacherSettingsScreen() {
           <div className={styles.status} role="status" aria-live="polite">
             {profileStatusText}
           </div>
-        </section>
+        </SectionCard>
 
-        <section className={styles.card}>
-          <div className={styles.cardTitle}>Сменить пароль</div>
+        <SectionCard className={styles.card}>
+          <Kicker>Сменить пароль</Kicker>
           <div className={styles.grid2}>
-            <label className={styles.field}>
-              Текущий пароль
+            <FieldLabel className={styles.field} label="Текущий пароль">
               <Input
                 type="password"
                 value={passwordForm.currentPassword}
@@ -456,9 +460,8 @@ export default function TeacherSettingsScreen() {
                 }
                 autoComplete="current-password"
               />
-            </label>
-            <label className={styles.field}>
-              Новый пароль
+            </FieldLabel>
+            <FieldLabel className={styles.field} label="Новый пароль">
               <Input
                 type="password"
                 value={passwordForm.newPassword}
@@ -467,7 +470,7 @@ export default function TeacherSettingsScreen() {
                 }
                 autoComplete="new-password"
               />
-            </label>
+            </FieldLabel>
           </div>
           <div className={styles.rowActions}>
             <Button onClick={() => void handlePasswordChange()} disabled={passwordState.state === "saving"}>
@@ -477,46 +480,43 @@ export default function TeacherSettingsScreen() {
           <div className={styles.status} role="status" aria-live="polite">
             {passwordStatusText}
           </div>
-        </section>
+        </SectionCard>
 
-        <section className={styles.card}>
-          <div className={styles.cardTitle}>Создать преподавателя</div>
+        <SectionCard className={styles.card}>
+          <Kicker>Создать преподавателя</Kicker>
           <div className={styles.grid3}>
-            <label className={styles.field}>
-              Логин
+            <FieldLabel className={styles.field} label="Логин">
               <Input
+                name="teacherLogin"
                 value={createForm.login}
                 onChange={(event) => setCreateForm((prev) => ({ ...prev, login: event.target.value }))}
-                placeholder="login"
-                autoComplete="off"
+                placeholder="login…"
+                autoComplete="username"
+                spellCheck={false}
               />
-            </label>
-            <label className={styles.field}>
-              Фамилия
+            </FieldLabel>
+            <FieldLabel className={styles.field} label="Фамилия">
               <Input
                 value={createForm.lastName}
                 onChange={(event) => setCreateForm((prev) => ({ ...prev, lastName: event.target.value }))}
                 placeholder="Фамилия"
               />
-            </label>
-            <label className={styles.field}>
-              Имя
+            </FieldLabel>
+            <FieldLabel className={styles.field} label="Имя">
               <Input
                 value={createForm.firstName}
                 onChange={(event) => setCreateForm((prev) => ({ ...prev, firstName: event.target.value }))}
                 placeholder="Имя"
               />
-            </label>
-            <label className={styles.field}>
-              Отчество
+            </FieldLabel>
+            <FieldLabel className={styles.field} label="Отчество">
               <Input
                 value={createForm.middleName}
                 onChange={(event) => setCreateForm((prev) => ({ ...prev, middleName: event.target.value }))}
                 placeholder="Отчество (необязательно)"
               />
-            </label>
-            <label className={styles.field}>
-              Пароль
+            </FieldLabel>
+            <FieldLabel className={styles.field} label="Пароль">
               <Input
                 type="password"
                 value={createForm.password}
@@ -525,7 +525,7 @@ export default function TeacherSettingsScreen() {
                 disabled={createForm.generatePassword}
                 autoComplete="new-password"
               />
-            </label>
+            </FieldLabel>
           </div>
           <div className={styles.rowActions}>
             <Checkbox
@@ -550,7 +550,7 @@ export default function TeacherSettingsScreen() {
               Пароль нового преподавателя (показан один раз): <strong>{createdTeacherPassword}</strong>
             </div>
           ) : null}
-        </section>
+        </SectionCard>
 
         <TeacherListSection
           currentTeacherId={currentTeacherId}

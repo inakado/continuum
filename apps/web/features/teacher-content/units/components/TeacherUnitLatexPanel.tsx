@@ -186,8 +186,8 @@ export function TeacherUnitLatexPanel({
       <div className={styles.previewPanel}>
         <div className={styles.kicker}>Предпросмотр</div>
         <div className={styles.previewActions}>
-          <Button onClick={onCompile} disabled={compileState.loading}>
-            {compileState.loading ? "Компиляция..." : "Скомпилировать HTML + PDF"}
+          <Button variant="secondary" onClick={onCompile} disabled={compileState.loading}>
+            {compileState.loading ? "Компиляция…" : "Скомпилировать HTML + PDF"}
           </Button>
           <div className={styles.previewModeTabsWrap}>
             <Tabs
@@ -244,7 +244,7 @@ export function TeacherUnitLatexPanel({
               ) : (
                 <div className={styles.previewStub}>
                   {renderedContentLoading
-                    ? "Загрузка HTML..."
+                    ? "Загрузка HTML…"
                     : "Предпросмотр HTML появится здесь после успешной сборки."}
                 </div>
               )}

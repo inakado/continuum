@@ -1,0 +1,32 @@
+.surface {
+  display: grid;
+  gap: var(--layout-section-gap);
+  min-width: 0;
+}
+
+.panel {
+  border: var(--border-width) solid var(--surface-panel-border);
+  background: var(--surface-panel-bg);
+  box-shadow: var(--surface-panel-shadow);
+  border-radius: var(--panel-radius);
+  padding: var(--layout-panel-padding);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+}
+
+.section {
+  border: var(--border-width) solid var(--surface-card-border);
+  background: var(--surface-card-bg);
+  box-shadow: var(--surface-card-shadow);
+  border-radius: var(--card-radius);
+  padding: var(--layout-card-padding);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+}
+
+.inset {
+  border: var(--border-width-thin) solid var(--surface-inset-border);
+  background: var(--surface-inset-bg);
+  border-radius: var(--control-radius);
+  padding: var(--layout-inset-padding);
+}

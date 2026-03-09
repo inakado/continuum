@@ -61,7 +61,7 @@ export function TeacherCompileErrorDialog({
       <pre className={styles.compileErrorModalLog}>{state.log ?? state.logSnippet ?? "Сервер не вернул текст лога."}</pre>
 
       <div className={styles.compileErrorModalActions}>
-        <Button type="button" onClick={() => void onCopy()}>
+        <Button type="button" variant="secondary" onClick={() => void onCopy()}>
           {copyState === "copied"
             ? "Скопировано"
             : copyState === "failed"

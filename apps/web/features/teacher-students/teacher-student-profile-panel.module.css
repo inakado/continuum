@@ -27,18 +27,20 @@
 
 .title {
   margin: 0;
-  font-family: var(--font-unbounded), sans-serif;
-  font-size: clamp(22px, 2vw, 30px);
-  font-weight: 300;
-  line-height: 1.1;
+  font-family: var(--text-title-section-family), sans-serif;
+  font-size: var(--text-title-section-size);
+  font-weight: var(--text-title-section-weight);
+  line-height: var(--text-title-section-line-height);
+  letter-spacing: var(--text-title-section-tracking);
   color: var(--text-primary);
 }
 
 .subtitle {
   margin: 0;
   color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1.4;
+  font-family: var(--text-body-sm-family), sans-serif;
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line-height);
 }
 
 .headerMetaRow {
@@ -53,8 +55,9 @@
   align-items: center;
   gap: 6px;
   color: var(--text-muted);
-  font-size: 12px;
-  line-height: 1.2;
+  font-family: var(--text-caption-family), sans-serif;
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line-height);
 }
 
 .headerMetaIcon {
@@ -66,7 +69,7 @@
 .headerMetaGlyph {
   color: color-mix(in srgb, var(--text-muted) 82%, var(--text-primary));
   font-weight: 700;
-  font-size: 13px;
+  font-size: var(--text-caption-size);
   line-height: 1;
 }
 
@@ -81,20 +84,10 @@
   gap: 8px;
 }
 
-.headerActions button,
-.actions button {
-  --button-bg: var(--surface-1);
-  --button-border: var(--glass-border);
-  --button-text: var(--text-primary);
-  --button-hover-bg: var(--surface-2);
-  --button-hover-border: var(--border-primary);
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
-}
-
 .reviewQueueButton {
   --button-border-width: var(--border-width-thin);
-  font-size: 12px;
+  font-size: var(--action-font-size-sm);
+  line-height: var(--action-line-height);
 }
 
 .reviewQueueButton[data-pending="true"] {
@@ -108,8 +101,11 @@
 .photoPendingFlag,
 .unitOverrideFlag {
   border-radius: 999px;
-  font-size: 10px;
-  letter-spacing: 0.09em;
+  font-family: var(--text-overline-family), sans-serif;
+  font-size: var(--text-overline-size);
+  line-height: var(--text-overline-line-height);
+  font-weight: var(--text-overline-weight);
+  letter-spacing: var(--text-overline-tracking);
   text-transform: uppercase;
 }
 
@@ -120,7 +116,9 @@
   border: var(--border-width-thin) solid var(--card-border);
   border-radius: var(--card-radius);
   padding: 10px 12px;
-  font-size: 13px;
+  font-family: var(--text-body-sm-family), sans-serif;
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line-height);
   background: var(--card-bg);
 }
 
@@ -163,17 +161,20 @@
 
 .stageTitle {
   margin: 0;
-  font-family: var(--font-unbounded), sans-serif;
-  font-size: 18px;
-  font-weight: 300;
+  font-family: var(--text-title-section-family), sans-serif;
+  font-size: var(--text-title-section-size);
+  line-height: var(--text-title-section-line-height);
+  font-weight: var(--text-title-section-weight);
+  letter-spacing: var(--text-title-section-tracking);
   color: var(--text-primary);
 }
 
 .stageSubtitle {
   margin: 0 0 8px;
-  font-size: 13px;
+  font-family: var(--text-body-sm-family), sans-serif;
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line-height);
   color: var(--text-muted);
-  line-height: 1.4;
 }
 
 .pathNav {
@@ -186,7 +187,8 @@
 
 .pathSeparator {
   color: var(--text-muted);
-  font-size: 12px;
+  font-family: var(--text-caption-family), sans-serif;
+  font-size: var(--text-caption-size);
   line-height: 1;
 }
 
@@ -195,9 +197,10 @@
   background: transparent;
   color: var(--text-muted);
   padding: 0;
-  font-size: 13px;
+  font-family: var(--text-body-sm-family), sans-serif;
+  font-size: var(--text-body-sm-size);
   font-weight: 500;
-  line-height: 1.25;
+  line-height: var(--text-body-sm-line-height);
   cursor: pointer;
   transition: color 0.2s ease, text-decoration-color 0.2s ease;
 }
@@ -259,7 +262,9 @@
   padding: 12px 12px;
   border-bottom: var(--border-width-thin) solid var(--card-border);
   vertical-align: middle;
-  font-size: 13px;
+  font-family: var(--text-body-sm-family), sans-serif;
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line-height);
   text-align: center;
 }
 
@@ -270,8 +275,11 @@
   z-index: 1;
   background: var(--surface-1);
   color: var(--text-muted);
-  font-size: 12px;
-  letter-spacing: 0.08em;
+  font-family: var(--text-label-family), sans-serif;
+  font-size: var(--text-label-size);
+  line-height: var(--text-label-line-height);
+  font-weight: var(--text-label-weight);
+  letter-spacing: var(--text-label-tracking);
   text-transform: uppercase;
 }
 
@@ -335,9 +343,11 @@
   padding: 0;
   margin: 0;
   color: var(--text-primary);
-  font-size: 14px;
+  font-family: var(--text-title-card-family), sans-serif;
+  font-size: var(--text-title-card-size);
   font-weight: 600;
-  line-height: 1.3;
+  line-height: var(--text-title-card-line-height);
+  letter-spacing: var(--text-title-card-tracking);
   text-align: left;
   cursor: pointer;
 }
@@ -355,10 +365,11 @@
 .unitTitleMeta {
   margin-top: 8px;
   color: var(--text-muted);
-  font-size: 11px;
-  letter-spacing: 0.06em;
+  font-family: var(--text-overline-family), sans-serif;
+  font-size: var(--text-overline-size);
+  letter-spacing: var(--text-overline-tracking);
   text-transform: uppercase;
-  line-height: 1.25;
+  line-height: var(--text-overline-line-height);
 }
 
 .unitsActionsHeader {
@@ -398,9 +409,10 @@
   min-width: 44px;
   text-align: right;
   color: var(--text-primary);
-  font-size: 13px;
+  font-family: var(--text-mono-family);
+  font-size: var(--text-body-sm-size);
   font-weight: 600;
-  line-height: 1;
+  line-height: var(--text-body-sm-line-height);
   font-variant-numeric: tabular-nums;
 }
 
@@ -420,9 +432,10 @@
 
 .taskNumberValue {
   color: var(--text-primary);
+  font-family: var(--text-mono-family);
   font-weight: 700;
-  font-size: 14px;
-  line-height: 1.2;
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line-height);
   font-variant-numeric: tabular-nums;
 }
 
@@ -501,17 +514,6 @@
   cursor: pointer;
 }
 
-.inlineActionAccent {
-  --button-bg: color-mix(in srgb, #3b82f6 10%, var(--surface-1));
-  --button-border: color-mix(in srgb, #3b82f6 34%, var(--glass-border));
-  --button-text: var(--text-primary);
-  --button-hover-bg: color-mix(in srgb, #3b82f6 16%, var(--surface-1));
-  --button-hover-border: color-mix(in srgb, #3b82f6 52%, var(--glass-border));
-  --button-hover-text: var(--text-primary);
-  border-color: color-mix(in srgb, #3b82f6 34%, var(--glass-border));
-  background: color-mix(in srgb, #3b82f6 10%, var(--surface-1));
-}
-
 .taskStatementRow td {
   background: color-mix(in srgb, var(--border-primary) 3%, var(--surface-1));
 }
@@ -585,11 +587,12 @@
 }
 
 .cardTitle {
-  font-family: var(--font-unbounded), sans-serif;
-  font-weight: 500;
+  font-family: var(--text-title-card-family), sans-serif;
+  font-weight: var(--text-title-card-weight);
   margin: 0;
-  font-size: 16px;
-  line-height: 1.3;
+  font-size: var(--text-title-card-size);
+  line-height: var(--text-title-card-line-height);
+  letter-spacing: var(--text-title-card-tracking);
   color: var(--text-primary);
 }
 
@@ -599,7 +602,9 @@
   gap: 8px;
   align-items: center;
   color: var(--text-muted);
-  font-size: 12px;
+  font-family: var(--text-caption-family), sans-serif;
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line-height);
 }
 
 .actions {
@@ -619,8 +624,10 @@
   background: var(--surface-1);
   color: var(--text-primary);
   border-radius: var(--control-radius);
-  font-size: 12px;
-  line-height: 1;
+  font-family: var(--text-body-md-family), sans-serif;
+  font-size: var(--action-font-size-sm);
+  line-height: var(--action-line-height);
+  font-weight: var(--action-weight);
   min-height: 30px;
   padding: 7px 10px;
   text-align: center;

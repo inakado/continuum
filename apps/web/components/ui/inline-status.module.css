@@ -1,0 +1,52 @@
+.status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  border-radius: 999px;
+  border: var(--border-width-thin) solid var(--glass-border);
+  font-family: var(--text-overline-family), sans-serif;
+  font-weight: var(--text-overline-weight);
+  letter-spacing: var(--text-overline-tracking);
+  text-transform: uppercase;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.sm {
+  min-height: 22px;
+  padding: 2px 8px;
+  font-size: var(--text-overline-size);
+  line-height: var(--text-overline-line-height);
+}
+
+.md {
+  min-height: 26px;
+  padding: 4px 10px;
+  font-size: var(--text-label-size);
+  line-height: var(--text-label-line-height);
+}
+
+.muted {
+  background: color-mix(in srgb, var(--surface-1) 92%, transparent);
+  color: var(--text-muted);
+}
+
+.default {
+  background: var(--glass-tint);
+}
+
+.success {
+  border-color: color-mix(in srgb, #22c55e 38%, var(--glass-border));
+  background: color-mix(in srgb, #22c55e 12%, var(--surface-1));
+}
+
+.warning {
+  border-color: color-mix(in srgb, #d97706 38%, var(--glass-border));
+  background: color-mix(in srgb, #d97706 12%, var(--surface-1));
+}
+
+.danger {
+  border-color: color-mix(in srgb, #ef4444 38%, var(--glass-border));
+  background: color-mix(in srgb, #ef4444 12%, var(--surface-1));
+}

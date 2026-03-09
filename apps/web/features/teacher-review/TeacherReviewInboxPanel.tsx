@@ -5,7 +5,12 @@ import { useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import Button from "@/components/ui/Button";
+import EmptyState from "@/components/ui/EmptyState";
+import FieldLabel from "@/components/ui/FieldLabel";
+import InlineStatus from "@/components/ui/InlineStatus";
+import Kicker from "@/components/ui/Kicker";
 import Select from "@/components/ui/Select";
+import { SectionCard } from "@/components/ui/SurfaceCard";
 import {
   teacherApi,
   type StudentSummary,
@@ -18,10 +23,10 @@ import { formatApiErrorPayload } from "@/features/teacher-content/shared/api-err
 import { buildReviewSearch, readReviewRouteFilters } from "./review-query";
 import styles from "./teacher-review-inbox-panel.module.css";
 
-const statusClassName: Record<TeacherReviewSubmissionStatus, string> = {
-  pending_review: "statusPending",
-  accepted: "statusAccepted",
-  rejected: "statusRejected",
+const statusTone: Record<TeacherReviewSubmissionStatus, "warning" | "success" | "danger"> = {
+  pending_review: "warning",
+  accepted: "success",
+  rejected: "danger",
 };
 
 const sortLabel: Record<"oldest" | "newest", string> = {
@@ -83,10 +88,10 @@ type ReviewToolbarProps = {
 const ReviewToolbar = ({ total, hasItems, onRefresh, onOpenFirst }: ReviewToolbarProps) => (
   <header className={styles.toolbar}>
     <div className={styles.totalLine}>
-      <span>В очереди: {total}</span>
+      <Kicker>В очереди: {total}</Kicker>
     </div>
     <div className={styles.headerActions}>
-      <Button variant="ghost" onClick={onRefresh}>
+      <Button variant="secondary" onClick={onRefresh}>
         Обновить
       </Button>
       <Button onClick={onOpenFirst} disabled={!hasItems}>
@@ -116,8 +121,7 @@ const ReviewFiltersRow = ({
   onReset,
 }: ReviewFiltersRowProps) => (
   <section className={styles.filtersRow}>
-    <label className={styles.filterField}>
-      Статус
+    <FieldLabel className={styles.filterField} label="Статус">
       <Select
         triggerClassName={styles.selectTrigger}
         value={filters.status}
@@ -129,10 +133,9 @@ const ReviewFiltersRow = ({
         ]}
         placeholder="Статус"
       />
-    </label>
+    </FieldLabel>
 
-    <label className={styles.filterField}>
-      Порядок
+    <FieldLabel className={styles.filterField} label="Порядок">
       <Select
         triggerClassName={styles.selectTrigger}
         value={filters.sort}
@@ -143,10 +146,9 @@ const ReviewFiltersRow = ({
         ]}
         placeholder="Порядок"
       />
-    </label>
+    </FieldLabel>
 
-    <label className={styles.filterField}>
-      Ученик
+    <FieldLabel className={styles.filterField} label="Ученик">
       <Select
         triggerClassName={styles.selectTrigger}
         value={filters.studentId ?? ""}
@@ -160,10 +162,10 @@ const ReviewFiltersRow = ({
         ]}
         placeholder="Ученик"
       />
-    </label>
+    </FieldLabel>
 
     {hasAnyCustomFilters ? (
-      <Button variant="ghost" onClick={onReset}>
+      <Button variant="secondary" onClick={onReset}>
         Сбросить фильтры
       </Button>
     ) : null}
@@ -171,13 +173,15 @@ const ReviewFiltersRow = ({
 );
 
 const ReviewEmptyState = ({ onReset }: { onReset: () => void }) => (
-  <div className={styles.empty}>
-    <p className={styles.emptyTitle}>Нет задач на проверке</p>
-    <p className={styles.emptyHint}>Измените фильтры или дождитесь новых фото-отправок.</p>
-    <Button variant="ghost" onClick={onReset}>
-      Сбросить фильтры
-    </Button>
-  </div>
+  <EmptyState
+    title="Нет задач на проверке"
+    description="Измените фильтры или дождитесь новых фото-отправок."
+    actions={
+      <Button variant="secondary" onClick={onReset}>
+        Сбросить фильтры
+      </Button>
+    }
+  />
 );
 
 type ReviewTableProps = {
@@ -217,9 +221,9 @@ const ReviewTable = ({ items, getSubmissionHref }: ReviewTableProps) => (
             </td>
             <td>{formatDateTime(item.submittedAt)}</td>
             <td className={styles.columnCenter}>
-              <span className={`${styles.status} ${styles[statusClassName[item.status]]}`}>
+              <InlineStatus tone={statusTone[item.status]} className={styles.status}>
                 {getPhotoReviewStatusLabel(item.status)}
-              </span>
+              </InlineStatus>
             </td>
             <td className={styles.columnCenter}>{item.assetKeysCount}</td>
           </tr>
@@ -295,7 +299,7 @@ export default function TeacherReviewInboxPanel() {
   );
 
   return (
-    <section className={styles.panel}>
+    <SectionCard className={styles.panel}>
       <ReviewToolbar
         total={total}
         hasItems={items.length > 0}
@@ -329,6 +333,6 @@ export default function TeacherReviewInboxPanel() {
       {!loading && !items.length ? <ReviewEmptyState onReset={resetFilters} /> : null}
 
       {!loading && items.length ? <ReviewTable items={items} getSubmissionHref={getSubmissionHref} /> : null}
-    </section>
+    </SectionCard>
   );
 }

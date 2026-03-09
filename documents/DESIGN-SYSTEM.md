@@ -32,6 +32,44 @@ C) Интерфейс и чтение
 - Токен: `--font-inter`
 - Использование: основной UI‑текст, меню, карточки, формы, длинные тексты
 
+### 1.2 Typography contract (`Implemented`)
+
+- `Unbounded` используется только как `--font-logo` для бренда `Континуум`.
+- `Onest` (`--font-heading`) используется для:
+  - `display/page/section/card` headings;
+  - `label/overline/kicker` ролей;
+  - коротких UI-accent элементов.
+- `Inter` (`--font-body`) используется для:
+  - body copy;
+  - form text;
+  - table cells;
+  - helper/meta/error copy.
+- `JetBrains Mono` допускается только как `--font-mono` для technical/meta/counter contexts, где моноширинность действительно нужна.
+
+### 1.3 Semantic type scale (`Implemented`)
+
+В `apps/web/app/globals.css` зафиксирован семантический scale:
+- `--text-title-display-*`
+- `--text-title-page-*`
+- `--text-title-section-*`
+- `--text-title-card-*`
+- `--text-body-md-*`
+- `--text-body-sm-*`
+- `--text-label-*`
+- `--text-caption-*`
+- `--text-overline-*`
+- `--text-mono-*`
+
+Правило:
+- product screens не задают новые произвольные type levels без причины;
+- page/panel/card/status/label роли должны опираться на semantic tokens, а не на локальные случайные `font-size`.
+- Teacher detail/drilldown sections (`students`, `review`) используют ту же иерархию:
+  - primary identity/header = `page-title`,
+  - in-panel stage heading = `section-title`,
+  - card/entity title = `card-title`,
+  - data/meta copy = `body-sm` / `caption`,
+  - pills/status labels = `overline` / `label`.
+
 ---
 
 ## 2) Цветовая система (Light/Dark)
@@ -75,6 +113,18 @@ Glass‑стиль — основа для **teacher dashboards** и **student d
 
 ## 3) Геометрия UI
 
+### 3.0 Semantic foundation tokens (`Implemented`)
+
+Поверх foundation tokens в `globals.css` заведён второй слой:
+- spacing/layout: `--space-*`, `--layout-*`
+- motion: `--motion-fast`, `--motion-base`, `--motion-slow`
+- surfaces: `--surface-panel-*`, `--surface-card-*`, `--surface-inset-*`
+- actions: `--action-control-height-*`, `--action-padding-x-*`, `--action-font-size-*`
+
+Правило:
+- новые shared components должны собираться из semantic tokens;
+- локальные CSS overrides допустимы только как feature-specific исключение, а не как default способ стилизации.
+
 ### 3.1 Радиусы
 **Glass UI:**
 - Панели: `--radius-panel` = 16px
@@ -95,38 +145,26 @@ Glass‑стиль — основа для **teacher dashboards** и **student d
 
 ### 4.1 Кнопки
 **База:**
-- Uppercase + letter‑spacing, умеренная толщина
+- sentence-case copy, умеренная толщина, короткий label rhythm
 - Hover: мягкий lift/подсветка, без агрессивной инверсии
 - Focus: аккуратный outline
 
 **Гайд по кнопкам (чтобы не было расхождений)**
 - Всегда используем компонент `Button` (UI kit). Не пишем “ручные” кнопки без причины.
-- В glass‑дашбордах кнопки **настраиваются через локальные CSS‑переменные** на контейнере (`.panelActions`, `.toolbar`, `.cardActions` и т.п.).
-- Базовый `Button` = нейтральный каркас. В дашбордах почти всегда нужны overrides.
-
-**Glass UI (дашборды)**
-- Primary для действий в панелях/toolbar:
-  - `--button-bg: var(--glass-tint)` или `var(--surface-1)`
-  - `--button-text: var(--text-primary)`
-  - `--button-border: var(--panel-border)` или `var(--glass-border)`
-  - `--button-border-width: var(--border-width-thin)`
-  - `--button-hover-bg: var(--surface-2)`
-  - `--button-hover-border: var(--border-primary)`
-  - `--button-hover-text: var(--text-primary)`
-  - `--button-hover-shadow: var(--nav-hover-shadow)`
-- Ghost (вторичные действия):
-  - `--button-bg: var(--surface-1)` или `var(--control-bg)`
-  - `--button-border: var(--glass-border)`
-  - `--button-text: var(--text-primary)`
-  - hover как у Primary (см. выше)
-
-**Вне glass‑контекста**
-- Primary допускает `bg-accent` (сохранить uppercase + letter‑spacing).
-- Ghost остаётся нейтральным и не “инвертирует” цветовую схему.
-
-**Правило совместимости**
-- Если кнопка визуально должна совпадать с существующей (например “Добавить курс”), 
-  копируем overrides из соответствующего контейнера (например `.panelActions button`).
+- Канонический API:
+  - variants: `primary`, `secondary`, `ghost`, `danger`
+  - sizes: `sm`, `md`, `lg`
+- Для route navigation, которая визуально выглядит как кнопка, используем `ButtonLink` или `Link`, стилизованный через button API; `router.push` не должен быть дефолтным способом навигации из CTA.
+- `primary` = main CTA.
+- `secondary` = стандартное glass-действие в toolbar/card/dialog.
+- `ghost` = тихое вторичное действие, icon-action или non-destructive dismiss.
+- `danger` = destructive action без ручного копирования красных overrides по фичам.
+- Для teacher dashboard action semantics:
+  - `primary` = create/save/confirm/next-step;
+  - `secondary` = refresh/open/compile/utility;
+  - `ghost` = quiet nav, non-destructive inline edit affordance и quiet dismiss;
+  - `danger` = delete/reject/remove edge/remove asset.
+- Локальные `--button-*` overrides допускаются только для truly special surfaces; обычные teacher dashboard flows должны обходиться variant/size API.
 
 ### 4.2 Инпуты
 **Glass UI:**
@@ -149,6 +187,8 @@ Glass‑стиль — основа для **teacher dashboards** и **student d
 - Контракты UI по-прежнему проходят через `apps/web/components/ui/*` (продуктовые экраны не импортируют Radix напрямую).
 - Стилизация — только через CSS Modules + `--glass-*`, `--surface-*`, `--control-*`, `--button-*`.
 - Для destructive-действий используем `AlertDialog` вместо нативного `window.confirm`, чтобы UX и a11y были консистентны в glass-контексте.
+- `Dialog` и `AlertDialog` должны изолировать скролл модального контента через `overscroll-behavior: contain`, чтобы touch/trackpad scroll не протекал на фон.
+- `Select` не получает accessible name из `placeholder`; для unlabeled-case используем явный `ariaLabel`.
 - В `Portal`-компонентах (`Dialog/AlertDialog/DropdownMenu/Select`) явно задаём DS-токены радиусов/границ:
   - `border-radius`: `--radius-panel` (панели/модалки) или `--radius-control` (меню/контролы),
   - `border`: `--border-width-thin` + `--glass-border` (или токен эквивалентного контекста),
@@ -159,8 +199,25 @@ Glass‑стиль — основа для **teacher dashboards** и **student d
   - базовый фон списка: `var(--bg-primary)` или другой непрозрачный surface-токен текущей темы.
 - Иконка-триггер “три точки” (`MoreHorizontal`) в карточках:
   - без pill-фона/тени/рамки,
-  - без квадратного focus-outline вокруг кнопки,
+  - с видимым `:focus-visible` ring,
   - позиционирование и отступы задаются локально в фиче, но с сохранением читаемости и hit-area.
+
+### 4.5 Shared presentation primitives (`Implemented`)
+
+- `PageHeader` — канонический header для teacher dashboard sections:
+  - `kicker`
+  - `title`
+  - `subtitle`
+  - optional `breadcrumbs/actions/status`
+- `SurfaceCard` + `PanelCard` / `SectionCard` / `InsetCard` — общие glass surfaces вместо копирования panel/card shell по фичам.
+- `FieldLabel` — единый label wrapper для forms.
+- `InlineStatus` — единый status-pill для short status copy.
+- `EmptyState` — единый empty-state block.
+- `Kicker` — короткая overline/accent text role.
+
+Правило:
+- shared primitives остаются presentation-only и не содержат data orchestration;
+- teacher features собирают layout из shared primitives + semantic tokens, а не из ad hoc локальных паттернов.
 
 ---
 
@@ -234,7 +291,8 @@ Glass‑стиль — основа для **teacher dashboards** и **student d
 - Дашборды учителя/ученика работают внутри `glass-scope` и используют `--glass-*`, `--surface-*`, `--card-*`, `--control-*`.
 - Карточки и панели — **скруглённые** (см. `--radius-*`), с мягкой тенью и стеклянным фоном.
 - Активные карточки используют `--nav-active-bg/--nav-active-text` (в glass‑контексте это мягкая подсветка, а не жёсткая инверсия).
-- Кнопки внутри панелей/карточек настраиваются через локальные `--button-*` (поверх базового Button).
+- Teacher dashboard считается каноническим baseline для shared visual language; параллельный legacy CRUD-слой для teacher course/section management удалён из active web codepath и не используется как источник UI pattern’ов.
+- Page/panel/card headers и empty/status blocks в teacher flows должны опираться на `PageHeader`, `SurfaceCard`, `InlineStatus`, `EmptyState`, `Kicker`, `FieldLabel`.
 
 ---
 

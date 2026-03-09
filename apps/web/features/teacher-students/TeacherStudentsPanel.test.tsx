@@ -305,15 +305,16 @@ describe("TeacherStudentsPanel", () => {
 
   it("navigates to review inbox and student profile routes", async () => {
     renderWithQueryClient(<TeacherStudentsPanel />);
-    const user = userEvent.setup();
 
     expect(await screen.findByText("Иванов Иван")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "К проверке фото" }));
-    expect(pushMock).toHaveBeenCalledWith("/teacher/review?status=pending_review&sort=oldest&studentId=student-1");
-
-    pushMock.mockReset();
-    await user.click(screen.getByText("Иванов Иван"));
-    expect(pushMock).toHaveBeenCalledWith("/teacher/students/student-1");
+    expect(screen.getByRole("link", { name: "К проверке фото" })).toHaveAttribute(
+      "href",
+      "/teacher/review?status=pending_review&sort=oldest&studentId=student-1",
+    );
+    expect(screen.getByRole("link", { name: /Иванов Иван/i })).toHaveAttribute(
+      "href",
+      "/teacher/students/student-1",
+    );
   });
 });

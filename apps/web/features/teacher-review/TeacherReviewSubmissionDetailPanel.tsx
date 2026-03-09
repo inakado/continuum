@@ -232,7 +232,7 @@ const SubmissionViewer = ({
           <div className={styles.viewerPlaceholderError}>
             <span>Не удалось загрузить превью.</span>
             <Button
-              variant="ghost"
+              variant="secondary"
               className={styles.viewerRetryButton}
               onClick={() => onRetryActivePreview()}
             >
@@ -335,15 +335,14 @@ const SubmissionSidebar = ({
     <section className={styles.card}>
       <div className={styles.reviewActions}>
         <Button
-          className={styles.acceptButton}
+          variant="primary"
           onClick={onAccept}
           disabled={submission.status !== "pending_review" || Boolean(actionBusy)}
         >
           {actionBusy === "accept" ? "Принятие…" : "Принять"}
         </Button>
         <Button
-          variant="ghost"
-          className={styles.rejectButton}
+          variant="danger"
           onClick={onReject}
           disabled={submission.status !== "pending_review" || Boolean(actionBusy)}
         >
@@ -354,14 +353,14 @@ const SubmissionSidebar = ({
 
     <section className={styles.card}>
       <div className={styles.queueActions}>
-        <Button variant="ghost" onClick={onGoToPrevious} disabled={!navigation?.prevSubmissionId}>
+        <Button variant="secondary" onClick={onGoToPrevious} disabled={!navigation?.prevSubmissionId}>
           Предыдущая
         </Button>
-        <Button variant="ghost" onClick={onGoToNext} disabled={!navigation?.nextSubmissionId}>
+        <Button variant="secondary" onClick={onGoToNext} disabled={!navigation?.nextSubmissionId}>
           Следующая
         </Button>
       </div>
-      <Button variant="ghost" className={styles.profileButton} onClick={onGoToProfile}>
+      <Button variant="secondary" className={styles.profileButton} onClick={onGoToProfile}>
         Профиль ученика
       </Button>
     </section>
@@ -448,7 +447,7 @@ export default function TeacherReviewSubmissionDetailPanel({ submissionId }: Pro
     <section className={styles.panel}>
       <header className={styles.toolbar}>
         <div className={styles.headerActions}>
-          <Button variant="ghost" onClick={goToInbox}>
+          <Button variant="secondary" onClick={goToInbox}>
             Назад к очереди
           </Button>
         </div>

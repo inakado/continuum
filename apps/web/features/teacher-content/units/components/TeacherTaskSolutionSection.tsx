@@ -40,11 +40,11 @@ export function TeacherTaskSolutionSection({
         {editingTask ? (
           <Button
             type="button"
-            variant="ghost"
+            variant="secondary"
             onClick={() => void onCompile()}
             disabled={compileState.loading}
           >
-            {compileState.loading ? "Компиляция..." : "Скомпилировать HTML"}
+            {compileState.loading ? "Компиляция…" : "Скомпилировать HTML"}
           </Button>
         ) : null}
       </div>
@@ -57,7 +57,7 @@ export function TeacherTaskSolutionSection({
               value={solutionLatex}
               onChange={(event) => onSolutionLatexChange(event.target.value)}
               aria-label="LaTeX решения"
-              placeholder="\\documentclass{article}\n\\begin{document}\nРешение...\n\\end{document}"
+              placeholder="\\documentclass{article}\n\\begin{document}\nРешение…\n\\end{document}"
             />
           </div>
           <div className={styles.taskSolutionRight}>

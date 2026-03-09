@@ -285,6 +285,23 @@ export const useTeacherUnitFetchSave = ({ unitId }: Params) => {
   const error =
     errorOverride ??
     (unitQuery.isError ? getApiErrorMessage(unitQuery.error) : null);
+  const snapshot = snapshotRef.current;
+  const currentSnapshot = buildSnapshot(theoryText, methodText, videos);
+  const hasUnsavedContentChanges =
+    Boolean(snapshot) &&
+    (currentSnapshot.theory !== snapshot?.theory ||
+      currentSnapshot.method !== snapshot?.method ||
+      currentSnapshot.videos !== snapshot?.videos);
+  const savedOptionalMin = unit?.minOptionalCountedTasksToComplete ?? 0;
+  const normalizedOptionalMin = minCountedInput.trim();
+  const parsedOptionalMin = Number(normalizedOptionalMin);
+  const hasUnsavedProgressChanges =
+    isOptionalMinEditing &&
+    (!normalizedOptionalMin ||
+      !Number.isInteger(parsedOptionalMin) ||
+      parsedOptionalMin < 0 ||
+      parsedOptionalMin !== savedOptionalMin);
+  const isDirty = hasUnsavedContentChanges || hasUnsavedProgressChanges;
 
   return {
     unit,
@@ -308,6 +325,7 @@ export const useTeacherUnitFetchSave = ({ unitId }: Params) => {
     setMinCountedInput,
     isOptionalMinEditing,
     setIsOptionalMinEditing,
+    isDirty,
     fetchUnit,
     handleProgressSave,
   };

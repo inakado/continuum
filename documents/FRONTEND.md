@@ -101,9 +101,26 @@
 ## UI Primitives and Motion
 
 - Базовый UI-kit живёт в `apps/web/components/ui/*`.
+- Shared presentation primitives для teacher dashboard живут там же:
+  - `PageHeader`
+  - `SurfaceCard` / `PanelCard` / `SectionCard` / `InsetCard`
+  - `FieldLabel`
+  - `InlineStatus`
+  - `EmptyState`
+  - `Kicker`
 - Для сложных interactive primitives используются локальные обёртки над Radix primitives.
 - В teacher dashboard карточки курса и раздела переключают publish/draft через `Switch`-контрол (а не icon-only toggle button).
 - В teacher unit tasks list публикация задачи переключается через `Switch` на карточке задачи; форма создания новой задачи не публикует её сразу и оставляет `draft` по умолчанию.
+- `Button` использует typed semantic API:
+  - variants: `primary`, `secondary`, `ghost`, `danger`
+  - sizes: `sm`, `md`, `lg`
+- Для route navigation, которая выглядит как button CTA, используем `ButtonLink`/`Link`, а не `button + router.push`.
+- Teacher screens не должны по умолчанию строить CTA через контейнерные `--button-*` overrides; сначала выбирается variant/size, overrides остаются только для локально уникальных случаев.
+- Button semantics для teacher routes:
+  - `primary` = create/save/confirm/accept/next-step;
+  - `secondary` = refresh/open/compile/utility;
+  - `ghost` = quiet nav, inline edit или non-destructive dismiss без сильного акцента;
+  - `danger` = delete/reject/remove.
 - `framer-motion` применяется точечно для React UI-анимаций; layout-size анимации по возможности остаются на CSS custom properties.
 - Для frequently triggered interactions избегаем тяжёлых `filter: blur(...)` и уважаем `prefers-reduced-motion`.
 
@@ -114,15 +131,42 @@
   - `--font-logo` = `Unbounded` (только для логотипного текста `Континуум`),
   - `--font-onest` = `Onest` (заголовки и интерфейсные акценты),
   - `--font-inter` = `Inter` (основной текст).
+- Semantic typography layer:
+  - title roles: `--text-title-display-*`, `--text-title-page-*`, `--text-title-section-*`, `--text-title-card-*`
+  - body roles: `--text-body-md-*`, `--text-body-sm-*`
+  - label/meta roles: `--text-label-*`, `--text-caption-*`, `--text-overline-*`, `--text-mono-*`
+- Teacher dashboard baseline:
+  - `Onest` = headings/kickers/labels
+  - `Inter` = body/forms/tables/meta
+  - `Unbounded` не используется как обычный heading face вне бренда
+- Teacher `students` / `review` detail screens не вводят свой отдельный scale:
+  - identity headers = `page-title`,
+  - drilldown headings = `section-title`,
+  - table/card titles = `card-title`,
+  - table/meta/help text = `body-sm` / `caption`.
 - Для совместимости существующих CSS-модулей `--font-unbounded` алиасится на `--font-onest`; новая вёрстка не должна использовать `--font-unbounded` как “брендовый” шрифт.
+
+## Teacher Dashboard Baseline
+
+- Канонический visual baseline teacher UI = `DashboardShell` + glass tokens + shared UI primitives + feature CSS Modules.
+- В репозитории больше нет параллельного legacy teacher CRUD flow для курсов/разделов; teacher dashboard baseline является единственным SoR для этого домена на web.
+- Teacher features собираются по схеме:
+  - data/query orchestration в `features/**`
+  - presentation composition в shared `components/ui/*`
+  - локальные CSS только для feature-specific layout/state, а не для дублирования базовых panel/header/label/status/button patterns
+- Новые и существующие teacher read screens используют `react-query`; `useEffect + useState` CRUD-read flow не считается допустимым baseline для teacher dashboard.
 
 ## Navigation Patterns
 
 - Teacher dashboard edit flow и student dashboard синхронизируют внутридашбордную навигацию с `window.history.state`.
 - Browser `Back/Forward` должен возвращать предыдущий UI-шаг внутри dashboard, а не ломать user journey.
+- В teacher unit editor route exits через breadcrumbs/back-actions обязаны проходить через shared dirty-form guard; минимум инварианта:
+  - `beforeunload` предупреждение при `isDirty`;
+  - in-app exit из editor не теряет изменения без confirm dialog.
 - В student и teacher view `Раздел → Граф` canvas-контейнер должен занимать почти весь viewport по высоте (viewport-aware `dvh`) с сохранением нижнего визуального зазора.
 - Teacher create/edit flow для `Course/Section` открывает формы в modal `Dialog` с overlay/focus trap; inline-формы внутри списка карточек не используются, а create modal поддерживает тот же cover image flow (`pick preview -> create -> presign upload -> apply`) что и edit.
 - Teacher students flow использует focused modal `Dialog` для создания и редактирования ученика, а также для одноразового показа нового/сброшенного пароля; inline-формы внутри списка учеников не используются.
+- Teacher students list при больших наборах данных использует windowing/virtualized rendering; не рендерим длинный список учеников как full unbounded `.map()` без причины.
 - В teacher student profile drilldown (`/teacher/students/[studentId]`) карточки курсов и разделов рендерятся вертикальным списком; для раздела сохраняется внутренний drilldown в прогресс ученика и отдельное прямое действие `Открыть раздел`, ведущее в `/teacher/sections/[id]`.
 
 ## Related Source Links

@@ -1,0 +1,59 @@
+.header {
+  display: grid;
+  gap: var(--layout-section-gap);
+}
+
+.breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.mainRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.main {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--text-title-page-family), sans-serif;
+  font-size: var(--text-title-page-size);
+  line-height: var(--text-title-page-line-height);
+  font-weight: var(--text-title-page-weight);
+  letter-spacing: var(--text-title-page-tracking);
+  color: var(--text-primary);
+  text-wrap: balance;
+}
+
+.subtitle {
+  margin: 0;
+  max-width: var(--layout-content-measure);
+  font-family: var(--text-body-sm-family), sans-serif;
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line-height);
+  color: var(--text-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--layout-action-gap);
+}
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--layout-inline-gap);
+}

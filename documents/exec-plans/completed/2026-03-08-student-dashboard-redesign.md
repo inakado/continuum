@@ -1,6 +1,10 @@
 # Execution Plan: Student Dashboard Redesign
 
-Статус плана: `Active`
+Статус плана: `Superseded`
+
+> `2026-03-09`: план снят из `active/` из-за reprioritization в пользу инициативы
+> `2026-03-09-teacher-dashboard-design-system-normalization.md`.
+> Содержимое сохраняется как исторический контекст и backlog-гипотезы для будущего возвращения к student dashboard.
 
 ## 1. Цель
 
@@ -249,6 +253,7 @@
 ## 10. Progress log
 
 - `2026-03-08`: разобран `course_dashboards_export.md`, текущий student dashboard, SoR-доки и выявлены контрактные гэпы для `continue learning`, notifications и aggregated progress.
+- `2026-03-09`: active execution plan закрыт со статусом `Superseded`; реализация не продолжалась, приоритет переключён на нормализацию design-system teacher dashboard.
 
 ## 11. Troubleshooting
 

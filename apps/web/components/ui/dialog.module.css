@@ -23,18 +23,24 @@
   z-index: 121;
   padding: 18px;
   outline: none;
+  overscroll-behavior: contain;
+  display: grid;
+  gap: 8px;
 }
 
 .title {
   margin: 0;
-  font-size: 18px;
-  line-height: 1.2;
-  font-family: var(--font-unbounded), sans-serif;
-  font-weight: 500;
+  font-size: var(--text-title-section-size);
+  line-height: var(--text-title-section-line-height);
+  font-family: var(--text-title-section-family), sans-serif;
+  font-weight: var(--text-title-section-weight);
+  letter-spacing: var(--text-title-section-tracking);
 }
 
 .description {
   margin: 8px 0 0;
-  font-size: 13px;
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line-height);
   color: var(--text-muted);
+  max-width: 60ch;
 }

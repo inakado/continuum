@@ -20,6 +20,7 @@
 
 ## Native exec-plans
 
+- `2026-03-08-student-dashboard-redesign.md` (`Superseded`)
 - `2026-03-05-task-solution-html-render.md`
 - `2026-03-05-texlive-pdflatex-migration.md`
 - `2026-03-04-latex-html-student-unit.md`

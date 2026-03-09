@@ -298,6 +298,7 @@ export const useTeacherEditMode = ({
         courseId: selectedCourse.id,
         title: sectionTitle.trim(),
         description: normalizeDescription(sectionDescription),
+        sortOrder: selectedCourse.sections.length,
       });
       try {
         await options?.afterCreate?.(created);

@@ -121,16 +121,6 @@
   gap: 8px;
 }
 
-.graphToolbar button {
-  --button-bg: var(--surface-1);
-  --button-border: var(--glass-border);
-  --button-text: var(--text-primary);
-  --button-hover-bg: var(--surface-2);
-  --button-hover-border: var(--border-primary);
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
-}
-
 .createPopup {
   width: min(420px, calc(100vw - 24px));
   border: var(--border-width) solid var(--panel-border);
@@ -157,16 +147,6 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-}
-
-.popupActions button {
-  --button-bg: var(--surface-1);
-  --button-border: var(--glass-border);
-  --button-text: var(--text-primary);
-  --button-hover-bg: var(--surface-2);
-  --button-hover-border: var(--border-primary);
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
 }
 
 .selectionHint {

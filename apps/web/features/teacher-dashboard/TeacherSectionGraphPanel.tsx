@@ -554,10 +554,10 @@ export default function TeacherSectionGraphPanel({
       <div className={styles.graphPanel} aria-busy={loading}>
         <div className={styles.graphToolbar}>
           <Button onClick={() => setIsCreatePopupOpen(true)}>Создать юнит</Button>
-          <Button variant="ghost" onClick={() => void saveGraph()} disabled={savePending}>
+          <Button variant="secondary" onClick={() => void saveGraph()} disabled={savePending}>
             Сохранить граф
           </Button>
-          <Button variant="ghost" onClick={deleteSelectedEdge} disabled={!editor.selectedEdgeId}>
+          <Button variant="danger" onClick={deleteSelectedEdge} disabled={!editor.selectedEdgeId}>
             Удалить ребро
           </Button>
         </div>
@@ -586,14 +586,14 @@ export default function TeacherSectionGraphPanel({
               }}
               name="unitTitle"
               autoComplete="off"
-              placeholder="Например, Кинематика..."
+              placeholder="Например, Кинематика…"
             />
           </label>
           <div className={styles.popupActions}>
             <Button onClick={() => void createUnit(newUnitTitle)} disabled={!newUnitTitle.trim() || createPending}>
               Создать
             </Button>
-            <Button variant="ghost" onClick={() => setIsCreatePopupOpen(false)}>
+            <Button variant="secondary" onClick={() => setIsCreatePopupOpen(false)}>
               Отмена
             </Button>
           </div>

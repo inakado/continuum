@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronRight, GraduationCap } from "lucide-react";
 import LiteTex from "@/components/LiteTex";
 import Button from "@/components/ui/Button";
+import ButtonLink from "@/components/ui/ButtonLink";
 import {
   teacherApi,
   type TeacherStudentTreeTask,
@@ -14,6 +15,7 @@ import {
 import { contentQueryKeys } from "@/lib/query/keys";
 import { getStudentTaskStatusLabel, getStudentUnitStatusLabel } from "@/lib/status-labels";
 import { formatApiErrorPayload } from "@/features/teacher-content/shared/api-errors";
+import { buildReviewSearch } from "@/features/teacher-review/review-query";
 import { useTeacherStudentProfileActions } from "./hooks/use-teacher-student-profile-actions";
 import { useTeacherStudentProfileRouteState } from "./hooks/use-teacher-student-profile-route-state";
 import {
@@ -65,12 +67,12 @@ const countPendingInUnit = (unit: TeacherStudentTreeUnit) =>
 const StudentProfileHeader = ({
   details,
   displayName,
-  onOpenReviewInbox,
+  reviewInboxHref,
   reviewTotal,
 }: {
   details: TeacherStudentProfileDetails | null;
   displayName: string;
-  onOpenReviewInbox: () => void;
+  reviewInboxHref: string;
   reviewTotal: number;
 }) => (
   <header className={styles.header}>
@@ -94,14 +96,14 @@ const StudentProfileHeader = ({
       ) : null}
     </div>
     <div className={styles.headerActions}>
-      <Button
-        variant="ghost"
+      <ButtonLink
+        href={reviewInboxHref}
+        variant="secondary"
         className={styles.reviewQueueButton}
         data-pending={reviewTotal > 0 ? "true" : "false"}
-        onClick={onOpenReviewInbox}
       >
         Фото на проверке: {reviewTotal}
-      </Button>
+      </ButtonLink>
     </div>
   </header>
 );
@@ -190,37 +192,31 @@ const CoursesStage = ({
   onOpenCourse: (courseId: string) => void;
 }) => (
   <section>
-    <div className={styles.list}>
-      {courses.map((course) => (
-        <article
-          key={course.id}
-          className={`${styles.card} ${styles.clickableCard}`}
-          onClick={() => onOpenCourse(course.id)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              onOpenCourse(course.id);
-            }
-          }}
-          role="button"
-          tabIndex={0}
-        >
-          <div className={styles.cardTitle}>{course.title}</div>
-          <div className={styles.metaRow}>Откройте курс, чтобы посмотреть разделы и юниты.</div>
-        </article>
-      ))}
-    </div>
+      <div className={styles.list}>
+        {courses.map((course) => (
+          <article key={course.id} className={`${styles.card} ${styles.clickableCard}`}>
+            <button
+              type="button"
+              className={styles.cardPrimaryButton}
+              onClick={() => onOpenCourse(course.id)}
+            >
+              <div className={styles.cardBody}>
+                <div className={styles.cardTitle}>{course.title}</div>
+                <div className={styles.metaRow}>Откройте курс, чтобы посмотреть разделы и юниты.</div>
+              </div>
+            </button>
+          </article>
+        ))}
+      </div>
   </section>
 );
 
 const SectionsStage = ({
   courseTree,
   onOpenSection,
-  onOpenSectionWorkspace,
 }: {
   courseTree: TeacherStudentProfileCourseTree | null;
   onOpenSection: (sectionId: string) => void;
-  onOpenSectionWorkspace: (sectionId: string) => void;
 }) => (
   <section>
     {!courseTree || courseTree.sections.length === 0 ? (
@@ -243,16 +239,13 @@ const SectionsStage = ({
                 </div>
               </button>
               <div className={styles.cardActionsRow}>
-                <Button
-                  variant="ghost"
-                  className={`${styles.inlineActionButton} ${styles.inlineActionAccent}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onOpenSectionWorkspace(section.id);
-                  }}
+                <ButtonLink
+                  href={`/teacher/sections/${section.id}`}
+                  variant="secondary"
+                  className={styles.inlineActionButton}
                 >
                   Открыть раздел
-                </Button>
+                </ButtonLink>
               </div>
             </article>
           );
@@ -339,8 +332,8 @@ const UnitsStage = ({
                   <td className={styles.unitActionsCell}>
                     {unit.state.status === "locked" ? (
                       <Button
-                        variant="ghost"
-                        className={`${styles.inlineActionButton} ${styles.inlineActionAccent}`}
+                        variant="secondary"
+                        className={styles.inlineActionButton}
                         onClick={() => onOverrideOpenUnit(unit.id)}
                         disabled={overrideBusyUnitId === unit.id || unit.state.overrideOpened}
                       >
@@ -467,8 +460,8 @@ const TasksStage = ({
                       <div className={styles.tableActions}>
                         {task.state.canTeacherCredit ? (
                           <Button
-                            variant="ghost"
-                            className={`${styles.inlineActionButton} ${styles.inlineActionAccent}`}
+                            variant="secondary"
+                            className={styles.inlineActionButton}
                             onClick={() => onCreditTask(task)}
                             disabled={creditBusyTaskId === task.id}
                           >
@@ -524,7 +517,6 @@ const StudentProfileContent = ({
   openCourse,
   openReviewInbox,
   openSection,
-  openSectionWorkspace,
   openUnit,
   overrideBusyUnitId,
   selectedCourse,
@@ -545,7 +537,6 @@ const StudentProfileContent = ({
   openCourse: (courseId: string) => void;
   openReviewInbox: (params?: ProfileContext) => void;
   openSection: (sectionId: string) => void;
-  openSectionWorkspace: (sectionId: string) => void;
   openUnit: (unitId: string) => void;
   overrideBusyUnitId: string | null;
   selectedCourse: TeacherStudentProfileDetails["courses"][number] | null;
@@ -576,11 +567,7 @@ const StudentProfileContent = ({
       <>
         {stage === "courses" ? <CoursesStage courses={details.courses} onOpenCourse={openCourse} /> : null}
         {stage === "sections" ? (
-          <SectionsStage
-            courseTree={courseTree}
-            onOpenSection={openSection}
-            onOpenSectionWorkspace={openSectionWorkspace}
-          />
+          <SectionsStage courseTree={courseTree} onOpenSection={openSection} />
         ) : null}
         {stage === "units" ? (
           <UnitsStage
@@ -656,6 +643,14 @@ export default function TeacherStudentProfilePanel({
     () => getDisplayName(details?.profile.firstName, details?.profile.lastName, details?.profile.login, fallbackName),
     [details?.profile.firstName, details?.profile.lastName, details?.profile.login, fallbackName],
   );
+  const reviewInboxHref = useMemo(() => {
+    const search = buildReviewSearch({
+      status: "pending_review",
+      sort: "oldest",
+      studentId,
+    });
+    return `/teacher/review${search ? `?${search}` : ""}`;
+  }, [studentId]);
   const {
     activeCourseId,
     openCourse,
@@ -689,16 +684,12 @@ export default function TeacherStudentProfilePanel({
     studentId,
   });
 
-  const openSectionWorkspace = (sectionId: string) => {
-    router.push(`/teacher/sections/${sectionId}`);
-  };
-
   return (
     <section className={styles.panel}>
       <StudentProfileHeader
         details={details}
         displayName={displayName}
-        onOpenReviewInbox={() => openReviewInbox()}
+        reviewInboxHref={reviewInboxHref}
         reviewTotal={reviewTotal}
       />
 
@@ -728,7 +719,6 @@ export default function TeacherStudentProfilePanel({
           openCourse={openCourse}
           openReviewInbox={openReviewInbox}
           openSection={openSection}
-          openSectionWorkspace={openSectionWorkspace}
           openUnit={openUnit}
           overrideBusyUnitId={overrideBusyUnitId}
           selectedCourse={selectedCourse}

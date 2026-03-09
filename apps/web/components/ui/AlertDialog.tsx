@@ -41,12 +41,13 @@ export default function AlertDialog({
           ) : null}
           <div className={styles.actions}>
             <AlertDialogPrimitive.Cancel asChild>
-              <Button variant="ghost" className={styles.cancelButton}>
+              <Button variant="secondary" className={styles.cancelButton}>
                 {cancelText}
               </Button>
             </AlertDialogPrimitive.Cancel>
             <AlertDialogPrimitive.Action asChild onClick={onConfirm} disabled={confirmDisabled}>
               <Button
+                variant={destructive ? "danger" : "primary"}
                 className={`${styles.confirmButton} ${destructive ? styles.confirmButtonDanger : ""}`}
                 disabled={confirmDisabled}
               >

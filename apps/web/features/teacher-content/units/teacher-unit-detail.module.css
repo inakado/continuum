@@ -110,13 +110,6 @@
 }
 
 .deleteUnitButton {
-  --button-bg: var(--surface-1);
-  --button-border: var(--glass-border);
-  --button-text: var(--text-primary);
-  --button-hover-bg: var(--surface-2);
-  --button-hover-border: var(--border-primary);
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
   border-radius: var(--control-radius);
   min-height: 48px;
   padding: 8px 14px;
@@ -357,16 +350,6 @@
   gap: 10px;
   flex-wrap: nowrap;
   width: 100%;
-}
-
-.previewActions button {
-  --button-bg: var(--surface-1);
-  --button-border: var(--glass-border);
-  --button-text: var(--text-primary);
-  --button-hover-bg: var(--surface-2);
-  --button-hover-border: var(--border-primary);
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
 }
 
 .previewModeTabsWrap {
@@ -868,17 +851,6 @@
   -webkit-backdrop-filter: var(--glass-filter);
 }
 
-.videoHeader button,
-.videoActions button,
-.tasksHeader button {
-  --button-bg: var(--surface-1);
-  --button-border: var(--glass-border);
-  --button-text: var(--text-primary);
-  --button-hover-bg: var(--surface-2);
-  --button-hover-border: var(--border-primary);
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
-}
 .hint {
   color: var(--text-muted);
   font-size: 13px;
@@ -1016,13 +988,6 @@
 }
 
 .inlineOptionalEditor button {
-  --button-bg: var(--surface-2);
-  --button-border: var(--glass-border);
-  --button-text: var(--text-primary);
-  --button-hover-bg: var(--surface-1);
-  --button-hover-border: var(--border-primary);
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
   min-width: 108px;
 }
 
@@ -1268,16 +1233,6 @@
   flex-wrap: wrap;
 }
 
-.taskStatementImageActions button {
-  --button-bg: var(--surface-1);
-  --button-border: var(--glass-border);
-  --button-text: var(--text-primary);
-  --button-hover-bg: var(--surface-2);
-  --button-hover-border: var(--border-primary);
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
-}
-
 .taskStatementImageInput {
   position: absolute;
   width: 1px;
@@ -1322,13 +1277,6 @@
 }
 
 .taskSolutionHeader button {
-  --button-bg: var(--surface-1);
-  --button-border: var(--glass-border);
-  --button-text: var(--text-primary);
-  --button-hover-bg: var(--surface-2);
-  --button-hover-border: var(--border-primary);
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
   justify-self: end;
 }
 

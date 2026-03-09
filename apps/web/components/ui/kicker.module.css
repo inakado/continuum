@@ -1,0 +1,16 @@
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--text-overline-family), sans-serif;
+  font-size: var(--text-overline-size);
+  line-height: var(--text-overline-line-height);
+  font-weight: var(--text-overline-weight);
+  letter-spacing: var(--text-overline-tracking);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.accent {
+  color: var(--text-primary);
+}

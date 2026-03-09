@@ -18,6 +18,7 @@ type SelectProps<T extends string = string> = {
   onValueChange: (value: T) => void;
   options: SelectOption<T>[];
   placeholder?: string;
+  ariaLabel?: string;
   disabled?: boolean;
   className?: string;
   triggerClassName?: string;
@@ -29,6 +30,7 @@ export default function Select<T extends string = string>({
   onValueChange,
   options,
   placeholder,
+  ariaLabel,
   disabled = false,
   className = "",
   triggerClassName = "",
@@ -55,7 +57,10 @@ export default function Select<T extends string = string>({
       onValueChange={(next: string) => onValueChange(fromRadixValue(next) as T)}
       disabled={disabled}
     >
-      <SelectPrimitive.Trigger className={`${styles.trigger} ${triggerClassName}`} aria-label={placeholder}>
+      <SelectPrimitive.Trigger
+        className={`${styles.trigger} ${triggerClassName}`}
+        aria-label={ariaLabel}
+      >
         <SelectPrimitive.Value placeholder={placeholder} />
         <SelectPrimitive.Icon className={styles.icon}>
           <ChevronDown size={16} />
