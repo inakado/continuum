@@ -57,6 +57,10 @@
   --button-bg: var(--bg-accent);
   --button-text: var(--text-accent);
   --button-border: var(--border-primary);
+  --button-hover-bg: var(--bg-accent);
+  --button-hover-text: var(--text-accent);
+  --button-hover-border: var(--border-primary);
+  --button-hover-shadow: 0 12px 24px rgba(15, 23, 42, 0.16);
 }
 
 .secondary {
@@ -97,6 +101,7 @@
   color: var(--button-hover-text);
   border-color: var(--button-hover-border);
   box-shadow: var(--button-hover-shadow);
+  transform: translateY(-1px);
 }
 
 .secondary:hover:not(:disabled),

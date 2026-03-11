@@ -1,7 +1,7 @@
 .panel {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .listView,
@@ -20,6 +20,10 @@
 .search {
   flex: 1;
   min-width: 240px;
+}
+
+.createButton {
+  align-self: flex-end;
 }
 
 .label {
@@ -189,7 +193,7 @@
 .list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .listSpacer {
@@ -200,12 +204,12 @@
 .card {
   position: relative;
   z-index: 0;
-  border: var(--border-width) solid var(--card-border);
+  border: var(--border-width-thin) solid var(--card-border);
   background: var(--card-bg);
-  padding: 14px;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
   border-radius: var(--card-radius);
   box-shadow: var(--card-shadow);
   backdrop-filter: var(--glass-filter);
@@ -215,6 +219,11 @@
     box-shadow 0.25s ease,
     background 0.25s ease,
     border-color 0.25s ease;
+}
+
+.card:focus-within {
+  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .card:hover {
@@ -233,16 +242,17 @@
 }
 
 .cardHeader {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
 }
 
 .identity {
   display: grid;
-  gap: 4px;
+  gap: 6px;
+  min-width: 0;
 }
 
 .primaryLink {
@@ -250,6 +260,7 @@
   color: inherit;
   text-decoration: none;
   border-radius: 10px;
+  min-width: 0;
 }
 
 .primaryLink:focus-visible {
@@ -258,25 +269,47 @@
 }
 
 .studentName {
-  font-family: var(--text-title-section-family), sans-serif;
-  font-weight: var(--text-title-section-weight);
-  font-size: var(--text-title-section-size);
-  line-height: var(--text-title-section-line-height);
-  letter-spacing: var(--text-title-section-tracking);
+  font-family: var(--text-title-card-family), sans-serif;
+  font-weight: var(--text-title-card-weight);
+  font-size: var(--text-title-card-size);
+  line-height: var(--text-title-card-line-height);
+  letter-spacing: var(--text-title-card-tracking);
 }
 
-.studentMeta {
+.studentMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+}
+
+.studentMetaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.studentMetaLabel,
+.studentMetaValue {
   font-family: var(--text-caption-family), sans-serif;
   font-size: var(--text-caption-size);
   line-height: var(--text-caption-line-height);
+}
+
+.studentMetaLabel {
   color: var(--text-muted);
 }
 
+.studentMetaValue {
+  color: color-mix(in srgb, var(--text-primary) 88%, var(--text-muted));
+}
+
 .actionsMenu {
-  position: absolute;
-  top: 50%;
-  right: 28px;
-  transform: translateY(-50%);
+  position: static;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .actionsMenuTrigger {
@@ -362,7 +395,7 @@
 .editPanel,
 .transferPanel {
   border-top: var(--border-width-thin) solid var(--card-border);
-  padding-top: 12px;
+  padding: 12px 18px 16px;
   display: grid;
   gap: 12px;
 }

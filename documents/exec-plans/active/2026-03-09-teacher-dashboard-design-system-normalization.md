@@ -112,6 +112,10 @@
 - `2026-03-09`: для `TeacherUnitDetailScreen` добавлен shared dirty-form guard (`beforeunload` + confirm dialog на breadcrumb/back exit), чтобы несохранённые изменения не терялись при выходе из editor.
 - `2026-03-09`: `TeacherStudentsPanel` переведён на windowed rendering для длинных списков, а login-поля в teacher `students/settings` приведены к единой form semantics (`name`, `autocomplete`, `spellCheck={false}`, example placeholders с `…`).
 - `2026-03-09`: мёртвые legacy teacher CRUD-экраны `TeacherCoursesScreen` и `TeacherCourseDetailScreen` вместе с их локальными CSS удалены из репозитория; teacher dashboard baseline остался единственным active web flow для управления курсами и разделами.
+- `2026-03-11`: teacher `students` remaster довёл секцию до более минималистичного workspace baseline:
+  - список учеников переведён в compact registry rows;
+  - профиль ученика уплотнён до короткого identity header;
+  - drilldown `courses -> sections -> units` получил последовательный density ladder без oversized cards и дублирующих stage headings.
 - `2026-03-09`: проверки:
   - `pnpm lint` — `OK` (warnings only вне текущего scope);
   - `pnpm lint:boundaries` — `OK`;

@@ -99,10 +99,11 @@ const StudentProfileHeader = ({
       <ButtonLink
         href={reviewInboxHref}
         variant="secondary"
+        size="sm"
         className={styles.reviewQueueButton}
         data-pending={reviewTotal > 0 ? "true" : "false"}
       >
-        Фото на проверке: {reviewTotal}
+        Задачи на проверку: {reviewTotal}
       </ButtonLink>
     </div>
   </header>
@@ -194,7 +195,7 @@ const CoursesStage = ({
   <section>
       <div className={styles.list}>
         {courses.map((course) => (
-          <article key={course.id} className={`${styles.card} ${styles.clickableCard}`}>
+          <article key={course.id} className={`${styles.card} ${styles.rowCard} ${styles.clickableCard}`}>
             <button
               type="button"
               className={styles.cardPrimaryButton}
@@ -202,7 +203,7 @@ const CoursesStage = ({
             >
               <div className={styles.cardBody}>
                 <div className={styles.cardTitle}>{course.title}</div>
-                <div className={styles.metaRow}>Откройте курс, чтобы посмотреть разделы и юниты.</div>
+                <div className={styles.metaRow}>Перейти к разделам и прогрессу.</div>
               </div>
             </button>
           </article>
@@ -226,7 +227,7 @@ const SectionsStage = ({
         {courseTree.sections.map((section) => {
           const sectionPendingCount = section.units.reduce((acc, unit) => acc + countPendingInUnit(unit), 0);
           return (
-            <article key={section.id} className={styles.card}>
+            <article key={section.id} className={`${styles.card} ${styles.rowCard} ${styles.clickableCard}`}>
               <button
                 type="button"
                 className={styles.cardPrimaryButton}
@@ -234,14 +235,20 @@ const SectionsStage = ({
               >
                 <div className={styles.cardBody}>
                   <div className={styles.cardTitle}>{section.title}</div>
-                  <div className={styles.metaRow}>Юнитов: {section.units.length}</div>
-                  <div className={styles.metaRow}>На проверке фото: {sectionPendingCount}</div>
+                  <div className={styles.metaRow}>
+                    Юнитов: {section.units.length}
+                    <span className={styles.metaDot} aria-hidden="true">
+                      •
+                    </span>
+                    На проверке фото: {sectionPendingCount}
+                  </div>
                 </div>
               </button>
               <div className={styles.cardActionsRow}>
                 <ButtonLink
                   href={`/teacher/sections/${section.id}`}
                   variant="secondary"
+                  size="sm"
                   className={styles.inlineActionButton}
                 >
                   Открыть раздел
@@ -333,6 +340,7 @@ const UnitsStage = ({
                     {unit.state.status === "locked" ? (
                       <Button
                         variant="secondary"
+                        size="sm"
                         className={styles.inlineActionButton}
                         onClick={() => onOverrideOpenUnit(unit.id)}
                         disabled={overrideBusyUnitId === unit.id || unit.state.overrideOpened}
@@ -379,7 +387,6 @@ const TasksStage = ({
   selectedUnit: TeacherStudentTreeUnit | null;
 }) => (
   <section>
-    <p className={styles.stageSubtitle}>Задачи юнита: {selectedUnit?.title ?? "-"}</p>
     {!selectedUnit ? (
       <div className={styles.empty}>Юнит не найден.</div>
     ) : selectedUnit.tasks.length === 0 ? (
@@ -461,6 +468,7 @@ const TasksStage = ({
                         {task.state.canTeacherCredit ? (
                           <Button
                             variant="secondary"
+                            size="sm"
                             className={styles.inlineActionButton}
                             onClick={() => onCreditTask(task)}
                             disabled={creditBusyTaskId === task.id}

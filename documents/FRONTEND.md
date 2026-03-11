@@ -168,6 +168,15 @@
 - Teacher students flow использует focused modal `Dialog` для создания и редактирования ученика, а также для одноразового показа нового/сброшенного пароля; inline-формы внутри списка учеников не используются.
 - Teacher students list при больших наборах данных использует windowing/virtualized rendering; не рендерим длинный список учеников как full unbounded `.map()` без причины.
 - В teacher student profile drilldown (`/teacher/students/[studentId]`) карточки курсов и разделов рендерятся вертикальным списком; для раздела сохраняется внутренний drilldown в прогресс ученика и отдельное прямое действие `Открыть раздел`, ведущее в `/teacher/sections/[id]`.
+- Teacher `students` visual baseline:
+  - список учеников = compact registry rows, а не высокие dashboard cards;
+  - профиль ученика = compact identity header + immediate workspace;
+  - `courses -> sections -> units` уплотняются по мере drilldown, где `units` остаётся table-first рабочим уровнем;
+  - breadcrumbs в `Материалы и прогресс` остаются secondary navigation и не дублируются отдельными stage titles.
+- Teacher dashboard interactive card pattern:
+  - hover у карточек `курсы/разделы/ученики` и у row-like drilldown cards должен быть одинаковым;
+  - базовое состояние hover = лёгкий подъём (`translateY(-2px)`), `--glass-shadow`, `--surface-2`, мягкий `--glass-border`;
+  - новые teacher screens не вводят отдельные локальные card-hover эффекты без явной причины.
 
 ## Related Source Links
 

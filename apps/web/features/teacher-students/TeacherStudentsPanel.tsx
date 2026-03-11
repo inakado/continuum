@@ -86,7 +86,7 @@ type ConfirmDialogState = {
   title: string;
 };
 
-const STUDENT_WINDOW_ROW_HEIGHT = 132;
+const STUDENT_WINDOW_ROW_HEIGHT = 112;
 const STUDENT_WINDOW_OVERSCAN = 8;
 
 const useStudentWindowing = <T,>({
@@ -320,9 +320,17 @@ const StudentCard = ({
         <Link href={profileHref} className={styles.primaryLink}>
           <div className={styles.identity}>
             <div className={styles.studentName}>{getDisplayName(student)}</div>
-            <div className={styles.studentMeta}>Логин: {student.login}</div>
-            <div className={styles.studentMeta}>
-              Ведущий: {student.leadTeacherDisplayName ?? student.leadTeacherLogin}
+            <div className={styles.studentMetaRow}>
+              <span className={styles.studentMetaItem}>
+                <span className={styles.studentMetaLabel}>Логин</span>
+                <span className={styles.studentMetaValue}>{student.login}</span>
+              </span>
+              <span className={styles.studentMetaItem}>
+                <span className={styles.studentMetaLabel}>Ведущий</span>
+                <span className={styles.studentMetaValue}>
+                  {student.leadTeacherDisplayName ?? student.leadTeacherLogin}
+                </span>
+              </span>
             </div>
           </div>
         </Link>
@@ -766,6 +774,7 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
           </FieldLabel>
         </div>
         <Button
+          className={styles.createButton}
           onClick={() => {
             setShowCreateForm(true);
             setCreateError(null);

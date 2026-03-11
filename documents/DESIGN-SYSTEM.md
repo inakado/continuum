@@ -69,6 +69,11 @@ C) Интерфейс и чтение
   - card/entity title = `card-title`,
   - data/meta copy = `body-sm` / `caption`,
   - pills/status labels = `overline` / `label`.
+- Для teacher `students` hierarchy фиксируется дополнительно:
+  - `Ученики` = page title;
+  - identity header ученика = section title;
+  - `Материалы и прогресс` = section title;
+  - row/card entity titles (`курс`, `раздел`, `юнит`) = card title.
 
 ---
 
@@ -218,6 +223,21 @@ Glass‑стиль — основа для **teacher dashboards** и **student d
 Правило:
 - shared primitives остаются presentation-only и не содержат data orchestration;
 - teacher features собирают layout из shared primitives + semantic tokens, а не из ad hoc локальных паттернов.
+- Для teacher `students` presentation baseline:
+  - список учеников строится как compact registry с тихой action-zone;
+  - identity header ученика остаётся единственным сильным surface над drilldown;
+  - `courses` и `sections` не используют oversized empty cards и визуально ведут к более плотному `units` table view.
+
+### 4.6 Teacher dashboard card hover (`Implemented`)
+
+- Для interactive card surfaces в teacher dashboard (`курсы`, `разделы`, `ученики`, drilldown row-cards) используется единый hover-contract.
+- Hover-состояние карточки:
+  - `transform: translateY(-2px)`;
+  - усиленная тень уровня `--glass-shadow`;
+  - фон карточки переходит в `--surface-2`;
+  - border смещается к `--glass-border`.
+- `focus-within` для таких карточек всегда получает видимый focus ring через `--focus-ring-*`.
+- Локальные feature overrides не должны вводить отдельный hover-language для teacher cards, если это не особый доменный случай.
 
 ---
 

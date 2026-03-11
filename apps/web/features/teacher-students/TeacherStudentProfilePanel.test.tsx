@@ -131,7 +131,7 @@ describe("TeacherStudentProfilePanel", () => {
 
     expect(await screen.findByText("Иванов Иван")).toBeInTheDocument();
 
-    expect(screen.getByRole("link", { name: /Фото на проверке: 2/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Задачи на проверку: 2/i })).toHaveAttribute(
       "href",
       "/teacher/review?status=pending_review&sort=oldest&studentId=student-1",
     );
@@ -153,9 +153,7 @@ describe("TeacherStudentProfilePanel", () => {
     await user.click(await screen.findByRole("button", { name: /Линейные уравнения/i }));
     await user.click(await screen.findByRole("button", { name: "Юнит 1" }));
 
-    expect(
-      await screen.findByText((_, element) => element?.textContent === "Задачи юнита: Юнит 1"),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Зачесть" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Зачесть" }));
 
@@ -293,9 +291,7 @@ describe("TeacherStudentProfilePanel", () => {
       <TeacherStudentProfilePanel studentId="student-1" fallbackName="student1" />,
     );
 
-    expect(
-      await screen.findByText((_, element) => element?.textContent === "Задачи юнита: Юнит 1"),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Зачесть" })).toBeInTheDocument();
     expect(screen.getByText("x + 1 = 2")).toBeInTheDocument();
   });
 
@@ -312,9 +308,7 @@ describe("TeacherStudentProfilePanel", () => {
     );
     const user = userEvent.setup();
 
-    expect(
-      await screen.findByText((_, element) => element?.textContent === "Задачи юнита: Юнит 1"),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Зачесть" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Линейные уравнения" }));
     expect(replaceMock).toHaveBeenLastCalledWith(

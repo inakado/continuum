@@ -1054,7 +1054,7 @@ export default function TeacherDashboardScreen({
             subtitle={content.subtitle || undefined}
             actions={
               active === "students" && initialStudentId ? (
-                <ButtonLink href="/teacher/students" variant="secondary">
+                <ButtonLink href="/teacher/students" variant="ghost" size="sm">
                   Назад к ученикам
                 </ButtonLink>
               ) : undefined
