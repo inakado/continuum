@@ -140,15 +140,8 @@
 }
 
 .drilldown {
-  border: var(--border-width) solid var(--panel-border);
-  border-radius: var(--panel-radius);
-  padding: clamp(14px, 2vw, 18px);
-  background: var(--panel-bg);
-  box-shadow: var(--panel-shadow);
   display: grid;
   gap: 12px;
-  backdrop-filter: var(--glass-filter);
-  -webkit-backdrop-filter: var(--glass-filter);
 }
 
 .drillHeader {

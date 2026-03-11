@@ -10,7 +10,6 @@ import FieldLabel from "@/components/ui/FieldLabel";
 import InlineStatus from "@/components/ui/InlineStatus";
 import Kicker from "@/components/ui/Kicker";
 import Select from "@/components/ui/Select";
-import { SectionCard } from "@/components/ui/SurfaceCard";
 import {
   teacherApi,
   type StudentSummary,
@@ -85,11 +84,14 @@ type ReviewToolbarProps = {
   onOpenFirst: () => void;
 };
 
-const ReviewToolbar = ({ total, hasItems, onRefresh, onOpenFirst }: ReviewToolbarProps) => (
+const ReviewToolbar = ({
+  total,
+  hasItems,
+  onRefresh,
+  onOpenFirst,
+}: ReviewToolbarProps) => (
   <header className={styles.toolbar}>
-    <div className={styles.totalLine}>
-      <Kicker>В очереди: {total}</Kicker>
-    </div>
+    <Kicker className={styles.toolbarKicker}>В очереди: {total}</Kicker>
     <div className={styles.headerActions}>
       <Button variant="secondary" onClick={onRefresh}>
         Обновить
@@ -120,55 +122,58 @@ const ReviewFiltersRow = ({
   onStudentChange,
   onReset,
 }: ReviewFiltersRowProps) => (
-  <section className={styles.filtersRow}>
-    <FieldLabel className={styles.filterField} label="Статус">
-      <Select
-        triggerClassName={styles.selectTrigger}
-        value={filters.status}
-        onValueChange={(value) => onStatusChange(value as TeacherReviewSubmissionStatus)}
-        options={[
-          { value: "pending_review", label: "На проверке", section: "В работе" },
-          { value: "accepted", label: "Принято", section: "История" },
-          { value: "rejected", label: "Отклонено", section: "История" },
-        ]}
-        placeholder="Статус"
-      />
-    </FieldLabel>
+  <section className={styles.filtersCard}>
+    <div className={styles.filtersRow}>
+      <FieldLabel className={styles.filterField} label="Статус">
+        <Select
+          triggerClassName={styles.selectTrigger}
+          value={filters.status}
+          onValueChange={(value) => onStatusChange(value as TeacherReviewSubmissionStatus)}
+          options={[
+            { value: "pending_review", label: "На проверке", section: "В работе" },
+            { value: "accepted", label: "Принято", section: "История" },
+            { value: "rejected", label: "Отклонено", section: "История" },
+          ]}
+          placeholder="Статус"
+        />
+      </FieldLabel>
 
-    <FieldLabel className={styles.filterField} label="Порядок">
-      <Select
-        triggerClassName={styles.selectTrigger}
-        value={filters.sort}
-        onValueChange={(value) => onSortChange(value as "oldest" | "newest")}
-        options={[
-          { value: "oldest", label: sortLabel.oldest },
-          { value: "newest", label: sortLabel.newest },
-        ]}
-        placeholder="Порядок"
-      />
-    </FieldLabel>
+      <FieldLabel className={styles.filterField} label="Порядок">
+        <Select
+          triggerClassName={styles.selectTrigger}
+          value={filters.sort}
+          onValueChange={(value) => onSortChange(value as "oldest" | "newest")}
+          options={[
+            { value: "oldest", label: sortLabel.oldest },
+            { value: "newest", label: sortLabel.newest },
+          ]}
+          placeholder="Порядок"
+        />
+      </FieldLabel>
 
-    <FieldLabel className={styles.filterField} label="Ученик">
-      <Select
-        triggerClassName={styles.selectTrigger}
-        value={filters.studentId ?? ""}
-        onValueChange={(value) => onStudentChange(value || undefined)}
-        options={[
-          { value: "", label: "Все ученики" },
-          ...students.map((student) => ({
-            value: student.id,
-            label: `${getStudentName(student)} (${student.login})`,
-          })),
-        ]}
-        placeholder="Ученик"
-      />
-    </FieldLabel>
-
-    {hasAnyCustomFilters ? (
-      <Button variant="secondary" onClick={onReset}>
-        Сбросить фильтры
-      </Button>
-    ) : null}
+      <FieldLabel className={styles.filterField} label="Ученик">
+        <Select
+          triggerClassName={styles.selectTrigger}
+          value={filters.studentId ?? ""}
+          onValueChange={(value) => onStudentChange(value || undefined)}
+          options={[
+            { value: "", label: "Все ученики" },
+            ...students.map((student) => ({
+              value: student.id,
+              label: `${getStudentName(student)} (${student.login})`,
+            })),
+          ]}
+          placeholder="Ученик"
+        />
+      </FieldLabel>
+      {hasAnyCustomFilters ? (
+        <div className={styles.filterActions}>
+          <Button variant="secondary" size="sm" className={styles.resetFiltersButton} onClick={onReset}>
+            Сбросить фильтры
+          </Button>
+        </div>
+      ) : null}
+    </div>
   </section>
 );
 
@@ -299,7 +304,7 @@ export default function TeacherReviewInboxPanel() {
   );
 
   return (
-    <SectionCard className={styles.panel}>
+    <section className={styles.panel}>
       <ReviewToolbar
         total={total}
         hasItems={items.length > 0}
@@ -333,6 +338,6 @@ export default function TeacherReviewInboxPanel() {
       {!loading && !items.length ? <ReviewEmptyState onReset={resetFilters} /> : null}
 
       {!loading && items.length ? <ReviewTable items={items} getSubmissionHref={getSubmissionHref} /> : null}
-    </SectionCard>
+    </section>
   );
 }

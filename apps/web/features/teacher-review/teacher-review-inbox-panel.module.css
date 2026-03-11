@@ -1,37 +1,46 @@
 .panel {
   display: grid;
-  gap: 12px;
-  border: var(--border-width-thin) solid var(--glass-border);
-  border-radius: var(--panel-radius);
-  background: var(--panel-bg);
-  box-shadow: var(--panel-shadow);
-  backdrop-filter: var(--glass-filter);
-  -webkit-backdrop-filter: var(--glass-filter);
+  gap: 14px;
 }
 
 .toolbar {
   display: flex;
   justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 12px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
-.totalLine {
-  display: flex;
-  align-items: center;
+.toolbarKicker {
+  color: color-mix(in srgb, var(--text-muted) 82%, var(--text-primary));
 }
 
 .headerActions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.filtersCard {
+  display: grid;
+  gap: 10px;
+  padding: 16px 18px;
+  border: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 72%, transparent);
+  border-radius: var(--panel-radius);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-1) 92%, white 8%), var(--surface-1));
+  box-shadow: var(--glass-shadow);
+}
+
+.resetFiltersButton {
+  min-height: 34px;
 }
 
 .filtersRow {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 10px;
+  gap: 12px;
   align-items: end;
 }
 
@@ -39,14 +48,19 @@
   align-self: stretch;
 }
 
+.filterActions {
+  display: flex;
+  align-items: flex-end;
+}
+
 .selectTrigger {
-  border: var(--border-width-thin) solid var(--glass-border);
-  border-radius: var(--control-radius);
-  padding: 9px 10px;
+  border: var(--border-width-thin) solid color-mix(in srgb, rgba(15, 23, 42, 0.12) 78%, var(--glass-border));
+  border-radius: calc(var(--control-radius) + 2px);
+  padding: 10px 12px;
   font-family: var(--text-body-md-family), sans-serif;
   font-size: var(--action-font-size-md);
   line-height: var(--action-line-height);
-  background: var(--surface-1);
+  background: color-mix(in srgb, var(--surface-2) 94%, white 6%);
   color: var(--text-primary);
 }
 
@@ -65,7 +79,7 @@
 .empty {
   border: var(--border-width-thin) dashed var(--card-border);
   border-radius: var(--card-radius);
-  padding: 14px;
+  padding: 16px;
   font-size: var(--text-body-sm-size);
   line-height: var(--text-body-sm-line-height);
   color: var(--text-muted);
@@ -73,11 +87,12 @@
 }
 
 .tableWrap {
-  border: var(--border-width-thin) solid var(--card-border);
-  border-radius: var(--card-radius);
-  background: var(--card-bg);
-  box-shadow: var(--card-shadow);
-  overflow: auto;
+  overflow: hidden;
+  border: var(--border-width-thin) solid color-mix(in srgb, rgba(15, 23, 42, 0.1) 74%, var(--card-border));
+  border-radius: calc(var(--card-radius) + 2px);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 96%, white 4%), var(--card-bg));
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.06);
 }
 
 .table {
@@ -88,16 +103,16 @@
 
 .table th,
 .table td {
-  padding: 9px 12px;
-  border-bottom: var(--border-width-thin) solid var(--card-border);
+  padding: 10px 14px;
+  border-bottom: var(--border-width-thin) solid color-mix(in srgb, var(--card-border) 80%, transparent);
   vertical-align: middle;
   font-family: var(--text-body-sm-family), sans-serif;
   font-size: var(--text-body-sm-size);
-  line-height: var(--text-body-sm-line-height);
+  line-height: 1.45;
 }
 
 .table th {
-  background: var(--surface-1);
+  background: rgba(248, 250, 252, 0.78);
   color: var(--text-muted);
   font-family: var(--text-label-family), sans-serif;
   font-size: var(--text-label-size);
@@ -117,11 +132,11 @@
 }
 
 .table tbody tr:hover td {
-  background: color-mix(in srgb, var(--border-primary) 5%, var(--surface-1));
+  background: color-mix(in srgb, #0f172a 4%, rgba(248, 250, 252, 0.84));
 }
 
 .table tbody tr:focus-within td {
-  background: color-mix(in srgb, var(--border-primary) 8%, var(--surface-1));
+  background: color-mix(in srgb, #0f172a 6%, rgba(248, 250, 252, 0.88));
 }
 
 .rowLink {
@@ -137,7 +152,7 @@
 }
 
 .studentCell {
-  min-width: 190px;
+  min-width: 210px;
 }
 
 .studentName {
@@ -156,9 +171,11 @@
 
 .taskCell {
   color: var(--text-primary);
-  font-weight: 600;
+  font-family: var(--text-mono-family);
+  font-weight: 700;
   text-align: center;
   width: 72px;
+  font-variant-numeric: tabular-nums;
 }
 
 .pathCell {
@@ -171,7 +188,7 @@
 
 @media (max-width: 900px) {
   .panel {
-    gap: 10px;
+    gap: 12px;
   }
 
   .tableWrap {
