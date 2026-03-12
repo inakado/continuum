@@ -4,7 +4,7 @@ import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { useId } from "react";
 import styles from "./tabs.module.css";
 
-export type TabItem<T extends string> = {
+type TabItem<T extends string> = {
   key: T;
   label: string;
 };

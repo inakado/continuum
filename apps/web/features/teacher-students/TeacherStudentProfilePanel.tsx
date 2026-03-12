@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Fragment, useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { Fragment, Suspense, useMemo, useState } from "react";
+import { useRouter, useSearchParams, type ReadonlyURLSearchParams } from "next/navigation";
 import { ChevronDown, ChevronRight, GraduationCap } from "lucide-react";
 import LiteTex from "@/components/LiteTex";
 import Button from "@/components/ui/Button";
@@ -603,18 +603,42 @@ const StudentProfileContent = ({
   </>
 );
 
-export default function TeacherStudentProfilePanel({
+function TeacherStudentProfilePanelRouteBoundary({
   studentId,
   fallbackName,
   onRefreshStudents,
 }: Props) {
-  const router = useRouter();
   const searchParams = useSearchParams();
+  const searchParamsKey = searchParams.toString();
+  const queryCourseId = searchParams.get("courseId")?.trim() || null;
+
+  return (
+    <TeacherStudentProfilePanelContent
+      key={`${studentId}:${searchParamsKey}`}
+      studentId={studentId}
+      fallbackName={fallbackName}
+      onRefreshStudents={onRefreshStudents}
+      queryCourseId={queryCourseId}
+      searchParams={searchParams}
+    />
+  );
+}
+
+function TeacherStudentProfilePanelContent({
+  studentId,
+  fallbackName,
+  onRefreshStudents,
+  queryCourseId,
+  searchParams,
+}: Props & {
+  queryCourseId: string | null;
+  searchParams: ReadonlyURLSearchParams;
+}) {
+  const router = useRouter();
   const [creditBusyTaskId, setCreditBusyTaskId] = useState<string | null>(null);
   const [overrideBusyUnitId, setOverrideBusyUnitId] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const queryCourseId = useMemo(() => searchParams.get("courseId")?.trim() || null, [searchParams]);
   const detailsQuery = useQuery({
     queryKey: contentQueryKeys.teacherStudentProfile(studentId, queryCourseId),
     queryFn: () =>
@@ -641,11 +665,6 @@ export default function TeacherStudentProfilePanel({
   const queryError = detailsQuery.isError ? formatApiErrorPayload(detailsQuery.error) : null;
   const error = actionError ?? queryError;
   const courseTree = details?.courseTree ?? null;
-
-  useEffect(() => {
-    setActionNotice(null);
-    setActionError(null);
-  }, [queryCourseId, searchParams, studentId]);
 
   const displayName = useMemo(
     () => getDisplayName(details?.profile.firstName, details?.profile.lastName, details?.profile.login, fallbackName),
@@ -738,5 +757,19 @@ export default function TeacherStudentProfilePanel({
         />
       </section>
     </section>
+  );
+}
+
+export default function TeacherStudentProfilePanel(props: Props) {
+  return (
+    <Suspense
+      fallback={
+        <section className={styles.panel}>
+          <div className={styles.empty}>Загрузка профиля ученика…</div>
+        </section>
+      }
+    >
+      <TeacherStudentProfilePanelRouteBoundary {...props} />
+    </Suspense>
   );
 }

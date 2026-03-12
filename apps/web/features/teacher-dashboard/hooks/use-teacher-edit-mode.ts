@@ -16,7 +16,7 @@ type TeacherEditHistoryState = {
   sectionTitle: string | null;
 };
 
-export type EditDialogState =
+type EditDialogState =
   | {
       kind: "course";
       id: string;
@@ -26,7 +26,7 @@ export type EditDialogState =
       id: string;
     };
 
-export type DeleteDialogState =
+type DeleteDialogState =
   | { kind: "course"; course: Course }
   | { kind: "section"; section: Section }
   | null;

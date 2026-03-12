@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  type ComponentProps,
   type Dispatch,
   useCallback,
   useEffect,
@@ -21,6 +22,7 @@ import { stex } from "@codemirror/legacy-modes/mode/stex";
 import DashboardShell from "@/components/DashboardShell";
 import AlertDialog from "@/components/ui/AlertDialog";
 import Button from "@/components/ui/Button";
+import FieldLabel from "@/components/ui/FieldLabel";
 import Input from "@/components/ui/Input";
 import Switch from "@/components/ui/Switch";
 import Tabs from "@/components/ui/Tabs";
@@ -156,8 +158,7 @@ function TeacherUnitVideoPanel({
         <div className={styles.videoList}>
           {videos.map((video, index) => (
             <div key={video.id} className={styles.videoCard}>
-              <label className={styles.label}>
-                Название
+              <FieldLabel className={styles.label} label="Название">
                 <Input
                   value={video.title}
                   name={`videoTitle-${index}`}
@@ -170,9 +171,8 @@ function TeacherUnitVideoPanel({
                     )
                   }
                 />
-              </label>
-              <label className={styles.label}>
-                Embed URL
+              </FieldLabel>
+              <FieldLabel className={styles.label} label="Embed URL">
                 <Input
                   value={video.embedUrl}
                   name={`videoUrl-${index}`}
@@ -185,7 +185,7 @@ function TeacherUnitVideoPanel({
                     )
                   }
                 />
-              </label>
+              </FieldLabel>
               <div className={styles.videoActions}>
                 <Button
                   variant="danger"
@@ -350,7 +350,7 @@ function TeacherUnitTabContent({
   statementImage: ReturnType<typeof useTeacherTaskStatementImage>;
   actions: ReturnType<typeof useTeacherUnitScreenActions>;
   layout: ReturnType<typeof useTeacherUnitEditorLayout>;
-  latexExtensions: unknown[];
+  latexExtensions: ComponentProps<typeof TeacherUnitLatexPanel>["editorExtensions"];
   minCountedInput: string;
   progressSaveState: ReturnType<typeof useTeacherUnitFetchSave>["progressSaveState"];
   renderedContent: ReturnType<typeof useTeacherUnitRenderedContent>;

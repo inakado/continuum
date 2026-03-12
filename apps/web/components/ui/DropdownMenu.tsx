@@ -29,12 +29,3 @@ export const DropdownMenuItem = forwardRef<
 >(function DropdownMenuItem({ className = "", ...props }, ref) {
   return <DropdownMenuPrimitive.Item ref={ref} className={`${styles.item} ${className}`} {...props} />;
 });
-
-export const DropdownMenuSeparator = forwardRef<
-  ElementRef<typeof DropdownMenuPrimitive.Separator>,
-  ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Separator>
->(function DropdownMenuSeparator({ className = "", ...props }, ref) {
-  return (
-    <DropdownMenuPrimitive.Separator ref={ref} className={`${styles.separator} ${className}`} {...props} />
-  );
-});

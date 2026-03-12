@@ -164,7 +164,6 @@ const StudentIdentityForm = ({
         {onLoginChange ? (
         <FieldLabel className={styles.label} label="Логин ученика">
           <Input
-            autoFocus
             className={styles.dialogInput}
             name="studentLogin"
             value={login ?? ""}
@@ -185,7 +184,6 @@ const StudentIdentityForm = ({
       <div className={styles.inlineRow}>
         <FieldLabel className={styles.label} label="Имя">
           <Input
-            autoFocus={!onLoginChange}
             className={styles.dialogInput}
             value={firstName}
             placeholder="Имя (необязательно)"
@@ -334,7 +332,7 @@ const StudentCard = ({
             </div>
           </div>
         </Link>
-        <div className={styles.actionsMenu} onClick={(event) => event.stopPropagation()}>
+        <div className={styles.actionsMenu}>
           <DropdownMenu
             open={isActionsMenuOpen}
             onOpenChange={(open: boolean) => onOpenActionsChange(open, student.id)}

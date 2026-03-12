@@ -6,7 +6,7 @@ import styles from "./select.module.css";
 
 const EMPTY_OPTION_VALUE = "__continuum_empty_select_option__";
 
-export type SelectOption<T extends string = string> = {
+type SelectOption<T extends string = string> = {
   value: T;
   label: string;
   section?: string;

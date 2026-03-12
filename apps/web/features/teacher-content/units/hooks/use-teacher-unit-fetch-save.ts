@@ -14,7 +14,7 @@ import { getApiErrorMessage } from "../../shared/api-errors";
 
 const AUTOSAVE_DEBOUNCE_MS = 1000;
 
-export type SaveState =
+type SaveState =
   | { state: "idle" }
   | { state: "saving" }
   | { state: "saved"; at: number }

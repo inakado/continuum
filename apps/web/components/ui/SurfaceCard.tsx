@@ -6,7 +6,7 @@ type SurfaceCardProps = HTMLAttributes<HTMLElement> & {
   tone?: "panel" | "section" | "inset";
 };
 
-export default function SurfaceCard({
+function SurfaceCard({
   as = "section",
   tone = "panel",
   className = "",
@@ -16,14 +16,6 @@ export default function SurfaceCard({
   return <Component className={[styles.surface, styles[tone], className].filter(Boolean).join(" ")} {...props} />;
 }
 
-export function PanelCard(props: Omit<SurfaceCardProps, "tone">) {
-  return <SurfaceCard tone="panel" {...props} />;
-}
-
 export function SectionCard(props: Omit<SurfaceCardProps, "tone">) {
   return <SurfaceCard tone="section" {...props} />;
-}
-
-export function InsetCard(props: Omit<SurfaceCardProps, "tone">) {
-  return <SurfaceCard tone="inset" {...props} />;
 }

@@ -4,7 +4,7 @@ type SearchParamsLike = {
   get(name: string): string | null;
 };
 
-export type ReviewRouteFilters = Omit<TeacherReviewInboxFilters, "limit" | "offset"> & {
+type ReviewRouteFilters = Omit<TeacherReviewInboxFilters, "limit" | "offset"> & {
   status: TeacherReviewSubmissionStatus;
   sort: "oldest" | "newest";
 };

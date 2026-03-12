@@ -8,7 +8,7 @@ export const getStoredTheme = (): Theme | null => {
   return value === "light" || value === "dark" ? value : null;
 };
 
-export const getPreferredTheme = (): Theme => {
+const getPreferredTheme = (): Theme => {
   if (typeof window === "undefined") return "light";
   const media = window.matchMedia("(prefers-color-scheme: dark)");
   return media.matches ? "dark" : "light";

@@ -1,8 +1,8 @@
-export type ContentStatus = "draft" | "published";
+type ContentStatus = "draft" | "published";
 
-export type StudentUnitStatus = "locked" | "available" | "in_progress" | "completed";
+type StudentUnitStatus = "locked" | "available" | "in_progress" | "completed";
 
-export type StudentTaskStatus =
+type StudentTaskStatus =
   | "not_started"
   | "in_progress"
   | "correct"
@@ -13,9 +13,9 @@ export type StudentTaskStatus =
   | "credited_without_progress"
   | "teacher_credited";
 
-export type PhotoReviewStatus = "pending_review" | "accepted" | "rejected";
+type PhotoReviewStatus = "pending_review" | "accepted" | "rejected";
 
-export type ApiErrorCode =
+type ApiErrorCode =
   | "UNIT_LOCKED"
   | "SECTION_LOCKED"
   | "STUDENT_NOT_ASSIGNED_TO_TEACHER"

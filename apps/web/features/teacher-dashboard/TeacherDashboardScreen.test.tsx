@@ -12,6 +12,16 @@ vi.mock("next/navigation", () => ({
   useRouter: vi.fn(),
 }));
 
+vi.mock("next/image", () => ({
+  default: ({
+    alt = "",
+    src,
+    unoptimized: _unoptimized,
+  }: React.ImgHTMLAttributes<HTMLImageElement> & { unoptimized?: boolean }) => (
+    <span aria-label={alt} data-src={typeof src === "string" ? src : ""} />
+  ),
+}));
+
 vi.mock("next/dynamic", () => ({
   default: () => (props: {
     sectionId: string;

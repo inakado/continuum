@@ -1,7 +1,7 @@
 import { ApiError } from "@/lib/api/client";
 import { getApiErrorCodeLabel } from "@/lib/status-labels";
 
-export type ApiErrorAudience = "teacher" | "student";
+type ApiErrorAudience = "teacher" | "student";
 
 export type UiApiErrorPayload = {
   code: string;

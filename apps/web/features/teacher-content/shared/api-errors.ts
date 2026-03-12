@@ -8,7 +8,7 @@ export const getApiErrorMessage = (error: unknown) => {
   return getApiErrorMessageByAudience(error, "teacher");
 };
 
-export type ApiErrorPayload = UiApiErrorPayload;
+type ApiErrorPayload = UiApiErrorPayload;
 
 export const getApiErrorPayload = (error: unknown): ApiErrorPayload => {
   return getApiErrorPayloadByAudience(error, "teacher");

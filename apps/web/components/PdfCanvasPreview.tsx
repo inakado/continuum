@@ -98,6 +98,14 @@ const getLoadErrorMessage = (error: unknown, fallback: string) =>
 
 export default function PdfCanvasPreview({
   url,
+  refreshKey,
+  ...props
+}: Props) {
+  return <PdfCanvasPreviewContent key={`${refreshKey ?? "url"}:${url}`} url={url} refreshKey={refreshKey} {...props} />;
+}
+
+function PdfCanvasPreviewContent({
+  url,
   className,
   withCredentials = false,
   zoom = 1,
@@ -115,17 +123,14 @@ export default function PdfCanvasPreview({
   const [containerWidth, setContainerWidth] = useState(0);
   const [pageCount, setPageCount] = useState(0);
   const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
-  const [currentUrl, setCurrentUrl] = useState(url);
+  const [refreshedUrl, setRefreshedUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const refreshAttemptedKeyRef = useRef<string | null>(null);
   const activeRenderTasksRef = useRef<Array<RenderTask | null>>([]);
   const renderGenerationRef = useRef(0);
-
-  useEffect(() => {
-    setCurrentUrl(url);
-  }, [url]);
+  const currentUrl = refreshedUrl ?? url;
 
   useEffect(() => {
     if (refreshKey) {
@@ -273,7 +278,7 @@ export default function PdfCanvasPreview({
       try {
         const freshUrl = await getFreshUrl();
         if (!disposed && freshUrl && freshUrl !== currentUrl) {
-          setCurrentUrl(freshUrl);
+          setRefreshedUrl(freshUrl);
           return "updated";
         }
       } catch (refreshError) {

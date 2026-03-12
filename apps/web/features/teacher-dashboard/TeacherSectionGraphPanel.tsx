@@ -26,6 +26,7 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import Button from "@/components/ui/Button";
 import Dialog from "@/components/ui/Dialog";
+import FieldLabel from "@/components/ui/FieldLabel";
 import Input from "@/components/ui/Input";
 import { teacherApi, type GraphEdge, type GraphNode, type SectionGraphResponse } from "@/lib/api/teacher";
 import { contentQueryKeys } from "@/lib/query/keys";
@@ -568,8 +569,7 @@ export default function TeacherSectionGraphPanel({
           title="Создание юнита"
           className={styles.createPopup}
         >
-          <label className={styles.popupLabel}>
-            Название юнита
+          <FieldLabel className={styles.popupLabel} label="Название юнита">
             <Input
               ref={createTitleInputRef}
               value={newUnitTitle}
@@ -588,7 +588,7 @@ export default function TeacherSectionGraphPanel({
               autoComplete="off"
               placeholder="Например, Кинематика…"
             />
-          </label>
+          </FieldLabel>
           <div className={styles.popupActions}>
             <Button onClick={() => void createUnit(newUnitTitle)} disabled={!newUnitTitle.trim() || createPending}>
               Создать

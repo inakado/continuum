@@ -16,19 +16,13 @@ import {
   type StudentGraphEdge as SharedStudentGraphEdge,
   type StudentGraphNode as SharedStudentGraphNode,
   type StudentSection as SharedStudentSection,
-  type StudentSectionDetailResponse as SharedStudentSectionDetailResponse,
-  type StudentSectionGraphResponse as SharedStudentSectionGraphResponse,
   type StudentUnit as SharedStudentUnit,
   type MultiChoiceAttemptRequest as SharedMultiChoiceAttemptRequest,
   type NumericAttemptRequest as SharedNumericAttemptRequest,
   type SingleChoiceAttemptRequest as SharedSingleChoiceAttemptRequest,
-  type StudentAttemptResponse as SharedStudentAttemptResponse,
   type StudentPhotoPresignUploadRequest as SharedStudentPhotoPresignUploadRequest,
   type StudentPhotoPresignViewQuery as SharedStudentPhotoPresignViewQuery,
-  type StudentPhotoPresignUploadResponse as SharedStudentPhotoPresignUploadResponse,
   type StudentPhotoSubmitRequest as SharedStudentPhotoSubmitRequest,
-  type StudentPhotoPresignViewResponse as SharedStudentPhotoPresignViewResponse,
-  type StudentPhotoSubmitResponse as SharedStudentPhotoSubmitResponse,
   type StudentTaskSolutionRenderedContentResponse as SharedStudentTaskSolutionRenderedContentResponse,
   type StudentUnitRenderedContentResponse as SharedStudentUnitRenderedContentResponse,
 } from "@continuum/shared";
@@ -43,7 +37,7 @@ export type StudentDashboardOverview = SharedStudentDashboardOverviewResponse;
 export type StudentDashboardCourseSummary = StudentDashboardOverview["courses"][number];
 
 export type UnitVideo = { id: string; title: string; embedUrl: string };
-export type UnitAttachment = { id: string; name: string; urlOrKey?: string | null };
+type UnitAttachment = { id: string; name: string; urlOrKey?: string | null };
 export type TaskAnswerType = "numeric" | "single_choice" | "multi_choice" | "photo";
 export type NumericPart = {
   key: string;
@@ -74,8 +68,6 @@ export type AttemptRequest =
   | NumericAttemptRequest
   | SingleChoiceAttemptRequest
   | MultiChoiceAttemptRequest;
-
-export type AttemptResponse = SharedStudentAttemptResponse;
 
 export type Section = SharedStudentSection;
 
@@ -118,20 +110,17 @@ export type Task = {
 };
 
 export type CourseWithSections = SharedStudentCourseDetailResponse;
-export type SectionWithUnits = SharedStudentSectionDetailResponse;
 export type UnitWithTasks = Unit & { tasks: Task[] };
 
 export type GraphNode = SharedStudentGraphNode;
 
 export type GraphEdge = SharedStudentGraphEdge;
 
-export type SectionGraphResponse = SharedStudentSectionGraphResponse;
-
-export type LoginResponse = {
+type LoginResponse = {
   user: { id: string; login: string; role: string };
 };
 
-export type UnitPdfPresignedResponse = {
+type UnitPdfPresignedResponse = {
   ok: boolean;
   target: "theory" | "method";
   key: string | null;
@@ -143,7 +132,7 @@ export type StudentUnitRenderedContentResponse = SharedStudentUnitRenderedConten
 
 export type StudentPhotoFileInput = SharedStudentPhotoPresignUploadRequest["files"][number];
 
-export type StudentPhotoTaskSubmission = {
+type StudentPhotoTaskSubmission = {
   id: string;
   studentUserId: string;
   taskId: string;
@@ -158,18 +147,14 @@ export type StudentPhotoTaskSubmission = {
   reviewedByTeacherUserId: string | null;
 };
 
-export type StudentPhotoSubmissionsResponse = {
+type StudentPhotoSubmissionsResponse = {
   items: StudentPhotoTaskSubmission[];
 };
-
-export type StudentPhotoPresignUploadResponse = SharedStudentPhotoPresignUploadResponse;
-export type StudentPhotoSubmitResponse = SharedStudentPhotoSubmitResponse;
-export type StudentPhotoPresignViewResponse = SharedStudentPhotoPresignViewResponse;
 
 export type StudentTaskSolutionRenderedContentResponse =
   SharedStudentTaskSolutionRenderedContentResponse;
 
-export type StudentTaskStatementImagePresignViewResponse = {
+type StudentTaskStatementImagePresignViewResponse = {
   ok: true;
   taskId: string;
   taskRevisionId: string;

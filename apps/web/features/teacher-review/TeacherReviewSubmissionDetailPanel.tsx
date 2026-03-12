@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import LiteTex from "@/components/LiteTex";
@@ -373,11 +373,25 @@ const SubmissionSidebar = ({
   </aside>
 );
 
-export default function TeacherReviewSubmissionDetailPanel({ submissionId }: Props) {
-  const router = useRouter();
-  const queryClient = useQueryClient();
+function TeacherReviewSubmissionDetailPanelRouteBoundary({ submissionId }: Props) {
   const searchParams = useSearchParams();
   const searchParamsKey = searchParams.toString();
+
+  return (
+    <TeacherReviewSubmissionDetailPanelContent
+      key={`${submissionId}:${searchParamsKey}`}
+      submissionId={submissionId}
+      searchParamsKey={searchParamsKey}
+    />
+  );
+}
+
+function TeacherReviewSubmissionDetailPanelContent({
+  submissionId,
+  searchParamsKey,
+}: Props & { searchParamsKey: string }) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const filters = useMemo(
     () => readReviewRouteFilters(new URLSearchParams(searchParamsKey)),
     [searchParamsKey],
@@ -394,11 +408,6 @@ export default function TeacherReviewSubmissionDetailPanel({ submissionId }: Pro
   const loading = detailQuery.isPending;
   const error = actionError ?? (detailQuery.isError ? formatApiErrorPayload(detailQuery.error) : null);
   const submission = detail?.submission ?? null;
-
-  useEffect(() => {
-    setActionError(null);
-    setActiveAssetIndex(0);
-  }, [searchParamsKey, submissionId]);
 
   const {
     photoPreviewErrorByAssetKey,
@@ -493,5 +502,19 @@ export default function TeacherReviewSubmissionDetailPanel({ submissionId }: Pro
         </div>
       ) : null}
     </section>
+  );
+}
+
+export default function TeacherReviewSubmissionDetailPanel({ submissionId }: Props) {
+  return (
+    <Suspense
+      fallback={
+        <section className={styles.panel}>
+          <div className={styles.loading}>Загрузка отправки…</div>
+        </section>
+      }
+    >
+      <TeacherReviewSubmissionDetailPanelRouteBoundary submissionId={submissionId} />
+    </Suspense>
   );
 }

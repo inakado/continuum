@@ -3,6 +3,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -150,9 +151,6 @@ const getCourseSummary = (
 const getCourseProgress = (overview: StudentDashboardOverview | null, courseId: string) =>
   getCourseSummary(overview, courseId)?.progressPercent ?? 0;
 
-const getCourseUnitCount = (overview: StudentDashboardOverview | null, courseId: string) =>
-  getCourseSummary(overview, courseId)?.unitCount ?? 0;
-
 const getCourseSectionCount = (overview: StudentDashboardOverview | null, courseId: string) =>
   getCourseSummary(overview, courseId)?.sectionCount ?? 0;
 
@@ -258,7 +256,14 @@ const StudentCourseCarousel = ({
               <div className={styles.carouselMediaPane}>
                 {activeCourseCoverUrl ? (
                   <div className={styles.carouselDecoration}>
-                    <img alt="" className={styles.carouselDecorationImage} src={activeCourseCoverUrl} />
+                    <Image
+                      alt=""
+                      className={styles.carouselDecorationImage}
+                      src={activeCourseCoverUrl}
+                      width={1440}
+                      height={960}
+                      unoptimized
+                    />
                   </div>
                 ) : null}
               </div>
@@ -332,7 +337,14 @@ const StudentCourseCarousel = ({
                   <div>
                     {courseCoverUrl ? (
                       <div className={styles.deckCoverFrame}>
-                        <img alt="" className={styles.deckCoverImage} src={courseCoverUrl} />
+                        <Image
+                          alt=""
+                          className={styles.deckCoverImage}
+                          src={courseCoverUrl}
+                          width={480}
+                          height={192}
+                          unoptimized
+                        />
                       </div>
                     ) : null}
                     <h3 className={styles.deckTitle}>{course.title}</h3>
@@ -440,7 +452,14 @@ const StudentCoursesView = ({
             ) : (
               <div className={styles.continueImagePlaceholder}>
                 {continueCourseCoverUrl ? (
-                  <img alt="" className={styles.continuePreviewImage} src={continueCourseCoverUrl} />
+                  <Image
+                    alt=""
+                    className={styles.continuePreviewImage}
+                    src={continueCourseCoverUrl}
+                    width={288}
+                    height={288}
+                    unoptimized
+                  />
                 ) : (
                   <Sparkles size={22} />
                 )}
@@ -488,7 +507,14 @@ const StudentSectionsView = ({
 
           <div className={styles.sectionsHeaderDecoration}>
             {courseSummary?.coverImageUrl ? (
-              <img alt="" className={styles.sectionsHeaderDecorationImage} src={courseSummary.coverImageUrl} />
+              <Image
+                alt=""
+                className={styles.sectionsHeaderDecorationImage}
+                src={courseSummary.coverImageUrl}
+                width={720}
+                height={312}
+                unoptimized
+              />
             ) : null}
           </div>
         </div>
@@ -623,7 +649,6 @@ const StudentDashboardPanel = ({
 const useStudentDashboardBoot = ({
   forceShowCourses,
   queryOverride,
-  router,
   setBoot,
   setSelectedSectionId,
   setSelectedSectionTitle,
@@ -632,7 +657,6 @@ const useStudentDashboardBoot = ({
 }: {
   forceShowCourses: () => void;
   queryOverride: boolean;
-  router: ReturnType<typeof useRouter>;
   setBoot: (boot: Boot) => void;
   setSelectedSectionId: (sectionId: string | null) => void;
   setSelectedSectionTitle: (title: string | null) => void;
@@ -652,8 +676,14 @@ const useStudentDashboardBoot = ({
 
       if (queryOverride) {
         skipAutoRestoreOnceRef.current = true;
-        writeHistoryState(buildHistoryState("courses", null, null, null), "replace");
-        router.replace("/student");
+        window.history.replaceState(
+          {
+            __continuumStudentNav: true,
+            ...buildHistoryState("courses", null, null, null),
+          } satisfies StudentDashboardHistoryState,
+          "",
+          "/student",
+        );
       }
       if (hashOverride) {
         window.history.replaceState(
@@ -694,7 +724,6 @@ const useStudentDashboardBoot = ({
   }, [
     forceShowCourses,
     queryOverride,
-    router,
     setBoot,
     setSelectedSectionId,
     setSelectedSectionTitle,
@@ -956,7 +985,6 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
   useStudentDashboardBoot({
     forceShowCourses,
     queryOverride,
-    router,
     setBoot,
     setSelectedSectionId,
     setSelectedSectionTitle,

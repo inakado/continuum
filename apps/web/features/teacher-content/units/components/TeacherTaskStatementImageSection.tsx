@@ -1,4 +1,5 @@
 import type { ChangeEvent, RefObject } from "react";
+import Image from "next/image";
 import Button from "@/components/ui/Button";
 import type { Task } from "@/lib/api/teacher";
 import type { TaskStatementImageState } from "../hooks/use-teacher-task-statement-image";
@@ -74,10 +75,13 @@ export function TeacherTaskStatementImageSection({
           ) : null}
           <div className={styles.taskStatementImageViewport}>
             {state.previewUrl ? (
-              <img
+              <Image
                 src={state.previewUrl}
                 alt="Изображение условия задачи"
                 className={styles.taskStatementImagePreview}
+                width={1200}
+                height={900}
+                unoptimized
                 onError={onPreviewError}
               />
             ) : (

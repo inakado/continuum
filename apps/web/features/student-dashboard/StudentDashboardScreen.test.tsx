@@ -13,6 +13,16 @@ vi.mock("next/navigation", () => ({
   useRouter: vi.fn(),
 }));
 
+vi.mock("next/image", () => ({
+  default: ({
+    alt = "",
+    src,
+    unoptimized: _unoptimized,
+  }: React.ImgHTMLAttributes<HTMLImageElement> & { unoptimized?: boolean }) => (
+    <span aria-label={alt} data-src={typeof src === "string" ? src : ""} />
+  ),
+}));
+
 vi.mock("next/dynamic", () => ({
   default:
     () =>
@@ -268,6 +278,7 @@ describe("StudentDashboardScreen", () => {
   });
 
   it("queryOverride disables auto-restore and canonicalizes route", async () => {
+    const historyReplaceStateSpy = vi.spyOn(window.history, "replaceState");
     window.localStorage.setItem(LAST_SECTION_KEY, "section-1");
     vi.mocked(studentApi.getDashboardOverview).mockResolvedValueOnce({
       courses: [],
@@ -290,7 +301,18 @@ describe("StudentDashboardScreen", () => {
     expect(await screen.findByText("Алгебра")).toBeInTheDocument();
     expect(screen.queryByTestId("student-graph-panel")).not.toBeInTheDocument();
     expect(studentApi.getSection).not.toHaveBeenCalled();
-    expect(replaceMock).toHaveBeenCalledWith("/student");
+    expect(historyReplaceStateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        __continuumStudentNav: true,
+        view: "courses",
+        courseId: null,
+        sectionId: null,
+        sectionTitle: null,
+      }),
+      "",
+      "/student",
+    );
+    historyReplaceStateSpy.mockRestore();
   });
 
   it("shows error when course opening fails", async () => {

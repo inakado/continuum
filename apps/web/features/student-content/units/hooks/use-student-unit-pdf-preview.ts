@@ -10,7 +10,7 @@ export const PDF_ZOOM_STEP = 0.1;
 export const PDF_ZOOM_DEFAULT = 0.8;
 export const PDF_ZOOM_UNIT_DEFAULT = 0.5;
 
-export type PdfPreviewTarget = "theory" | "method";
+type PdfPreviewTarget = "theory" | "method";
 
 type Params = {
   unit: UnitWithTasks | null;

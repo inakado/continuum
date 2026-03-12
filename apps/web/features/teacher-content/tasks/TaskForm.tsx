@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import EntityEditorInline from "@/components/EntityEditorInline";
+import FieldLabel from "@/components/ui/FieldLabel";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Textarea from "@/components/ui/Textarea";
@@ -162,8 +163,7 @@ function BaseSettingsSection({
         <div className={styles.sectionTitle}>Основное</div>
       </div>
       <div className={styles.fieldGrid}>
-        <label className={styles.label}>
-          Тип задачи
+        <FieldLabel className={styles.label} label="Тип задачи">
           <Select
             triggerClassName={styles.select}
             value={answerType}
@@ -176,7 +176,7 @@ function BaseSettingsSection({
             ]}
             placeholder="Тип задачи"
           />
-        </label>
+        </FieldLabel>
         <Checkbox
           label="Ключевая"
           checked={isRequired}
@@ -193,14 +193,13 @@ function StatementSection({ statementLite, onStatementChange, statementError }: 
     <div className={styles.section}>
       <div className={styles.sectionTitle}>Условие</div>
       <div className={styles.dualGrid}>
-        <label className={styles.label}>
-          Текст условия (KaTeX)
+        <FieldLabel className={styles.label} label="Текст условия (KaTeX)">
           <Textarea
             value={statementLite}
             className={styles.textarea}
             onChange={(event) => onStatementChange(event.target.value)}
           />
-        </label>
+        </FieldLabel>
         <div className={styles.previewBlock}>
           <div className={styles.previewLabel}>Предпросмотр</div>
           <div className={styles.preview}>
@@ -238,25 +237,23 @@ function NumericAnswerFields({
       {error ? <div className={styles.fieldError}>{error}</div> : null}
       <div className={styles.partList}>
         {numericParts.map((part, index) => (
-          <div key={`part-${index}`} className={styles.partRow}>
+          <div key={part.key} className={styles.partRow}>
             <div className={styles.partIndex}>Ответ {index + 1}</div>
-            <label className={styles.label}>
-              Подпись (KaTeX)
+            <FieldLabel className={styles.label} label="Подпись (KaTeX)">
               <Input value={part.labelLite} onChange={(event) => onUpdatePartLabel(index, event.target.value)} />
-            </label>
+            </FieldLabel>
             <div className={styles.inlinePreview}>
               <div className={styles.inlinePreviewLabel}>Предпросмотр</div>
               <div className={styles.inlinePreviewBox}>
                 {part.labelLite.trim() ? <LiteTex value={part.labelLite} /> : null}
               </div>
             </div>
-            <label className={styles.label}>
-              Правильный ответ
+            <FieldLabel className={styles.label} label="Правильный ответ">
               <Input
                 value={part.correctValue}
                 onChange={(event) => onUpdatePartCorrectValue(index, event.target.value)}
               />
-            </label>
+            </FieldLabel>
             <div className={styles.rowActions}>
               <button
                 type="button"
@@ -308,13 +305,12 @@ function ChoiceAnswerFields({
               ? correctSingleIndex === index
               : correctMultiIndices.includes(index);
           return (
-            <div key={`choice-${index}`} className={styles.choiceRow}>
+            <div key={choice.key} className={styles.choiceRow}>
               <div className={styles.choiceMain}>
                 <div className={styles.choiceIndex}>Вариант {index + 1}</div>
-                <label className={styles.label}>
-                  Текст (KaTeX)
+                <FieldLabel className={styles.label} label="Текст (KaTeX)">
                   <Input value={choice.textLite} onChange={(event) => onUpdateChoiceText(index, event.target.value)} />
-                </label>
+                </FieldLabel>
                 <div className={styles.inlinePreview}>
                   <div className={styles.inlinePreviewLabel}>Предпросмотр</div>
                   <div className={styles.inlinePreviewBox}>

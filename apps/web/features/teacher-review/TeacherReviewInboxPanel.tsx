@@ -1,7 +1,7 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useCallback, useMemo } from "react";
+import { Suspense, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import Button from "@/components/ui/Button";
@@ -238,7 +238,7 @@ const ReviewTable = ({ items, getSubmissionHref }: ReviewTableProps) => (
   </div>
 );
 
-export default function TeacherReviewInboxPanel() {
+function TeacherReviewInboxPanelContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchParamsKey = searchParams.toString();
@@ -339,5 +339,19 @@ export default function TeacherReviewInboxPanel() {
 
       {!loading && items.length ? <ReviewTable items={items} getSubmissionHref={getSubmissionHref} /> : null}
     </section>
+  );
+}
+
+export default function TeacherReviewInboxPanel() {
+  return (
+    <Suspense
+      fallback={
+        <section className={styles.panel}>
+          <div className={styles.loading}>Загрузка очереди…</div>
+        </section>
+      }
+    >
+      <TeacherReviewInboxPanelContent />
+    </Suspense>
   );
 }

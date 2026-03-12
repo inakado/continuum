@@ -8,7 +8,7 @@ import {
 import { contentQueryKeys } from "@/lib/query/keys";
 import { getApiErrorMessage } from "../../shared/api-errors";
 
-export type TeacherUnitRenderedContentTarget = "theory" | "method";
+type TeacherUnitRenderedContentTarget = "theory" | "method";
 
 type Params = {
   unit: UnitWithTasks | null;

@@ -12,7 +12,7 @@ export type DeleteConfirmState =
 
 const buildSortMap = (tasks: Task[]) => new Map(tasks.map((task) => [task.id, task.sortOrder ?? 0]));
 
-export const buildTaskPayload = (data: TaskFormData) => {
+const buildTaskPayload = (data: TaskFormData) => {
   const base = {
     statementLite: data.statementLite,
     answerType: data.answerType,
@@ -46,7 +46,7 @@ export const buildTaskPayload = (data: TaskFormData) => {
   };
 };
 
-export const mapTaskToFormData = (task: Task): TaskFormData => ({
+const mapTaskToFormData = (task: Task): TaskFormData => ({
   statementLite: task.statementLite ?? "",
   answerType: task.answerType,
   numericParts: (task.numericPartsJson ?? []).map((part) => ({

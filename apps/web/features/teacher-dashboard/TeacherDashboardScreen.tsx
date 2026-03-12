@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, type ChangeEvent, type RefObject } from "react";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ImagePlus, Pencil, Trash2 } from "lucide-react";
 import DashboardShell from "@/components/DashboardShell";
@@ -188,10 +189,13 @@ function TeacherCoverImageEditor({
       </div>
       {coverImageUrl ? (
         <div className={styles.coverPreviewWrap}>
-          <img
+          <Image
             src={coverImageUrl}
             alt=""
             className={styles.coverPreview}
+            width={1200}
+            height={720}
+            unoptimized
             onError={onCoverImagePreviewError}
           />
         </div>
@@ -224,7 +228,6 @@ function TeacherCourseCreateForm({
       <div className={styles.createDialogFields}>
         <FieldLabel className={styles.label} label="Название курса">
           <Input
-            autoFocus
             className={styles.createDialogInput}
             value={title}
             onChange={(event) => onTitleChange(event.target.value)}
@@ -305,7 +308,6 @@ function TeacherSectionCreateForm({
       <div className={styles.createDialogFields}>
         <FieldLabel className={styles.label} label="Название раздела">
           <Input
-            autoFocus
             className={styles.createDialogInput}
             value={title}
             onChange={(event) => onTitleChange(event.target.value)}
@@ -517,7 +519,6 @@ function TeacherEditDialogPanel({
     <div className={styles.editDialogBody}>
       <FieldLabel className={styles.label} label="Название">
         <Input
-          autoFocus
           value={title}
           onChange={(event) => onTitleChange(event.target.value)}
           name="editTitle"
@@ -1018,26 +1019,22 @@ export default function TeacherDashboardScreen({
   initialStudentId,
   initialSubmissionId,
 }: TeacherDashboardScreenProps) {
-  const router = useRouter();
   const handleLogout = useTeacherLogout();
   const identity = useTeacherIdentity();
   const content = CONTENT_BY_SECTION[active];
   const navItems = useMemo(() => getNavItems(active), [active]);
   const showMainHeader = active !== "edit";
 
-  const renderActiveMode = () => {
-    switch (active) {
-      case "students":
-        return <TeacherStudentsMode initialStudentId={initialStudentId} />;
-      case "review":
-        return <TeacherReviewMode initialSubmissionId={initialSubmissionId} />;
-      case "analytics":
-        return <TeacherAnalyticsMode content={content} />;
-      case "edit":
-      default:
-        return <TeacherEditMode initialSectionId={initialSectionId} />;
-    }
-  };
+  const activeMode =
+    active === "students" ? (
+      <TeacherStudentsMode initialStudentId={initialStudentId} />
+    ) : active === "review" ? (
+      <TeacherReviewMode initialSubmissionId={initialSubmissionId} />
+    ) : active === "analytics" ? (
+      <TeacherAnalyticsMode content={content} />
+    ) : (
+      <TeacherEditMode initialSectionId={initialSectionId} />
+    );
 
   return (
     <DashboardShell
@@ -1062,7 +1059,7 @@ export default function TeacherDashboardScreen({
           />
         ) : null}
 
-        {renderActiveMode()}
+        {activeMode}
       </div>
     </DashboardShell>
   );

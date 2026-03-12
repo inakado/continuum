@@ -40,7 +40,3 @@ export default function Dialog({
     </DialogPrimitive.Root>
   );
 }
-
-export {
-  DialogPrimitive,
-};
