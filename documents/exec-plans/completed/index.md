@@ -20,6 +20,8 @@
 
 ## Native exec-plans
 
+- `2026-03-12-react-doctor-remediation.md`
+- `2026-03-09-teacher-dashboard-design-system-normalization.md`
 - `2026-03-08-student-dashboard-redesign.md` (`Superseded`)
 - `2026-03-05-task-solution-html-render.md`
 - `2026-03-05-texlive-pdflatex-migration.md`

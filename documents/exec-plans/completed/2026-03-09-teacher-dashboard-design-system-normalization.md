@@ -1,6 +1,6 @@
 # Execution Plan: Teacher Dashboard Design-System Normalization
 
-Статус плана: `Active`
+Статус плана: `Completed`
 
 ## 1. Цель
 
@@ -126,6 +126,9 @@
     - `TeacherStudentsPanel.test.tsx` — `OK`
     - `TeacherReviewInboxPanel.test.tsx` — `OK`
   - полный `pnpm --filter web test` остаётся нестабильным вне текущего scope: зафиксированы множественные pre-existing/unrelated timeouts в student/review/profile/unit suites и один vitest worker startup timeout.
+- `2026-03-12`: план закрыт и переносится в `completed/`:
+  - design-system baseline teacher routes стабилизирован;
+  - дальнейшие structural/UI улучшения должны открываться отдельными инициативами, а не продолжать этот normalization plan.
 
 ## 10. Troubleshooting
 

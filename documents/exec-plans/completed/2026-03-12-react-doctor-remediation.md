@@ -143,6 +143,7 @@
 - `2026-03-12`: задача закрыта на текущем baseline:
   - свежий React Doctor после cleanup/polish показывает `93/100`, `0 errors`, `24 warnings`, отчёт в `/var/folders/d_/qz451mk15hx9jgrjtwtzkyyr0000gp/T/react-doctor-7f602aec-b0f1-4191-91b5-c91a74be86ce`;
   - остаток warnings осознанно оставлен как non-blocking structural/trusted-render/tooling tail.
+- `2026-03-12`: план закрыт и переносится в `completed/` как финальный execution record по remediation wave.
 
 ## 10. Осознанно оставлено
 
