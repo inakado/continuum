@@ -66,7 +66,7 @@ export const compileTargetLabels: Record<CompileErrorModalTarget, string> = {
   task_solution: "Решение",
 };
 
-export const formatLogTailLimit = (bytes: number): string => {
+const formatLogTailLimit = (bytes: number): string => {
   if (!Number.isFinite(bytes) || bytes <= 0) return "250KB";
   if (bytes >= 1024 * 1024) {
     return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;

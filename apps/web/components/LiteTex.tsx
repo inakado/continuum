@@ -84,10 +84,19 @@ const LiteTex = memo(function LiteTex({ value, block = false, className = "" }: 
   const segments = useMemo(() => splitByMath(value), [value]);
   const renderedSegments = useMemo(() => {
     if (!value.trim()) return null;
-    return segments.map((segment, index) => {
+    const seenKeys = new Map<string, number>();
+    return segments.map((segment) => {
+      const baseKey =
+        segment.type === "text"
+          ? `text:${segment.value}`
+          : `math:${segment.display ? "block" : "inline"}:${segment.value}`;
+      const seenCount = seenKeys.get(baseKey) ?? 0;
+      seenKeys.set(baseKey, seenCount + 1);
+      const segmentKey = `${baseKey}:${seenCount}`;
+
       if (segment.type === "text") {
         return (
-          <span key={`text-${index}`} className={styles.text}>
+          <span key={segmentKey} className={styles.text}>
             {segment.value}
           </span>
         );
@@ -95,7 +104,7 @@ const LiteTex = memo(function LiteTex({ value, block = false, className = "" }: 
       const html = renderMath(segment.value, segment.display);
       return (
         <span
-          key={`math-${index}`}
+          key={segmentKey}
           className={segment.display ? styles.mathBlock : styles.mathInline}
           dangerouslySetInnerHTML={{ __html: html }}
         />

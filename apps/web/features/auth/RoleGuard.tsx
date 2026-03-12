@@ -34,19 +34,18 @@ export default function RoleGuard({ requiredRole, children }: RoleGuardProps) {
     let mounted = true;
 
     const checkRole = async () => {
+      let nextState: GuardState = "unauthorized";
       try {
         const data = await authApi.me();
-        if (data.user?.role !== requiredRole) {
-          if (mounted) setState("forbidden");
-          return;
-        }
-        if (mounted) setState("ok");
+        nextState = data.user?.role !== requiredRole ? "forbidden" : "ok";
       } catch (err) {
-        if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
-          if (mounted) setState("unauthorized");
-          return;
+        if (!(err instanceof ApiError && (err.status === 401 || err.status === 403))) {
+          nextState = "unauthorized";
         }
-        if (mounted) setState("unauthorized");
+      }
+
+      if (mounted) {
+        setState(nextState);
       }
     };
 

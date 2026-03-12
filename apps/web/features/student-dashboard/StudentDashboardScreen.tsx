@@ -177,16 +177,16 @@ const StudentCourseCarousel = ({
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
-    if (courses.length === 0) {
-      setActiveIndex(0);
-      return;
-    }
-    const preferredIndex = initialCourseId ? courses.findIndex((course) => course.id === initialCourseId) : 0;
-    if (preferredIndex >= 0) {
-      setActiveIndex(preferredIndex);
-      return;
-    }
-    setActiveIndex((current) => (current >= courses.length ? 0 : current));
+    setActiveIndex((current) => {
+      if (courses.length === 0) return 0;
+      const preferredIndex = initialCourseId
+        ? courses.findIndex((course) => course.id === initialCourseId)
+        : 0;
+      if (preferredIndex >= 0) {
+        return preferredIndex;
+      }
+      return current >= courses.length ? 0 : current;
+    });
   }, [courses, initialCourseId]);
 
   if (courses.length === 0) {

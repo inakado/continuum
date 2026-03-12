@@ -1,6 +1,6 @@
 # Execution Plan: React Doctor Remediation
 
-Статус плана: `Active`
+Статус плана: `Completed`
 
 ## 1. Цель
 
@@ -134,61 +134,23 @@
   - удалены неиспользуемые dev-only login screens `StudentLoginScreen` / `TeacherLoginScreen` и их CSS;
   - убраны лишние exported dead-code хвосты (`PdfPreviewScrollFeel`, internal confirm types, дублирующий `PDF_ZOOM_STEP` в rendered-content hook);
   - `StudentDashboardEntry` повторно проверен и оставлен без изменений: локальный `<Suspense>` уже есть, warning выглядит как эвристика инструмента, а не как реальная route regression.
+- `2026-03-12`: выполнен дополнительный low-risk polish sweep:
+  - `LiteTex` переведён со `key={index}` на стабильные derived keys;
+  - `StudentCourseCarousel` в `StudentDashboardScreen` больше не делает каскадные `setState` в одном effect;
+  - `RoleGuard` сведён к одному terminal state update после async role check;
+  - `UnifiedLoginScreen` собран в локальный reducer без изменения поведения формы;
+  - `formatLogTailLimit` переведён в internal helper, так как наружу не используется.
+- `2026-03-12`: задача закрыта на текущем baseline:
+  - свежий React Doctor после cleanup/polish показывает `93/100`, `0 errors`, `24 warnings`, отчёт в `/var/folders/d_/qz451mk15hx9jgrjtwtzkyyr0000gp/T/react-doctor-7f602aec-b0f1-4191-91b5-c91a74be86ce`;
+  - остаток warnings осознанно оставлен как non-blocking structural/trusted-render/tooling tail.
 
-## 10. Следующая последовательность
+## 10. Осознанно оставлено
 
-### Step 1. `TeacherStudentsPanel`
-
-- Цель:
-  - вынести query/mutation orchestration в focused hooks;
-  - локальный modal/action state собрать в reducer или несколько малых hooks;
-  - оставить root component как composition layer.
-- В TanStack переводим/нормализуем:
-  - students list read-path;
-  - teachers list read-path;
-  - create/reset/transfer/edit/delete mutations;
-  - invalidation/update strategy.
-- В локальном UI state оставляем:
-  - открытие/закрытие dialog;
-  - текущие draft values формы;
-  - selection/open menu state;
-  - confirm dialog state.
-- Safety-net:
-  - `TeacherStudentsPanel.test.tsx`
-  - `TeacherStudentProfilePanel.test.tsx`
-  - targeted lint/typecheck.
-
-### Step 2. `PdfCanvasPreview`
-
-- Цель:
-  - выделить `usePdfDocumentLoader`;
-  - выделить `usePdfCanvasRenderer`;
-  - выделить `useInertialScrollViewport`.
-- Не менять user-facing contract компонента.
-- Проверки:
-  - `typecheck`;
-  - affected integration/component tests;
-  - повторный React Doctor по changed files.
-
-### Step 3. `TeacherUnitDetailScreen`
-
-- Цель:
-  - изолировать `CodeMirror`/editor stack через `dynamic` там, где это реально режет initial bundle;
-  - разнести `TeacherUnitTabContent` на tab-specific components;
-  - не трогать backend contracts и compile flow.
-- Проверки:
-  - `TeacherUnitDetailScreen.test.tsx`;
-  - targeted typecheck/lint.
-
-### Step 4. `StudentDashboardScreen`
-
-- Цель:
-  - отделить history/navigation state model от presentation;
-  - отдельно рассмотреть `LazyMotion`;
-  - не смешивать с visual redesign.
-- Проверки:
-  - `StudentDashboardScreen.test.tsx`;
-  - smoke React Doctor на changed files.
+- `dangerouslySetInnerHTML` в trusted render paths (`LiteTex`, compiled HTML previews, trusted media previews) не убирался механически, чтобы не ломать backend/KaTeX render contracts.
+- `useSearchParams without Suspense` для `TeacherReview*`, `TeacherStudentProfilePanel` и `StudentDashboardEntry` выглядит как эвристический хвост React Doctor после уже добавленных route-local boundaries.
+- `TeacherStudentsPanel`, `TeacherSettingsScreen`, `TeacherDashboardScreen` и часть state-heavy экранов остались structural debt, но уже вне обязательного remediation scope текущей задачи.
+- warning по `@codemirror/view` в `TeacherLatexEditor` оставлен: editor stack уже вынесен в lazy leaf, а дальнейший split не даёт явного architectural win.
+- `next/image` warning в тестовом файле не рассматривается как production issue.
 
 ## 11. Проверки
 
@@ -206,6 +168,8 @@
 - `pnpm exec vitest run --config vitest.config.ts features/student-dashboard/StudentDashboardScreen.test.tsx` после navigation refactor — `OK`.
 - `pnpm exec eslint components/pdf-preview-hooks.ts features/student-content/units/hooks/use-student-unit-rendered-content.ts features/teacher-students/hooks/use-teacher-students-ui-state.ts features/student-dashboard/StudentDashboardEntry.tsx` в `apps/web` — `OK`.
 - `pnpm exec tsc --noEmit` после cleanup-wave — `OK`.
+- `pnpm exec eslint components/LiteTex.tsx features/student-dashboard/StudentDashboardScreen.tsx features/auth/RoleGuard.tsx features/auth/UnifiedLoginScreen.tsx features/teacher-content/units/hooks/use-teacher-unit-latex-compile.ts` в `apps/web` — `OK`.
+- `pnpm exec vitest run --config vitest.config.ts features/student-dashboard/StudentDashboardScreen.test.tsx features/auth/UnifiedLoginScreen.test.tsx` — `OK`.
 - targeted `vitest` для wave 5 / step 1:
   - `features/teacher-students/TeacherStudentsPanel.test.tsx` — `OK`
   - `features/teacher-students/TeacherStudentProfilePanel.test.tsx` — `OK`
@@ -218,7 +182,8 @@
   - `features/teacher-students/TeacherStudentProfilePanel.test.tsx` — `OK`
   - `features/teacher-students/TeacherStudentsPanel.test.tsx` — `OK`
   - `features/teacher-content/units/TeacherUnitDetailScreen.test.tsx` — `OK`
-- повторный `React Doctor` по `apps/web` — `93/100`, `0 errors`, `21 warnings`, отчёт в `/var/folders/d_/qz451mk15hx9jgrjtwtzkyyr0000gp/T/react-doctor-a5c75a5f-54c3-4c61-a5ee-877e7ecd95e7`.
+- повторный `React Doctor` по `apps/web` после основной remediation wave — `93/100`, `0 errors`, `21 warnings`, отчёт в `/var/folders/d_/qz451mk15hx9jgrjtwtzkyyr0000gp/T/react-doctor-a5c75a5f-54c3-4c61-a5ee-877e7ecd95e7`.
+- свежий `React Doctor` после final cleanup/polish wave — `93/100`, `0 errors`, `24 warnings`, отчёт в `/var/folders/d_/qz451mk15hx9jgrjtwtzkyyr0000gp/T/react-doctor-7f602aec-b0f1-4191-91b5-c91a74be86ce`.
 
 ## 12. Troubleshooting
 

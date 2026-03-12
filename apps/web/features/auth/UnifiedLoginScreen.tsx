@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useReducer, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Input from "@/components/ui/Input";
 import Grainient from "@/components/Grainient";
@@ -44,12 +44,46 @@ const GrainientBackdrop = memo(function GrainientBackdrop() {
 export default function UnifiedLoginScreen() {
   const router = useRouter();
   const { theme } = useTheme();
-  const [login, setLogin] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const loginInputRef = useRef<HTMLInputElement | null>(null);
+  const [state, dispatch] = useReducer(
+    (
+      current: {
+        login: string;
+        password: string;
+        showPassword: boolean;
+        error: string | null;
+        loading: boolean;
+      },
+      action:
+        | { type: "login"; value: string }
+        | { type: "password"; value: string }
+        | { type: "show-password/toggle" }
+        | { type: "error"; value: string | null }
+        | { type: "loading"; value: boolean },
+    ) => {
+      switch (action.type) {
+        case "login":
+          return { ...current, login: action.value };
+        case "password":
+          return { ...current, password: action.value };
+        case "show-password/toggle":
+          return { ...current, showPassword: !current.showPassword };
+        case "error":
+          return { ...current, error: action.value };
+        case "loading":
+          return { ...current, loading: action.value };
+        default:
+          return current;
+      }
+    },
+    {
+      login: "",
+      password: "",
+      showPassword: false,
+      error: null,
+      loading: false,
+    },
+  );
 
   useEffect(() => {
     // Avoid unexpected auto-focus on touch devices.
@@ -59,10 +93,10 @@ export default function UnifiedLoginScreen() {
 
   const handleSubmit = async (event?: React.FormEvent<HTMLFormElement>) => {
     event?.preventDefault();
-    setError(null);
-    setLoading(true);
+    dispatch({ type: "error", value: null });
+    dispatch({ type: "loading", value: true });
     try {
-      const result = await teacherApi.login(login, password);
+      const result = await teacherApi.login(state.login, state.password);
       const role = result.user?.role;
       if (role === "teacher") {
         router.push("/teacher");
@@ -73,14 +107,14 @@ export default function UnifiedLoginScreen() {
       }
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
-        setError("Неверный логин или пароль");
+        dispatch({ type: "error", value: "Неверный логин или пароль" });
       } else if (err instanceof ApiError) {
-        setError(err.message || "Ошибка входа");
+        dispatch({ type: "error", value: err.message || "Ошибка входа" });
       } else {
-        setError("Ошибка входа");
+        dispatch({ type: "error", value: "Ошибка входа" });
       }
     } finally {
-      setLoading(false);
+      dispatch({ type: "loading", value: false });
     }
   };
 
@@ -100,8 +134,8 @@ export default function UnifiedLoginScreen() {
             name="login"
             autoComplete="username"
             spellCheck={false}
-            value={login}
-            onChange={(event) => setLogin(event.target.value)}
+            value={state.login}
+            onChange={(event) => dispatch({ type: "login", value: event.target.value })}
             aria-label="Логин"
           />
           <div className={styles.inputWrap}>
@@ -109,33 +143,33 @@ export default function UnifiedLoginScreen() {
               className={styles.formInput}
               placeholder="Пароль"
               name="password"
-              type={showPassword ? "text" : "password"}
+              type={state.showPassword ? "text" : "password"}
               autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              value={state.password}
+              onChange={(event) => dispatch({ type: "password", value: event.target.value })}
               aria-label="Пароль"
             />
             <button
               type="button"
               className={styles.revealButton}
-              onClick={() => setShowPassword((prev) => !prev)}
-              aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
-              aria-pressed={showPassword}
+              onClick={() => dispatch({ type: "show-password/toggle" })}
+              aria-label={state.showPassword ? "Скрыть пароль" : "Показать пароль"}
+              aria-pressed={state.showPassword}
             >
-              {showPassword ? <EyeOff size={16} strokeWidth={1.6} /> : <Eye size={16} strokeWidth={1.6} />}
+              {state.showPassword ? <EyeOff size={16} strokeWidth={1.6} /> : <Eye size={16} strokeWidth={1.6} />}
             </button>
           </div>
-          {error ? (
+          {state.error ? (
             <div className={styles.error} role="alert">
-              {error}
+              {state.error}
             </div>
           ) : null}
           <button
             type="submit"
             className={styles.submitButton}
-            disabled={loading || !login || !password}
+            disabled={state.loading || !state.login || !state.password}
           >
-            {loading ? "Вход…" : "Войти"}
+            {state.loading ? "Вход…" : "Войти"}
           </button>
         </form>
       </div>
