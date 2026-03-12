@@ -21,19 +21,13 @@ import Select from "@/components/ui/Select";
 import { teacherApi, type StudentSummary, type TeacherSummary } from "@/lib/api/teacher";
 import { contentQueryKeys } from "@/lib/query/keys";
 import { formatApiErrorPayload } from "@/features/teacher-content/shared/api-errors";
+import {
+  getConfirmDialogState,
+  useTeacherStudentsUiState,
+  type PasswordReveal,
+} from "./hooks/use-teacher-students-ui-state";
 import TeacherStudentProfilePanel from "./TeacherStudentProfilePanel";
 import styles from "./teacher-students-panel.module.css";
-
-type PasswordReveal = {
-  login: string;
-  password: string;
-  label: string;
-};
-
-type StudentConfirmState =
-  | { kind: "reset_password"; student: StudentSummary }
-  | { kind: "delete_student"; student: StudentSummary }
-  | null;
 
 type Props = {
   studentId?: string;
@@ -76,14 +70,6 @@ type StudentCardProps = {
   transferTeacherId: string;
   profileHref: string;
   reviewInboxHref: string;
-};
-
-type ConfirmDialogState = {
-  actionText: string;
-  busy: boolean;
-  description: string;
-  destructive: boolean;
-  title: string;
 };
 
 const STUDENT_WINDOW_ROW_HEIGHT = 112;
@@ -246,40 +232,6 @@ const PasswordRevealPanel = ({
   </div>
 );
 
-const getConfirmDialogState = (
-  confirmState: StudentConfirmState,
-  deleteBusyId: string | null,
-  resetBusyId: string | null,
-): ConfirmDialogState => {
-  if (!confirmState) {
-    return {
-      actionText: "Подтвердить",
-      busy: false,
-      description: "",
-      destructive: false,
-      title: "",
-    };
-  }
-
-  if (confirmState.kind === "reset_password") {
-    return {
-      actionText: "Сбросить пароль",
-      busy: resetBusyId === confirmState.student.id,
-      description: "Ученику будет выдан новый пароль.",
-      destructive: false,
-      title: `Сбросить пароль для ${confirmState.student.login}?`,
-    };
-  }
-
-  return {
-    actionText: "Удалить",
-    busy: deleteBusyId === confirmState.student.id,
-    description: "Действие необратимо. Ученик и связанные данные будут удалены.",
-    destructive: true,
-    title: `Удалить ученика ${confirmState.student.login}?`,
-  };
-};
-
 const StudentCard = ({
   availableTeachers,
   deleteBusyId,
@@ -420,32 +372,11 @@ const StudentCard = ({
 
 export default function TeacherStudentsPanel({ studentId }: Props) {
   const queryClient = useQueryClient();
-  const [query, setQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [createLogin, setCreateLogin] = useState("");
-  const [createFirstName, setCreateFirstName] = useState("");
-  const [createLastName, setCreateLastName] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [passwordReveal, setPasswordReveal] = useState<PasswordReveal | null>(null);
-  const [resetBusyId, setResetBusyId] = useState<string | null>(null);
-  const [transferStudentId, setTransferStudentId] = useState<string | null>(null);
-  const [transferTeacherId, setTransferTeacherId] = useState<string>("");
-  const [transferBusy, setTransferBusy] = useState(false);
-  const [transferError, setTransferError] = useState<string | null>(null);
-  const [editStudentId, setEditStudentId] = useState<string | null>(null);
-  const [editFirstName, setEditFirstName] = useState("");
-  const [editLastName, setEditLastName] = useState("");
-  const [editBusy, setEditBusy] = useState(false);
-  const [editError, setEditError] = useState<string | null>(null);
-  const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null);
-  const [openActionsStudentId, setOpenActionsStudentId] = useState<string | null>(null);
-  const [confirmState, setConfirmState] = useState<StudentConfirmState>(null);
+  const uiState = useTeacherStudentsUiState({ studentId });
   const studentsQuery = useQuery({
-    queryKey: contentQueryKeys.teacherStudents(debouncedQuery.trim() || undefined),
-    queryFn: () => teacherApi.listStudents({ query: debouncedQuery.trim() || undefined }),
+    queryKey: contentQueryKeys.teacherStudents(uiState.state.debouncedQuery.trim() || undefined),
+    queryFn: () =>
+      teacherApi.listStudents({ query: uiState.state.debouncedQuery.trim() || undefined }),
     enabled: !studentId,
   });
   const teachersQuery = useQuery({
@@ -462,7 +393,21 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
     if (teachersQuery.isError) return formatApiErrorPayload(teachersQuery.error);
     return null;
   }, [studentsQuery.error, studentsQuery.isError, teachersQuery.error, teachersQuery.isError]);
-  const visibleError = error ?? requestError;
+  const visibleError = uiState.state.error ?? requestError;
+
+  useEffect(() => {
+    if (uiState.state.openActionsStudentId && !students.some((student) => student.id === uiState.state.openActionsStudentId)) {
+      uiState.setOpenActionsStudentId(null);
+    }
+    if (uiState.state.edit.studentId && !students.some((student) => student.id === uiState.state.edit.studentId)) {
+      uiState.cancelEdit();
+    }
+  }, [
+    students,
+    uiState,
+    uiState.state.edit.studentId,
+    uiState.state.openActionsStudentId,
+  ]);
 
   const refreshStudents = useCallback(async () => {
     if (studentId) return;
@@ -490,217 +435,137 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
     mutationFn: (targetStudentId: string) => teacherApi.deleteStudent(targetStudentId),
   });
 
-  useEffect(() => {
-    if (studentId) return;
-    const handle = window.setTimeout(() => {
-      setDebouncedQuery(query);
-    }, 300);
-    return () => window.clearTimeout(handle);
-  }, [query, studentId]);
-
-  useEffect(() => {
-    if (!openActionsStudentId) return;
-    if (students.some((student) => student.id === openActionsStudentId)) return;
-    setOpenActionsStudentId(null);
-  }, [openActionsStudentId, students]);
-
-  useEffect(() => {
-    if (!editStudentId) return;
-    if (students.some((student) => student.id === editStudentId)) return;
-    setEditStudentId(null);
-    setEditFirstName("");
-    setEditLastName("");
-    setEditError(null);
-  }, [editStudentId, students]);
-
   const handleCreate = useCallback(async () => {
-    const trimmed = createLogin.trim();
-    if (!trimmed || creating) return;
-    setCreateError(null);
-    setCreating(true);
+    const trimmed = uiState.state.create.login.trim();
+    if (!trimmed || uiState.state.create.loading) return;
+    uiState.setCreateError(null);
+    uiState.setCreateLoading(true);
     try {
       const created = await createStudentMutation.mutateAsync({
         login: trimmed,
-        firstName: createFirstName.trim() || null,
-        lastName: createLastName.trim() || null,
+        firstName: uiState.state.create.firstName.trim() || null,
+        lastName: uiState.state.create.lastName.trim() || null,
       });
-      setCreateLogin("");
-      setCreateFirstName("");
-      setCreateLastName("");
-      setShowCreateForm(false);
-      setPasswordReveal({
+      uiState.closeCreate();
+      uiState.showPasswordReveal({
         login: created.login,
         password: created.password,
         label: "Новый ученик создан",
       });
       await refreshStudents();
     } catch (err) {
-      setCreateError(formatApiErrorPayload(err));
+      uiState.setCreateError(formatApiErrorPayload(err));
     } finally {
-      setCreating(false);
+      uiState.setCreateLoading(false);
     }
-  }, [createFirstName, createLastName, createLogin, createStudentMutation, creating, refreshStudents]);
+  }, [
+    createStudentMutation,
+    refreshStudents,
+    uiState,
+  ]);
 
   const handleResetPassword = async (student: StudentSummary) => {
-    if (resetBusyId) return;
-    setResetBusyId(student.id);
-    setError(null);
+    if (uiState.state.resetBusyId) return;
+    uiState.setResetBusyId(student.id);
+    uiState.setError(null);
     try {
       const data = await resetPasswordMutation.mutateAsync(student.id);
-      setPasswordReveal({
+      uiState.showPasswordReveal({
         login: data.login,
         password: data.password,
         label: "Пароль обновлён",
       });
     } catch (err) {
-      setError(formatApiErrorPayload(err));
+      uiState.setError(formatApiErrorPayload(err));
     } finally {
-      setResetBusyId(null);
+      uiState.setResetBusyId(null);
     }
   };
 
   const handleStartTransfer = (student: StudentSummary) => {
-    setTransferError(null);
-    setOpenActionsStudentId(null);
-    if (transferStudentId === student.id) {
-      setTransferStudentId(null);
-      setTransferTeacherId("");
-      return;
-    }
-    setTransferStudentId(student.id);
-    setTransferTeacherId("");
+    uiState.startTransfer(student);
   };
 
   const handleTransfer = async (student: StudentSummary) => {
-    if (!transferTeacherId || transferBusy) return;
-    setTransferBusy(true);
-    setTransferError(null);
+    if (!uiState.state.transfer.teacherId || uiState.state.transfer.busy) return;
+    uiState.setTransferBusy(true);
+    uiState.setTransferError(null);
     try {
       await transferStudentMutation.mutateAsync({
         studentId: student.id,
-        leaderTeacherId: transferTeacherId,
+        leaderTeacherId: uiState.state.transfer.teacherId,
       });
-      setTransferStudentId(null);
-      setTransferTeacherId("");
+      uiState.completeTransfer();
       await refreshStudents();
     } catch (err) {
-      setTransferError(formatApiErrorPayload(err));
+      uiState.setTransferError(formatApiErrorPayload(err));
     } finally {
-      setTransferBusy(false);
+      uiState.setTransferBusy(false);
     }
   };
 
   const handleStartEdit = (student: StudentSummary) => {
-    setEditError(null);
-    setOpenActionsStudentId(null);
-    setTransferStudentId(null);
-    setTransferTeacherId("");
-    setEditStudentId(student.id);
-    setEditFirstName(student.firstName ?? "");
-    setEditLastName(student.lastName ?? "");
+    uiState.startEdit(student);
   };
 
   const handleSaveEdit = async (student: StudentSummary) => {
-    if (editBusy) return;
-    setEditBusy(true);
-    setEditError(null);
+    if (uiState.state.edit.busy) return;
+    uiState.setEditBusy(true);
+    uiState.setEditError(null);
     try {
       await updateStudentMutation.mutateAsync({
         studentId: student.id,
-        firstName: editFirstName.trim() || null,
-        lastName: editLastName.trim() || null,
+        firstName: uiState.state.edit.firstName.trim() || null,
+        lastName: uiState.state.edit.lastName.trim() || null,
       });
-      setEditStudentId(null);
-      setEditFirstName("");
-      setEditLastName("");
+      uiState.completeEdit();
       await refreshStudents();
     } catch (err) {
-      setEditError(formatApiErrorPayload(err));
+      uiState.setEditError(formatApiErrorPayload(err));
     } finally {
-      setEditBusy(false);
+      uiState.setEditBusy(false);
     }
   };
 
   const handleDelete = async (student: StudentSummary) => {
-    if (deleteBusyId) return;
-    setDeleteBusyId(student.id);
-    setError(null);
+    if (uiState.state.deleteBusyId) return;
+    uiState.setDeleteBusyId(student.id);
+    uiState.setError(null);
     try {
       await deleteStudentMutation.mutateAsync(student.id);
-      setOpenActionsStudentId((prev) => (prev === student.id ? null : prev));
-      if (editStudentId === student.id) {
-        setEditStudentId(null);
-        setEditFirstName("");
-        setEditLastName("");
-      }
-      if (transferStudentId === student.id) {
-        setTransferStudentId(null);
-        setTransferTeacherId("");
-      }
+      uiState.completeDelete(student.id);
       await refreshStudents();
     } catch (err) {
-      setError(formatApiErrorPayload(err));
+      uiState.setError(formatApiErrorPayload(err));
     } finally {
-      setDeleteBusyId(null);
+      uiState.setDeleteBusyId(null);
     }
   };
 
-  const handleCreateCancel = useCallback(() => {
-    setShowCreateForm(false);
-    setCreateLogin("");
-    setCreateFirstName("");
-    setCreateLastName("");
-    setCreateError(null);
-  }, []);
-
-  const handleEditCancel = useCallback(() => {
-    setEditStudentId(null);
-    setEditFirstName("");
-    setEditLastName("");
-    setEditError(null);
-  }, []);
-
-  const handleTransferCancel = useCallback(() => {
-    setTransferStudentId(null);
-    setTransferTeacherId("");
-    setTransferError(null);
-  }, []);
-
-  const handleResetPasswordConfirm = useCallback(
-    (student: StudentSummary) => {
-      setOpenActionsStudentId(null);
-      setConfirmState({ kind: "reset_password", student });
-    },
-    [],
-  );
-
-  const handleDeleteConfirm = useCallback(
-    (student: StudentSummary) => {
-      setOpenActionsStudentId(null);
-      setConfirmState({ kind: "delete_student", student });
-    },
-    [],
-  );
-
   const confirmDialogState = useMemo(
-    () => getConfirmDialogState(confirmState, deleteBusyId, resetBusyId),
-    [confirmState, deleteBusyId, resetBusyId],
+    () =>
+      getConfirmDialogState(
+        uiState.state.confirmState,
+        uiState.state.deleteBusyId,
+        uiState.state.resetBusyId,
+      ),
+    [uiState.state.confirmState, uiState.state.deleteBusyId, uiState.state.resetBusyId],
   );
 
   const handleConfirmAction = async () => {
-    if (!confirmState) return;
-    if (confirmState.kind === "reset_password") {
-      await handleResetPassword(confirmState.student);
+    if (!uiState.state.confirmState) return;
+    if (uiState.state.confirmState.kind === "reset_password") {
+      await handleResetPassword(uiState.state.confirmState.student);
     } else {
-      await handleDelete(confirmState.student);
+      await handleDelete(uiState.state.confirmState.student);
     }
-    setConfirmState(null);
+    uiState.closeConfirm();
   };
 
   const handleCopyPassword = async () => {
-    if (!passwordReveal?.password) return;
+    if (!uiState.state.passwordReveal?.password) return;
     try {
-      await navigator.clipboard.writeText(passwordReveal.password);
+      await navigator.clipboard.writeText(uiState.state.passwordReveal.password);
     } catch {
       /* noop */
     }
@@ -741,8 +606,8 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
   };
 
   const editingStudent = useMemo(
-    () => students.find((student) => student.id === editStudentId) ?? null,
-    [editStudentId, students],
+    () => students.find((student) => student.id === uiState.state.edit.studentId) ?? null,
+    [students, uiState.state.edit.studentId],
   );
 
   if (studentId) {
@@ -765,21 +630,15 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
         <div className={styles.search}>
           <FieldLabel className={styles.label} label="Поиск по имени или логину">
             <Input
-              value={query}
+              value={uiState.state.query}
               placeholder="Например: Петров или student01…"
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => uiState.setQuery(event.target.value)}
             />
           </FieldLabel>
         </div>
         <Button
           className={styles.createButton}
-          onClick={() => {
-            setShowCreateForm(true);
-            setCreateError(null);
-            setPasswordReveal(null);
-            setTransferStudentId(null);
-            setTransferTeacherId("");
-          }}
+          onClick={uiState.openCreate}
         >
           Добавить ученика
         </Button>
@@ -811,26 +670,26 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
                   <StudentCard
                     key={student.id}
                     availableTeachers={availableTeachers}
-                    deleteBusyId={deleteBusyId}
+                    deleteBusyId={uiState.state.deleteBusyId}
                     getDisplayName={getDisplayName}
                     handleStartEdit={handleStartEdit}
                     handleStartTransfer={handleStartTransfer}
-                    onDeleteStudent={handleDeleteConfirm}
+                    onDeleteStudent={uiState.openDeleteConfirm}
                     onOpenActionsChange={(open, targetStudentId) =>
-                      setOpenActionsStudentId(open ? targetStudentId : null)
+                      uiState.setOpenActionsStudentId(open ? targetStudentId : null)
                     }
-                    onResetPassword={handleResetPasswordConfirm}
+                    onResetPassword={uiState.openResetPasswordConfirm}
                     onTransfer={(targetStudent) => void handleTransfer(targetStudent)}
-                    onTransferCancel={handleTransferCancel}
-                    onTransferTeacherChange={setTransferTeacherId}
-                    openActionsStudentId={openActionsStudentId}
-                    resetBusyId={resetBusyId}
+                    onTransferCancel={uiState.cancelTransfer}
+                    onTransferTeacherChange={uiState.setTransferTeacherId}
+                    openActionsStudentId={uiState.state.openActionsStudentId}
+                    resetBusyId={uiState.state.resetBusyId}
                     student={student}
-                    transferBusy={transferBusy || loadingTeachers}
+                    transferBusy={uiState.state.transfer.busy || loadingTeachers}
                     transferSelectDisabled={loadingTeachers}
-                    transferError={transferError}
-                    transferStudentId={transferStudentId}
-                    transferTeacherId={transferTeacherId}
+                    transferError={uiState.state.transfer.error}
+                    transferStudentId={uiState.state.transfer.studentId}
+                    transferTeacherId={uiState.state.transfer.teacherId}
                     profileHref={`/teacher/students/${student.id}`}
                     reviewInboxHref={`/teacher/review?status=pending_review&sort=oldest&studentId=${student.id}`}
                   />
@@ -843,10 +702,10 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
         </div>
       </div>
       <Dialog
-        open={showCreateForm}
+        open={uiState.state.create.open}
         onOpenChange={(open) => {
           if (!open) {
-            handleCreateCancel();
+            uiState.closeCreate();
           }
         }}
         title="Создание ученика"
@@ -854,16 +713,16 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
         overlayClassName={styles.dialogOverlay}
       >
         <StudentIdentityForm
-          login={createLogin}
-          firstName={createFirstName}
-          lastName={createLastName}
+          login={uiState.state.create.login}
+          firstName={uiState.state.create.firstName}
+          lastName={uiState.state.create.lastName}
           submitLabel="Создать"
-          submitDisabled={creating || !createLogin.trim()}
-          error={createError}
-          onCancel={handleCreateCancel}
-          onFirstNameChange={setCreateFirstName}
-          onLastNameChange={setCreateLastName}
-          onLoginChange={setCreateLogin}
+          submitDisabled={uiState.state.create.loading || !uiState.state.create.login.trim()}
+          error={uiState.state.create.error}
+          onCancel={uiState.closeCreate}
+          onFirstNameChange={uiState.setCreateFirstName}
+          onLastNameChange={uiState.setCreateLastName}
+          onLoginChange={uiState.setCreateLogin}
           onSubmit={() => void handleCreate()}
         />
       </Dialog>
@@ -871,7 +730,7 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
         open={Boolean(editingStudent)}
         onOpenChange={(open) => {
           if (!open) {
-            handleEditCancel();
+            uiState.cancelEdit();
           }
         }}
         title={editingStudent ? `Редактирование ученика ${editingStudent.login}` : undefined}
@@ -882,41 +741,41 @@ export default function TeacherStudentsPanel({ studentId }: Props) {
           <StudentIdentityForm
             login={editingStudent.login}
             loginReadOnly
-            firstName={editFirstName}
-            lastName={editLastName}
+            firstName={uiState.state.edit.firstName}
+            lastName={uiState.state.edit.lastName}
             submitLabel="Сохранить"
-            submitDisabled={editBusy}
-            error={editError}
-            onCancel={handleEditCancel}
-            onFirstNameChange={setEditFirstName}
-            onLastNameChange={setEditLastName}
+            submitDisabled={uiState.state.edit.busy}
+            error={uiState.state.edit.error}
+            onCancel={uiState.cancelEdit}
+            onFirstNameChange={uiState.setEditFirstName}
+            onLastNameChange={uiState.setEditLastName}
             onSubmit={() => void handleSaveEdit(editingStudent)}
           />
         ) : null}
       </Dialog>
       <Dialog
-        open={Boolean(passwordReveal)}
+        open={Boolean(uiState.state.passwordReveal)}
         onOpenChange={(open) => {
           if (!open) {
-            setPasswordReveal(null);
+            uiState.hidePasswordReveal();
           }
         }}
-        title={passwordReveal?.label}
+        title={uiState.state.passwordReveal?.label}
         className={styles.dialog}
         overlayClassName={styles.dialogOverlay}
       >
-        {passwordReveal ? (
+        {uiState.state.passwordReveal ? (
           <PasswordRevealPanel
             onCopyPassword={() => void handleCopyPassword()}
-            onHide={() => setPasswordReveal(null)}
-            passwordReveal={passwordReveal}
+            onHide={uiState.hidePasswordReveal}
+            passwordReveal={uiState.state.passwordReveal as PasswordReveal}
           />
         ) : null}
       </Dialog>
       <AlertDialog
-        open={Boolean(confirmState)}
+        open={Boolean(uiState.state.confirmState)}
         onOpenChange={(open) => {
-          if (!open) setConfirmState(null);
+          if (!open) uiState.closeConfirm();
         }}
         title={confirmDialogState.title}
         description={confirmDialogState.description}

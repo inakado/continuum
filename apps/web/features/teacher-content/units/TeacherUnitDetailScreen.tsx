@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  type ComponentProps,
   type Dispatch,
   useCallback,
   useEffect,
@@ -16,9 +15,6 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Trash2 } from "lucide-react";
-import { EditorView } from "@codemirror/view";
-import { StreamLanguage } from "@codemirror/language";
-import { stex } from "@codemirror/legacy-modes/mode/stex";
 import DashboardShell from "@/components/DashboardShell";
 import AlertDialog from "@/components/ui/AlertDialog";
 import Button from "@/components/ui/Button";
@@ -332,7 +328,6 @@ function TeacherUnitTabContent({
   statementImage,
   actions,
   layout,
-  latexExtensions,
   minCountedInput,
   progressSaveState,
   renderedContent,
@@ -350,57 +345,22 @@ function TeacherUnitTabContent({
   statementImage: ReturnType<typeof useTeacherTaskStatementImage>;
   actions: ReturnType<typeof useTeacherUnitScreenActions>;
   layout: ReturnType<typeof useTeacherUnitEditorLayout>;
-  latexExtensions: ComponentProps<typeof TeacherUnitLatexPanel>["editorExtensions"];
   minCountedInput: string;
   progressSaveState: ReturnType<typeof useTeacherUnitFetchSave>["progressSaveState"];
   renderedContent: ReturnType<typeof useTeacherUnitRenderedContent>;
 }) {
   if (activeTab === "theory" || activeTab === "method") {
-    const target = activeTab;
-    const title = target === "theory" ? "Теория" : "Методика";
-    const compileState = compile.compileState[target];
-    const previewUrl = compile.previewUrls[target];
-    const refreshKey =
-      compile.compileState[target].key ??
-      (target === "theory" ? unit?.theoryPdfAssetKey : unit?.methodPdfAssetKey) ??
-      undefined;
-    const getFreshUrl = target === "theory" ? compile.refreshTheoryPreviewUrl : compile.refreshMethodPreviewUrl;
-    const renderedPreview = target === "theory" ? renderedContent.theoryContent : renderedContent.methodContent;
-    const renderedPreviewLoading = target === "theory" ? renderedContent.theoryLoading : renderedContent.methodLoading;
-    const renderedPreviewError = target === "theory" ? renderedContent.theoryError : renderedContent.methodError;
-    const refreshRenderedPreview =
-      target === "theory" ? renderedContent.refreshTheoryContent : renderedContent.refreshMethodContent;
-    const onCompile = () => void compile.runCompile(target);
-    const showOpenLogAction =
-      compileState.error === "Компиляция не удалась. Откройте лог." &&
-      compile.compileErrorModalState?.target === target;
-    const onOpenCompileLog = () => compile.reopenCompileErrorModal(target);
-
     return (
-      <TeacherUnitLatexPanel
-        title={title}
-        value={target === "theory" ? theoryText : methodText}
-        onChange={target === "theory" ? setTheoryText : setMethodText}
-        editorExtensions={latexExtensions}
-        editorGridRef={layout.editorGridRef}
-        editorGridStyle={layout.editorGridStyle}
-        isResizingLayout={layout.isResizingLayout}
-        minPreviewWidthPercent={25}
-        maxPreviewWidthPercent={60}
-        previewWidthPercent={layout.previewWidthPercent}
-        onSplitterPointerDown={layout.handleSplitterPointerDown}
-        onSplitterKeyDown={layout.handleSplitterKeyDown}
-        compileState={compileState}
-        onCompile={onCompile}
-        showOpenLogAction={showOpenLogAction}
-        onOpenCompileLog={onOpenCompileLog}
-        previewUrl={previewUrl}
-        refreshKey={refreshKey}
-        getFreshUrl={getFreshUrl}
-        renderedContent={renderedPreview}
-        renderedContentLoading={renderedPreviewLoading}
-        renderedContentError={renderedPreviewError}
-        refreshRenderedContent={refreshRenderedPreview}
+      <TeacherUnitLatexTabContent
+        activeTab={activeTab}
+        unit={unit}
+        theoryText={theoryText}
+        setTheoryText={setTheoryText}
+        methodText={methodText}
+        setMethodText={setMethodText}
+        compile={compile}
+        layout={layout}
+        renderedContent={renderedContent}
       />
     );
   }
@@ -472,6 +432,75 @@ function TeacherUnitTabContent({
           onOpenCompileLog={() => compile.reopenCompileErrorModal("task_solution")}
         />
       }
+    />
+  );
+}
+
+function TeacherUnitLatexTabContent({
+  activeTab,
+  unit,
+  theoryText,
+  setTheoryText,
+  methodText,
+  setMethodText,
+  compile,
+  layout,
+  renderedContent,
+}: {
+  activeTab: "theory" | "method";
+  unit: ReturnType<typeof useTeacherUnitFetchSave>["unit"];
+  theoryText: string;
+  setTheoryText: Dispatch<SetStateAction<string>>;
+  methodText: string;
+  setMethodText: Dispatch<SetStateAction<string>>;
+  compile: ReturnType<typeof useTeacherUnitLatexCompile>;
+  layout: ReturnType<typeof useTeacherUnitEditorLayout>;
+  renderedContent: ReturnType<typeof useTeacherUnitRenderedContent>;
+}) {
+  const target = activeTab;
+  const title = target === "theory" ? "Теория" : "Методика";
+  const compileState = compile.compileState[target];
+  const previewUrl = compile.previewUrls[target];
+  const refreshKey =
+    compile.compileState[target].key ??
+    (target === "theory" ? unit?.theoryPdfAssetKey : unit?.methodPdfAssetKey) ??
+    undefined;
+  const getFreshUrl = target === "theory" ? compile.refreshTheoryPreviewUrl : compile.refreshMethodPreviewUrl;
+  const renderedPreview = target === "theory" ? renderedContent.theoryContent : renderedContent.methodContent;
+  const renderedPreviewLoading = target === "theory" ? renderedContent.theoryLoading : renderedContent.methodLoading;
+  const renderedPreviewError = target === "theory" ? renderedContent.theoryError : renderedContent.methodError;
+  const refreshRenderedPreview =
+    target === "theory" ? renderedContent.refreshTheoryContent : renderedContent.refreshMethodContent;
+  const onCompile = () => void compile.runCompile(target);
+  const showOpenLogAction =
+    compileState.error === "Компиляция не удалась. Откройте лог." &&
+    compile.compileErrorModalState?.target === target;
+  const onOpenCompileLog = () => compile.reopenCompileErrorModal(target);
+
+  return (
+    <TeacherUnitLatexPanel
+      title={title}
+      value={target === "theory" ? theoryText : methodText}
+      onChange={target === "theory" ? setTheoryText : setMethodText}
+      editorGridRef={layout.editorGridRef}
+      editorGridStyle={layout.editorGridStyle}
+      isResizingLayout={layout.isResizingLayout}
+      minPreviewWidthPercent={25}
+      maxPreviewWidthPercent={60}
+      previewWidthPercent={layout.previewWidthPercent}
+      onSplitterPointerDown={layout.handleSplitterPointerDown}
+      onSplitterKeyDown={layout.handleSplitterKeyDown}
+      compileState={compileState}
+      onCompile={onCompile}
+      showOpenLogAction={showOpenLogAction}
+      onOpenCompileLog={onOpenCompileLog}
+      previewUrl={previewUrl}
+      refreshKey={refreshKey}
+      getFreshUrl={getFreshUrl}
+      renderedContent={renderedPreview}
+      renderedContentLoading={renderedPreviewLoading}
+      renderedContentError={renderedPreviewError}
+      refreshRenderedContent={refreshRenderedPreview}
     />
   );
 }
@@ -552,7 +581,6 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
     [],
   );
 
-  const latexExtensions = useMemo(() => [StreamLanguage.define(stex), EditorView.lineWrapping], []);
   const activePanelId = `${tabsId}-${activeTab}-panel`;
   const activeTabId = `${tabsId}-${activeTab}`;
 
@@ -610,11 +638,10 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
             statementImage={statementImage}
             actions={actions}
             layout={layout}
-            latexExtensions={latexExtensions}
             minCountedInput={fetchSave.minCountedInput}
-        progressSaveState={fetchSave.progressSaveState}
-        renderedContent={renderedContent}
-      />
+            progressSaveState={fetchSave.progressSaveState}
+            renderedContent={renderedContent}
+          />
         </div>
       </div>
 

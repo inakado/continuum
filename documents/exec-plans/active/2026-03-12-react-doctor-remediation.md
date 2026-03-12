@@ -109,6 +109,23 @@
   2. `PdfCanvasPreview` — изоляция document loading / rendering / inertial scroll в focused hooks;
   3. `TeacherUnitDetailScreen` — dynamic split editor path и декомпозиция tab content;
   4. `StudentDashboardScreen` — только после стабилизации teacher-side refactors, отдельно от product redesign.
+- `2026-03-12`: выполнен первый подэтап structural wave для `TeacherStudentsPanel`:
+  - локальный dialog/action/confirm/search state вынесен в `useTeacherStudentsUiState`;
+  - `@tanstack/react-query` сохранён источником истины только для students/teachers read-path и CRUD/reset mutations;
+  - root panel оставлен orchestration/composition слоем без возврата к derived-state effects;
+  - подтверждено, что create/edit/transfer/delete/reset password сценарии проходят на существующем test coverage.
+- `2026-03-12`: выполнен technical split для `PdfCanvasPreview`:
+  - `document loading`, refresh просроченной PDF URL, viewport width sync и inertial scroll вынесены в focused hooks;
+  - публичный API `PdfCanvasPreview` сохранён без изменений;
+  - smoke tests по загрузке/refresh error/refresh retry остались зелёными.
+- `2026-03-12`: выполнен safe bundle split для `TeacherUnitDetailScreen`:
+  - editor-only stack вынесен в lazy leaf `TeacherLatexEditor`;
+  - `TeacherUnitDetailScreen` больше не импортирует `@codemirror/view` / `StreamLanguage` напрямую;
+  - `TeacherUnitTabContent` разделён на latex/tasks branches без изменения compile/save contracts.
+- `2026-03-12`: для `StudentDashboardScreen` закрыт безопасный performance slice без переписывания history model:
+  - прямой `motion` заменён на `LazyMotion + m`;
+  - существующий restore/navigation UX сохранён на тестах;
+  - более глубокое разделение navigation/history state оставлено следующей отдельной волной.
 
 ## 10. Следующая последовательность
 
@@ -169,6 +186,17 @@
 
 - `pnpm --filter web exec eslint ...` по изменённому срезу — `OK` (кроме pre-existing complexity warning в `TeacherUnitDetailScreen`, не связанного с регрессией поведения).
 - `pnpm --filter web typecheck` — `OK`.
+- `pnpm exec eslint features/teacher-students/TeacherStudentsPanel.tsx features/teacher-students/hooks/use-teacher-students-ui-state.ts` в `apps/web` — `OK`.
+- `pnpm exec tsc --noEmit` в `apps/web` — `OK`.
+- `pnpm exec eslint components/PdfCanvasPreview.tsx components/pdf-preview-hooks.ts` в `apps/web` — `OK`.
+- `pnpm exec vitest run --config vitest.config.ts components/PdfCanvasPreview.test.tsx` — `OK`.
+- `pnpm exec eslint features/teacher-content/units/TeacherUnitDetailScreen.tsx features/teacher-content/units/components/TeacherUnitLatexPanel.tsx features/teacher-content/units/components/TeacherLatexEditor.tsx` в `apps/web` — `OK`.
+- `pnpm exec vitest run --config vitest.config.ts features/teacher-content/units/TeacherUnitDetailScreen.test.tsx` — `OK`.
+- `pnpm exec eslint features/student-dashboard/StudentDashboardScreen.tsx` в `apps/web` — `OK`.
+- `pnpm exec vitest run --config vitest.config.ts features/student-dashboard/StudentDashboardScreen.test.tsx` — `OK`.
+- targeted `vitest` для wave 5 / step 1:
+  - `features/teacher-students/TeacherStudentsPanel.test.tsx` — `OK`
+  - `features/teacher-students/TeacherStudentProfilePanel.test.tsx` — `OK`
 - targeted `vitest`:
   - `features/student-dashboard/StudentDashboardScreen.test.tsx` — `OK`
   - `features/teacher-dashboard/TeacherDashboardScreen.test.tsx` — `OK`

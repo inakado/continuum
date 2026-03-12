@@ -12,7 +12,6 @@ import {
   useRef,
   useState,
 } from "react";
-import type CodeMirrorComponent from "@uiw/react-codemirror";
 import Button from "@/components/ui/Button";
 import Tabs from "@/components/ui/Tabs";
 import type PdfCanvasPreviewComponent from "@/components/PdfCanvasPreview";
@@ -20,11 +19,9 @@ import type { TeacherUnitRenderedContentResponse } from "@/lib/api/teacher";
 import type { CompileState } from "../hooks/use-teacher-unit-latex-compile";
 import { typesetMathInElement } from "../../../student-content/units/mathjax-helper";
 import styles from "../teacher-unit-detail.module.css";
-
-type CodeMirrorProps = ComponentProps<typeof CodeMirrorComponent>;
 type PdfCanvasPreviewProps = ComponentProps<typeof PdfCanvasPreviewComponent>;
 
-const CodeMirror = dynamic<CodeMirrorProps>(() => import("@uiw/react-codemirror"), {
+const TeacherLatexEditor = dynamic(() => import("./TeacherLatexEditor").then((module) => module.TeacherLatexEditor), {
   ssr: false,
   loading: () => <div className={styles.editorLoading}>Загрузка редактора…</div>,
 });
@@ -38,7 +35,6 @@ type Props = {
   title: string;
   value: string;
   onChange: (value: string) => void;
-  editorExtensions: CodeMirrorProps["extensions"];
   editorGridRef: RefObject<HTMLDivElement | null>;
   editorGridStyle: CSSProperties;
   isResizingLayout: boolean;
@@ -66,7 +62,6 @@ export function TeacherUnitLatexPanel({
   title,
   value,
   onChange,
-  editorExtensions,
   editorGridRef,
   editorGridStyle,
   isResizingLayout,
@@ -163,13 +158,7 @@ export function TeacherUnitLatexPanel({
     >
       <div className={styles.editorPanel}>
         <div className={styles.kicker}>{title}</div>
-        <CodeMirror
-          className={styles.codeEditor}
-          value={value}
-          height="100%"
-          onChange={onChange}
-          extensions={editorExtensions}
-        />
+        <TeacherLatexEditor value={value} onChange={onChange} />
       </div>
       <div
         role="separator"

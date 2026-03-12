@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence, motion, type Variants } from "framer-motion";
+import { AnimatePresence, LazyMotion, domAnimation, m, type Variants } from "framer-motion";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -183,7 +183,7 @@ const ProgressBar = ({
       {showValue ? <span>{value}%</span> : null}
     </div>
     <div className={styles.progressTrack} aria-hidden="true">
-      <motion.div
+      <m.div
         className={styles.progressFill}
         initial={{ width: 0 }}
         animate={{ width: `${value}%` }}
@@ -234,7 +234,7 @@ const StudentCourseCarousel = ({
     <div className={styles.carouselRoot}>
       <div className={styles.carouselActiveArea}>
         <AnimatePresence mode="wait">
-          <motion.div
+          <m.div
             key={activeCourse.id}
             className={styles.carouselActiveCard}
             initial={carouselSwapMotion.initial}
@@ -296,7 +296,7 @@ const StudentCourseCarousel = ({
                 </button>
               </div>
             </div>
-          </motion.div>
+          </m.div>
         </AnimatePresence>
       </div>
 
@@ -307,7 +307,7 @@ const StudentCourseCarousel = ({
               const originalIndex = courses.findIndex((candidate) => candidate.id === course.id);
               const courseCoverUrl = getCourseCoverUrl(dashboardOverview, course.id);
               return (
-                <motion.button
+                <m.button
                   key={course.id}
                   type="button"
                   className={styles.deckCard}
@@ -349,7 +349,7 @@ const StudentCourseCarousel = ({
                     ) : null}
                     <h3 className={styles.deckTitle}>{course.title}</h3>
                   </div>
-                </motion.button>
+                </m.button>
               );
             })}
           </AnimatePresence>
@@ -382,17 +382,17 @@ const StudentCoursesView = ({
     : null;
 
   return (
-    <motion.div variants={motionContainer} initial="hidden" animate="show" className={styles.panel}>
+    <m.div variants={motionContainer} initial="hidden" animate="show" className={styles.panel}>
       <div className={styles.pageGlow} aria-hidden="true" />
 
-      <motion.section variants={motionItem} className={styles.pageIntro}>
+      <m.section variants={motionItem} className={styles.pageIntro}>
         <h1 className={styles.pageTitle}>Мои курсы</h1>
         <p className={styles.pageSubtitle}>
           Выберите курс, чтобы продолжить обучение. Здесь собраны все доступные программы.
         </p>
-      </motion.section>
+      </m.section>
 
-      <motion.section variants={motionItem}>
+      <m.section variants={motionItem}>
         {loadingCourses ? (
           <div className={styles.empty}>Загрузка курсов…</div>
         ) : (
@@ -403,9 +403,9 @@ const StudentCoursesView = ({
             onCourseClick={onCourseClick}
           />
         )}
-      </motion.section>
+      </m.section>
 
-      <motion.section variants={motionItem} className={styles.bottomGrid}>
+      <m.section variants={motionItem} className={styles.bottomGrid}>
         <div className={styles.continueCard}>
           <div className={styles.continueGlow} aria-hidden="true" />
 
@@ -467,8 +467,8 @@ const StudentCoursesView = ({
             )}
           </div>
         </div>
-      </motion.section>
-    </motion.div>
+      </m.section>
+    </m.div>
   );
 };
 
@@ -485,17 +485,17 @@ const StudentSectionsView = ({
   onSectionClick: (section: Section) => void;
   sections: Section[];
 }) => (
-  <motion.div variants={motionContainer} initial="hidden" animate="show" className={styles.sectionsPage}>
+  <m.div variants={motionContainer} initial="hidden" animate="show" className={styles.sectionsPage}>
     <div className={styles.pageGlow} aria-hidden="true" />
 
-    <motion.div variants={motionItem} className={styles.sectionsBackRow}>
+    <m.div variants={motionItem} className={styles.sectionsBackRow}>
       <button type="button" className={styles.backChip} onClick={onBackToCourses}>
         <ChevronLeft size={14} aria-hidden="true" />
         <span>Курсы</span>
       </button>
-    </motion.div>
+    </m.div>
 
-    <motion.header variants={motionItem} className={styles.sectionsHeader}>
+    <m.header variants={motionItem} className={styles.sectionsHeader}>
       <div className={styles.sectionsMainCard}>
         <div className={styles.sectionsHero}>
           <div className={styles.sectionsHeroCopy}>
@@ -527,9 +527,9 @@ const StudentSectionsView = ({
           </div>
         </div>
       </div>
-    </motion.header>
+    </m.header>
 
-    <motion.section variants={motionItem} className={styles.sectionsListWrap}>
+    <m.section variants={motionItem} className={styles.sectionsListWrap}>
       <div className={styles.sectionsListHead}>
         <h2 className={styles.sectionsListTitle}>Разделы курса</h2>
       </div>
@@ -539,7 +539,7 @@ const StudentSectionsView = ({
           <div className={styles.empty}>Разделов пока нет</div>
         ) : (
           sections.map((section, index) => (
-            <motion.button
+            <m.button
               key={section.id}
               type="button"
               variants={motionItem}
@@ -583,12 +583,12 @@ const StudentSectionsView = ({
                   <ArrowRight size={14} />
                 </span>
               </div>
-            </motion.button>
+            </m.button>
           ))
         )}
       </div>
-    </motion.section>
-  </motion.div>
+    </m.section>
+  </m.div>
 );
 
 const StudentDashboardPanel = ({
@@ -1082,23 +1082,25 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
           </div>
         ) : null}
 
-        <StudentDashboardPanel
-          boot={boot}
-          courses={courses}
-          dashboardOverview={dashboardOverview}
-          loadingCourses={loadingCourses}
-          onBackToCourses={handleBackToCourses}
-          onCourseClick={handleCourseClick}
-          onContinueLearning={handleContinueLearning}
-          onGraphNotFound={handleGraphNotFound}
-          onSectionClick={handleSectionClick}
-          onSectionsBack={handleBackToSections}
-          sections={sortedSections}
-          selectedCourse={selectedCourse}
-          selectedSectionId={selectedSectionId}
-          selectedSectionTitle={selectedSectionTitle}
-          view={view}
-        />
+        <LazyMotion features={domAnimation}>
+          <StudentDashboardPanel
+            boot={boot}
+            courses={courses}
+            dashboardOverview={dashboardOverview}
+            loadingCourses={loadingCourses}
+            onBackToCourses={handleBackToCourses}
+            onCourseClick={handleCourseClick}
+            onContinueLearning={handleContinueLearning}
+            onGraphNotFound={handleGraphNotFound}
+            onSectionClick={handleSectionClick}
+            onSectionsBack={handleBackToSections}
+            sections={sortedSections}
+            selectedCourse={selectedCourse}
+            selectedSectionId={selectedSectionId}
+            selectedSectionTitle={selectedSectionTitle}
+            view={view}
+          />
+        </LazyMotion>
       </div>
     </DashboardShell>
   );
