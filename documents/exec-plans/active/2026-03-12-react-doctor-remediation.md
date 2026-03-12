@@ -130,6 +130,10 @@
   - history/popstate/localStorage restore и view-selection orchestration вынесены в `useStudentDashboardNavigation`;
   - `StudentDashboardScreen` оставлен точкой `TanStack Query` wiring и render composition;
   - сохранены текущие `/student` history contracts и restore behavior из `LAST_SECTION_KEY`.
+- `2026-03-12`: выполнена cleanup-wave по дешёвым high-signal warnings:
+  - удалены неиспользуемые dev-only login screens `StudentLoginScreen` / `TeacherLoginScreen` и их CSS;
+  - убраны лишние exported dead-code хвосты (`PdfPreviewScrollFeel`, internal confirm types, дублирующий `PDF_ZOOM_STEP` в rendered-content hook);
+  - `StudentDashboardEntry` повторно проверен и оставлен без изменений: локальный `<Suspense>` уже есть, warning выглядит как эвристика инструмента, а не как реальная route regression.
 
 ## 10. Следующая последовательность
 
@@ -200,6 +204,8 @@
 - `pnpm exec vitest run --config vitest.config.ts features/student-dashboard/StudentDashboardScreen.test.tsx` — `OK`.
 - `pnpm exec eslint features/student-dashboard/StudentDashboardScreen.tsx features/student-dashboard/hooks/use-student-dashboard-navigation.ts` в `apps/web` — `OK`.
 - `pnpm exec vitest run --config vitest.config.ts features/student-dashboard/StudentDashboardScreen.test.tsx` после navigation refactor — `OK`.
+- `pnpm exec eslint components/pdf-preview-hooks.ts features/student-content/units/hooks/use-student-unit-rendered-content.ts features/teacher-students/hooks/use-teacher-students-ui-state.ts features/student-dashboard/StudentDashboardEntry.tsx` в `apps/web` — `OK`.
+- `pnpm exec tsc --noEmit` после cleanup-wave — `OK`.
 - targeted `vitest` для wave 5 / step 1:
   - `features/teacher-students/TeacherStudentsPanel.test.tsx` — `OK`
   - `features/teacher-students/TeacherStudentProfilePanel.test.tsx` — `OK`

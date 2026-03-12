@@ -7,7 +7,7 @@ import type {
 } from "pdfjs-dist/types/src/display/api";
 import type * as PdfJsModule from "pdfjs-dist";
 
-export type PdfPreviewScrollFeel = "native" | "inertial-heavy";
+type PdfPreviewScrollFeel = "native" | "inertial-heavy";
 
 const INERTIA_LERP = 0.14;
 const INERTIA_DECAY = 0.9;

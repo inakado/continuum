@@ -7,12 +7,12 @@ export type PasswordReveal = {
   label: string;
 };
 
-export type StudentConfirmState =
+type StudentConfirmState =
   | { kind: "reset_password"; student: StudentSummary }
   | { kind: "delete_student"; student: StudentSummary }
   | null;
 
-export type ConfirmDialogState = {
+type ConfirmDialogState = {
   title: string;
   description: string;
   actionText: string;

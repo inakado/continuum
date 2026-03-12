@@ -6,7 +6,6 @@ import { getStudentErrorMessage } from "../../shared/student-errors";
 
 export const PDF_ZOOM_MIN = 0.5;
 export const PDF_ZOOM_MAX = 1.4;
-export const PDF_ZOOM_STEP = 0.1;
 export const PDF_ZOOM_UNIT_DEFAULT = 0.5;
 
 type UnitRenderedContentTarget = "theory" | "method";
