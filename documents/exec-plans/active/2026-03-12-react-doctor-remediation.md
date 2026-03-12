@@ -126,6 +126,10 @@
   - прямой `motion` заменён на `LazyMotion + m`;
   - существующий restore/navigation UX сохранён на тестах;
   - более глубокое разделение navigation/history state оставлено следующей отдельной волной.
+- `2026-03-12`: выполнена отдельная navigation wave для `StudentDashboardScreen`:
+  - history/popstate/localStorage restore и view-selection orchestration вынесены в `useStudentDashboardNavigation`;
+  - `StudentDashboardScreen` оставлен точкой `TanStack Query` wiring и render composition;
+  - сохранены текущие `/student` history contracts и restore behavior из `LAST_SECTION_KEY`.
 
 ## 10. Следующая последовательность
 
@@ -194,6 +198,8 @@
 - `pnpm exec vitest run --config vitest.config.ts features/teacher-content/units/TeacherUnitDetailScreen.test.tsx` — `OK`.
 - `pnpm exec eslint features/student-dashboard/StudentDashboardScreen.tsx` в `apps/web` — `OK`.
 - `pnpm exec vitest run --config vitest.config.ts features/student-dashboard/StudentDashboardScreen.test.tsx` — `OK`.
+- `pnpm exec eslint features/student-dashboard/StudentDashboardScreen.tsx features/student-dashboard/hooks/use-student-dashboard-navigation.ts` в `apps/web` — `OK`.
+- `pnpm exec vitest run --config vitest.config.ts features/student-dashboard/StudentDashboardScreen.test.tsx` после navigation refactor — `OK`.
 - targeted `vitest` для wave 5 / step 1:
   - `features/teacher-students/TeacherStudentsPanel.test.tsx` — `OK`
   - `features/teacher-students/TeacherStudentProfilePanel.test.tsx` — `OK`

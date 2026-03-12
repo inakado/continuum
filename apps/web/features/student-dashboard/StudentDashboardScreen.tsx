@@ -5,7 +5,7 @@ import { AnimatePresence, LazyMotion, domAnimation, m, type Variants } from "fra
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   BookOpen,
@@ -27,24 +27,12 @@ import { contentQueryKeys } from "@/lib/query/keys";
 import { useStudentLogout } from "@/features/student-content/auth/use-student-logout";
 import { useStudentIdentity } from "@/features/student-content/shared/use-student-identity";
 import styles from "./student-dashboard.module.css";
+import { COURSES_QUERY_KEY, COURSES_QUERY_VALUE } from "./constants";
 import {
-  COURSES_HASH,
-  COURSES_QUERY_KEY,
-  COURSES_QUERY_VALUE,
-  LAST_SECTION_KEY,
-} from "./constants";
-
-type View = "courses" | "sections" | "graph";
-type Boot = "checking_last" | "ready";
-type HistoryMode = "push" | "replace" | "none";
-
-type StudentDashboardHistoryState = {
-  __continuumStudentNav: true;
-  view: View;
-  courseId: string | null;
-  sectionId: string | null;
-  sectionTitle: string | null;
-};
+  useStudentDashboardNavigation,
+  type StudentDashboardBoot as Boot,
+  type StudentDashboardView as View,
+} from "./hooks/use-student-dashboard-navigation";
 
 type QueryErrorState = {
   error: Error | null;
@@ -101,12 +89,6 @@ const carouselSwapMotion = {
   transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] },
 } as const;
 
-const isStudentDashboardHistoryState = (value: unknown): value is StudentDashboardHistoryState => {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<StudentDashboardHistoryState>;
-  return candidate.__continuumStudentNav === true;
-};
-
 const StudentSectionGraphPanel = dynamic(() => import("./StudentSectionGraphPanel"), {
   ssr: false,
   loading: () => (
@@ -114,18 +96,6 @@ const StudentSectionGraphPanel = dynamic(() => import("./StudentSectionGraphPane
       <div className={styles.empty}>Загрузка графа…</div>
     </div>
   ),
-});
-
-const buildHistoryState = (
-  view: View,
-  courseId: string | null,
-  sectionId: string | null,
-  sectionTitle: string | null,
-): Omit<StudentDashboardHistoryState, "__continuumStudentNav"> => ({
-  view,
-  courseId,
-  sectionId,
-  sectionTitle,
 });
 
 const getRequestError = (
@@ -646,213 +616,6 @@ const StudentDashboardPanel = ({
   );
 };
 
-const useStudentDashboardBoot = ({
-  forceShowCourses,
-  queryOverride,
-  setBoot,
-  setSelectedSectionId,
-  setSelectedSectionTitle,
-  setView,
-  writeHistoryState,
-}: {
-  forceShowCourses: () => void;
-  queryOverride: boolean;
-  setBoot: (boot: Boot) => void;
-  setSelectedSectionId: (sectionId: string | null) => void;
-  setSelectedSectionTitle: (title: string | null) => void;
-  setView: (view: View) => void;
-  writeHistoryState: (
-    next: Omit<StudentDashboardHistoryState, "__continuumStudentNav">,
-    mode?: Exclude<HistoryMode, "none">,
-  ) => void;
-}) => {
-  const skipAutoRestoreOnceRef = useRef(false);
-
-  useEffect(() => {
-    const hashOverride = typeof window !== "undefined" && window.location.hash === COURSES_HASH;
-    if (queryOverride || hashOverride) {
-      forceShowCourses();
-      setBoot("ready");
-
-      if (queryOverride) {
-        skipAutoRestoreOnceRef.current = true;
-        window.history.replaceState(
-          {
-            __continuumStudentNav: true,
-            ...buildHistoryState("courses", null, null, null),
-          } satisfies StudentDashboardHistoryState,
-          "",
-          "/student",
-        );
-      }
-      if (hashOverride) {
-        window.history.replaceState(
-          {
-            __continuumStudentNav: true,
-            ...buildHistoryState("courses", null, null, null),
-          } satisfies StudentDashboardHistoryState,
-          "",
-          "/student",
-        );
-      }
-      return;
-    }
-
-    if (skipAutoRestoreOnceRef.current) {
-      skipAutoRestoreOnceRef.current = false;
-      writeHistoryState(buildHistoryState("courses", null, null, null), "replace");
-      setBoot("ready");
-      return;
-    }
-
-    let initialState = buildHistoryState("courses", null, null, null);
-
-    try {
-      const stored = window.localStorage.getItem(LAST_SECTION_KEY);
-      if (stored) {
-        setSelectedSectionId(stored);
-        setSelectedSectionTitle(null);
-        setView("graph");
-        initialState = buildHistoryState("graph", null, stored, null);
-      }
-    } catch {
-      // ignore localStorage errors (private mode/etc.)
-    } finally {
-      writeHistoryState(initialState, "replace");
-      setBoot("ready");
-    }
-  }, [
-    forceShowCourses,
-    queryOverride,
-    setBoot,
-    setSelectedSectionId,
-    setSelectedSectionTitle,
-    setView,
-    writeHistoryState,
-  ]);
-};
-
-const useStudentDashboardSectionRestore = ({
-  boot,
-  handleGraphNotFound,
-  selectedSectionId,
-  selectedSectionQuery,
-  selectedSectionTitle,
-  setSelectedCourseId,
-  setSelectedSectionTitle,
-  view,
-  writeHistoryState,
-}: {
-  boot: Boot;
-  handleGraphNotFound: () => void;
-  selectedSectionId: string | null;
-  selectedSectionQuery: ReturnType<typeof useQuery<Section>>;
-  selectedSectionTitle: string | null;
-  setSelectedCourseId: (courseId: string | null) => void;
-  setSelectedSectionTitle: (title: string | null) => void;
-  view: View;
-  writeHistoryState: (
-    next: Omit<StudentDashboardHistoryState, "__continuumStudentNav">,
-    mode?: Exclude<HistoryMode, "none">,
-  ) => void;
-}) => {
-  useEffect(() => {
-    if (boot !== "ready" || view !== "graph" || !selectedSectionId || selectedSectionTitle) {
-      return;
-    }
-    if (selectedSectionQuery.isSuccess) {
-      const section = selectedSectionQuery.data;
-      setSelectedSectionTitle(section.title);
-      setSelectedCourseId(section.courseId);
-      writeHistoryState(buildHistoryState("graph", section.courseId, section.id, section.title), "replace");
-      return;
-    }
-    if (selectedSectionQuery.isError) {
-      handleGraphNotFound();
-    }
-  }, [
-    boot,
-    handleGraphNotFound,
-    selectedSectionId,
-    selectedSectionQuery.data,
-    selectedSectionQuery.isError,
-    selectedSectionQuery.isSuccess,
-    selectedSectionTitle,
-    setSelectedCourseId,
-    setSelectedSectionTitle,
-    view,
-    writeHistoryState,
-  ]);
-};
-
-const useStudentDashboardPopState = ({
-  boot,
-  forceShowCourses,
-  openCourse,
-  setError,
-  setSelectedCourseId,
-  setSelectedSectionId,
-  setSelectedSectionTitle,
-  setView,
-}: {
-  boot: Boot;
-  forceShowCourses: () => void;
-  openCourse: (courseId: string, mode?: HistoryMode) => Promise<boolean>;
-  setError: (error: string | null) => void;
-  setSelectedCourseId: (courseId: string | null) => void;
-  setSelectedSectionId: (sectionId: string | null) => void;
-  setSelectedSectionTitle: (title: string | null) => void;
-  setView: (view: View) => void;
-}) => {
-  useEffect(() => {
-    if (boot !== "ready") return;
-
-    const onPopState = (event: PopStateEvent) => {
-      if (!isStudentDashboardHistoryState(event.state)) return;
-
-      const next = event.state;
-      if (next.view === "courses") {
-        forceShowCourses();
-        return;
-      }
-
-      if (next.view === "sections") {
-        if (!next.courseId) {
-          forceShowCourses();
-          return;
-        }
-        void openCourse(next.courseId, "none");
-        return;
-      }
-
-      if (!next.sectionId) {
-        forceShowCourses();
-        return;
-      }
-
-      setError(null);
-      setSelectedSectionId(next.sectionId);
-      setSelectedSectionTitle(next.sectionTitle);
-      setSelectedCourseId(next.courseId);
-      setView("graph");
-    };
-
-    window.addEventListener("popstate", onPopState);
-    return () => {
-      window.removeEventListener("popstate", onPopState);
-    };
-  }, [
-    boot,
-    forceShowCourses,
-    openCourse,
-    setError,
-    setSelectedCourseId,
-    setSelectedSectionId,
-    setSelectedSectionTitle,
-    setView,
-  ]);
-};
-
 type StudentDashboardScreenProps = {
   queryOverride?: boolean;
 };
@@ -862,58 +625,70 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
   const queryClient = useQueryClient();
   const handleLogout = useStudentLogout();
   const identity = useStudentIdentity();
-  const [boot, setBoot] = useState<Boot>("checking_last");
-  const [view, setView] = useState<View>("courses");
-  const [error, setError] = useState<string | null>(null);
-
-  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
-  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
-  const [selectedSectionTitle, setSelectedSectionTitle] = useState<string | null>(null);
+  const navigation = useStudentDashboardNavigation({
+    queryOverride,
+    ensureCourse: (courseId: string) =>
+      queryClient.ensureQueryData({
+        queryKey: contentQueryKeys.studentCourse(courseId),
+        queryFn: () => studentApi.getCourse(courseId),
+      }),
+  });
+  const selectedCourseId = navigation.state.selectedCourseId;
+  const selectedSectionId = navigation.state.selectedSectionId;
 
   const coursesQuery = useQuery({
     queryKey: contentQueryKeys.studentCourses(),
     queryFn: () => studentApi.listCourses(),
-    enabled: boot === "ready",
+    enabled: navigation.state.boot === "ready",
   });
   const overviewQuery = useQuery({
     queryKey: contentQueryKeys.studentDashboardOverview(),
     queryFn: () => studentApi.getDashboardOverview(),
-    enabled: boot === "ready",
+    enabled: navigation.state.boot === "ready",
   });
   const selectedCourseQuery = useQuery({
     queryKey: contentQueryKeys.studentCourse(selectedCourseId ?? ""),
     queryFn: () => studentApi.getCourse(selectedCourseId as string),
-    enabled: boot === "ready" && Boolean(selectedCourseId),
+    enabled: navigation.state.boot === "ready" && Boolean(selectedCourseId),
   });
   const selectedSectionQuery = useQuery({
     queryKey: contentQueryKeys.studentSection(selectedSectionId ?? ""),
     queryFn: () => studentApi.getSection(selectedSectionId as string),
-    enabled: boot === "ready" && view === "graph" && Boolean(selectedSectionId),
+    enabled:
+      navigation.state.boot === "ready" &&
+      navigation.state.view === "graph" &&
+      Boolean(selectedSectionId),
   });
+
+  useEffect(() => {
+    if (selectedSectionQuery.isSuccess) {
+      navigation.restoreResolvedSection(selectedSectionQuery.data);
+      return;
+    }
+    if (
+      selectedSectionQuery.isError &&
+      navigation.state.boot === "ready" &&
+      navigation.state.view === "graph" &&
+      navigation.state.selectedSectionId &&
+      !navigation.state.selectedSectionTitle
+    ) {
+      navigation.handleGraphNotFound();
+    }
+  }, [
+    navigation,
+    navigation.state.boot,
+    navigation.state.selectedSectionId,
+    navigation.state.selectedSectionTitle,
+    navigation.state.view,
+    selectedSectionQuery.data,
+    selectedSectionQuery.isError,
+    selectedSectionQuery.isSuccess,
+  ]);
 
   const courses: Course[] = coursesQuery.data ?? [];
   const selectedCourse: CourseWithSections | null = selectedCourseQuery.data ?? null;
   const loadingCourses = coursesQuery.isPending;
   const dashboardOverview = overviewQuery.data ?? null;
-
-  const writeHistoryState = useCallback(
-    (
-      next: Omit<StudentDashboardHistoryState, "__continuumStudentNav">,
-      mode: Exclude<HistoryMode, "none"> = "push",
-    ) => {
-      if (typeof window === "undefined") return;
-      const fullState: StudentDashboardHistoryState = {
-        __continuumStudentNav: true,
-        ...next,
-      };
-      if (mode === "replace") {
-        window.history.replaceState(fullState, "", window.location.href);
-      } else {
-        window.history.pushState(fullState, "", window.location.href);
-      }
-    },
-    [],
-  );
 
   const navItems = useMemo(
     () => [
@@ -932,95 +707,10 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
   }, [selectedCourse]);
 
   const requestError = useMemo(
-    () => getRequestError(coursesQuery, selectedCourseQuery, view),
-    [coursesQuery, selectedCourseQuery, view],
+    () => getRequestError(coursesQuery, selectedCourseQuery, navigation.state.view),
+    [coursesQuery, selectedCourseQuery, navigation.state.view],
   );
-  const visibleError = error ?? requestError;
-
-  const openCourse = useCallback(
-    async (courseId: string, mode: HistoryMode = "push") => {
-      setError(null);
-      try {
-        const data = await queryClient.ensureQueryData({
-          queryKey: contentQueryKeys.studentCourse(courseId),
-          queryFn: () => studentApi.getCourse(courseId),
-        });
-        setSelectedCourseId(courseId);
-        setSelectedSectionId(null);
-        setSelectedSectionTitle(null);
-        setView("sections");
-        if (mode !== "none") {
-          writeHistoryState(buildHistoryState("sections", data.id, null, null), mode);
-        }
-        return true;
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Ошибка загрузки курса");
-        return false;
-      }
-    },
-    [queryClient, writeHistoryState],
-  );
-
-  const forceShowCourses = useCallback(() => {
-    setError(null);
-    setSelectedCourseId(null);
-    setSelectedSectionId(null);
-    setSelectedSectionTitle(null);
-    setView("courses");
-  }, []);
-
-  const handleGraphNotFound = useCallback(() => {
-    try {
-      window.localStorage.removeItem(LAST_SECTION_KEY);
-    } catch {
-      // ignore
-    }
-    setSelectedSectionId(null);
-    setSelectedSectionTitle(null);
-    setSelectedCourseId(null);
-    setView("courses");
-    writeHistoryState(buildHistoryState("courses", null, null, null), "replace");
-  }, [writeHistoryState]);
-
-  useStudentDashboardBoot({
-    forceShowCourses,
-    queryOverride,
-    setBoot,
-    setSelectedSectionId,
-    setSelectedSectionTitle,
-    setView,
-    writeHistoryState,
-  });
-
-  useStudentDashboardSectionRestore({
-    boot,
-    handleGraphNotFound,
-    selectedSectionId,
-    selectedSectionQuery,
-    selectedSectionTitle,
-    setSelectedCourseId,
-    setSelectedSectionTitle,
-    view,
-    writeHistoryState,
-  });
-
-  useStudentDashboardPopState({
-    boot,
-    forceShowCourses,
-    openCourse,
-    setError,
-    setSelectedCourseId,
-    setSelectedSectionId,
-    setSelectedSectionTitle,
-    setView,
-  });
-
-  const handleCourseClick = useCallback(
-    async (courseId: string) => {
-      void openCourse(courseId, "push");
-    },
-    [openCourse],
-  );
+  const visibleError = navigation.state.error ?? requestError;
 
   const handleContinueLearning = useCallback(
     (href: string) => {
@@ -1028,45 +718,6 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
     },
     [router],
   );
-
-  const handleSectionClick = useCallback(
-    (section: Section) => {
-      if (section.accessStatus === "locked") {
-        setError("Раздел заблокирован. Сначала завершите предыдущий раздел.");
-        return;
-      }
-      setError(null);
-      setSelectedSectionId(section.id);
-      setSelectedSectionTitle(section.title);
-      setView("graph");
-      writeHistoryState(buildHistoryState("graph", selectedCourseId, section.id, section.title), "push");
-      try {
-        window.localStorage.setItem(LAST_SECTION_KEY, section.id);
-      } catch {
-        // ignore
-      }
-    },
-    [selectedCourseId, writeHistoryState],
-  );
-
-  const handleBackToCourses = useCallback(() => {
-    forceShowCourses();
-    writeHistoryState(buildHistoryState("courses", null, null, null), "push");
-  }, [forceShowCourses, writeHistoryState]);
-
-  const handleBackToSections = useCallback(async () => {
-    if (selectedCourse) {
-      setView("sections");
-      writeHistoryState(buildHistoryState("sections", selectedCourse.id, null, null), "push");
-      return;
-    }
-    if (selectedCourseId) {
-      const opened = await openCourse(selectedCourseId, "push");
-      if (opened) return;
-    }
-    forceShowCourses();
-    writeHistoryState(buildHistoryState("courses", null, null, null), "push");
-  }, [forceShowCourses, openCourse, selectedCourse, selectedCourseId, writeHistoryState]);
 
   return (
     <DashboardShell
@@ -1084,21 +735,21 @@ export default function StudentDashboardScreen({ queryOverride = false }: Studen
 
         <LazyMotion features={domAnimation}>
           <StudentDashboardPanel
-            boot={boot}
+            boot={navigation.state.boot}
             courses={courses}
             dashboardOverview={dashboardOverview}
             loadingCourses={loadingCourses}
-            onBackToCourses={handleBackToCourses}
-            onCourseClick={handleCourseClick}
+            onBackToCourses={navigation.handleBackToCourses}
+            onCourseClick={navigation.handleCourseClick}
             onContinueLearning={handleContinueLearning}
-            onGraphNotFound={handleGraphNotFound}
-            onSectionClick={handleSectionClick}
-            onSectionsBack={handleBackToSections}
+            onGraphNotFound={navigation.handleGraphNotFound}
+            onSectionClick={navigation.handleSectionClick}
+            onSectionsBack={navigation.handleBackToSections}
             sections={sortedSections}
             selectedCourse={selectedCourse}
-            selectedSectionId={selectedSectionId}
-            selectedSectionTitle={selectedSectionTitle}
-            view={view}
+            selectedSectionId={navigation.state.selectedSectionId}
+            selectedSectionTitle={navigation.state.selectedSectionTitle}
+            view={navigation.state.view}
           />
         </LazyMotion>
       </div>
