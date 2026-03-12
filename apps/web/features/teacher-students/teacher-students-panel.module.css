@@ -313,11 +313,11 @@
 }
 
 .actionsMenuTrigger {
-  --button-bg: transparent;
+  --button-bg: var(--bg-field);
   --button-border: transparent;
   --button-border-width: 0px;
   --button-text: var(--text-muted);
-  --button-hover-bg: transparent;
+  --button-hover-bg: color-mix(in srgb, var(--bg-field) 98%, white 2%);
   --button-hover-border: transparent;
   --button-hover-text: var(--text-primary);
   --button-hover-shadow: none;

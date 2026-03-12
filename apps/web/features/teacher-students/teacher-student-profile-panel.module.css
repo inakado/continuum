@@ -84,17 +84,38 @@
   gap: 8px;
 }
 
-.reviewQueueButton {
-  --button-border-width: var(--border-width-thin);
-  --button-bg: color-mix(in srgb, var(--surface-1) 92%, transparent);
-  --button-border: color-mix(in srgb, var(--glass-border) 82%, transparent);
-  --button-hover-bg: color-mix(in srgb, var(--surface-2) 96%, white 4%);
-  --button-hover-border: color-mix(in srgb, var(--border-primary) 22%, var(--glass-border));
-  --button-hover-text: var(--text-primary);
+.reviewQueueLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--action-control-height-sm);
+  padding: 0;
+  border-radius: 0;
+  color: color-mix(in srgb, var(--text-muted) 78%, var(--text-primary));
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--action-font-size-sm);
+  line-height: var(--action-line-height);
+  font-weight: var(--action-weight);
+  letter-spacing: var(--action-tracking);
+  text-decoration: none;
+  transition:
+    color 0.2s ease,
+    text-decoration-color 0.2s ease;
 }
 
-.reviewQueueButton[data-pending="true"] {
-  --button-text: var(--text-primary);
+.reviewQueueLink:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+.reviewQueueLink:focus-visible {
+  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.reviewQueueLink[data-pending="true"] {
+  color: var(--text-primary);
 }
 
 .breadcrumbButton,

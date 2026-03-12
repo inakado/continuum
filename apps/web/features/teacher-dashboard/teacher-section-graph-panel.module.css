@@ -1,4 +1,5 @@
 .wrapper {
+  --graph-edge-selected: #1e3a5f;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -108,12 +109,19 @@
   border-bottom: 0;
 }
 
-.graphToolbar {
+.graphOverlay {
   position: absolute;
   top: 12px;
   right: 12px;
-  left: auto;
   z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: calc(100% - 24px);
+}
+
+.graphToolbar {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -150,10 +158,6 @@
 }
 
 .selectionHint {
-  position: absolute;
-  right: 12px;
-  top: 12px;
-  z-index: 2;
   border: var(--border-width-thin) solid var(--glass-border);
   border-radius: var(--control-radius);
   background: var(--surface-1);
@@ -161,6 +165,7 @@
   color: var(--text-muted);
   font-size: 12px;
   max-width: min(420px, calc(100% - 24px));
+  pointer-events: none;
 }
 
 .loading {
@@ -277,9 +282,14 @@
 }
 
 @media (max-width: 960px) {
-  .graphToolbar {
+  .graphOverlay {
     left: 12px;
     right: 12px;
+    align-items: stretch;
+    max-width: none;
+  }
+
+  .graphToolbar {
     justify-content: flex-start;
   }
 
@@ -289,8 +299,7 @@
   }
 
   .selectionHint {
-    top: auto;
-    bottom: 12px;
+    max-width: none;
   }
 }
 

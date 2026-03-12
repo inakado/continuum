@@ -6,12 +6,15 @@ import { useRouter } from "next/navigation";
 import ReactFlow, {
   addEdge,
   Background,
+  BaseEdge,
   Controls,
   Handle,
   MarkerType,
   Position,
+  getSmoothStepPath,
   type Connection,
   type Edge,
+  type EdgeProps,
   type EdgeTypes,
   type Node,
   type NodeMouseHandler,
@@ -49,6 +52,89 @@ type UnitNodeData = {
   createdAt: string;
 };
 
+const EDGE_DEFAULT_COLOR = "var(--border-primary)";
+const EDGE_SELECTED_COLOR = "var(--graph-edge-selected)";
+const EDGE_SNAP_THRESHOLD = 18;
+const EDGE_PATH_OPTIONS = {
+  borderRadius: 14,
+  offset: 20,
+};
+
+const getEdgeMarkerEnd = (color: string) => ({
+  type: MarkerType.ArrowClosed,
+  color,
+});
+
+const getEdgeStyle = (selected: boolean) => ({
+  stroke: selected ? EDGE_SELECTED_COLOR : EDGE_DEFAULT_COLOR,
+  strokeWidth: selected ? 3 : 2,
+  filter: selected ? "drop-shadow(0 0 6px color-mix(in srgb, var(--graph-edge-selected) 38%, transparent))" : "none",
+});
+
+const decorateEdge = (edge: Edge, selected: boolean): Edge => ({
+  ...edge,
+  markerEnd: getEdgeMarkerEnd(selected ? EDGE_SELECTED_COLOR : EDGE_DEFAULT_COLOR),
+  style: getEdgeStyle(selected),
+  animated: selected,
+});
+
+const getSnappedEdgeCoords = ({
+  sourceX,
+  sourceY,
+  sourcePosition,
+  targetX,
+  targetY,
+  targetPosition,
+}: Pick<EdgeProps, "sourceX" | "sourceY" | "sourcePosition" | "targetX" | "targetY" | "targetPosition">) => {
+  const isVerticalFlow =
+    (sourcePosition === Position.Bottom || sourcePosition === Position.Top) &&
+    (targetPosition === Position.Bottom || targetPosition === Position.Top);
+  if (isVerticalFlow && Math.abs(sourceX - targetX) <= EDGE_SNAP_THRESHOLD) {
+    const snappedX = (sourceX + targetX) / 2;
+    return { sourceX: snappedX, sourceY, targetX: snappedX, targetY };
+  }
+
+  const isHorizontalFlow =
+    (sourcePosition === Position.Left || sourcePosition === Position.Right) &&
+    (targetPosition === Position.Left || targetPosition === Position.Right);
+  if (isHorizontalFlow && Math.abs(sourceY - targetY) <= EDGE_SNAP_THRESHOLD) {
+    const snappedY = (sourceY + targetY) / 2;
+    return { sourceX, sourceY: snappedY, targetX, targetY: snappedY };
+  }
+
+  return { sourceX, sourceY, targetX, targetY };
+};
+
+const AlignedSmoothStepEdge = ({
+  id,
+  markerEnd,
+  sourcePosition,
+  sourceX,
+  sourceY,
+  style,
+  targetPosition,
+  targetX,
+  targetY,
+}: EdgeProps) => {
+  const snappedCoords = getSnappedEdgeCoords({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+  });
+
+  const [edgePath] = getSmoothStepPath({
+    ...snappedCoords,
+    sourcePosition,
+    targetPosition,
+    ...EDGE_PATH_OPTIONS,
+  });
+
+  return <BaseEdge id={id} path={edgePath} markerEnd={markerEnd} style={style} />;
+};
+
 const UnitNode = ({ data }: NodeProps<UnitNodeData>) => {
   const createdAtLabel = new Intl.DateTimeFormat("ru-RU", {
     day: "2-digit",
@@ -77,13 +163,13 @@ const UnitNode = ({ data }: NodeProps<UnitNodeData>) => {
 };
 
 const DEFAULT_EDGE_OPTIONS: Partial<Edge> = {
-  type: "smoothstep",
-  markerEnd: { type: MarkerType.ArrowClosed, color: "var(--border-primary)" },
-  style: { stroke: "var(--border-primary)" },
+  type: "alignedSmoothStep",
+  markerEnd: getEdgeMarkerEnd(EDGE_DEFAULT_COLOR),
+  style: getEdgeStyle(false),
 };
 
 const NODE_TYPES = { unit: UnitNode };
-const EDGE_TYPES: EdgeTypes = {};
+const EDGE_TYPES: EdgeTypes = { alignedSmoothStep: AlignedSmoothStepEdge };
 
 const buildFlowNodes = (nodes: GraphNode[]): Node<UnitNodeData>[] =>
   nodes.map((node) => ({
@@ -99,9 +185,9 @@ const buildFlowEdges = (edges: GraphEdge[]): Edge[] =>
     id: edge.id,
     source: edge.fromUnitId,
     target: edge.toUnitId,
-    type: "smoothstep",
-    markerEnd: { type: MarkerType.ArrowClosed, color: "var(--border-primary)" },
-    style: { stroke: "var(--border-primary)" },
+    type: "alignedSmoothStep",
+    markerEnd: getEdgeMarkerEnd(EDGE_DEFAULT_COLOR),
+    style: getEdgeStyle(false),
   }));
 
 const buildFlowNode = (
@@ -408,6 +494,7 @@ const GraphCanvas = memo(function GraphCanvas({
       nodeTypes={NODE_TYPES}
       edgeTypes={EDGE_TYPES}
       fitView
+      minZoom={0.1}
       defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
       onError={handleFlowError}
     >
@@ -481,9 +568,9 @@ export default function TeacherSectionGraphPanel({
         id: `edge-${connection.source}-${connection.target}`,
         source: connection.source,
         target: connection.target,
-        type: "smoothstep",
-        markerEnd: { type: MarkerType.ArrowClosed, color: "var(--border-primary)" },
-        style: { stroke: "var(--border-primary)" },
+        type: "alignedSmoothStep",
+        markerEnd: getEdgeMarkerEnd(EDGE_DEFAULT_COLOR),
+        style: getEdgeStyle(false),
       };
 
       editor.setEdges((current: Edge[]) => {
@@ -530,6 +617,10 @@ export default function TeacherSectionGraphPanel({
 
   const queryError = graphQuery.isError ? getApiErrorMessage(graphQuery.error) : null;
   const errorMessage = error ?? queryError;
+  const canvasEdges = useMemo(
+    () => editor.edges.map((edge) => decorateEdge(edge, edge.id === editor.selectedEdgeId)),
+    [editor.edges, editor.selectedEdgeId],
+  );
 
   return (
     <div className={styles.wrapper}>
@@ -553,14 +644,20 @@ export default function TeacherSectionGraphPanel({
       {status ? <div className={styles.status}>{status}</div> : null}
 
       <div className={styles.graphPanel} aria-busy={loading}>
-        <div className={styles.graphToolbar}>
-          <Button onClick={() => setIsCreatePopupOpen(true)}>Создать юнит</Button>
-          <Button variant="secondary" onClick={() => void saveGraph()} disabled={savePending}>
-            Сохранить граф
-          </Button>
-          <Button variant="danger" onClick={deleteSelectedEdge} disabled={!editor.selectedEdgeId}>
-            Удалить ребро
-          </Button>
+        <div className={styles.graphOverlay}>
+          <div className={styles.graphToolbar}>
+            <Button onClick={() => setIsCreatePopupOpen(true)}>Создать юнит</Button>
+            <Button variant="secondary" onClick={() => void saveGraph()} disabled={savePending}>
+              Сохранить граф
+            </Button>
+            <Button variant="danger" onClick={deleteSelectedEdge} disabled={!editor.selectedEdgeId}>
+              Удалить ребро
+            </Button>
+          </div>
+
+          {editor.selectedEdgeId ? (
+            <div className={styles.selectionHint}>Выбрано ребро. Можно удалить и затем сохранить граф.</div>
+          ) : null}
         </div>
 
         <Dialog
@@ -599,21 +696,17 @@ export default function TeacherSectionGraphPanel({
           </div>
         </Dialog>
 
-        {editor.selectedEdgeId ? (
-          <div className={styles.selectionHint}>Выбрано ребро. Можно удалить и затем сохранить граф.</div>
-        ) : null}
-
         {loading ? (
           <div className={styles.loading}>Загрузка графа…</div>
         ) : (
           <>
             <div className={styles.graphCanvas}>
-              <GraphCanvas
-                nodes={editor.nodes}
-                edges={editor.edges}
-                onNodesChange={editor.onNodesChange}
-                onEdgesChange={editor.onEdgesChange}
-                onConnect={handleConnect}
+            <GraphCanvas
+              nodes={editor.nodes}
+              edges={canvasEdges}
+              onNodesChange={editor.onNodesChange}
+              onEdgesChange={editor.onEdgesChange}
+              onConnect={handleConnect}
                 onNodeClick={handleNodeClick}
                 onSelectionChange={handleSelectionChange}
               />

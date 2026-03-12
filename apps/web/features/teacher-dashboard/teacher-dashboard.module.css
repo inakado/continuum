@@ -366,14 +366,16 @@
 }
 
 .cardActions button {
-  --button-bg: transparent;
+  --button-bg: var(--bg-field);
   --button-border: transparent;
   --button-border-width: 0px;
   --button-text: var(--text-muted);
-  --button-hover-bg: var(--surface-2);
+  --button-hover-bg: color-mix(in srgb, var(--bg-field) 98%, white 2%);
   --button-hover-border: transparent;
   --button-hover-text: var(--text-primary);
-  --button-hover-shadow: none;
+  --button-hover-shadow:
+    0 8px 18px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
   box-shadow: none;
 }
 

@@ -1,7 +1,7 @@
 .button {
   border: var(--button-border-width, var(--border-width)) solid
     var(--button-border, var(--border-primary));
-  background: var(--button-bg, transparent);
+  background: var(--button-bg, var(--bg-field));
   color: var(--button-text, var(--text-primary));
   font-family: var(--font-body), system-ui, sans-serif;
   font-weight: var(--action-weight);
@@ -16,7 +16,7 @@
     transform var(--motion-fast) ease;
   touch-action: manipulation;
   border-radius: var(--control-radius);
-  box-shadow: var(--button-shadow);
+  box-shadow: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -25,7 +25,10 @@
 }
 
 .button:disabled {
-  opacity: 0.6;
+  background: var(--button-disabled-bg, var(--button-bg, var(--bg-field)));
+  color: var(--button-disabled-text, var(--button-text, var(--text-primary)));
+  border-color: var(--button-disabled-border, var(--button-border, var(--border-primary)));
+  box-shadow: none;
   cursor: not-allowed;
   transform: none;
 }
@@ -61,39 +64,55 @@
   --button-hover-text: var(--text-accent);
   --button-hover-border: var(--border-primary);
   --button-hover-shadow: 0 12px 24px rgba(15, 23, 42, 0.16);
+  --button-disabled-bg: color-mix(in srgb, var(--bg-accent) 82%, var(--bg-field));
+  --button-disabled-text: var(--text-accent);
+  --button-disabled-border: color-mix(in srgb, var(--border-primary) 82%, var(--bg-field));
 }
 
 .secondary {
-  --button-bg: var(--surface-1);
+  --button-bg: var(--bg-field);
   --button-text: var(--text-primary);
   --button-border: var(--glass-border);
   --button-border-width: var(--border-width-thin);
-  --button-hover-bg: var(--surface-2);
+  --button-hover-bg: color-mix(in srgb, var(--bg-field) 98%, white 2%);
   --button-hover-border: var(--border-primary);
   --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
+  --button-hover-shadow:
+    0 10px 22px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  --button-disabled-bg: var(--bg-field);
+  --button-disabled-text: color-mix(in srgb, var(--text-primary) 72%, var(--text-muted));
+  --button-disabled-border: color-mix(in srgb, var(--glass-border) 88%, var(--border-primary));
 }
 
 .ghost {
-  --button-bg: transparent;
+  --button-bg: var(--bg-field);
   --button-text: var(--text-primary);
   --button-border: color-mix(in srgb, var(--glass-border) 88%, transparent);
   --button-border-width: var(--border-width-thin);
-  --button-hover-bg: var(--surface-2);
+  --button-hover-bg: color-mix(in srgb, var(--bg-field) 97%, white 3%);
   --button-hover-border: var(--glass-border);
   --button-hover-text: var(--text-primary);
-  --button-hover-shadow: none;
+  --button-hover-shadow:
+    0 8px 18px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.68);
+  --button-disabled-bg: var(--bg-field);
+  --button-disabled-text: color-mix(in srgb, var(--text-primary) 72%, var(--text-muted));
+  --button-disabled-border: color-mix(in srgb, var(--glass-border) 88%, var(--border-primary));
 }
 
 .danger {
-  --button-bg: color-mix(in srgb, #ef4444 8%, var(--surface-1));
-  --button-text: color-mix(in srgb, #ef4444 78%, var(--text-primary));
-  --button-border: color-mix(in srgb, #ef4444 34%, var(--glass-border));
+  --button-bg: color-mix(in srgb, #7a1f30 9%, var(--bg-field));
+  --button-text: color-mix(in srgb, #6a1223 96%, var(--text-primary));
+  --button-border: color-mix(in srgb, #8e2b3f 34%, var(--glass-border));
   --button-border-width: var(--border-width-thin);
-  --button-hover-bg: color-mix(in srgb, #ef4444 12%, var(--surface-2));
-  --button-hover-border: color-mix(in srgb, #ef4444 44%, var(--border-primary));
-  --button-hover-text: color-mix(in srgb, #ef4444 82%, var(--text-primary));
-  --button-hover-shadow: none;
+  --button-hover-bg: color-mix(in srgb, #7a1f30 14%, var(--bg-surface));
+  --button-hover-border: color-mix(in srgb, #8e2b3f 48%, var(--border-primary));
+  --button-hover-text: color-mix(in srgb, #5a0d1c 98%, var(--text-primary));
+  --button-hover-shadow: 0 8px 18px color-mix(in srgb, #7a1f30 14%, transparent);
+  --button-disabled-bg: color-mix(in srgb, #7a1f30 3%, var(--bg-field));
+  --button-disabled-text: color-mix(in srgb, #7a1f30 48%, var(--text-muted));
+  --button-disabled-border: color-mix(in srgb, #7a1f30 14%, var(--glass-border));
 }
 
 .primary:hover:not(:disabled) {

@@ -2,11 +2,11 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Fragment, Suspense, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams, type ReadonlyURLSearchParams } from "next/navigation";
 import { ChevronDown, ChevronRight, GraduationCap } from "lucide-react";
 import LiteTex from "@/components/LiteTex";
 import Button from "@/components/ui/Button";
-import ButtonLink from "@/components/ui/ButtonLink";
 import {
   teacherApi,
   type TeacherStudentTreeTask,
@@ -96,15 +96,13 @@ const StudentProfileHeader = ({
       ) : null}
     </div>
     <div className={styles.headerActions}>
-      <ButtonLink
+      <Link
         href={reviewInboxHref}
-        variant="secondary"
-        size="sm"
-        className={styles.reviewQueueButton}
+        className={styles.reviewQueueLink}
         data-pending={reviewTotal > 0 ? "true" : "false"}
       >
         Задачи на проверку: {reviewTotal}
-      </ButtonLink>
+      </Link>
     </div>
   </header>
 );

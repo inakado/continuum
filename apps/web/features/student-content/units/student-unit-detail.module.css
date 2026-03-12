@@ -34,10 +34,10 @@
 }
 
 .backInline {
-  --button-bg: var(--surface-1);
+  --button-bg: var(--bg-field);
   --button-border: var(--glass-border);
   --button-text: var(--text-primary);
-  --button-hover-bg: var(--surface-2);
+  --button-hover-bg: color-mix(in srgb, var(--bg-field) 98%, white 2%);
   --button-hover-border: var(--border-primary);
   --button-hover-text: var(--text-primary);
   --button-hover-shadow: var(--nav-hover-shadow);
@@ -263,10 +263,10 @@
 }
 
 .lockedGateActions button {
-  --button-bg: var(--surface-1);
+  --button-bg: var(--bg-field);
   --button-border: var(--glass-border);
   --button-text: var(--text-primary);
-  --button-hover-bg: var(--surface-2);
+  --button-hover-bg: color-mix(in srgb, var(--bg-field) 98%, white 2%);
   --button-hover-border: var(--border-primary);
   --button-hover-text: var(--text-primary);
   --button-hover-shadow: var(--nav-hover-shadow);
@@ -826,10 +826,10 @@
 }
 
 .taskActions button {
-  --button-bg: var(--surface-1);
+  --button-bg: var(--bg-field);
   --button-border: var(--glass-border);
   --button-text: var(--text-primary);
-  --button-hover-bg: var(--surface-2);
+  --button-hover-bg: color-mix(in srgb, var(--bg-field) 98%, white 2%);
   --button-hover-border: var(--border-primary);
   --button-hover-text: var(--text-primary);
   --button-hover-shadow: var(--nav-hover-shadow);
@@ -1069,10 +1069,10 @@
 }
 
 .photoActions button {
-  --button-bg: var(--surface-1);
+  --button-bg: var(--bg-field);
   --button-border: var(--glass-border);
   --button-text: var(--text-primary);
-  --button-hover-bg: var(--surface-2);
+  --button-hover-bg: color-mix(in srgb, var(--bg-field) 98%, white 2%);
   --button-hover-border: var(--border-primary);
   --button-hover-text: var(--text-primary);
   --button-hover-shadow: var(--nav-hover-shadow);
@@ -1283,10 +1283,10 @@
 }
 
 .solutionErrorActions button {
-  --button-bg: var(--surface-1);
+  --button-bg: var(--bg-field);
   --button-border: var(--glass-border);
   --button-text: var(--text-primary);
-  --button-hover-bg: var(--surface-2);
+  --button-hover-bg: color-mix(in srgb, var(--bg-field) 98%, white 2%);
   --button-hover-border: var(--border-primary);
   --button-hover-text: var(--text-primary);
   --button-hover-shadow: var(--nav-hover-shadow);
