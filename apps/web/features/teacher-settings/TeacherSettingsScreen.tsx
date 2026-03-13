@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import DashboardShell from "@/components/DashboardShell";
+import DashboardShell from "@/components/TeacherDashboardShell";
 import AlertDialog from "@/components/ui/AlertDialog";
 import Button from "@/components/ui/Button";
 import Checkbox from "@/components/ui/Checkbox";

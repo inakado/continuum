@@ -30,6 +30,9 @@
 - Workspace lint запускается через `pnpm lint`.
 - Архитектурные импорт-границы проверяются отдельной командой `pnpm lint:boundaries`.
 - CI использует эти проверки как обязательный quality gate.
+- Для frontend feature-layer дополнительно enforced:
+  - запрет cross-import между `apps/web/features/student-*` и `apps/web/features/teacher-*`;
+  - запрет прямого импорта `@/components/DashboardShell` из role-specific feature-кода (используются role-specific shell wrappers).
 
 ### Contracts and boundary validation
 

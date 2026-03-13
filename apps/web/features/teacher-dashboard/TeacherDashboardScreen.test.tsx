@@ -43,7 +43,7 @@ vi.mock("next/dynamic", () => ({
   ),
 }));
 
-vi.mock("@/components/DashboardShell", () => ({
+vi.mock("@/components/TeacherDashboardShell", () => ({
   default: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 

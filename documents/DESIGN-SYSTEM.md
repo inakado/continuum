@@ -11,6 +11,9 @@
 
 - `Implemented`: правила/токены/паттерны, которые уже видны в текущем UI (сверяется по `apps/web`).
 - `Planned`: будущие изменения дизайн‑системы (если добавляются — помечаются явно в разделе).
+- Ролевые baseline фиксируются раздельно:
+  - teacher dashboard design system — `Implemented`;
+  - student dashboard design system — `In progress` (отдельная ветка визуальной системы, старт с `/student`).
 
 ## 1) Типографика
 
@@ -96,7 +99,7 @@ C) Интерфейс и чтение
 **Принцип:** высокий контраст текста. Границы в glass‑режиме — полупрозрачные, без тяжёлых 2px линий.
 
 ### 2.1 Материалы (Glass & Air)
-Glass‑стиль — основа для **teacher dashboards** и **student dashboards**.
+Glass‑стиль — основа для **teacher dashboard baseline**.
 Экран логина — отдельный случай (Grainient + pill‑контролы), но тоже опирается на glass‑токены.
 
 **Токены (glass):**
@@ -113,6 +116,25 @@ Glass‑стиль — основа для **teacher dashboards** и **student d
 На экране логина используется **Grainient** (shader‑фон) как основной визуальный слой.
 - Фон ч/б, зернистый, без кислотных оттенков.
 - Все элементы входа нейтральные и прозрачные, чтобы не конфликтовать с зерном.
+
+### 2.3 Role-scoped dashboard themes (`Implemented`)
+
+- Foundation tokens остаются общими в `apps/web/app/globals.css`.
+- Для dashboard-веток применяется отдельный role theme layer:
+  - student: `apps/web/components/student-dashboard-theme.module.css`;
+  - teacher: `apps/web/components/teacher-dashboard-theme.module.css`.
+- Theme layer живёт на root shell (`StudentDashboardShell`/`TeacherDashboardShell`) и переопределяет только semantic UI tokens (`--bg-accent`, `--text-accent`, `--button-hover-*`, `--nav-*`) в пределах соответствующего subtree.
+- Это позволяет использовать общий `Button`/`ButtonLink` API, но получать разные visual baseline для student и teacher без cross-impact.
+
+Порядок источников токенов (от общего к частному):
+1. `apps/web/app/globals.css` (foundation)
+2. `apps/web/components/ui/button.module.css` и другие shared primitives (semantic contract)
+3. `apps/web/components/*-dashboard-theme.module.css` (role overrides)
+4. feature-level CSS modules (локальные исключения)
+
+Операционное правило:
+- Для role-specific UI/UX-задач нельзя начинать с `globals.css` или shared `ui/*`.
+- Сначала правим соответствующий role theme (`student-dashboard-theme.module.css` или `teacher-dashboard-theme.module.css`) и/или role shell CSS.
 
 ---
 
@@ -159,6 +181,9 @@ Glass‑стиль — основа для **teacher dashboards** и **student d
 - Канонический API:
   - variants: `primary`, `secondary`, `ghost`, `danger`
   - sizes: `sm`, `md`, `lg`
+- Источник стилизации:
+  - shape/typography/interaction contract задаётся в `apps/web/components/ui/button.module.css`;
+  - role-specific color/hover behavior приходит из shell theme layer (`student-dashboard-theme.module.css` или `teacher-dashboard-theme.module.css`).
 - Для route navigation, которая визуально выглядит как кнопка, используем `ButtonLink` или `Link`, стилизованный через button API; `router.push` не должен быть дефолтным способом навигации из CTA.
 - `primary` = main CTA.
 - `secondary` = стандартное glass-действие в toolbar/card/dialog.
@@ -308,11 +333,12 @@ Glass‑стиль — основа для **teacher dashboards** и **student d
 ---
 
 ## 8) Dashboard UI (фактические паттерны)
-- Дашборды учителя/ученика работают внутри `glass-scope` и используют `--glass-*`, `--surface-*`, `--card-*`, `--control-*`.
-- Карточки и панели — **скруглённые** (см. `--radius-*`), с мягкой тенью и стеклянным фоном.
-- Активные карточки используют `--nav-active-bg/--nav-active-text` (в glass‑контексте это мягкая подсветка, а не жёсткая инверсия).
-- Teacher dashboard считается каноническим baseline для shared visual language; параллельный legacy CRUD-слой для teacher course/section management удалён из active web codepath и не используется как источник UI pattern’ов.
+- Teacher dashboard работает внутри `glass-scope` и использует `--glass-*`, `--surface-*`, `--card-*`, `--control-*`.
+- Для teacher dashboard карточки и панели — **скруглённые** (см. `--radius-*`), с мягкой тенью и стеклянным фоном.
+- В teacher glass-контексте активные карточки используют `--nav-active-bg/--nav-active-text` (мягкая подсветка, а не жёсткая инверсия).
+- Teacher dashboard считается каноническим baseline только для teacher routes; параллельный legacy CRUD-слой для teacher course/section management удалён из active web codepath.
 - Page/panel/card headers и empty/status blocks в teacher flows должны опираться на `PageHeader`, `SurfaceCard`, `InlineStatus`, `EmptyState`, `Kicker`, `FieldLabel`.
+- Student dashboard v2 развивается отдельно в `apps/web/features/student-dashboard/*` и может использовать другой visual language; teacher presentation baseline не является обязательным шаблоном для student UI.
 
 ---
 

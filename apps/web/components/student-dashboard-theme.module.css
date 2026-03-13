@@ -1,0 +1,43 @@
+.theme {
+  --role-accent-bg: #2563eb;
+  --role-accent-text: #f8fafc;
+  --role-nav-hover-bg: color-mix(in srgb, var(--role-accent-bg) 14%, var(--surface-2));
+  --role-nav-active-bg: color-mix(in srgb, var(--role-accent-bg) 20%, var(--surface-2));
+  --role-nav-active-text: var(--text-primary);
+  --role-button-hover-bg: color-mix(in srgb, var(--role-accent-bg) 16%, var(--surface-2));
+  --role-button-hover-text: var(--text-primary);
+  --role-button-hover-border: color-mix(in srgb, var(--role-accent-bg) 44%, var(--glass-border));
+  --role-button-hover-shadow: 0 10px 24px color-mix(in srgb, var(--role-accent-bg) 22%, transparent);
+
+  --bg-accent: var(--role-accent-bg);
+  --text-accent: var(--role-accent-text);
+  --nav-hover-bg: var(--role-nav-hover-bg);
+  --nav-active-bg: var(--role-nav-active-bg);
+  --nav-active-text: var(--role-nav-active-text);
+  --button-hover-bg: var(--role-button-hover-bg);
+  --button-hover-text: var(--role-button-hover-text);
+  --button-hover-border: var(--role-button-hover-border);
+  --button-hover-shadow: var(--role-button-hover-shadow);
+}
+
+:global(.glass-scope).theme {
+  --nav-hover-bg: var(--role-nav-hover-bg);
+  --nav-active-bg: var(--role-nav-active-bg);
+  --nav-active-text: var(--role-nav-active-text);
+  --button-hover-bg: var(--role-button-hover-bg);
+  --button-hover-text: var(--role-button-hover-text);
+  --button-hover-border: var(--role-button-hover-border);
+  --button-hover-shadow: var(--role-button-hover-shadow);
+}
+
+[data-theme="dark"] .theme {
+  --role-accent-bg: #7dd3fc;
+  --role-accent-text: #082f49;
+  --role-nav-hover-bg: color-mix(in srgb, var(--role-accent-bg) 20%, var(--surface-1));
+  --role-nav-active-bg: color-mix(in srgb, var(--role-accent-bg) 28%, var(--surface-1));
+  --role-nav-active-text: #e0f2fe;
+  --role-button-hover-bg: color-mix(in srgb, var(--role-accent-bg) 22%, var(--surface-2));
+  --role-button-hover-text: #e0f2fe;
+  --role-button-hover-border: color-mix(in srgb, var(--role-accent-bg) 50%, var(--glass-border));
+  --role-button-hover-shadow: 0 12px 30px color-mix(in srgb, var(--role-accent-bg) 30%, transparent);
+}

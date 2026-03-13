@@ -9,7 +9,7 @@ import { learningPhotoQueryKeys } from "@/lib/query/keys";
 import { getStudentErrorMessage } from "../shared/student-errors";
 import StudentNotFound from "../shared/StudentNotFound";
 import styles from "./student-unit-detail.module.css";
-import DashboardShell from "@/components/DashboardShell";
+import DashboardShell from "@/components/StudentDashboardShell";
 import Tabs from "@/components/ui/Tabs";
 import { toYouTubeEmbed } from "@/lib/video-embed";
 import Button from "@/components/ui/Button";

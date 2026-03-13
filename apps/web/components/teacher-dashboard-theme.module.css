@@ -1,0 +1,37 @@
+.theme {
+  --role-accent-bg: #0f172a;
+  --role-accent-text: #ffffff;
+  --role-nav-hover-bg: var(--role-accent-bg);
+  --role-nav-active-bg: var(--role-accent-bg);
+  --role-nav-active-text: var(--role-accent-text);
+  --role-button-hover-bg: var(--glass-tint);
+  --role-button-hover-text: var(--text-primary);
+  --role-button-hover-border: var(--glass-border);
+  --role-button-hover-shadow: var(--glass-shadow);
+
+  --bg-accent: var(--role-accent-bg);
+  --text-accent: var(--role-accent-text);
+  --nav-hover-bg: var(--role-nav-hover-bg);
+  --nav-active-bg: var(--role-nav-active-bg);
+  --nav-active-text: var(--role-nav-active-text);
+  --button-hover-bg: var(--role-button-hover-bg);
+  --button-hover-text: var(--role-button-hover-text);
+  --button-hover-border: var(--role-button-hover-border);
+  --button-hover-shadow: var(--role-button-hover-shadow);
+}
+
+:global(.glass-scope).theme {
+  /* Keep teacher glass baseline identical to pre-split behavior. */
+  --role-nav-hover-bg: var(--glass-tint);
+  --role-nav-active-bg: var(--surface-2);
+  --role-nav-active-text: var(--text-primary);
+  --role-button-hover-bg: var(--glass-tint);
+  --role-button-hover-text: var(--text-primary);
+  --role-button-hover-border: var(--glass-border);
+  --role-button-hover-shadow: var(--glass-shadow);
+}
+
+[data-theme="dark"] .theme {
+  --role-accent-bg: #ffffff;
+  --role-accent-text: #0f172a;
+}

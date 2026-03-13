@@ -14,7 +14,7 @@ import {
   PlayCircle,
   Sparkles,
 } from "lucide-react";
-import DashboardShell from "@/components/DashboardShell";
+import DashboardShell from "@/components/StudentDashboardShell";
 import {
   studentApi,
   type Course,

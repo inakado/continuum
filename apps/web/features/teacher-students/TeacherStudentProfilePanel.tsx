@@ -7,6 +7,7 @@ import { useRouter, useSearchParams, type ReadonlyURLSearchParams } from "next/n
 import { ChevronDown, ChevronRight, GraduationCap } from "lucide-react";
 import LiteTex from "@/components/LiteTex";
 import Button from "@/components/ui/Button";
+import ButtonLink from "@/components/ui/ButtonLink";
 import {
   teacherApi,
   type TeacherStudentTreeTask,

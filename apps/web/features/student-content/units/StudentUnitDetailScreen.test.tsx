@@ -12,7 +12,7 @@ vi.mock("next/navigation", () => ({
   useRouter: vi.fn(),
 }));
 
-vi.mock("@/components/DashboardShell", () => ({
+vi.mock("@/components/StudentDashboardShell", () => ({
   default: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 

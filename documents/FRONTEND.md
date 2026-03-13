@@ -23,13 +23,48 @@
 - use-case уровень: загрузка данных, мутации, orchestration, адаптация данных под UI.
 
 3. `apps/web/components/**`
-- shared UI primitives и презентационные блоки без доменной логики.
+- shared role-neutral UI primitives и инфраструктурные presentation helpers без доменной логики.
 
 4. `apps/web/lib/**`
 - infra/helpers:
   - `apps/web/lib/api/**` — API client;
   - `apps/web/lib/query/**` — query client и query keys;
   - `apps/web/lib/status-labels.ts` — единый источник статусов и label mapping.
+
+### Role-scoped dashboard boundaries
+
+- Teacher dashboard visual system и student dashboard visual system считаются разными baseline, даже если используют общие foundation tokens и общий UI-kit.
+- Teacher-specific presentation patterns живут в teacher feature-модулях и shared teacher-first primitives.
+- Student-specific presentation patterns для нового dashboard живут в `apps/web/features/student-dashboard/*`.
+- Прямой импорт teacher feature UI в student feature UI (и наоборот) не допускается; переиспользование идёт через role-neutral слой.
+- Enforced guardrails:
+  - `eslint-plugin-boundaries` запрещает cross-import между `features/student-*` и `features/teacher-*`;
+  - `no-restricted-imports` запрещает прямой импорт `@/components/DashboardShell` из role-specific feature-кода; используются `StudentDashboardShell` / `TeacherDashboardShell`.
+- Sidebar/shell реализация разделена по ролям:
+  - student routes используют отдельный `StudentDashboardShell` + `student-dashboard-shell.module.css`;
+  - teacher routes используют отдельный `TeacherDashboardShell` + `teacher-dashboard-shell.module.css`.
+  - `DashboardShell` оставлен только как deprecated compatibility alias и не используется в role-specific feature-коде.
+- Role-scoped theme слой также разделён:
+  - student dashboard theme: `apps/web/components/student-dashboard-theme.module.css`;
+  - teacher dashboard theme: `apps/web/components/teacher-dashboard-theme.module.css`.
+  - Theme-модули подключаются на root shell и переопределяют semantic tokens (`--bg-accent`, `--button-hover-*`, `--nav-*`) только в пределах своей role subtree.
+
+### Практическая карта UI-правок (role ownership)
+
+| Что меняем | Где менять | Что не трогать в этой задаче |
+|---|---|---|
+| Teacher sidebar layout/анимации | `apps/web/components/TeacherDashboardShell.tsx`, `apps/web/components/teacher-dashboard-shell.module.css` | `StudentDashboardShell.tsx`, `student-dashboard-shell.module.css` |
+| Teacher sidebar/button/nav цвета и hover/active | `apps/web/components/teacher-dashboard-theme.module.css` | `student-dashboard-theme.module.css`, `globals.css` (если задача только teacher) |
+| Student sidebar layout/анимации | `apps/web/components/StudentDashboardShell.tsx`, `apps/web/components/student-dashboard-shell.module.css` | `TeacherDashboardShell.tsx`, `teacher-dashboard-shell.module.css` |
+| Student sidebar/button/nav цвета и hover/active | `apps/web/components/student-dashboard-theme.module.css` | `teacher-dashboard-theme.module.css`, `globals.css` (если задача только student) |
+| Teacher feature-экран UI | `apps/web/features/teacher-*/*` | `apps/web/features/student-*/*` |
+| Student dashboard feature-экран UI | `apps/web/features/student-dashboard/*` | `apps/web/features/teacher-*/*` |
+| Shared кнопки/инпуты/примитивы для обеих ролей | `apps/web/components/ui/*` | role theme-файлы, если изменение должно быть глобальным |
+| Foundation tokens и reset | `apps/web/app/globals.css` | role-specific theme-файлы, если изменение должно быть только для одной роли |
+
+Правило применения:
+- Если UX-изменение относится к одной роли, сначала ищем решение в role theme/shell/feature слое.
+- До `components/ui/*` и `globals.css` доходим только если изменение осознанно общее для teacher и student.
 
 ### Конвенция статусов в UI
 
@@ -47,6 +82,7 @@
 - `/login` — общий логин.
 - `/student/login`, `/teacher/login` — role-specific entrypoints.
 - `/student` — student dashboard.
+- `/student/courses`, `/student/courses/[id]`, `/student/sections/[id]` — legacy student content routes (compatibility layer, не целевой baseline для нового student dashboard).
 - `/student/units/[id]` — просмотр юнита студентом.
 - `/teacher` — teacher dashboard.
 - `/teacher/sections/[id]` — section + graph view.
@@ -114,6 +150,7 @@
 - `Button` использует typed semantic API:
   - variants: `primary`, `secondary`, `ghost`, `danger`
   - sizes: `sm`, `md`, `lg`
+- `Button`/`ButtonLink` остаются role-neutral primitives (`apps/web/components/ui/button.module.css`), а финальный visual результат зависит от role-scoped tokens, заданных в соответствующем dashboard shell theme module.
 - Для route navigation, которая выглядит как button CTA, используем `ButtonLink`/`Link`, а не `button + router.push`.
 - Teacher screens не должны по умолчанию строить CTA через контейнерные `--button-*` overrides; сначала выбирается variant/size, overrides остаются только для локально уникальных случаев.
 - Button semantics для teacher routes:
@@ -123,6 +160,7 @@
   - `danger` = delete/reject/remove.
 - `framer-motion` применяется точечно для React UI-анимаций; layout-size анимации по возможности остаются на CSS custom properties.
 - Для frequently triggered interactions избегаем тяжёлых `filter: blur(...)` и уважаем `prefers-reduced-motion`.
+- Student dashboard может иметь другой visual language и набор presentation blocks; teacher shared primitives не являются обязательным baseline для student feature UI.
 
 ## Typography Runtime
 
@@ -148,7 +186,7 @@
 
 ## Teacher Dashboard Baseline
 
-- Канонический visual baseline teacher UI = `DashboardShell` + glass tokens + shared UI primitives + feature CSS Modules.
+- Канонический visual baseline teacher UI = `TeacherDashboardShell` + glass tokens + shared UI primitives + feature CSS Modules.
 - В репозитории больше нет параллельного legacy teacher CRUD flow для курсов/разделов; teacher dashboard baseline является единственным SoR для этого домена на web.
 - Teacher features собираются по схеме:
   - data/query orchestration в `features/**`
@@ -156,9 +194,18 @@
   - локальные CSS только для feature-specific layout/state, а не для дублирования базовых panel/header/label/status/button patterns
 - Новые и существующие teacher read screens используют `react-query`; `useEffect + useState` CRUD-read flow не считается допустимым baseline для teacher dashboard.
 
+## Student Dashboard Baseline (`In progress`)
+
+- Новый student dashboard baseline развивается в `apps/web/features/student-dashboard/*` и используется маршрутом `/student`.
+- Shell-уровень student dashboard использует `StudentDashboardShell` с отдельным CSS-модулем (`student-dashboard-shell.module.css`).
+- Цвет/hover/CTA токены student dashboard задаются отдельным `student-dashboard-theme.module.css`, поэтому изменение кнопок и sidebar-интерактивов студента не должно затрагивать teacher dashboard.
+- Текущий student flow опирается на aggregated read-model (`GET /student/dashboard`) + course detail read (`GET /courses/:id`) и встроенную навигацию `courses -> sections -> graph`.
+- Визуальная система student dashboard может осознанно отличаться от teacher dashboard; совпадение токенов/компонентов не является целью само по себе.
+- Legacy маршруты `/student/courses*` и `/student/sections/[id]` поддерживаются как переходный compatibility слой до завершения миграции.
+
 ## Navigation Patterns
 
-- Teacher dashboard edit flow и student dashboard синхронизируют внутридашбордную навигацию с `window.history.state`.
+- Teacher dashboard edit flow и student dashboard (`/student`) синхронизируют внутридашбордную навигацию с `window.history.state`.
 - Browser `Back/Forward` должен возвращать предыдущий UI-шаг внутри dashboard, а не ломать user journey.
 - В teacher unit editor route exits через breadcrumbs/back-actions обязаны проходить через shared dirty-form guard; минимум инварианта:
   - `beforeunload` предупреждение при `isDirty`;

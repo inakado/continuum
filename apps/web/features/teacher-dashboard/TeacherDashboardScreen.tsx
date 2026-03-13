@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ImagePlus, Pencil, Trash2 } from "lucide-react";
-import DashboardShell from "@/components/DashboardShell";
+import DashboardShell from "@/components/TeacherDashboardShell";
 import AlertDialog from "@/components/ui/AlertDialog";
 import Button from "@/components/ui/Button";
 import ButtonLink from "@/components/ui/ButtonLink";

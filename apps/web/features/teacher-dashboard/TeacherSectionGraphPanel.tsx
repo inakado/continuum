@@ -617,9 +617,8 @@ export default function TeacherSectionGraphPanel({
 
   const queryError = graphQuery.isError ? getApiErrorMessage(graphQuery.error) : null;
   const errorMessage = error ?? queryError;
-  const canvasEdges = useMemo(
-    () => editor.edges.map((edge) => decorateEdge(edge, edge.id === editor.selectedEdgeId)),
-    [editor.edges, editor.selectedEdgeId],
+  const canvasEdges = editor.edges.map((edge) =>
+    decorateEdge(edge, edge.id === editor.selectedEdgeId),
   );
 
   return (

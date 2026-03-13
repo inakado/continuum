@@ -182,6 +182,28 @@
 
 См. `FRONTEND.md` (SoR для UI).
 
+### 8.1 Role-scoped dashboard systems
+
+- Teacher dashboard и student dashboard развиваются как отдельные UI-системы с разными visual baseline.
+- Teacher dashboard baseline стабилизирован и является каноническим только для teacher routes.
+- Student dashboard baseline развивается отдельно в `apps/web/features/student-dashboard/*`; текущая активная точка — `/student`.
+- Legacy student routes (`/student/courses*`, `/student/sections/[id]`) остаются переходным compatibility-слоем до полной миграции в новый student dashboard flow.
+
+### 8.2 Shared vs role-specific boundaries
+
+- Общими остаются только foundation слои:
+  - `apps/web/app/globals.css` (базовые токены и theme foundation),
+  - `apps/web/components/ui/*` (role-neutral primitives),
+  - `apps/web/lib/api/*` + `apps/web/lib/query/*` (transport/server-state).
+- Role-specific presentation и композиция должны оставаться в своих feature-boundaries:
+  - teacher: `apps/web/features/teacher-*/*`;
+  - student: `apps/web/features/student-dashboard/*`.
+- Role-scoped theme overlays фиксируются на shell-уровне и не смешиваются:
+  - student: `apps/web/components/student-dashboard-theme.module.css`;
+  - teacher: `apps/web/components/teacher-dashboard-theme.module.css`.
+  - Эти модули переопределяют semantic UI tokens (`--bg-accent`, `--button-hover-*`, `--nav-*`) только в пределах соответствующего dashboard subtree.
+- Прямые cross-imports между teacher и student feature-UI слоями не допускаются; переиспользование идёт через role-neutral primitives/helpers/contracts.
+
 ## 9) Документы, связанные с архитектурой
 - `CONTENT.md` — content/publishing/graph/LaTeX pipeline (SoR)
 - `LEARNING.md` — attempts/progress/availability/3+3 (SoR)

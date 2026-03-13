@@ -6,7 +6,7 @@
 ## Корневая карта
 
 - `AGENTS.md` — короткий контракт работы агента с репозиторием и документацией.
-- `PRODUCTION-UPDATE-COMMANDS.md` — пошаговый список команд для ручного обновления production (push/pull/migrate/rebuild/check/cleanup).
+
 
 
 ## System of Record (SoR)
@@ -33,7 +33,8 @@
 - `documents/design-docs/index.md` — индекс дизайн-доков.
 - `documents/design-docs/core-beliefs.md` — core beliefs для design-doc ветки.
 - `documents/product-specs/index.md` — индекс продуктовых спецификаций.
-- `documents/exec-plans/active/` — активные execution plans; на текущий момент каталог пуст.
+- `documents/exec-plans/active/` — активные execution plans.
+- `documents/exec-plans/active/2026-03-13-student-dashboard-dual-design-system.md` — активный план разделения teacher/student dashboard на разные дизайн-системы и фиксации архитектурных границ.
 - `documents/exec-plans/completed/` — завершённые execution plans.
 - `documents/exec-plans/completed/index.md` — индекс завершённых планов.
 - `documents/exec-plans/completed/2026-03-12-react-doctor-remediation.md` — завершённый план remediation по результатам React Doctor для `apps/web`.
