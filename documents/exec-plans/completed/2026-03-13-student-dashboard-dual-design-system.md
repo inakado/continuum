@@ -1,6 +1,8 @@
 # Execution Plan: Student Dashboard Dual Design System
 
-Статус плана: `Active`
+Статус плана: `Completed`
+
+> `2026-03-13`: план завершён и перенесён в `documents/exec-plans/completed/`.
 
 ## 1. Цель
 

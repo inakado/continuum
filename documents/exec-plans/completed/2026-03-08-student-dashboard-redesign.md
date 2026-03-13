@@ -7,7 +7,7 @@
 > Содержимое сохраняется как исторический контекст и backlog-гипотезы для будущего возвращения к student dashboard.
 >
 > `2026-03-13`: работа по student dashboard возобновлена в новом active плане
-> `../active/2026-03-13-student-dashboard-dual-design-system.md` с обновлённой архитектурной моделью разделённых teacher/student дизайн-систем.
+> `./2026-03-13-student-dashboard-dual-design-system.md` с обновлённой архитектурной моделью разделённых teacher/student дизайн-систем.
 
 ## 1. Цель
 

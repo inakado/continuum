@@ -34,14 +34,9 @@
 - `documents/design-docs/core-beliefs.md` — core beliefs для design-doc ветки.
 - `documents/product-specs/index.md` — индекс продуктовых спецификаций.
 - `documents/exec-plans/active/` — активные execution plans.
-- `documents/exec-plans/active/2026-03-13-student-dashboard-dual-design-system.md` — активный план разделения teacher/student dashboard на разные дизайн-системы и фиксации архитектурных границ.
 - `documents/exec-plans/completed/` — завершённые execution plans.
 - `documents/exec-plans/completed/index.md` — индекс завершённых планов.
-- `documents/exec-plans/completed/2026-03-12-react-doctor-remediation.md` — завершённый план remediation по результатам React Doctor для `apps/web`.
-- `documents/exec-plans/completed/2026-03-09-teacher-dashboard-design-system-normalization.md` — завершённый план нормализации design-system и типографики teacher dashboard.
-- `documents/exec-plans/completed/2026-03-08-student-dashboard-redesign.md` — superseded-план редизайна student dashboard, снятый из active при смене приоритета.
-- `documents/exec-plans/completed/2026-03-05-task-solution-html-render.md` — завершённый план миграции `task_solution` на backend HTML render path.
-- `documents/exec-plans/completed/2026-03-05-texlive-pdflatex-migration.md` — завершённый план миграции backend LaTeX runtime с `tectonic` на `TeX Live + pdflatex`.
+- `documents/exec-plans/completed/
 - `documents/exec-plans/deferred-roadmap.md` — отложенные future items, которые не являются техдолгом.
 - `documents/exec-plans/tech-debt-tracker.md` — техдолг и engineering debt.
 - `documents/generated/db-schema.md` — срез текущей БД-модели.

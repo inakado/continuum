@@ -20,6 +20,7 @@
 
 ## Native exec-plans
 
+- `2026-03-13-student-dashboard-dual-design-system.md`
 - `2026-03-12-react-doctor-remediation.md`
 - `2026-03-09-teacher-dashboard-design-system-normalization.md`
 - `2026-03-08-student-dashboard-redesign.md` (`Superseded`)
