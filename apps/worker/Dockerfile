@@ -1,18 +1,13 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:20-bookworm-slim AS base
+ARG TEXLIVE_BASE_IMAGE=continuum-texlive-base:texlive-2022-node20-bookworm
+
+FROM ${TEXLIVE_BASE_IMAGE} AS base
 
 WORKDIR /app
 ENV BACKEND_BUILD_IN_DOCKER=1
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
-
-RUN corepack enable
-
-COPY scripts/install-texlive-runtime.sh /tmp/install-texlive-runtime.sh
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
-    sh /tmp/install-texlive-runtime.sh && rm -f /tmp/install-texlive-runtime.sh
 
 FROM base AS deps
 

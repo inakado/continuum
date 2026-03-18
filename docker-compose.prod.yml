@@ -28,6 +28,8 @@ services:
       context: .
       dockerfile: apps/worker/Dockerfile
       target: runner
+      args:
+        TEXLIVE_BASE_IMAGE: ${TEXLIVE_BASE_IMAGE:-continuum-texlive-base:texlive-2022-node20-bookworm}
     env_file:
       - ./deploy/env/worker.env
     environment:

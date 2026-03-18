@@ -288,14 +288,14 @@ Auth smoke проверяет:
     - `[worker] latex ready concurrency=1`
     - `[worker][latex] success jobId=...`
 
-- **Симптом:** backend Docker rebuild после LaTeX-изменений слишком долго скачивает `TeX Live` и зависимости заново.
-- **Команда:** `docker compose build api worker`
-- **Причина:** первый build после смены Dockerfile/install-layer заполняет BuildKit cache для `apt` и `pnpm`; при ручной очистке builder cache он заполняется снова.
+- **Симптом:** `worker` build снова пытается скачать `TeX Live` вместо обычной быстрой пересборки application image.
+- **Команда:** `docker compose -f docker-compose.prod.yml build worker`
+- **Причина:** отсутствует или пересобирается отдельный runtime image `continuum-texlive-base`, который теперь хранит слой `texlive-full`.
 - **Фикс:**
-  - не очищать без необходимости Docker builder cache;
-  - не делать `docker builder prune` / `docker system prune -a` (policy запрет для production deploy цикла);
-  - для dev-перезапуска использовать `docker compose up -d --build api worker`, чтобы переиспользовать слои и named volumes.
-- **Проверка:** повторный `docker compose build api worker` использует cached steps для `install-texlive-runtime.sh` и `pnpm install`, если не менялись Dockerfile и lockfile.
+  - для обычного релиза не трогать `continuum-texlive-base`, а пересобирать только `worker`;
+  - пересобирать `continuum-texlive-base` только при изменениях в `apps/worker/Dockerfile.texlive-base` или `scripts/install-texlive-runtime.sh`;
+  - не делать `docker builder prune -a` / `docker system prune -a` (policy запрет для production deploy цикла).
+- **Проверка:** обычный `docker compose -f docker-compose.prod.yml build worker` завершается без повторного шага установки `texlive-full`; при runtime-изменениях сначала выполняется `docker build -f apps/worker/Dockerfile.texlive-base -t "$TEXLIVE_BASE_IMAGE" .`.
 
 - **Симптом:** production `api`/`worker` уходит в restart-loop с `Error: Cannot find module 'zod'` (stack из `/app/packages/shared/dist/...`).
 - **Команда:** `docker compose -f docker-compose.prod.yml logs --no-color --tail=200 api` или `... worker`
@@ -312,5 +312,6 @@ Auth smoke проверяет:
 - **Фикс:**
   - проверить ресурсы: `df -h`, `df -i`, `docker system df -v`;
   - очистить неиспользуемые образы/контейнеры: `docker image prune -a -f` и `docker container prune -f`;
-  - не удалять build cache; при недостатке места чистить host-level логи/кеши и при необходимости расширять диск.
-- **Проверка:** после cleanup `docker compose -f docker-compose.prod.yml build worker` завершается успешно.
+  - не удалять build cache; при недостатке места чистить host-level логи/кеши и при необходимости расширять диск;
+  - если пересобирается runtime image, учитывать дополнительное место под `continuum-texlive-base`.
+- **Проверка:** после cleanup/runtime rebuild `docker build -f apps/worker/Dockerfile.texlive-base -t "$TEXLIVE_BASE_IMAGE" .` и `docker compose -f docker-compose.prod.yml build worker` завершаются успешно.

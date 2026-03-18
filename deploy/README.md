@@ -142,20 +142,43 @@ docker compose -f docker-compose.prod.yml run --rm --build api \
 
 ```bash
 cd /srv/continuum
-docker compose -f docker-compose.prod.yml up -d --build api worker
+docker compose -f docker-compose.prod.yml up -d postgres redis
+docker compose -f docker-compose.prod.yml build api
+docker compose -f docker-compose.prod.yml up -d api
 ```
 
-### Cache-first policy для `worker` (TeX Live)
+### Stable TeX Live runtime base для `worker`
 
-`worker` image содержит тяжёлый слой `texlive-full`, поэтому для обычных релизов используем селективную пересборку:
+`worker` больше не должен собирать `texlive-full` внутри обычного application image.
+Тяжёлый runtime вынесен в отдельный base image `continuum-texlive-base`.
+
+Рекомендуемый tag:
+
+```bash
+export TEXLIVE_BASE_IMAGE=continuum-texlive-base:texlive-2022-node20-bookworm
+```
+
+Первичная сборка base image или явное обновление runtime-слоя:
+
+```bash
+cd /srv/continuum
+docker build -f apps/worker/Dockerfile.texlive-base -t "$TEXLIVE_BASE_IMAGE" .
+```
+
+Обычный `worker` build использует этот base image через `TEXLIVE_BASE_IMAGE` и не должен заново скачивать `texlive-full`.
+
+### Cache-first policy для `worker`
+
+Для обычных релизов используем селективную пересборку:
 
 ```bash
 # Обязательный минимум для большинства релизов
 docker compose -f docker-compose.prod.yml build api
 docker compose -f docker-compose.prod.yml up -d api
 
-# worker пересобираем только если реально менялся worker/runtime слой
-docker compose -f docker-compose.prod.yml build worker
+# worker пересобираем только если реально менялся worker/app слой
+TEXLIVE_BASE_IMAGE="${TEXLIVE_BASE_IMAGE:-continuum-texlive-base:texlive-2022-node20-bookworm}" \
+  docker compose -f docker-compose.prod.yml build worker
 docker compose -f docker-compose.prod.yml up -d worker
 ```
 
@@ -166,11 +189,17 @@ docker compose -f docker-compose.prod.yml up -d worker
 - изменения в `apps/worker/*`;
 - изменения в `packages/latex-runtime/*`;
 - изменения в `packages/shared/*` (worker импортирует `@continuum/shared`);
-- изменения в `apps/worker/Dockerfile`, `scripts/install-texlive-runtime.sh`, `pnpm-lock.yaml`, `package.json`.
+- изменения в `apps/worker/Dockerfile`, `pnpm-lock.yaml`, `package.json`.
+
+Когда нужно пересобирать именно `continuum-texlive-base`:
+- изменения в `apps/worker/Dockerfile.texlive-base`;
+- изменения в `scripts/install-texlive-runtime.sh`;
+- изменения в `pnpm-lock.yaml` или `package.json`, если они влияют на runtime policy base image.
 
 Чтобы не терять кэш `texlive`-слоя:
 - не использовать `docker build --no-cache` для обычного релиза;
 - не запускать `docker builder prune -a` и `docker system prune -a` (policy запрет для production deploy цикла).
+- не пересобирать `continuum-texlive-base` без явной причины.
 
 ### Disk hygiene policy (production VPS)
 
@@ -217,7 +246,7 @@ docker container prune -f
 Если после этого всё ещё мало места:
 - не удалять Docker build cache;
 - освободить место на хосте вне Docker cache (`journalctl --vacuum-time=7d`, `apt-get clean`, cleanup логов/артефактов);
-- при необходимости увеличить диск VPS перед следующей пересборкой `worker`.
+- при необходимости увеличить диск VPS перед следующей пересборкой `continuum-texlive-base`.
 
 Что делать запрещено (чтобы не сбрасывать TeX Live cache):
 - `docker volume prune` (может удалить данные runtime-сервисов);
@@ -349,7 +378,11 @@ curl -I https://app.example.com/api/health
 cd /srv/continuum
 git log --oneline -n 10
 git checkout <previous-commit-or-tag>
-docker compose -f docker-compose.prod.yml up -d --build api worker
+export TEXLIVE_BASE_IMAGE="${TEXLIVE_BASE_IMAGE:-continuum-texlive-base:texlive-2022-node20-bookworm}"
+docker compose -f docker-compose.prod.yml build api
+docker compose -f docker-compose.prod.yml up -d api
+docker compose -f docker-compose.prod.yml build worker
+docker compose -f docker-compose.prod.yml up -d worker
 NEXT_PUBLIC_API_BASE_URL=/api pnpm --filter web build
 sudo systemctl restart continuum-web
 ```
@@ -390,7 +423,9 @@ curl -fsS http://127.0.0.1:3001/login >/dev/null
     - `docker compose down --remove-orphans`
     - (опционально, если нужно очистить dev-тома) `docker compose down --remove-orphans -v`
     - `docker compose -f docker-compose.prod.yml up -d postgres redis`
-    - `docker compose -f docker-compose.prod.yml up -d --build api worker`
+    - `docker compose -f docker-compose.prod.yml build api`
+    - `docker compose -f docker-compose.prod.yml up -d api`
+    - `docker compose -f docker-compose.prod.yml up -d worker`
   - проверка:
     - `docker compose -f docker-compose.prod.yml ps`
     - `curl -fsS http://127.0.0.1:3000/health`
@@ -412,10 +447,11 @@ curl -fsS http://127.0.0.1:3001/login >/dev/null
   - минимально для deploy-пайплайна: NOPASSWD на `systemctl restart continuum-web`.
 
 - `worker` build снова скачивает `TeX Live` и занимает много времени:
-  - причина: потерян Docker build cache или запущена лишняя полная пересборка `api+worker`;
+  - причина: потерян/отсутствует image `continuum-texlive-base` либо вручную запущена его лишняя пересборка;
   - исправление:
     - для обычного релиза собирать только изменившийся сервис (чаще `api`);
-    - `worker` собирать отдельно только при изменениях в `apps/worker`, `packages/latex-runtime`, `packages/shared` или worker Docker/runtime слоя;
+    - `worker` собирать отдельно только при изменениях в `apps/worker`, `packages/latex-runtime`, `packages/shared` или worker app-слое;
+    - `continuum-texlive-base` пересобирать только при изменениях в `apps/worker/Dockerfile.texlive-base` или `scripts/install-texlive-runtime.sh`;
     - не использовать `docker builder prune -a` / `docker system prune -a` (policy запрет для production deploy цикла).
 
 - build падает с `no space left on device`:
@@ -425,7 +461,7 @@ curl -fsS http://127.0.0.1:3001/login >/dev/null
     - `docker system df -v`;
     - `docker image prune -a -f` и `docker container prune -f`;
     - не удалять build cache; если места всё равно мало — чистить host-level логи/кеши и расширять диск VPS;
-  - проверка: после cleanup есть устойчивый запас места, затем `docker compose -f docker-compose.prod.yml build worker` завершается успешно.
+  - проверка: после cleanup есть устойчивый запас места, затем при необходимости `docker build -f apps/worker/Dockerfile.texlive-base -t "$TEXLIVE_BASE_IMAGE" .` и `docker compose -f docker-compose.prod.yml build worker` завершаются успешно.
 
 - API 500 с Prisma `P2022` / `column sections.description does not exist` после `git pull`:
   - причина: код уже использует новую колонку, но миграция не была применена в текущий контейнерный образ;

@@ -1335,7 +1335,7 @@ const injectMinipages = (
     }
 
     const rowHtml = placeholders
-      .map((placeholder) => minipageHtmlByPlaceholder.get(placeholder) ?? placeholder)
+      .map((placeholder: string) => minipageHtmlByPlaceholder.get(placeholder) ?? placeholder)
       .join('');
     return `<div class="unit-html-minipage-row">${rowHtml}</div>`;
   });
