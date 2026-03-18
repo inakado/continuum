@@ -1,13 +1,27 @@
 .theme {
-  --role-accent-bg: #2563eb;
-  --role-accent-text: #f8fafc;
-  --role-nav-hover-bg: color-mix(in srgb, var(--role-accent-bg) 14%, var(--surface-2));
-  --role-nav-active-bg: color-mix(in srgb, var(--role-accent-bg) 20%, var(--surface-2));
-  --role-nav-active-text: var(--text-primary);
-  --role-button-hover-bg: color-mix(in srgb, var(--role-accent-bg) 16%, var(--surface-2));
-  --role-button-hover-text: var(--text-primary);
-  --role-button-hover-border: color-mix(in srgb, var(--role-accent-bg) 44%, var(--glass-border));
-  --role-button-hover-shadow: 0 10px 24px color-mix(in srgb, var(--role-accent-bg) 22%, transparent);
+  /* CSS HEX Monochrome Palette */
+  --bright-snow: #f8f9fa;
+  --platinum: #e9ecef;
+  --alabaster-grey: #dee2e6;
+  --pale-slate: #ced4da;
+  --pale-slate-2: #adb5bd;
+  --slate-grey: #6c757d;
+  --iron-grey: #495057;
+  --gunmetal: #343a40;
+  --carbon-black: #212529;
+
+  /* LIGHT THEME MAPPING */
+  --role-accent-bg: var(--carbon-black);
+  --role-accent-text: var(--bright-snow);
+  
+  --role-nav-hover-bg: transparent; /* subtle float */
+  --role-nav-active-bg: var(--bright-snow);   /* the most unobtrusive gray against white */
+  --role-nav-active-text: var(--carbon-black);
+  
+  --role-button-hover-bg: var(--carbon-black); /* keeping it unified */
+  --role-button-hover-text: var(--bright-snow);
+  --role-button-hover-border: var(--iron-grey);
+  --role-button-hover-shadow: 0 4px 12px rgba(33, 37, 41, 0.15);
 
   --bg-accent: var(--role-accent-bg);
   --text-accent: var(--role-accent-text);
@@ -31,13 +45,16 @@
 }
 
 [data-theme="dark"] .theme {
-  --role-accent-bg: #7dd3fc;
-  --role-accent-text: #082f49;
-  --role-nav-hover-bg: color-mix(in srgb, var(--role-accent-bg) 20%, var(--surface-1));
-  --role-nav-active-bg: color-mix(in srgb, var(--role-accent-bg) 28%, var(--surface-1));
-  --role-nav-active-text: #e0f2fe;
-  --role-button-hover-bg: color-mix(in srgb, var(--role-accent-bg) 22%, var(--surface-2));
-  --role-button-hover-text: #e0f2fe;
-  --role-button-hover-border: color-mix(in srgb, var(--role-accent-bg) 50%, var(--glass-border));
-  --role-button-hover-shadow: 0 12px 30px color-mix(in srgb, var(--role-accent-bg) 30%, transparent);
+  /* DARK THEME MAPPING */
+  --role-accent-bg: var(--platinum);
+  --role-accent-text: var(--carbon-black);
+  
+  --role-nav-hover-bg: var(--carbon-black);
+  --role-nav-active-bg: var(--gunmetal);
+  --role-nav-active-text: var(--bright-snow);
+  
+  --role-button-hover-bg: var(--platinum);
+  --role-button-hover-text: var(--carbon-black);
+  --role-button-hover-border: var(--pale-slate);
+  --role-button-hover-shadow: 0 4px 12px rgba(233, 236, 239, 0.15);
 }

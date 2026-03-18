@@ -307,6 +307,78 @@ describe('render-latex-to-html helpers', () => {
     expect(html).toContain('<h1 class="unit-html-title">Электростатическое поле в веществе</h1>');
   });
 
+  it('extracts minipage blocks with width classes', () => {
+    const tex = String.raw`\begin{document}
+\begin{minipage}{0.48\textwidth}
+Левая колонка
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+Правая колонка
+\end{minipage}
+\end{document}`;
+
+    const normalized = __test__.normalizeMinipageGapCommands(tex);
+    const extracted = __test__.extractMinipages(normalized);
+
+    expect(extracted.modifiedTex).toContain('CONTINUUMMINIPAGEPLACEHOLDER0');
+    expect(extracted.modifiedTex).toContain('CONTINUUMMINIPAGEPLACEHOLDER1');
+    expect(extracted.modifiedTex).toContain('CONTINUUMMINIPAGEGAP');
+    expect(extracted.minipages).toEqual([
+      {
+        placeholder: 'CONTINUUMMINIPAGEPLACEHOLDER0',
+        widthSpec: '0.48\\textwidth',
+        widthClass: 'unit-html-minipage--w-48',
+        bodyLatex: 'Левая колонка',
+      },
+      {
+        placeholder: 'CONTINUUMMINIPAGEPLACEHOLDER1',
+        widthSpec: '0.48\\textwidth',
+        widthClass: 'unit-html-minipage--w-48',
+        bodyLatex: 'Правая колонка',
+      },
+    ]);
+  });
+
+  it('injects consecutive minipages as a dedicated html row', () => {
+    const html = '<p>CONTINUUMMINIPAGEPLACEHOLDER0 CONTINUUMMINIPAGEGAP CONTINUUMMINIPAGEPLACEHOLDER1</p>';
+    const minipages = [
+      {
+        placeholder: 'CONTINUUMMINIPAGEPLACEHOLDER0',
+        widthSpec: '0.48\\textwidth',
+        widthClass: 'unit-html-minipage--w-48',
+        bodyLatex: 'Левая колонка',
+      },
+      {
+        placeholder: 'CONTINUUMMINIPAGEPLACEHOLDER1',
+        widthSpec: '0.48\\textwidth',
+        widthClass: 'unit-html-minipage--w-48',
+        bodyLatex: 'Правая колонка',
+      },
+    ];
+
+    const injected = __test__.injectMinipages(
+      html,
+      minipages,
+      new Map([
+        [
+          'CONTINUUMMINIPAGEPLACEHOLDER0',
+          '<div class="unit-html-minipage unit-html-minipage--w-48"><p>Left</p></div>',
+        ],
+        [
+          'CONTINUUMMINIPAGEPLACEHOLDER1',
+          '<div class="unit-html-minipage unit-html-minipage--w-48"><p>Right</p></div>',
+        ],
+      ]),
+    );
+
+    expect(injected).toContain('class="unit-html-minipage-row"');
+    expect(injected).toContain('class="unit-html-minipage unit-html-minipage--w-48"');
+    expect(injected).toContain('<p>Left</p>');
+    expect(injected).toContain('<p>Right</p>');
+    expect(injected).not.toContain('CONTINUUMMINIPAGEGAP');
+  });
+
   it('keeps subfigure tikz placeholders after macro expansion and resizebox unwrapping', () => {
     const tex = String.raw`\documentclass{article}
 \newcommand{\TikzAtomNoField}{%

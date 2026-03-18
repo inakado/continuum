@@ -180,10 +180,10 @@ const buildFlowEdges = (edges: GraphEdge[], nodes: GraphNode[]): Edge[] => {
 
     const isLockedPath = targetNode?.status === "locked";
     const stroke = isCompletedPath
-      ? "color-mix(in srgb, #10b981 72%, var(--border-primary))"
+      ? "var(--carbon-black)"
       : isLockedPath
-        ? "color-mix(in srgb, var(--text-muted) 45%, transparent)"
-        : "color-mix(in srgb, var(--border-primary) 38%, transparent)";
+        ? "var(--alabaster-grey)"
+        : "var(--sd-border-strong)";
 
     return {
       id: edge.id,

@@ -10,24 +10,15 @@
   padding: 0;
 }
 
-.topActions button {
-  --button-bg: var(--bg-field);
-  --button-border: var(--glass-border);
-  --button-text: var(--text-primary);
-  --button-hover-bg: var(--bg-surface);
-  --button-hover-border: var(--border-primary);
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
-}
-
+.topActions button,
 .header button {
-  --button-bg: var(--bg-field);
-  --button-border: var(--glass-border);
-  --button-text: var(--text-primary);
-  --button-hover-bg: var(--bg-surface);
-  --button-hover-border: var(--border-primary);
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
+  --button-bg: transparent;
+  --button-border: var(--sd-border-strong);
+  --button-text: var(--sd-text);
+  --button-hover-bg: var(--sd-surface-1);
+  --button-hover-border: var(--sd-text);
+  --button-hover-text: var(--sd-text);
+  --button-hover-shadow: none;
 }
 
 .header {
@@ -39,10 +30,10 @@
 }
 
 .legendToggle {
-  border: var(--border-width-thin) solid var(--glass-border);
+  border: 1px solid var(--sd-border-strong);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--surface-2) 92%, transparent);
-  color: var(--text-muted);
+  background: transparent;
+  color: var(--sd-muted);
   font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -55,9 +46,9 @@
 }
 
 .legendToggle:hover {
-  color: var(--text-primary);
-  border-color: color-mix(in srgb, var(--border-primary) 44%, var(--glass-border));
-  background: var(--surface-2);
+  color: var(--sd-text);
+  border-color: var(--sd-text);
+  background: var(--sd-surface-1);
 }
 
 .legend {
@@ -92,47 +83,47 @@
 }
 
 .legendLocked {
-  --legend-color: color-mix(in srgb, var(--text-muted) 85%, var(--text-primary));
-  border-color: color-mix(in srgb, var(--text-muted) 32%, var(--glass-border));
+  --legend-color: var(--pale-slate-2);
+  border-color: var(--alabaster-grey);
 }
 
 .legendAvailable {
-  --legend-color: color-mix(in srgb, var(--border-primary) 76%, #0ea5e9);
-  border-color: color-mix(in srgb, #0ea5e9 28%, var(--glass-border));
+  --legend-color: var(--sd-border-strong);
+  border-color: var(--sd-border-soft);
 }
 
 .legendInProgress {
-  --legend-color: color-mix(in srgb, #d97706 80%, var(--border-primary));
-  border-color: color-mix(in srgb, #d97706 26%, var(--glass-border));
+  --legend-color: var(--iron-grey);
+  border-color: var(--iron-grey);
 }
 
 .legendCompleted {
-  --legend-color: color-mix(in srgb, #10b981 88%, var(--border-primary));
-  border-color: color-mix(in srgb, #10b981 30%, var(--glass-border));
+  --legend-color: var(--carbon-black);
+  border-color: var(--carbon-black);
 }
 
 .backButton {
-  --button-bg: var(--bg-field);
-  --button-border: var(--glass-border);
-  --button-text: var(--text-primary);
-  --button-hover-bg: var(--bg-surface);
-  --button-hover-border: var(--border-primary);
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
+  --button-bg: transparent;
+  --button-border: var(--sd-border-strong);
+  --button-text: var(--sd-text);
+  --button-hover-bg: var(--sd-surface-1);
+  --button-hover-border: var(--sd-text);
+  --button-hover-text: var(--sd-text);
+  --button-hover-shadow: none;
 }
 
 .backButton:hover:not(:disabled) {
-  background: var(--bg-surface) !important;
-  color: var(--text-primary) !important;
-  border-color: var(--border-primary) !important;
-  box-shadow: var(--nav-hover-shadow);
+  background: var(--button-hover-bg) !important;
+  color: var(--button-hover-text) !important;
+  border-color: var(--button-hover-border) !important;
+  box-shadow: var(--button-hover-shadow) !important;
 }
 
 .error {
-  border: var(--border-width) solid var(--panel-border);
+  border: 1px solid var(--sd-border-strong);
   padding: 10px;
-  background: var(--glass-tint);
-  color: var(--text-primary);
+  background: var(--sd-surface-1);
+  color: var(--sd-text);
   font-size: 13px;
   border-radius: var(--card-radius);
   backdrop-filter: var(--glass-filter);
@@ -140,10 +131,10 @@
 }
 
 .lockedHint {
-  border: var(--border-width) solid color-mix(in srgb, #d97706 30%, var(--panel-border));
+  border: 1px solid var(--sd-border-strong);
   padding: 10px;
-  background: color-mix(in srgb, #d97706 9%, var(--glass-tint));
-  color: var(--text-primary);
+  background: var(--sd-surface-1);
+  color: var(--sd-text);
   font-size: 13px;
   border-radius: var(--card-radius);
   backdrop-filter: var(--glass-filter);
@@ -221,22 +212,20 @@
 }
 
 .node {
-  --node-accent: color-mix(in srgb, var(--border-primary) 38%, var(--glass-border));
-  --node-surface: var(--card-bg);
-  --fill-primary: color-mix(in srgb, var(--border-primary) 86%, #2563eb);
-  --fill-secondary: color-mix(in srgb, var(--border-primary) 54%, #0ea5e9);
-  border: var(--border-width-thin) solid var(--card-border);
-  background:
-    linear-gradient(155deg, color-mix(in srgb, var(--node-surface) 94%, transparent), transparent 62%),
-    var(--node-surface);
-  color: var(--text-primary);
-  padding: 11px 13px;
+  --node-accent: var(--sd-border-strong);
+  --node-surface: var(--sd-card-bg);
+  --fill-primary: var(--iron-grey);
+  --fill-secondary: var(--slate-grey);
+  border: 1px solid var(--sd-border-soft);
+  background: var(--node-surface);
+  color: var(--sd-text);
+  padding: 12px 14px;
   min-width: clamp(220px, 20vw, 286px);
   text-align: left;
-  border-radius: var(--card-radius);
-  box-shadow: var(--card-shadow);
-  backdrop-filter: var(--glass-filter);
-  -webkit-backdrop-filter: var(--glass-filter);
+  border-radius: 16px;
+  box-shadow: var(--sd-shadow);
+  backdrop-filter: var(--sd-glass-filter);
+  -webkit-backdrop-filter: var(--sd-glass-filter);
   cursor: pointer;
   transition:
     border-color 0.22s ease,
@@ -255,36 +244,37 @@
 }
 
 .nodeLocked {
-  --node-accent: color-mix(in srgb, var(--text-muted) 40%, var(--glass-border));
-  --node-surface: color-mix(in srgb, var(--surface-1) 94%, transparent);
-  --fill-primary: color-mix(in srgb, var(--text-muted) 85%, transparent);
-  --fill-secondary: color-mix(in srgb, var(--text-muted) 72%, transparent);
-  border-color: color-mix(in srgb, var(--text-muted) 26%, var(--glass-border));
-  color: color-mix(in srgb, var(--text-primary) 72%, var(--text-muted));
+  --node-accent: var(--pale-slate);
+  --node-surface: var(--sd-surface-1);
+  --fill-primary: var(--pale-slate);
+  --fill-secondary: var(--alabaster-grey);
+  border-color: var(--alabaster-grey);
+  color: var(--slate-grey);
 }
 
 .nodeAvailable {
-  --node-accent: color-mix(in srgb, var(--border-primary) 46%, #0ea5e9);
-  --node-surface: color-mix(in srgb, var(--surface-2) 90%, transparent);
-  --fill-primary: color-mix(in srgb, var(--border-primary) 80%, #0ea5e9);
-  --fill-secondary: color-mix(in srgb, #0ea5e9 88%, var(--border-primary));
-  border-color: color-mix(in srgb, #0ea5e9 26%, var(--glass-border));
+  --node-accent: var(--carbon-black);
+  --node-surface: var(--bright-snow);
+  --fill-primary: var(--carbon-black);
+  --fill-secondary: var(--slate-grey);
+  border-color: var(--sd-border-strong);
 }
 
 .nodeInProgress {
-  --node-accent: color-mix(in srgb, #d97706 78%, var(--border-primary));
-  --node-surface: color-mix(in srgb, #d97706 7%, var(--surface-2));
-  --fill-primary: color-mix(in srgb, #d97706 92%, var(--border-primary));
-  --fill-secondary: color-mix(in srgb, #f59e0b 88%, var(--border-primary));
-  border-color: color-mix(in srgb, #d97706 30%, var(--glass-border));
+  --node-accent: var(--carbon-black);
+  --node-surface: var(--platinum);
+  --fill-primary: var(--carbon-black);
+  --fill-secondary: var(--carbon-black);
+  border-color: var(--carbon-black);
 }
 
 .nodeCompleted {
-  --node-accent: color-mix(in srgb, #10b981 84%, var(--border-primary));
-  --node-surface: color-mix(in srgb, #10b981 8%, var(--surface-2));
-  --fill-primary: color-mix(in srgb, #10b981 92%, var(--border-primary));
-  --fill-secondary: color-mix(in srgb, #14b8a6 86%, var(--border-primary));
-  border-color: color-mix(in srgb, #10b981 32%, var(--glass-border));
+  --node-accent: var(--bright-snow);
+  --node-surface: var(--carbon-black);
+  --fill-primary: var(--bright-snow);
+  --fill-secondary: var(--platinum);
+  border-color: var(--carbon-black);
+  color: var(--bright-snow);
 }
 
 .nodeHeader {

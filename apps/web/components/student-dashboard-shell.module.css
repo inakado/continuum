@@ -18,10 +18,7 @@
 
 .page {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 10% 20%, var(--page-gradient-1), transparent 45%),
-    radial-gradient(circle at 80% 10%, var(--page-gradient-2), transparent 40%),
-    linear-gradient(180deg, var(--page-gradient-3), transparent 30%);
+  background: var(--bg-primary); /* Solid clean background for monochrome theme */
 }
 
 .skipLink {
@@ -122,7 +119,7 @@
   height: 100dvh;
   min-height: 100vh;
   border-radius: 0px;
-  box-shadow: inset -1px 0 0 var(--sidebar-divider), var(--panel-shadow);
+  box-shadow: inset -1px 0 0 var(--panel-border);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   overflow: hidden;
@@ -462,10 +459,7 @@
 }
 
 [data-theme="dark"] .page {
-  background:
-    radial-gradient(circle at 10% 20%, var(--page-gradient-1), transparent 45%),
-    radial-gradient(circle at 80% 10%, var(--page-gradient-2), transparent 40%),
-    linear-gradient(180deg, var(--page-gradient-3), transparent 30%);
+  background: var(--bg-primary);
 }
 
 .navIconWrapper {

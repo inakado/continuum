@@ -666,6 +666,53 @@
   gap: 20px;
 }
 
+.htmlContent :global(.unit-html-minipage-row) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 20px;
+  width: 100%;
+  margin: 1.4em 0;
+}
+
+.htmlContent :global(.unit-html-minipage) {
+  min-width: 0;
+  flex: 1 1 320px;
+}
+
+.htmlContent :global(.unit-html-minipage--full) {
+  flex-basis: 100%;
+}
+
+.htmlContent :global(.unit-html-minipage--w-28) {
+  flex: 0 1 28%;
+}
+
+.htmlContent :global(.unit-html-minipage--w-34) {
+  flex: 0 1 34%;
+}
+
+.htmlContent :global(.unit-html-minipage--w-38) {
+  flex: 0 1 38%;
+}
+
+.htmlContent :global(.unit-html-minipage--w-46) {
+  flex: 0 1 46%;
+}
+
+.htmlContent :global(.unit-html-minipage--w-47) {
+  flex: 0 1 47%;
+}
+
+.htmlContent :global(.unit-html-minipage--w-48) {
+  flex: 0 1 48%;
+}
+
+.htmlContent :global(.unit-html-minipage--w-55) {
+  flex: 0 1 55%;
+}
+
 .htmlContent :global(.unit-html-figure-group .unit-html-subfigure) {
   min-width: 0;
   max-width: none;
@@ -730,6 +777,17 @@
 
   .htmlContent :global(.unit-html-figure-group:not(:has(> .unit-html-figure-group-grid))) {
     grid-template-columns: 1fr;
+  }
+
+  .htmlContent :global(.unit-html-minipage),
+  .htmlContent :global(.unit-html-minipage--w-28),
+  .htmlContent :global(.unit-html-minipage--w-34),
+  .htmlContent :global(.unit-html-minipage--w-38),
+  .htmlContent :global(.unit-html-minipage--w-46),
+  .htmlContent :global(.unit-html-minipage--w-47),
+  .htmlContent :global(.unit-html-minipage--w-48),
+  .htmlContent :global(.unit-html-minipage--w-55) {
+    flex-basis: 100%;
   }
 }
 
