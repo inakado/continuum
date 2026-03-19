@@ -286,6 +286,16 @@ describe('render-latex-to-html helpers', () => {
     expect(normalized).toContain(String.raw`\(\mathrm{Cl^{-}}\)`);
   });
 
+  it('normalizes latex guillemets in text outside math', () => {
+    const normalized = __test__.normalizeLatexInlineForHtml(
+      String.raw`<<положительное>> направление, \textit{<<сталкиваются>>}, но $<<I>>$ не трогаем`,
+    );
+
+    expect(normalized).toContain('«положительное» направление');
+    expect(normalized).toContain(String.raw`\textit{«сталкиваются»}`);
+    expect(normalized).toContain('$&lt;&lt;I&gt;&gt;$');
+  });
+
   it('extracts and injects \\name headings as dedicated html title blocks', () => {
     const tex = String.raw`\documentclass{article}
 \newcommand{\name}[1]{\begin{center}#1\end{center}}
@@ -305,6 +315,129 @@ describe('render-latex-to-html helpers', () => {
 
     const html = __test__.injectNameHeadings('<p>CONTINUUMTITLEPLACEHOLDER0</p>', extracted.headings);
     expect(html).toContain('<h1 class="unit-html-title">Электростатическое поле в веществе</h1>');
+  });
+
+  it('wraps standalone pandoc fragments into a minimal latex document when requested', () => {
+    const wrapped = __test__.preparePandocInput(String.raw`\textbf{ВАХ} --- график`, true);
+    const untouched = __test__.preparePandocInput(String.raw`\textbf{ВАХ} --- график`, false);
+
+    expect(wrapped).toContain('\\begin{document}');
+    expect(wrapped).toContain('\\textbf{ВАХ} --- график');
+    expect(wrapped).toContain('\\end{document}');
+    expect(untouched).toBe(String.raw`\textbf{ВАХ} --- график`);
+  });
+
+  it('expands theory box macros into explicit environments before pandoc', () => {
+    const tex = String.raw`\begin{document}
+\DEF{Вольт-амперная характеристика (ВАХ)}{график зависимости силы тока \(I\) от напряжения \(U\).}
+\zm{Соглашение о знаке силы тока:
+\begin{enumerate}
+\item Первый пункт
+\item Второй пункт
+\end{enumerate}}
+\end{document}`;
+
+    const expanded = __test__.expandTheoryBoxMacros(tex);
+
+    expect(expanded).toContain('\\begin{DefinitionBox}');
+    expect(expanded).toContain('\\textbf{Вольт-амперная характеристика (ВАХ)} --- график зависимости силы тока');
+    expect(expanded).toContain('\\begin{RemarkBox}');
+    expect(expanded).toContain('Соглашение о знаке силы тока:');
+    expect(expanded).toContain('\\begin{enumerate}');
+    expect(expanded).not.toContain('\\DEF{');
+    expect(expanded).not.toContain('\\zm{');
+  });
+
+  it('extracts custom theory boxes without leaking tcolorbox option artifacts', () => {
+    const tex = String.raw`\begin{document}
+\begin{DefinitionBox}[title={Определение 1}]
+\textbf{Вольт-амперная характеристика (ВАХ)} --- график зависимости силы тока.
+\end{DefinitionBox}
+\begin{RemarkBox}
+Соглашение о знаке силы тока.
+\end{RemarkBox}
+\end{document}`;
+
+    const extracted = __test__.extractCustomBoxes(tex);
+
+    expect(extracted.modifiedTex).toContain('CONTINUUMCUSTOMBOXPLACEHOLDER0');
+    expect(extracted.modifiedTex).toContain('CONTINUUMCUSTOMBOXPLACEHOLDER1');
+    expect(extracted.boxes).toEqual([
+      {
+        placeholder: 'CONTINUUMCUSTOMBOXPLACEHOLDER0',
+        className: 'DefinitionBox',
+        titleLatex: 'Определение 1',
+        bodyLatex: '\\textbf{Вольт-амперная характеристика (ВАХ)} --- график зависимости силы тока.',
+      },
+      {
+        placeholder: 'CONTINUUMCUSTOMBOXPLACEHOLDER1',
+        className: 'RemarkBox',
+        titleLatex: 'Замечание',
+        bodyLatex: 'Соглашение о знаке силы тока.',
+      },
+    ]);
+  });
+
+  it('extracts custom boxes only from document body, not from macro definitions in preamble', () => {
+    const tex = String.raw`\newcommand{\DEF}[2]{%
+\begin{DefinitionBox}
+\textbf{#1} --- #2
+\end{DefinitionBox}
+}
+\begin{document}
+\begin{DefinitionBox}
+\textbf{Электрический ток} --- направленное движение зарядов.
+\end{DefinitionBox}
+\end{document}`;
+
+    const extracted = __test__.extractCustomBoxes(tex);
+
+    expect(extracted.boxes).toHaveLength(1);
+    expect(extracted.boxes[0]?.bodyLatex).toContain('\\textbf{Электрический ток}');
+    expect(extracted.modifiedTex).toContain('\\textbf{#1} --- #2');
+    expect(extracted.modifiedTex).toContain('CONTINUUMCUSTOMBOXPLACEHOLDER0');
+  });
+
+  it('injects custom theory boxes as explicit html wrappers', () => {
+    const html = '<p>CONTINUUMCUSTOMBOXPLACEHOLDER0</p><p>CONTINUUMCUSTOMBOXPLACEHOLDER1</p>';
+    const injected = __test__.injectCustomBoxes(
+      html,
+      new Map([
+        [
+          'CONTINUUMCUSTOMBOXPLACEHOLDER0',
+          '<div class="DefinitionBox"><div class="unit-html-box-title">Определение</div><p>Body</p></div>',
+        ],
+        [
+          'CONTINUUMCUSTOMBOXPLACEHOLDER1',
+          '<div class="RemarkBox"><p>Body</p></div>',
+        ],
+      ]),
+    );
+
+    expect(injected).toContain('<div class="DefinitionBox"><div class="unit-html-box-title">Определение</div><p>Body</p></div>');
+    expect(injected).toContain('<div class="RemarkBox"><p>Body</p></div>');
+    expect(injected).not.toContain('CONTINUUMCUSTOMBOXPLACEHOLDER0');
+    expect(injected).not.toContain('CONTINUUMCUSTOMBOXPLACEHOLDER1');
+  });
+
+  it('does not partially replace placeholder prefixes when there are 10 or more custom boxes', () => {
+    const html = [
+      '<p>CONTINUUMCUSTOMBOXPLACEHOLDER1</p>',
+      '<p>CONTINUUMCUSTOMBOXPLACEHOLDER10</p>',
+    ].join('');
+
+    const injected = __test__.injectCustomBoxes(
+      html,
+      new Map([
+        ['CONTINUUMCUSTOMBOXPLACEHOLDER1', '<div class="RemarkBox"><p>One</p></div>'],
+        ['CONTINUUMCUSTOMBOXPLACEHOLDER10', '<div class="DefinitionBox"><p>Ten</p></div>'],
+      ]),
+    );
+
+    expect(injected).toContain('<div class="RemarkBox"><p>One</p></div>');
+    expect(injected).toContain('<div class="DefinitionBox"><p>Ten</p></div>');
+    expect(injected).not.toContain('>One</p></div>0');
+    expect(injected).not.toContain('CONTINUUMCUSTOMBOXPLACEHOLDER10');
   });
 
   it('extracts minipage blocks with width classes', () => {
@@ -327,15 +460,57 @@ describe('render-latex-to-html helpers', () => {
     expect(extracted.minipages).toEqual([
       {
         placeholder: 'CONTINUUMMINIPAGEPLACEHOLDER0',
+        positionSpec: null,
+        verticalAlignClass: 'unit-html-minipage--align-center',
         widthSpec: '0.48\\textwidth',
+        widthPercent: 48,
         widthClass: 'unit-html-minipage--w-48',
         bodyLatex: 'Левая колонка',
       },
       {
         placeholder: 'CONTINUUMMINIPAGEPLACEHOLDER1',
+        positionSpec: null,
+        verticalAlignClass: 'unit-html-minipage--align-center',
         widthSpec: '0.48\\textwidth',
+        widthPercent: 48,
         widthClass: 'unit-html-minipage--w-48',
         bodyLatex: 'Правая колонка',
+      },
+    ]);
+  });
+
+  it('extracts minipage vertical alignment from optional position argument', () => {
+    const tex = String.raw`\begin{document}
+\begin{minipage}[t]{0.42\linewidth}
+Top
+\end{minipage}
+\hfill
+\begin{minipage}[b]{0.57\linewidth}
+Bottom
+\end{minipage}
+\end{document}`;
+
+    const normalized = __test__.normalizeMinipageGapCommands(tex);
+    const extracted = __test__.extractMinipages(normalized);
+
+    expect(extracted.minipages).toEqual([
+      {
+        placeholder: 'CONTINUUMMINIPAGEPLACEHOLDER0',
+        positionSpec: 't',
+        verticalAlignClass: 'unit-html-minipage--align-top',
+        widthSpec: '0.42\\linewidth',
+        widthPercent: 42,
+        widthClass: 'unit-html-minipage--w-42',
+        bodyLatex: 'Top',
+      },
+      {
+        placeholder: 'CONTINUUMMINIPAGEPLACEHOLDER1',
+        positionSpec: 'b',
+        verticalAlignClass: 'unit-html-minipage--align-bottom',
+        widthSpec: '0.57\\linewidth',
+        widthPercent: 57,
+        widthClass: 'unit-html-minipage--w-57',
+        bodyLatex: 'Bottom',
       },
     ]);
   });
@@ -345,13 +520,19 @@ describe('render-latex-to-html helpers', () => {
     const minipages = [
       {
         placeholder: 'CONTINUUMMINIPAGEPLACEHOLDER0',
+        positionSpec: null,
+        verticalAlignClass: 'unit-html-minipage--align-center',
         widthSpec: '0.48\\textwidth',
+        widthPercent: 48,
         widthClass: 'unit-html-minipage--w-48',
         bodyLatex: 'Левая колонка',
       },
       {
         placeholder: 'CONTINUUMMINIPAGEPLACEHOLDER1',
+        positionSpec: null,
+        verticalAlignClass: 'unit-html-minipage--align-center',
         widthSpec: '0.48\\textwidth',
+        widthPercent: 48,
         widthClass: 'unit-html-minipage--w-48',
         bodyLatex: 'Правая колонка',
       },
@@ -363,20 +544,59 @@ describe('render-latex-to-html helpers', () => {
       new Map([
         [
           'CONTINUUMMINIPAGEPLACEHOLDER0',
-          '<div class="unit-html-minipage unit-html-minipage--w-48"><p>Left</p></div>',
+          '<div class="unit-html-minipage unit-html-minipage--w-48 unit-html-minipage--sized unit-html-minipage--align-center" style="--unit-html-minipage-basis:48%;"><p>Left</p></div>',
         ],
         [
           'CONTINUUMMINIPAGEPLACEHOLDER1',
-          '<div class="unit-html-minipage unit-html-minipage--w-48"><p>Right</p></div>',
+          '<div class="unit-html-minipage unit-html-minipage--w-48 unit-html-minipage--sized unit-html-minipage--align-center" style="--unit-html-minipage-basis:48%;"><p>Right</p></div>',
         ],
       ]),
     );
 
     expect(injected).toContain('class="unit-html-minipage-row"');
-    expect(injected).toContain('class="unit-html-minipage unit-html-minipage--w-48"');
+    expect(injected).toContain('class="unit-html-minipage unit-html-minipage--w-48 unit-html-minipage--sized unit-html-minipage--align-center"');
     expect(injected).toContain('<p>Left</p>');
     expect(injected).toContain('<p>Right</p>');
     expect(injected).not.toContain('CONTINUUMMINIPAGEGAP');
+  });
+
+  it('does not partially replace minipage placeholders with shared numeric prefixes', () => {
+    const html =
+      '<p>CONTINUUMMINIPAGEPLACEHOLDER1 CONTINUUMMINIPAGEGAP CONTINUUMMINIPAGEPLACEHOLDER10</p>';
+    const minipages = [
+      {
+        placeholder: 'CONTINUUMMINIPAGEPLACEHOLDER1',
+        positionSpec: null,
+        verticalAlignClass: 'unit-html-minipage--align-center',
+        widthSpec: '0.48\\textwidth',
+        widthPercent: 48,
+        widthClass: 'unit-html-minipage--w-48',
+        bodyLatex: 'One',
+      },
+      {
+        placeholder: 'CONTINUUMMINIPAGEPLACEHOLDER10',
+        positionSpec: null,
+        verticalAlignClass: 'unit-html-minipage--align-center',
+        widthSpec: '0.48\\textwidth',
+        widthPercent: 48,
+        widthClass: 'unit-html-minipage--w-48',
+        bodyLatex: 'Ten',
+      },
+    ];
+
+    const injected = __test__.injectMinipages(
+      html,
+      minipages,
+      new Map([
+        ['CONTINUUMMINIPAGEPLACEHOLDER1', '<div class="unit-html-minipage"><p>One</p></div>'],
+        ['CONTINUUMMINIPAGEPLACEHOLDER10', '<div class="unit-html-minipage"><p>Ten</p></div>'],
+      ]),
+    );
+
+    expect(injected).toContain('<div class="unit-html-minipage"><p>One</p></div>');
+    expect(injected).toContain('<div class="unit-html-minipage"><p>Ten</p></div>');
+    expect(injected).not.toContain('>One</p></div>0');
+    expect(injected).not.toContain('CONTINUUMMINIPAGEPLACEHOLDER10');
   });
 
   it('keeps subfigure tikz placeholders after macro expansion and resizebox unwrapping', () => {

@@ -109,8 +109,18 @@ type NameHeading = {
 
 type MinipageDescriptor = {
   placeholder: string;
+  positionSpec: string | null;
+  verticalAlignClass: string;
   widthSpec: string | null;
+  widthPercent: number | null;
   widthClass: string;
+  bodyLatex: string;
+};
+
+type CustomBoxDescriptor = {
+  placeholder: string;
+  className: 'DefinitionBox' | 'RemarkBox' | 'ExampleBox';
+  titleLatex: string | null;
   bodyLatex: string;
 };
 
@@ -672,6 +682,59 @@ const replaceZeroArgMacroInvocations = (
   return tex.replace(new RegExp(`\\\\${escapeRegExp(macroName)}(?![A-Za-z@])`, 'g'), safeReplacement);
 };
 
+const replaceMacroInvocationsWithArgs = (
+  tex: string,
+  macroName: string,
+  argCount: number,
+  replacer: (argumentsLatex: string[]) => string,
+): string => {
+  const invocation = `\\${macroName}`;
+  let next = '';
+  let cursor = 0;
+
+  while (cursor < tex.length) {
+    const foundAt = tex.indexOf(invocation, cursor);
+    if (foundAt === -1) {
+      next += tex.slice(cursor);
+      break;
+    }
+
+    next += tex.slice(cursor, foundAt);
+    let parseCursor = foundAt + invocation.length;
+    const argumentsLatex: string[] = [];
+    let parsedSuccessfully = true;
+
+    for (let index = 0; index < argCount; index += 1) {
+      parseCursor = skipWhitespaceAndComments(tex, parseCursor);
+      if (tex[parseCursor] !== '{') {
+        parsedSuccessfully = false;
+        break;
+      }
+
+      const argument = readBalancedGroup(tex, parseCursor);
+      if (!argument) {
+        parsedSuccessfully = false;
+        break;
+      }
+
+      argumentsLatex.push(argument.content);
+      parseCursor = argument.endIndex;
+    }
+
+    if (!parsedSuccessfully) {
+      next += invocation;
+      cursor = foundAt + invocation.length;
+      continue;
+    }
+
+    const replacement = replacer(argumentsLatex);
+    next += replacement.endsWith('%') ? `${replacement}\n` : replacement;
+    cursor = parseCursor;
+  }
+
+  return next;
+};
+
 const extractNameHeadings = (tex: string): { modifiedTex: string; headings: NameHeading[] } => {
   const invocation = '\\name';
   const headings: NameHeading[] = [];
@@ -716,44 +779,95 @@ const extractNameHeadings = (tex: string): { modifiedTex: string; headings: Name
   return { modifiedTex: next, headings };
 };
 
+const expandTheoryBoxMacros = (tex: string): string => {
+  let next = tex;
+
+  next = replaceMacroInvocationsWithArgs(next, 'DEF', 2, ([term, body]) =>
+    `\\begin{DefinitionBox}\n\\textbf{${term.trim()}} --- ${body.trim()}\n\\end{DefinitionBox}`,
+  );
+  next = replaceMacroInvocationsWithArgs(next, 'opr', 3, ([term, symbol, body]) =>
+    `\\begin{DefinitionBox}\n\\textbf{${term.trim()}} $\\equiv ${symbol.trim()}$ --- ${body.trim()}\n\\end{DefinitionBox}`,
+  );
+  next = replaceMacroInvocationsWithArgs(next, 'Opr', 4, ([term, symbol, body, unit]) =>
+    `\\begin{DefinitionBox}\n\\textbf{${term.trim()}} $\\equiv ${symbol.trim()}$ --- ${body.trim()}; \\quad $\\left[${symbol.trim()}\\right] = ${unit.trim()}$\n\\end{DefinitionBox}`,
+  );
+  next = replaceMacroInvocationsWithArgs(next, 'Oprf', 4, ([term, symbol, body, formula]) =>
+    `\\begin{DefinitionBox}\n\\textbf{${term.trim()}} $\\equiv ${symbol.trim()}$ --- ${body.trim()};\\\\\n${formula.trim()}\n\\end{DefinitionBox}`,
+  );
+  next = replaceMacroInvocationsWithArgs(next, 'DEFlabel', 3, ([term, body, label]) =>
+    `\\begin{DefinitionBox}\n\\textbf{${term.trim()}} --- ${body.trim()}\\label{${label.trim()}}\n\\end{DefinitionBox}`,
+  );
+  next = replaceMacroInvocationsWithArgs(next, 'zm', 1, ([body]) =>
+    `\\begin{RemarkBox}\n${body.trim()}\n\\end{RemarkBox}`,
+  );
+
+  return next;
+};
+
 const normalizeMinipageGapCommands = (tex: string): string =>
   tex.replace(/\\hfill\b/g, ` ${MINIPAGE_GAP_TOKEN} `);
 
-const buildMinipageWidthClass = (widthSpec: string | null): string => {
+const parseMinipageWidthPercent = (widthSpec: string | null): number | null => {
   const normalizedWidth = widthSpec?.replace(/\s+/g, '') ?? '';
   if (!normalizedWidth) {
-    return 'unit-html-minipage--auto';
+    return null;
   }
   if (normalizedWidth === '\\textwidth' || normalizedWidth === '\\linewidth') {
-    return 'unit-html-minipage--full';
+    return 100;
   }
 
   const ratioMatch = normalizedWidth.match(/^([0-9]*\.?[0-9]+)\\(?:textwidth|linewidth)$/);
   if (!ratioMatch) {
-    return 'unit-html-minipage--auto';
+    return null;
   }
 
   const ratio = Number(ratioMatch[1]);
   if (!Number.isFinite(ratio) || ratio <= 0) {
-    return 'unit-html-minipage--auto';
+    return null;
   }
 
-  return `unit-html-minipage--w-${Math.round(ratio * 100)}`;
+  return Math.round(ratio * 1000) / 10;
+};
+
+const buildMinipageWidthClass = (widthSpec: string | null): string => {
+  const widthPercent = parseMinipageWidthPercent(widthSpec);
+  if (widthPercent === null) {
+    return 'unit-html-minipage--auto';
+  }
+  if (widthPercent >= 100) {
+    return 'unit-html-minipage--full';
+  }
+  return `unit-html-minipage--w-${Math.round(widthPercent)}`;
+};
+
+const buildMinipageVerticalAlignClass = (positionSpec: string | null): string => {
+  const normalizedPosition = positionSpec?.trim().toLowerCase() ?? '';
+  if (normalizedPosition === 't') {
+    return 'unit-html-minipage--align-top';
+  }
+  if (normalizedPosition === 'b') {
+    return 'unit-html-minipage--align-bottom';
+  }
+  return 'unit-html-minipage--align-center';
 };
 
 const extractMinipages = (tex: string): { modifiedTex: string; minipages: MinipageDescriptor[] } => {
   const minipages: MinipageDescriptor[] = [];
   const minipagePattern =
-    /\\begin\{minipage\}(?:\[[^\]]*])?\{([^}]*)\}([\s\S]*?)\\end\{minipage\}/g;
+    /\\begin\{minipage\}(?:\[([^\]]*)])?\{([^}]*)\}([\s\S]*?)\\end\{minipage\}/g;
 
-  const modifiedTex = tex.replace(minipagePattern, (_match, widthRaw, bodyRaw) => {
+  const modifiedTex = tex.replace(minipagePattern, (_match, positionRaw, widthRaw, bodyRaw) => {
+    const positionSpec = typeof positionRaw === 'string' ? positionRaw.trim() : null;
     const widthSpec = typeof widthRaw === 'string' ? widthRaw.trim() : null;
     const bodyLatex = typeof bodyRaw === 'string' ? bodyRaw.trim() : '';
     const placeholder = `${MINIPAGE_PLACEHOLDER_PREFIX}${minipages.length}`;
 
     minipages.push({
       placeholder,
+      positionSpec,
+      verticalAlignClass: buildMinipageVerticalAlignClass(positionSpec),
       widthSpec,
+      widthPercent: parseMinipageWidthPercent(widthSpec),
       widthClass: buildMinipageWidthClass(widthSpec),
       bodyLatex,
     });
@@ -762,6 +876,68 @@ const extractMinipages = (tex: string): { modifiedTex: string; minipages: Minipa
   });
 
   return { modifiedTex, minipages };
+};
+
+const extractBoxTitleFromOptions = (optionsRaw: string | null, fallbackTitle: string | null): string | null => {
+  const normalizedOptions = optionsRaw?.trim() ?? '';
+  if (!normalizedOptions) {
+    return fallbackTitle;
+  }
+
+  const titleIndex = normalizedOptions.indexOf('title=');
+  if (titleIndex === -1) {
+    return fallbackTitle;
+  }
+
+  const titleStart = titleIndex + 'title='.length;
+  const titleSource = normalizedOptions.slice(titleStart).trimStart();
+  if (!titleSource.startsWith('{')) {
+    return fallbackTitle;
+  }
+
+  const titleGroup = readBalancedGroup(titleSource, 0);
+  return titleGroup?.content.trim() || fallbackTitle;
+};
+
+const extractCustomBoxes = (tex: string): { modifiedTex: string; boxes: CustomBoxDescriptor[] } => {
+  const boxes: CustomBoxDescriptor[] = [];
+  const envPattern = /\\begin\{(DefinitionBox|RemarkBox|ExampleBox)\}(?:\[([^\]]*)])?([\s\S]*?)\\end\{\1\}/g;
+  const documentMatch = tex.match(/\\begin\{document\}/);
+  if (!documentMatch || documentMatch.index === undefined) {
+    return { modifiedTex: tex, boxes };
+  }
+
+  const bodyStart = documentMatch.index + documentMatch[0].length;
+  const bodyEnd = tex.indexOf('\\end{document}', bodyStart);
+  if (bodyEnd === -1) {
+    return { modifiedTex: tex, boxes };
+  }
+
+  const documentBody = tex.slice(bodyStart, bodyEnd);
+  const modifiedBody = documentBody.replace(envPattern, (_match, classNameRaw, optionsRaw, bodyRaw) => {
+    const className = classNameRaw as CustomBoxDescriptor['className'];
+    const placeholder = `CONTINUUMCUSTOMBOXPLACEHOLDER${boxes.length}`;
+    const fallbackTitle =
+      className === 'DefinitionBox'
+        ? 'Определение'
+        : className === 'RemarkBox'
+          ? 'Замечание'
+          : 'Пример';
+
+    boxes.push({
+      placeholder,
+      className,
+      titleLatex: extractBoxTitleFromOptions(typeof optionsRaw === 'string' ? optionsRaw : null, fallbackTitle),
+      bodyLatex: typeof bodyRaw === 'string' ? bodyRaw.trim() : '',
+    });
+
+    return `\n${placeholder}\n`;
+  });
+
+  return {
+    modifiedTex: `${tex.slice(0, bodyStart)}${modifiedBody}${tex.slice(bodyEnd)}`,
+    boxes,
+  };
 };
 
 const normalizeSiunitxForMathJax = (tex: string): string => {
@@ -845,7 +1021,9 @@ const normalizeLatexTextDashes = (latex: string): string => {
   const normalizeTextSegment = (segment: string): string =>
     segment
       .replace(/---/g, '—')
-      .replace(/--/g, '–');
+      .replace(/--/g, '–')
+      .replace(/<<\s*/g, '«')
+      .replace(/\s*>>/g, '»');
 
   if (mathRanges.length === 0) {
     return normalizeTextSegment(latex);
@@ -1037,6 +1215,9 @@ const sanitizeHtml = (html: string): string => {
   return next.trim();
 };
 
+const preparePandocInput = (latex: string, wrapFragment = false): string =>
+  wrapFragment ? ensurePdflatexDocumentEnvelope(latex) : latex;
+
 const buildTikzStandaloneDocument = (
   preamble: string,
   block: string,
@@ -1174,16 +1355,19 @@ const runPandocLatexToHtml = async ({
   tempDir,
   fileStem,
   timeoutMs,
+  wrapFragment = false,
 }: {
   latex: string;
   tempDir: string;
   fileStem: string;
   timeoutMs: number;
+  wrapFragment?: boolean;
 }): Promise<{ html: string; logSnippet?: string }> => {
   const inputFile = `${fileStem}.tex`;
   const outputFile = `${fileStem}.html`;
+  const latexInput = preparePandocInput(latex, wrapFragment);
 
-  await fs.writeFile(join(tempDir, inputFile), latex, 'utf8');
+  await fs.writeFile(join(tempDir, inputFile), latexInput, 'utf8');
   const pandocResult = await runCommand(
     'pandoc',
     [inputFile, '-f', 'latex', '-t', 'html5', '--mathjax', '-o', outputFile],
@@ -1242,9 +1426,9 @@ const compileTikzToSvg = async ({
 
 const injectFigurePlaceholders = (html: string, assets: UnitHtmlAssetRef[]): string => {
   let next = html;
-  for (const asset of assets) {
+  for (const asset of [...assets].sort((left, right) => right.placeholder.length - left.placeholder.length)) {
     const image = `<img class="unit-html-tikz-image" src="${asset.placeholder}" alt="" loading="lazy" />`;
-    next = next.replace(new RegExp(`<p>\\s*${asset.placeholder}\\s*</p>`, 'g'), image);
+    next = next.replace(new RegExp(`<p>\\s*${escapeRegExp(asset.placeholder)}\\s*</p>`, 'g'), image);
   }
   return next;
 };
@@ -1289,20 +1473,20 @@ const buildFigureHtml = (figure: FigureDescriptor): string => {
 
 const injectExtractedFigures = (html: string, figures: FigureDescriptor[]): string => {
   let next = html;
-  for (const figure of figures) {
+  for (const figure of [...figures].sort((left, right) => right.placeholder.length - left.placeholder.length)) {
     const figureHtml = buildFigureHtml(figure);
-    next = next.replace(new RegExp(`<p>\\s*${figure.placeholder}\\s*</p>`, 'g'), figureHtml);
-    next = next.split(figure.placeholder).join(figureHtml);
+    next = next.replace(new RegExp(`<p>\\s*${escapeRegExp(figure.placeholder)}\\s*</p>`, 'g'), figureHtml);
+    next = next.replace(new RegExp(escapeRegExp(figure.placeholder), 'g'), figureHtml);
   }
   return next;
 };
 
 const injectNameHeadings = (html: string, headings: NameHeading[]): string => {
   let next = html;
-  for (const heading of headings) {
+  for (const heading of [...headings].sort((left, right) => right.placeholder.length - left.placeholder.length)) {
     const headingHtml = `<h1 class="unit-html-title">${normalizeLatexInlineForHtml(heading.titleLatex)}</h1>`;
-    next = next.replace(new RegExp(`<p>\\s*${heading.placeholder}\\s*</p>`, 'g'), headingHtml);
-    next = next.split(heading.placeholder).join(headingHtml);
+    next = next.replace(new RegExp(`<p>\\s*${escapeRegExp(heading.placeholder)}\\s*</p>`, 'g'), headingHtml);
+    next = next.replace(new RegExp(escapeRegExp(heading.placeholder), 'g'), headingHtml);
   }
   return next;
 };
@@ -1327,6 +1511,7 @@ const injectMinipages = (
 
     const strippedContent = paragraphContent
       .replace(placeholderPattern, '')
+      .replace(new RegExp(escapeRegExp(MINIPAGE_GAP_TOKEN), 'g'), '')
       .replace(/&nbsp;|&#160;/g, ' ')
       .replace(/<br\s*\/?>/gi, ' ')
       .replace(/\s+/g, '');
@@ -1340,16 +1525,30 @@ const injectMinipages = (
     return `<div class="unit-html-minipage-row">${rowHtml}</div>`;
   });
 
-  for (const minipage of minipages) {
+  for (const minipage of [...minipages].sort((left, right) => right.placeholder.length - left.placeholder.length)) {
     const minipageHtml =
       minipageHtmlByPlaceholder.get(minipage.placeholder) ?? minipage.placeholder;
     next = next.replace(
-      new RegExp(`<p>\\s*${minipage.placeholder}\\s*</p>`, 'g'),
+      new RegExp(`<p>\\s*${escapeRegExp(minipage.placeholder)}\\s*</p>`, 'g'),
       minipageHtml,
     );
-    next = next.split(minipage.placeholder).join(minipageHtml);
+    next = next.replace(new RegExp(escapeRegExp(minipage.placeholder), 'g'), minipageHtml);
   }
 
+  return next;
+};
+
+const injectCustomBoxes = (
+  html: string,
+  boxHtmlByPlaceholder: Map<string, string>,
+): string => {
+  let next = html;
+  for (const [placeholder, boxHtml] of [...boxHtmlByPlaceholder.entries()].sort(
+    (left, right) => right[0].length - left[0].length,
+  )) {
+    next = next.replace(new RegExp(`<p>\\s*${escapeRegExp(placeholder)}\\s*</p>`, 'g'), boxHtml);
+    next = next.replace(new RegExp(escapeRegExp(placeholder), 'g'), boxHtml);
+  }
   return next;
 };
 
@@ -1730,7 +1929,9 @@ export const renderLatexToHtml = async (
   const normalizedTex = normalizeLatexSource(texSource);
   const wrappedTex = ensurePdflatexDocumentEnvelope(normalizedTex);
   assertPdflatexCompatible(wrappedTex);
-  const texWithoutResizebox = unwrapResizeboxAroundTikzBlocks(expandFigureMacros(wrappedTex));
+  const texWithoutResizebox = expandTheoryBoxMacros(
+    unwrapResizeboxAroundTikzBlocks(expandFigureMacros(wrappedTex)),
+  );
   const { modifiedTex: tex, headings } = extractNameHeadings(texWithoutResizebox);
   const timeoutMs = resolveLatexTimeoutMs();
   const tempDir = await fs.mkdtemp(join(tmpdir(), 'continuum-tex-html-'));
@@ -1752,8 +1953,11 @@ export const renderLatexToHtml = async (
       preserveFigureRefTokens: true,
     });
     const { modifiedTex: texWithMinipagePlaceholders, minipages } = extractMinipages(resolvedTex);
+    const { modifiedTex: texWithCustomBoxPlaceholders, boxes } = extractCustomBoxes(
+      texWithMinipagePlaceholders,
+    );
     const pandocInputTex = normalizeMhchemForMathJax(
-      normalizeSiunitxForMathJax(texWithMinipagePlaceholders),
+      normalizeSiunitxForMathJax(normalizeLatexTextDashes(texWithCustomBoxPlaceholders)),
     );
     const assetRefs: UnitHtmlAssetRef[] = [];
 
@@ -1800,10 +2004,13 @@ export const renderLatexToHtml = async (
     const minipageHtmlByPlaceholder = new Map<string, string>();
     for (const [index, minipage] of minipages.entries()) {
       const minipageResult = await runPandocLatexToHtml({
-        latex: normalizeMhchemForMathJax(normalizeSiunitxForMathJax(minipage.bodyLatex)),
+        latex: normalizeMhchemForMathJax(
+          normalizeSiunitxForMathJax(normalizeLatexTextDashes(minipage.bodyLatex)),
+        ),
         tempDir,
         fileStem: `render-minipage-${index}`,
         timeoutMs,
+        wrapFragment: true,
       });
       if (minipageResult.logSnippet) {
         logChunks.push(minipageResult.logSnippet);
@@ -1811,7 +2018,28 @@ export const renderLatexToHtml = async (
 
       minipageHtmlByPlaceholder.set(
         minipage.placeholder,
-        `<div class="unit-html-minipage ${minipage.widthClass}">${minipageResult.html.trim()}</div>`,
+        `<div class="unit-html-minipage ${minipage.widthClass}${minipage.widthPercent !== null && minipage.widthPercent < 100 ? ' unit-html-minipage--sized' : ''} ${minipage.verticalAlignClass}"${minipage.widthPercent !== null && minipage.widthPercent < 100 ? ` style="--unit-html-minipage-basis:${minipage.widthPercent}%;"` : ''}>${minipageResult.html.trim()}</div>`,
+      );
+    }
+
+    const boxHtmlByPlaceholder = new Map<string, string>();
+    for (const [index, box] of boxes.entries()) {
+      const boxResult = await runPandocLatexToHtml({
+        latex: normalizeMhchemForMathJax(
+          normalizeSiunitxForMathJax(normalizeLatexTextDashes(box.bodyLatex)),
+        ),
+        tempDir,
+        fileStem: `render-box-${index}`,
+        timeoutMs,
+        wrapFragment: true,
+      });
+      if (boxResult.logSnippet) {
+        logChunks.push(boxResult.logSnippet);
+      }
+
+      boxHtmlByPlaceholder.set(
+        box.placeholder,
+        `<div class="${box.className}">${box.titleLatex && box.className !== 'RemarkBox' ? `<div class="unit-html-box-title">${normalizeLatexInlineForHtml(box.titleLatex)}</div>` : ''}${boxResult.html.trim()}</div>`,
       );
     }
 
@@ -1823,7 +2051,11 @@ export const renderLatexToHtml = async (
             injectNameHeadings(
               injectFigurePlaceholders(
                 injectExtractedFigures(
-                  injectMinipages(rawHtml, minipages, minipageHtmlByPlaceholder),
+                  injectMinipages(
+                    injectCustomBoxes(rawHtml, boxHtmlByPlaceholder),
+                    minipages,
+                    minipageHtmlByPlaceholder,
+                  ),
                   figures,
                 ),
                 assetRefs,
@@ -1884,9 +2116,11 @@ export const __test__ = {
   expandFigureMacros,
   unwrapResizeboxAroundTikzBlocks,
   extractNameHeadings,
+  expandTheoryBoxMacros,
   normalizeMinipageGapCommands,
   buildMinipageWidthClass,
   extractMinipages,
+  extractCustomBoxes,
   normalizeSiunitxForMathJax,
   normalizeMhchemForMathJax,
   extractFigures,
@@ -1894,10 +2128,13 @@ export const __test__ = {
   injectExtractedFigures,
   injectNameHeadings,
   injectMinipages,
+  injectCustomBoxes,
   injectTableCaptionNumbers,
   replaceFigureReferences,
   buildEquationReferenceMap,
   buildTableReferenceMap,
+  normalizeLatexInlineForHtml,
   resolveLatexReferencesInTex,
   replaceResolvedReferencesInHtml,
+  preparePandocInput,
 };

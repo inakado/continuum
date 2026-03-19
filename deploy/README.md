@@ -135,7 +135,7 @@ Policy: backend build выполняется только в Docker.
 ```bash
 cd /srv/continuum
 docker compose -f docker-compose.prod.yml run --rm --build api \
-  sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'
+  sh -lc 'export COREPACK_ENABLE_DOWNLOAD_PROMPT=0 && pnpm --filter @continuum/api exec prisma migrate deploy'
 ```
 
 ## 7) Start API and Worker
@@ -146,6 +146,25 @@ docker compose -f docker-compose.prod.yml up -d postgres redis
 docker compose -f docker-compose.prod.yml build api
 docker compose -f docker-compose.prod.yml up -d api
 ```
+
+### Dockerfile split для `worker`
+
+Новая схема разделяет runtime и application build:
+
+- `apps/worker/Dockerfile.texlive-base`
+  - собирает только тяжёлый runtime-образ;
+  - содержит установку `texlive-full`, `pandoc`, `ghostscript` и связанных системных пакетов;
+  - должен пересобираться редко и только при изменениях runtime-layer.
+- `apps/worker/Dockerfile`
+  - больше не устанавливает `texlive-full`;
+  - собирает только application-слои `worker` поверх `TEXLIVE_BASE_IMAGE`;
+  - используется для обычных релизов и быстрых кодовых пересборок.
+- `docker-compose.prod.yml`
+  - передаёт `TEXLIVE_BASE_IMAGE` в build args для `worker`.
+
+Практический смысл:
+- первый шаг `docker build -f apps/worker/Dockerfile.texlive-base ...` создаёт стабильную тяжёлую базу;
+- последующие `docker compose -f docker-compose.prod.yml build worker` больше не должны повторно выполнять `install-texlive-runtime.sh`.
 
 ### Stable TeX Live runtime base для `worker`
 
@@ -411,7 +430,7 @@ curl -fsS http://127.0.0.1:3001/login >/dev/null
    - Node 20 + pnpm,
    - `systemd`, `nginx`, `certbot`.
 6. Ручной запуск миграций перед первым deploy:
-   - `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`
+   - `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'export COREPACK_ENABLE_DOWNLOAD_PROMPT=0 && pnpm --filter @continuum/api exec prisma migrate deploy'`
 7. Настроенный GitHub Environment `production` c manual approval и secrets:
    - `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `APP_DIR`, `APP_DOMAIN`.
 
@@ -465,7 +484,7 @@ curl -fsS http://127.0.0.1:3001/login >/dev/null
 
 - API 500 с Prisma `P2022` / `column sections.description does not exist` после `git pull`:
   - причина: код уже использует новую колонку, но миграция не была применена в текущий контейнерный образ;
-  - запускать миграции через rebuild: `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`;
+  - запускать миграции через rebuild: `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'export COREPACK_ENABLE_DOWNLOAD_PROMPT=0 && pnpm --filter @continuum/api exec prisma migrate deploy'`;
   - дополнительно проверить статус: `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'pnpm --filter @continuum/api exec prisma migrate status'`;
   - если колонка всё ещё отсутствует, проверить БД напрямую: `docker compose -f docker-compose.prod.yml exec -T postgres psql -U continuum -d continuum -c "SELECT column_name FROM information_schema.columns WHERE table_schema='\''public'\'' AND table_name='\''sections'\'' AND column_name='\''description'\'';"`.
 

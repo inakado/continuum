@@ -94,7 +94,7 @@ echo "Worker base rebuild required: $worker_base_rebuild_required"
 echo "Worker rebuild required: $worker_rebuild_required"
 
 echo "Run DB migration manually before continuing if schema changed:"
-echo "docker compose -f docker-compose.prod.yml run --rm api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'"
+echo "docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'export COREPACK_ENABLE_DOWNLOAD_PROMPT=0 && pnpm --filter @continuum/api exec prisma migrate deploy'"
 
 docker compose -f docker-compose.prod.yml up -d postgres redis
 docker compose -f docker-compose.prod.yml build api

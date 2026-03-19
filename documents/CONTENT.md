@@ -189,17 +189,33 @@
 
 - Inline/block math в HTML panel typeset'ится локальным MathJax runtime в web.
 - TikZ figures в HTML panel остаются image-based assets из worker render path.
+- Для multi-column LaTeX layout поддерживается `minipage`:
+  - worker извлекает `minipage` из document body и рендерит их как адаптивные HTML rows;
+  - ширина вида `0.42\linewidth`, `0.48\textwidth` переносится в HTML как proportional flex-basis;
+  - optional position spec `[t]`, `[b]` и default alignment нормализуются в vertical align classes для HTML.
 - Текущий production path для TikZ assets:
   - `pdflatex --output-format=dvi`
   - `dvisvgm --exact-bbox --font-format=woff`
 - Для standalone TikZ compile worker дополнительно переносит поддерживаемые декларации из `document` body (`\newcommand`, `\def`, `\pgfmathsetmacro`, `\tikzset`, `\definecolor`, `\colorlet`) перед рендером блока, чтобы body-defined макросы были доступны в HTML asset path.
 - Compile/runtime helper живёт в `packages/latex-runtime` и используется в worker compile contour.
+- Для theorem-like theory blocks HTML path поддерживает repo-canonical boxes:
+  - `DefinitionBox`
+  - `RemarkBox`
+  - `ExampleBox`
+  - макросы `\DEF`, `\opr`, `\Opr`, `\Oprf`, `\DEFlabel`, `\zm`
+- Extraction этих боксов выполняется только из `\begin{document}...\end{document}`:
+  - preamble и macro definitions (`\newcommand{\DEF}[2]{...}` и т.п.) не считаются source для HTML box rendering;
+  - это invariant против ложного захвата `#1/#2` из macro bodies.
 - Figure references в HTML render path нормализуются так:
   - ссылки на `fig:*` в обычном тексте становятся кликабельными anchor links (`href="#fig:..."`);
   - `\ref/\autoref` на `fig:*` внутри math-контекста не превращаются в HTML links, а подставляются как plain text reference (`рис. N`) до MathJax typeset, чтобы не ломать формулу.
+- Текстовая типографика HTML path дополнительно нормализует LaTeX-style punctuation вне math-контекста:
+  - `---` → `—`
+  - `--` → `–`
+  - `<<...>>` → `«...»`
 - HTML pipeline считается semantic/rendered representation, а не pixel-perfect эквивалентом PDF:
   - текущий контур сохраняет основной текст, формулы, figure references и image-based TikZ figures;
-  - итоговый HTML может типографически отличаться от исходного PDF/LaTeX layout, особенно в figure-heavy theory content и кастомных theorem-like блоках.
+  - итоговый HTML может типографически отличаться от исходного PDF/LaTeX layout, особенно в figure-heavy theory content.
 - Известное ограничение текущего SVG path:
   - math accent-команды вида `\vec{...}` внутри TikZ labels могут рендериться браузером с некорректным положением accent glyph;
   - проблема признана как engineering debt и вынесена в `documents/exec-plans/tech-debt-tracker.md`.

@@ -40,6 +40,9 @@
   - `pnpm build:backend`
 - Dev backend images:
   - `pnpm build:backend:dev`
+- Local worker runtime base image (one-time or after explicit cleanup):
+  - `export TEXLIVE_BASE_IMAGE=continuum-texlive-base:texlive-2022-node20-bookworm`
+  - `docker build -f apps/worker/Dockerfile.texlive-base -t "$TEXLIVE_BASE_IMAGE" .`
 - Web + shared:
   - `pnpm build:web`
 - Full workspace build:
@@ -97,7 +100,7 @@ Auth smoke проверяет:
 2. Явно пересгенерировать Prisma client:
    - `docker compose exec -T api sh -lc "DATABASE_URL=postgresql://continuum:continuum@postgres:5432/continuum pnpm --filter @continuum/api exec prisma generate"`
 3. Production manual migration:
-   - `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'`
+   - `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'export COREPACK_ENABLE_DOWNLOAD_PROMPT=0 && pnpm --filter @continuum/api exec prisma migrate deploy'`
 
 ## Operational Invariants
 
@@ -114,6 +117,16 @@ Auth smoke проверяет:
 - Dev storage использует MinIO; production storage использует внешний S3-провайдер.
 - Для production deploy применяется cache-first policy: по умолчанию пересобирается только изменившийся сервис (обычно `api`), а `worker` пересобирается только при изменениях в worker/runtime контуре.
 - Для production deploy действует disk hygiene policy (проверки `df -h`/`df -i`/`docker system df`, регулярный cleanup image/container без удаления volumes); детали в `deploy/README.md`.
+
+### Worker Dockerfile model
+
+- `apps/worker/Dockerfile.texlive-base` — отдельный runtime Dockerfile для тяжёлой TeX Live базы.
+- `apps/worker/Dockerfile` — application Dockerfile для `worker`, который использует `ARG TEXLIVE_BASE_IMAGE` и не должен сам устанавливать `texlive-full`.
+- Обычный production/deploy цикл работает через:
+  - редкий rebuild `Dockerfile.texlive-base` при изменении runtime-зависимостей;
+  - частый rebuild `apps/worker/Dockerfile` при изменении worker/shared application-кода.
+- Если в логе `docker compose -f docker-compose.prod.yml build worker` снова появляется шаг `install-texlive-runtime.sh`, это признак, что используется старая схема или отсутствует нужный `TEXLIVE_BASE_IMAGE`.
+- Тот же invariant действует и локально: если `docker compose build worker` не находит `continuum-texlive-base:texlive-2022-node20-bookworm`, сначала нужно вручную собрать `apps/worker/Dockerfile.texlive-base`.
 
 ### Lockfile discipline
 
@@ -296,6 +309,27 @@ Auth smoke проверяет:
   - пересобирать `continuum-texlive-base` только при изменениях в `apps/worker/Dockerfile.texlive-base` или `scripts/install-texlive-runtime.sh`;
   - не делать `docker builder prune -a` / `docker system prune -a` (policy запрет для production deploy цикла).
 - **Проверка:** обычный `docker compose -f docker-compose.prod.yml build worker` завершается без повторного шага установки `texlive-full`; при runtime-изменениях сначала выполняется `docker build -f apps/worker/Dockerfile.texlive-base -t "$TEXLIVE_BASE_IMAGE" .`.
+
+- **Симптом:** локальный `docker compose build worker` падает с ошибкой вида `load metadata for docker.io/library/continuum-texlive-base...` или после Docker cleanup снова требует полную сборку TeX Live.
+- **Команда:** `docker compose build worker`
+- **Причина:** локально удалён отдельный runtime image `continuum-texlive-base` или агрессивно очищен build cache.
+- **Фикс:**
+  - пересобрать runtime base image:
+    - `export TEXLIVE_BASE_IMAGE=continuum-texlive-base:texlive-2022-node20-bookworm`
+    - `docker build -f apps/worker/Dockerfile.texlive-base -t "$TEXLIVE_BASE_IMAGE" .`
+  - затем повторить `docker compose build worker`.
+- **Проверка:** `docker compose build worker` проходит без ошибки про missing `continuum-texlive-base`.
+
+- **Симптом:** после локального cleanup следующая сборка `worker` снова идёт долго и заново собирает TeX Live runtime.
+- **Команда:** `docker image prune -a -f`, `docker builder prune -a -f`
+- **Причина:** удалены `continuum-texlive-base` и весь BuildKit cache.
+- **Фикс:**
+  - для routine cleanup не использовать `docker builder prune -a -f`, если нужен быстрый повторный build `worker`;
+  - предпочитать:
+    - `docker image prune -a -f`
+    - `docker builder prune --filter until=168h -f`
+  - если база уже удалена — пересобрать `apps/worker/Dockerfile.texlive-base`.
+- **Проверка:** после cleanup `docker system df` сохраняет runtime image/cache либо base image собран заново перед следующим `worker` build.
 
 - **Симптом:** production `api`/`worker` уходит в restart-loop с `Error: Cannot find module 'zod'` (stack из `/app/packages/shared/dist/...`).
 - **Команда:** `docker compose -f docker-compose.prod.yml logs --no-color --tail=200 api` или `... worker`

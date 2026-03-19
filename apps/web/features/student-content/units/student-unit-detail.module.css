@@ -548,6 +548,12 @@
   background-color: #f8fafc;
 }
 
+.htmlContent :global(.unit-html-box-title) {
+  margin: 0 0 0.45em;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--text-primary) 82%, #1f2937 18%);
+}
+
 .htmlContent :global(.RemarkBox::before) {
   content: "Замечание";
   display: block;
@@ -671,7 +677,7 @@
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: center;
-  gap: 20px;
+  gap: clamp(28px, 3vw, 48px);
   width: 100%;
   margin: 1.4em 0;
 }
@@ -679,6 +685,23 @@
 .htmlContent :global(.unit-html-minipage) {
   min-width: 0;
   flex: 1 1 320px;
+  align-self: center;
+}
+
+.htmlContent :global(.unit-html-minipage--sized) {
+  flex: 0 1 var(--unit-html-minipage-basis);
+}
+
+.htmlContent :global(.unit-html-minipage--align-top) {
+  align-self: flex-start;
+}
+
+.htmlContent :global(.unit-html-minipage--align-center) {
+  align-self: center;
+}
+
+.htmlContent :global(.unit-html-minipage--align-bottom) {
+  align-self: flex-end;
 }
 
 .htmlContent :global(.unit-html-minipage--full) {
@@ -780,6 +803,7 @@
   }
 
   .htmlContent :global(.unit-html-minipage),
+  .htmlContent :global(.unit-html-minipage--sized),
   .htmlContent :global(.unit-html-minipage--w-28),
   .htmlContent :global(.unit-html-minipage--w-34),
   .htmlContent :global(.unit-html-minipage--w-38),
