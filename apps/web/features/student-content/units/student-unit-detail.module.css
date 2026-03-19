@@ -688,6 +688,14 @@
   align-self: center;
 }
 
+.htmlContent :global(.unit-html-minipage > :first-child) {
+  margin-top: 0;
+}
+
+.htmlContent :global(.unit-html-minipage > :last-child) {
+  margin-bottom: 0;
+}
+
 .htmlContent :global(.unit-html-minipage--sized) {
   flex: 0 1 var(--unit-html-minipage-basis);
 }
@@ -765,6 +773,13 @@
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
 }
 
+.htmlContent :global(.unit-html-minipage > figure:not(.unit-html-subfigure):has(> img.unit-html-tikz-image)) {
+  margin: 0 auto;
+  padding: 1.1em 1.2em;
+  width: auto;
+  max-width: 100%;
+}
+
 .htmlContent :global(figcaption) {
   color: var(--text-muted);
   font-size: 13px;
@@ -791,6 +806,10 @@
   max-height: min(68vh, 720px);
   margin: 0 auto;
   margin-bottom: 1.1em;
+}
+
+.htmlContent :global(.unit-html-minipage > figure:not(.unit-html-subfigure):has(> img.unit-html-tikz-image) > img.unit-html-tikz-image) {
+  margin-bottom: 0.85em;
 }
 
 @media (max-width: 860px) {
