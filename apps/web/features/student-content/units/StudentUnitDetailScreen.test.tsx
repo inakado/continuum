@@ -523,7 +523,7 @@ describe("StudentUnitDetailScreen", () => {
     const user = userEvent.setup();
 
     expect(await screen.findByText("Следующая")).toBeInTheDocument();
-    expect(screen.getByText("Верно")).toBeInTheDocument();
+    expect(screen.getByText("✓ Верно")).toBeInTheDocument();
     expect(screen.getByText("Скрыть решение")).toBeInTheDocument();
     expect(screen.getByText("Осталось попыток: 2")).toBeInTheDocument();
 

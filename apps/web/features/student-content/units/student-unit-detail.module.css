@@ -455,14 +455,12 @@
   height: 3px;
   margin: 0.5em auto 0;
   border-radius: 999px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    color-mix(in srgb, var(--border-primary) 22%, transparent) 14%,
-    color-mix(in srgb, var(--border-primary) 68%, var(--text-primary) 32%) 50%,
-    color-mix(in srgb, var(--border-primary) 22%, transparent) 86%,
-    transparent 100%
-  );
+  background: linear-gradient(90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--border-primary) 22%, transparent) 14%,
+      color-mix(in srgb, var(--border-primary) 68%, var(--text-primary) 32%) 50%,
+      color-mix(in srgb, var(--border-primary) 22%, transparent) 86%,
+      transparent 100%);
 }
 
 .htmlContent :global(h2) {
@@ -535,12 +533,10 @@
   border: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 62%, #f59e0b 38%);
   border-left: 4px solid color-mix(in srgb, #f59e0b 74%, #d97706 26%);
   background:
-    linear-gradient(
-      90deg,
+    linear-gradient(90deg,
       color-mix(in srgb, var(--surface-2) 62%, #fef3c7 38%) 0%,
       color-mix(in srgb, var(--surface-1) 76%, #fef9c3 24%) 42%,
-      color-mix(in srgb, var(--surface-1) 96%, transparent) 100%
-    );
+      color-mix(in srgb, var(--surface-1) 96%, transparent) 100%);
 }
 
 .htmlContent :global(.ExampleBox) {
@@ -894,31 +890,51 @@
 
 .tasks {
   display: grid;
-  gap: 12px;
+  gap: 16px;
 }
 
 .taskTabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
+  align-items: center;
 }
 
 .taskTab {
   border: var(--border-width) solid var(--glass-border);
   background: var(--glass-tint);
   color: var(--text-primary);
-  padding: 6px 10px;
-  min-width: 40px;
+  padding: 8px 14px;
+  min-width: 44px;
+  min-height: 40px;
   text-align: center;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-heading), sans-serif;
   cursor: pointer;
-  border-radius: var(--control-radius);
+  border-radius: 999px;
   display: grid;
   gap: 4px;
   align-items: center;
   justify-items: center;
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease,
-    transform 0.2s ease;
+  transition:
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
+}
+
+.taskTab:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: color-mix(in srgb, var(--glass-border) 60%, var(--border-primary) 40%);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  transform: translateY(-1px);
+}
+
+.taskTab:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 .taskTab:disabled {
@@ -937,14 +953,29 @@
 }
 
 .taskTabActive {
-  background: var(--nav-active-bg);
-  color: var(--nav-active-text);
+  background: var(--bg-accent);
+  color: var(--text-accent);
+  border-color: var(--bg-accent);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+}
+
+.taskTabActive:hover:not(:disabled) {
+  background: var(--bg-accent);
+  color: var(--text-accent);
+  border-color: var(--bg-accent);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.16);
 }
 
 .taskTabDone {
-  background: color-mix(in srgb, #22c55e 16%, var(--surface-2));
-  border-color: color-mix(in srgb, #22c55e 35%, var(--glass-border));
-  color: var(--text-primary);
+  background: color-mix(in srgb, #22c55e 18%, var(--surface-2));
+  border-color: color-mix(in srgb, #22c55e 40%, var(--glass-border));
+  color: color-mix(in srgb, #15803d 82%, var(--text-primary));
+}
+
+.taskTabDone:hover:not(:disabled) {
+  background: color-mix(in srgb, #22c55e 24%, var(--surface-2));
+  border-color: color-mix(in srgb, #22c55e 52%, var(--glass-border));
+  box-shadow: 0 2px 10px rgba(34, 197, 94, 0.12);
 }
 
 .taskTabStatus {
@@ -956,12 +987,14 @@
 
 .taskCard {
   border: var(--border-width) solid var(--glass-border);
-  padding: 12px;
-  background: var(--card-bg);
+  padding: 18px 20px;
+  background:
+    radial-gradient(ellipse at top right, color-mix(in srgb, var(--surface-2) 50%, transparent), transparent 60%),
+    var(--card-bg);
   display: grid;
-  gap: 10px;
+  gap: 16px;
   border-radius: var(--card-radius);
-  box-shadow: var(--card-shadow);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
   backdrop-filter: var(--glass-filter);
   -webkit-backdrop-filter: var(--glass-filter);
 }
@@ -1210,6 +1243,8 @@
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  padding-bottom: 12px;
+  border-bottom: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 70%, transparent);
 }
 
 .taskHeaderBadges {
@@ -1220,18 +1255,22 @@
 }
 
 .taskTitle {
-  font-weight: 700;
+  font-family: var(--font-heading), sans-serif;
+  font-weight: 600;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
 }
 
 .taskBadge {
-  border: var(--border-width) solid var(--glass-border);
-  padding: 4px 8px;
-  font-size: 11px;
+  border: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 70%, color-mix(in srgb, #f59e0b 20%, transparent));
+  padding: 4px 12px;
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  background: var(--glass-tint);
+  letter-spacing: 0.1em;
+  font-weight: 600;
+  background: color-mix(in srgb, #f59e0b 8%, var(--surface-2));
   color: var(--text-muted);
-  border-radius: var(--control-radius);
+  border-radius: 999px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1240,14 +1279,16 @@
 
 .taskStatement {
   font-size: 15px;
+  line-height: 1.6;
   color: var(--text-primary);
 }
 
 .statementImageBlock {
   display: grid;
   justify-items: center;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
+  padding: 12px 0;
 }
 
 .statementImage {
@@ -1255,9 +1296,9 @@
   width: min(100%, 560px);
   max-width: 100%;
   max-height: 520px;
-  border-radius: var(--control-radius);
+  border-radius: var(--card-radius);
   object-fit: contain;
-  background: #fff;
+  background: transparent;
 }
 
 .statementImageHint {
@@ -1394,7 +1435,7 @@
 }
 
 .solutionHtmlViewport {
-  border: var(--border-width-thin) solid var(--glass-border);
+  border: none;
   border-radius: var(--control-radius);
   background:
     radial-gradient(circle at top right, color-mix(in srgb, var(--surface-2) 70%, transparent), transparent 38%),
@@ -1414,31 +1455,41 @@
 
 .taskActions {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
   align-items: center;
+  padding-top: 14px;
+  border-top: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 70%, transparent);
 }
 
 .taskResultCorrect {
-  border: var(--border-width) solid color-mix(in srgb, #22c55e 35%, var(--glass-border));
-  background: color-mix(in srgb, #22c55e 16%, var(--surface-2));
-  color: var(--text-primary);
-  padding: 6px 10px;
+  border: var(--border-width-thin) solid color-mix(in srgb, #22c55e 30%, var(--glass-border));
+  background: color-mix(in srgb, #22c55e 10%, var(--surface-2));
+  color: color-mix(in srgb, #15803d 82%, var(--text-primary));
+  padding: 8px 14px;
   border-radius: var(--control-radius);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
 }
 
 .taskResultIncorrect {
-  border: var(--border-width) solid color-mix(in srgb, #ef4444 35%, var(--glass-border));
-  background: color-mix(in srgb, #ef4444 12%, var(--surface-2));
-  color: var(--text-primary);
-  padding: 6px 10px;
+  border: var(--border-width-thin) solid color-mix(in srgb, #ef4444 30%, var(--glass-border));
+  background: color-mix(in srgb, #ef4444 8%, var(--surface-2));
+  color: color-mix(in srgb, #dc2626 82%, var(--text-primary));
+  padding: 8px 14px;
   border-radius: var(--control-radius);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
 }
 
 .taskDone {
@@ -1452,7 +1503,7 @@
 
 .answerList {
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
 .answerRow {
@@ -1460,90 +1511,188 @@
 }
 
 .answerInline {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
 }
 
 .answerIndex {
-  font-weight: 400;
+  font-weight: 500;
+  color: var(--text-muted);
+  font-size: 14px;
+  min-width: 20px;
 }
 
 .answerLabelText {
   color: var(--text-primary);
   font-size: 15px;
+  font-weight: 500;
 }
 
 .answerInputInline {
   border: var(--border-width) solid var(--control-border);
-  background: var(--control-bg);
+  background: var(--bg-field);
   color: var(--text-primary);
-  padding: 8px 10px;
+  padding: 10px 12px;
   font-size: 14px;
-  min-width: 140px;
+  min-width: 160px;
   border-radius: var(--control-radius);
+  transition:
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease;
+}
+
+.answerInputInline:focus {
+  outline: none;
+  border-color: var(--border-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--border-primary) 12%, transparent);
+}
+
+.answerInputInline:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .answerInput {
   border: var(--border-width) solid var(--control-border);
-  background: var(--control-bg);
+  background: var(--bg-field);
   color: var(--text-primary);
-  padding: 8px 10px;
+  padding: 10px 12px;
   font-size: 13px;
   border-radius: var(--control-radius);
+  transition:
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease;
+}
+
+.answerInput:focus {
+  outline: none;
+  border-color: var(--border-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--border-primary) 12%, transparent);
 }
 
 .optionList {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .optionItem {
   display: grid;
-  grid-template-columns: 22px minmax(0, 14px) minmax(0, 1fr);
-  gap: 4px;
+  grid-template-columns: 22px minmax(0, 18px) minmax(0, 1fr);
+  gap: 6px;
   align-items: center;
-  padding: 6px 2px;
+  padding: 10px 12px;
   cursor: pointer;
-  border-bottom: var(--border-width) solid color-mix(in srgb, var(--glass-border) 70%, transparent);
+  border: var(--border-width-thin) solid transparent;
+  border-radius: var(--control-radius);
+  background: transparent;
+  transition:
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
 }
 
-.optionItem:last-child {
-  border-bottom: none;
+.optionItem:hover {
+  background: color-mix(in srgb, var(--surface-2) 80%, transparent);
+  border-color: color-mix(in srgb, var(--glass-border) 50%, transparent);
 }
 
 .optionInput {
   margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border: var(--border-width) solid color-mix(in srgb, var(--glass-border) 60%, var(--border-primary) 40%);
+  background: var(--bg-field);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease;
+  position: relative;
+}
+
+.optionInput[type="radio"] {
+  border-radius: 999px;
+}
+
+.optionInput[type="checkbox"] {
+  border-radius: 4px;
+}
+
+.optionInput:checked {
+  background: var(--bg-accent);
+  border-color: var(--bg-accent);
+}
+
+.optionInput:checked::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.optionInput[type="radio"]:checked::after {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--text-accent);
+}
+
+.optionInput[type="checkbox"]:checked::after {
+  width: 10px;
+  height: 8px;
+  background: transparent;
+  border-left: 2px solid var(--text-accent);
+  border-bottom: 2px solid var(--text-accent);
+  transform: translate(-50%, -60%) rotate(-45deg);
+}
+
+.optionInput:focus-visible {
+  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.optionInput:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .optionIndex {
   color: var(--text-muted);
   font-size: 12px;
+  font-weight: 500;
   letter-spacing: 0.06em;
 }
 
 .optionText {
   color: var(--text-primary);
   font-size: 14px;
+  line-height: 1.45;
 }
 
 .partResult {
   font-size: 11px;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  padding: 2px 6px;
+  padding: 3px 10px;
   border-radius: 999px;
   border: var(--border-width) solid var(--glass-border);
+  white-space: nowrap;
 }
 
 .partResultCorrect {
   background: color-mix(in srgb, #22c55e 18%, var(--surface-2));
-  border-color: color-mix(in srgb, #22c55e 35%, var(--glass-border));
+  border-color: color-mix(in srgb, #22c55e 40%, var(--glass-border));
+  color: color-mix(in srgb, #15803d 82%, var(--text-primary));
 }
 
 .partResultIncorrect {
   background: color-mix(in srgb, #ef4444 16%, var(--surface-2));
-  border-color: color-mix(in srgb, #ef4444 35%, var(--glass-border));
+  border-color: color-mix(in srgb, #ef4444 40%, var(--glass-border));
+  color: color-mix(in srgb, #dc2626 82%, var(--text-primary));
 }
 
 .attemptMessage {
@@ -1568,9 +1717,14 @@
   margin-left: auto;
   color: var(--text-muted);
   font-size: 11px;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   white-space: nowrap;
+  padding: 4px 10px;
+  border: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 60%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-2) 80%, transparent);
 }
 
 .videoList {
@@ -1601,6 +1755,7 @@
   background: var(--panel-bg);
   border-radius: var(--card-radius);
 }
+
 .blockedInline {
   font-size: 11px;
   text-transform: uppercase;

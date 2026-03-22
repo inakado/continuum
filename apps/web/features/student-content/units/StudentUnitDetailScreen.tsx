@@ -135,12 +135,12 @@ const getUnitTabs = ({
   hasAttachments: boolean;
   videoCount: number;
 }): UnitTabs => [
-  { key: "theory", label: "Теория" },
-  ...(hasMethod ? ([{ key: "method", label: "Методика" }] as const) : []),
-  { key: "tasks", label: "Задачи" },
-  ...(videoCount ? ([{ key: "video", label: "Видео" }] as const) : []),
-  ...(hasAttachments ? ([{ key: "attachments", label: "Вложения" }] as const) : []),
-];
+    { key: "theory", label: "Теория" },
+    ...(hasMethod ? ([{ key: "method", label: "Методика" }] as const) : []),
+    { key: "tasks", label: "Задачи" },
+    ...(videoCount ? ([{ key: "video", label: "Видео" }] as const) : []),
+    ...(hasAttachments ? ([{ key: "attachments", label: "Вложения" }] as const) : []),
+  ];
 
 function BlockedCountdown({ blockedUntilIso }: { blockedUntilIso: string }) {
   const blockedUntilMs = useMemo(() => new Date(blockedUntilIso).getTime(), [blockedUntilIso]);
@@ -346,9 +346,6 @@ function StudentTaskAttemptControls({
         </Button>
       ) : null}
 
-      {!attempt.isTaskCredited && attempt.showIncorrectBadge ? (
-        <span className={styles.taskResultIncorrect}>Неверно</span>
-      ) : null}
 
       {attempt.isBlocked && attempt.blockedUntilIso ? (
         <BlockedCountdown blockedUntilIso={attempt.blockedUntilIso} />
@@ -390,9 +387,6 @@ function StudentTaskProgressControls({
         </Button>
       ) : null}
 
-      {attempt.showCorrectBadge ? (
-        <span className={styles.taskResultCorrect}>Верно</span>
-      ) : null}
 
       <div className={styles.attemptsLeftBadge}>Осталось попыток: {attempt.attemptsLeft}</div>
     </>
@@ -476,7 +470,7 @@ function StudentUnitTasksPanel({
           statementImageError={media.activeTaskStatementImageError}
           statementImageUrl={media.activeTaskStatementImageUrl}
           onStatementImageLoadError={media.handleStatementImageLoadError}
-          showSolutionPanel={showSolutionPanel}
+          showSolutionPanel={false}
           solutionLoading={media.activeTaskSolutionLoading}
           solutionError={media.activeTaskSolutionError}
           solutionErrorCode={media.activeTaskSolutionErrorCode}
@@ -499,6 +493,29 @@ function StudentUnitTasksPanel({
           onSingleChoiceChange={attempt.updateSingleValue}
           onMultiChoiceToggle={attempt.toggleMultiValue}
         />
+
+        {!isPhotoTask && (attempt.showCorrectBadge || (!attempt.isTaskCredited && attempt.showIncorrectBadge)) ? (
+          <div className={attempt.showCorrectBadge ? styles.taskResultCorrect : styles.taskResultIncorrect}>
+            {attempt.showCorrectBadge ? "✓ Верно" : "✗ Неверно"}
+          </div>
+        ) : null}
+
+        {showSolutionPanel ? (
+          <StudentTaskMediaPreview
+            hasStatementImage={false}
+            statementImageLoading={false}
+            statementImageError={null}
+            statementImageUrl={null}
+            onStatementImageLoadError={media.handleStatementImageLoadError}
+            showSolutionPanel
+            solutionLoading={media.activeTaskSolutionLoading}
+            solutionError={media.activeTaskSolutionError}
+            solutionErrorCode={media.activeTaskSolutionErrorCode}
+            solutionHtml={media.activeTaskSolutionHtml}
+            solutionRefreshKey={media.activeTaskSolutionHtmlKey ?? activeTask.solutionHtmlAssetKey ?? undefined}
+            onGoToStudentGraph={onGoToStudentGraph}
+          />
+        ) : null}
 
         {isPhotoTask ? <StudentPhotoActions taskId={activeTask.id} photo={photo} /> : null}
 

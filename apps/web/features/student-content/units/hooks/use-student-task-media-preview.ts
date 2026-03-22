@@ -142,6 +142,11 @@ export const useStudentTaskMediaPreview = ({ activeTask }: Params) => {
     }
 
     setShowSolutionByTask((prev) => ({ ...prev, [taskId]: true }));
+
+    setTimeout(() => {
+      document.getElementById("student-task-solution-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+
     if (!taskSolutionRenderedContentByTask[taskId]) {
       try {
         await loadTaskSolutionRenderedContent(taskId);

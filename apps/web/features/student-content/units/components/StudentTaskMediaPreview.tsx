@@ -70,9 +70,9 @@ export function StudentTaskMediaPreview({
 
       {showSolutionPanel ? (
         solutionLoading ? (
-          <div className={styles.solutionHint}>Загружаем HTML-решение…</div>
+          <div id="student-task-solution-panel" className={styles.solutionHint}>Загружаем HTML-решение…</div>
         ) : solutionError ? (
-          <div className={styles.solutionError} role="status" aria-live="polite">
+          <div id="student-task-solution-panel" className={styles.solutionError} role="status" aria-live="polite">
             {solutionError}
             {solutionErrorCode === "UNIT_LOCKED" ? (
               <div className={styles.solutionErrorActions}>
@@ -83,7 +83,7 @@ export function StudentTaskMediaPreview({
             ) : null}
           </div>
         ) : solutionHtml ? (
-          <div className={styles.solutionHtmlViewport}>
+          <div id="student-task-solution-panel" className={styles.solutionHtmlViewport}>
             <div
               ref={solutionHtmlRef}
               className={`${styles.htmlContent} ${styles.solutionHtmlContent}`}
@@ -91,7 +91,7 @@ export function StudentTaskMediaPreview({
             />
           </div>
         ) : (
-          <div className={styles.solutionStub}>HTML-решение пока не подготовлено преподавателем.</div>
+          <div id="student-task-solution-panel" className={styles.solutionStub}>HTML-решение пока не подготовлено преподавателем.</div>
         )
       ) : null}
     </>
