@@ -52,7 +52,7 @@
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0);
-  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
 }
 
@@ -194,7 +194,7 @@
 }
 
 .sidebarIconAction:focus-visible {
-  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
 }
 
@@ -276,7 +276,7 @@
 }
 
 .navLink:focus-visible {
-  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
 }
 

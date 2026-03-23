@@ -1,4 +1,8 @@
 .section {
+  --list-surface: var(--role-surface, var(--foundation-surface));
+  --list-surface-soft: var(--role-surface-soft, var(--foundation-surface-soft));
+  --list-outline: var(--role-outline, var(--foundation-outline));
+  --list-outline-strong: var(--role-outline-strong, var(--foundation-outline-strong));
   display: grid;
   gap: 10px;
 }
@@ -10,12 +14,12 @@
 }
 
 .empty {
-  border: var(--border-width) dashed var(--card-border);
+  border: var(--border-width-thin) dashed var(--list-outline);
   border-radius: var(--card-radius);
   padding: 12px;
   color: var(--text-muted);
   font-size: 13px;
-  background: var(--card-bg);
+  background: var(--list-surface-soft);
 }
 
 .list {
@@ -24,14 +28,24 @@
 }
 
 .item {
-  border: var(--border-width) solid var(--card-border);
+  border: var(--border-width-thin) solid var(--list-outline);
   border-radius: var(--card-radius);
-  background: var(--card-bg);
+  background: var(--list-surface);
   padding: 12px;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  box-shadow: var(--role-shadow-md, var(--foundation-shadow-md));
+  transition: border-color var(--motion-fast) ease, background var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease, transform var(--motion-fast) ease;
+}
+
+.item:hover {
+  border-color: var(--list-outline-strong);
+  background: color-mix(in srgb, var(--list-surface) 94%, var(--list-surface-soft));
+  box-shadow: var(--role-shadow-lg, var(--foundation-shadow-lg));
+  transform: translateY(-1px);
 }
 
 .content {

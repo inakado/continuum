@@ -110,7 +110,7 @@
 }
 
 .reviewQueueLink:focus-visible {
-  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
 }
 
@@ -241,11 +241,10 @@
 .tasksTableWrap,
 .unitsTableWrap {
   overflow: hidden;
-  border: var(--border-width-thin) solid color-mix(in srgb, rgba(15, 23, 42, 0.1) 74%, var(--card-border));
+  border: var(--border-width-thin) solid var(--table-frame-border);
   border-radius: calc(var(--card-radius) + 2px);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 96%, white 4%), var(--card-bg));
-  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.06);
+  background: var(--table-frame-bg);
+  box-shadow: var(--table-frame-shadow);
 }
 
 .tasksTable,
@@ -270,7 +269,7 @@
 .unitsTable th,
 .unitsTable td {
   padding: 10px 14px;
-  border-bottom: var(--border-width-thin) solid color-mix(in srgb, var(--card-border) 80%, transparent);
+  border-bottom: var(--border-width-thin) solid var(--table-divider);
   vertical-align: middle;
   font-family: var(--text-body-sm-family), sans-serif;
   font-size: var(--text-body-sm-size);
@@ -280,7 +279,7 @@
 
 .tasksTable th,
 .unitsTable th {
-  background: rgba(248, 250, 252, 0.78);
+  background: var(--table-header-bg);
   color: var(--text-muted);
   font-family: var(--text-label-family), sans-serif;
   font-size: var(--text-label-size);
@@ -297,12 +296,12 @@
 
 .tasksTable tbody tr:hover td,
 .unitsTable tbody tr:hover td {
-  background: color-mix(in srgb, #0f172a 4%, rgba(248, 250, 252, 0.84));
+  background: var(--table-row-hover-bg);
 }
 
 .tasksTable tbody tr:focus-within td,
 .unitsTable tbody tr:focus-within td {
-  background: color-mix(in srgb, #0f172a 6%, rgba(248, 250, 252, 0.88));
+  background: var(--table-row-focus-bg);
 }
 
 .tasksTable th:first-child,
@@ -359,7 +358,7 @@
 }
 
 .unitTitleButton:focus-visible {
-  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
   border-radius: var(--control-radius);
 }
@@ -424,7 +423,7 @@
 }
 
 .taskRowExpanded td {
-  background: color-mix(in srgb, #0f172a 6%, rgba(248, 250, 252, 0.88));
+  background: var(--table-row-focus-bg);
 }
 
 .taskNumberCell {
@@ -503,7 +502,7 @@
 }
 
 .statementToggleButton:focus-visible {
-  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
 }
 
@@ -517,7 +516,7 @@
 }
 
 .taskStatementRow td {
-  background: color-mix(in srgb, #0f172a 3%, rgba(248, 250, 252, 0.86));
+  background: var(--table-row-subtle-bg);
 }
 
 .taskStatementCell {
@@ -543,7 +542,7 @@
 }
 
 .card:focus-within {
-  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
 }
 
@@ -570,7 +569,7 @@
 }
 
 .cardPrimaryButton:focus-visible {
-  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
   border-radius: 8px;
 }
@@ -595,7 +594,7 @@
 }
 
 .clickableCard:focus-visible {
-  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
 }
 

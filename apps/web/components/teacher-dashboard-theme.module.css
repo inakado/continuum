@@ -1,6 +1,19 @@
 .theme {
   --role-accent-bg: #0f172a;
   --role-accent-text: #ffffff;
+  --role-surface: var(--foundation-surface);
+  --role-surface-soft: var(--foundation-surface-soft);
+  --role-surface-strong: var(--foundation-surface-strong);
+  --role-outline: var(--foundation-outline);
+  --role-outline-strong: var(--foundation-outline-strong);
+  --role-shadow-sm: var(--foundation-shadow-sm);
+  --role-shadow-md: var(--foundation-shadow-md);
+  --role-shadow-lg: var(--foundation-shadow-lg);
+  --role-success: var(--foundation-success);
+  --role-success-surface: var(--foundation-success-surface);
+  --role-paper-bg: var(--foundation-paper-bg);
+  --role-paper-bg-muted: var(--foundation-paper-bg-muted);
+  --role-paper-bg-subtle: var(--foundation-paper-bg-subtle);
   --role-nav-hover-bg: var(--role-accent-bg);
   --role-nav-active-bg: var(--role-accent-bg);
   --role-nav-active-text: var(--role-accent-text);
@@ -32,6 +45,53 @@
 }
 
 [data-theme="dark"] .theme {
-  --role-accent-bg: #ffffff;
+  --role-accent-bg: var(--foundation-text);
   --role-accent-text: #0f172a;
+  --button-primary-bg: color-mix(in srgb, var(--foundation-text) 16%, var(--foundation-surface-strong));
+  --button-primary-text: var(--foundation-text);
+  --button-primary-border: color-mix(in srgb, var(--foundation-text) 20%, var(--foundation-outline-strong));
+  --button-primary-hover-bg: color-mix(in srgb, var(--foundation-text) 22%, var(--foundation-surface-strong));
+  --button-primary-hover-text: var(--foundation-text);
+  --button-primary-hover-border: color-mix(in srgb, var(--foundation-text) 34%, var(--foundation-outline-strong));
+  --button-primary-hover-shadow:
+    0 14px 28px rgba(2, 6, 23, 0.34),
+    inset 0 1px 0 rgba(248, 250, 252, 0.08);
+  --button-primary-disabled-bg: color-mix(in srgb, var(--foundation-text) 8%, var(--foundation-surface));
+  --button-primary-disabled-text: color-mix(in srgb, var(--foundation-text) 56%, var(--foundation-text-muted));
+  --button-primary-disabled-border: color-mix(in srgb, var(--foundation-outline) 84%, var(--foundation-text) 16%);
+
+  --button-secondary-bg: color-mix(in srgb, var(--foundation-surface-strong) 88%, var(--foundation-surface));
+  --button-secondary-text: var(--foundation-text);
+  --button-secondary-border: color-mix(in srgb, var(--foundation-outline-strong) 88%, transparent);
+  --button-secondary-hover-bg: color-mix(in srgb, var(--foundation-surface-strong) 94%, var(--foundation-text) 6%);
+  --button-secondary-hover-text: var(--foundation-text);
+  --button-secondary-hover-border: color-mix(in srgb, var(--foundation-text) 22%, var(--foundation-outline-strong));
+  --button-secondary-hover-shadow:
+    0 12px 24px rgba(2, 6, 23, 0.24),
+    inset 0 1px 0 rgba(248, 250, 252, 0.06);
+  --button-secondary-disabled-bg: color-mix(in srgb, var(--foundation-surface) 92%, transparent);
+  --button-secondary-disabled-text: color-mix(in srgb, var(--foundation-text) 50%, var(--foundation-text-muted));
+  --button-secondary-disabled-border: color-mix(in srgb, var(--foundation-outline) 90%, transparent);
+
+  --button-ghost-bg: color-mix(in srgb, var(--foundation-surface-soft) 68%, transparent);
+  --button-ghost-text: var(--foundation-text);
+  --button-ghost-border: color-mix(in srgb, var(--foundation-outline) 82%, transparent);
+  --button-ghost-hover-bg: color-mix(in srgb, var(--foundation-surface-strong) 72%, var(--foundation-text) 4%);
+  --button-ghost-hover-text: var(--foundation-text);
+  --button-ghost-hover-border: color-mix(in srgb, var(--foundation-text) 18%, var(--foundation-outline));
+  --button-ghost-hover-shadow: 0 10px 20px rgba(2, 6, 23, 0.2);
+  --button-ghost-disabled-bg: color-mix(in srgb, var(--foundation-surface-soft) 44%, transparent);
+  --button-ghost-disabled-text: color-mix(in srgb, var(--foundation-text) 48%, var(--foundation-text-muted));
+  --button-ghost-disabled-border: color-mix(in srgb, var(--foundation-outline) 74%, transparent);
+
+  --button-danger-bg: color-mix(in srgb, #ef4444 16%, var(--foundation-surface-strong));
+  --button-danger-text: #fecaca;
+  --button-danger-border: color-mix(in srgb, #f87171 42%, var(--foundation-outline-strong));
+  --button-danger-hover-bg: color-mix(in srgb, #ef4444 22%, var(--foundation-surface-strong));
+  --button-danger-hover-text: #fee2e2;
+  --button-danger-hover-border: color-mix(in srgb, #fca5a5 52%, var(--foundation-outline-strong));
+  --button-danger-hover-shadow: 0 10px 22px rgba(127, 29, 29, 0.28);
+  --button-danger-disabled-bg: color-mix(in srgb, #ef4444 8%, var(--foundation-surface));
+  --button-danger-disabled-text: color-mix(in srgb, #fecaca 54%, var(--foundation-text-muted));
+  --button-danger-disabled-border: color-mix(in srgb, #f87171 18%, var(--foundation-outline));
 }

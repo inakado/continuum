@@ -1,15 +1,15 @@
 .content {
   --sd-text: var(--text-primary);
   --sd-muted: var(--text-muted);
-  --sd-panel-bg: var(--panel-bg);
-  --sd-card-bg: var(--card-bg);
-  --sd-surface-1: var(--surface-1);
-  --sd-surface-2: var(--surface-2);
-  --sd-border: var(--card-border);
-  --sd-border-soft: var(--alabaster-grey);
-  --sd-border-strong: var(--pale-slate);
-  --sd-shadow: 0 2px 8px rgba(33, 37, 41, 0.04);
-  --sd-panel-shadow: 0 8px 24px rgba(33, 37, 41, 0.08);
+  --sd-panel-bg: var(--role-surface-soft, var(--foundation-surface-soft));
+  --sd-card-bg: var(--role-surface, var(--foundation-surface));
+  --sd-surface-1: var(--role-surface-soft, var(--foundation-surface-soft));
+  --sd-surface-2: var(--role-surface-strong, var(--foundation-surface-strong));
+  --sd-border: var(--role-outline, var(--foundation-outline));
+  --sd-border-soft: var(--role-outline, var(--foundation-outline));
+  --sd-border-strong: var(--role-outline-strong, var(--foundation-outline-strong));
+  --sd-shadow: var(--role-shadow-sm, var(--foundation-shadow-sm));
+  --sd-panel-shadow: var(--role-shadow-md, var(--foundation-shadow-md));
   --sd-glass-filter: var(--glass-filter);
   display: flex;
   flex-direction: column;

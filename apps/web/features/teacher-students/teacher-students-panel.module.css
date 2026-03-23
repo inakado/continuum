@@ -1,4 +1,7 @@
 .panel {
+  --teacher-students-card-active-border: color-mix(in srgb, var(--focus-ring-color) 40%, var(--card-border));
+  --teacher-students-focus-ring: var(--focus-ring-color);
+  --teacher-students-focus-offset: var(--focus-ring-offset);
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -55,8 +58,9 @@
 
 .dialog {
   width: min(720px, calc(100vw - 24px));
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-1) 94%, white 6%), var(--surface-1));
+  border: var(--border-width-thin) solid var(--surface-elevated-border);
+  background: var(--surface-elevated-bg);
+  box-shadow: var(--surface-elevated-shadow);
 }
 
 .dialogBody,
@@ -74,8 +78,8 @@
 }
 
 .dialogInput {
-  --control-bg: color-mix(in srgb, var(--surface-2) 92%, white 8%);
-  --control-border: color-mix(in srgb, var(--glass-border) 78%, var(--border-primary) 22%);
+  --control-bg: var(--surface-elevated-control-bg);
+  --control-border: var(--surface-elevated-control-border);
   --control-radius: 20px;
   min-height: 56px;
   padding-inline: 18px;
@@ -90,7 +94,7 @@
   justify-content: flex-end;
   gap: 12px;
   padding-top: 16px;
-  border-top: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 84%, transparent);
+  border-top: var(--border-width-thin) solid var(--surface-elevated-subtle-border);
 }
 
 .dialogMeta {
@@ -98,9 +102,9 @@
   flex-direction: column;
   gap: 4px;
   padding: 12px 14px;
-  border: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 80%, transparent);
+  border: var(--border-width-thin) solid var(--surface-elevated-subtle-border);
   border-radius: calc(var(--control-radius) + 2px);
-  background: color-mix(in srgb, var(--surface-2) 92%, white 8%);
+  background: var(--surface-elevated-subtle-bg);
 }
 
 .dialogMetaLabel {
@@ -222,8 +226,8 @@
 }
 
 .card:focus-within {
-  outline: var(--focus-ring-width) solid var(--border-primary);
-  outline-offset: var(--focus-ring-offset);
+  outline: var(--focus-ring-width) solid var(--teacher-students-focus-ring);
+  outline-offset: var(--teacher-students-focus-offset);
 }
 
 .card:hover {
@@ -234,7 +238,7 @@
 }
 
 .cardActive {
-  border-color: color-mix(in srgb, var(--border-primary) 50%, var(--card-border));
+  border-color: var(--teacher-students-card-active-border);
 }
 
 .cardMenuOpen {
@@ -264,8 +268,8 @@
 }
 
 .primaryLink:focus-visible {
-  outline: var(--focus-ring-width) solid var(--border-primary);
-  outline-offset: var(--focus-ring-offset);
+  outline: var(--focus-ring-width) solid var(--teacher-students-focus-ring);
+  outline-offset: var(--teacher-students-focus-offset);
 }
 
 .studentName {
@@ -317,7 +321,7 @@
   --button-border: transparent;
   --button-border-width: 0px;
   --button-text: var(--text-muted);
-  --button-hover-bg: color-mix(in srgb, var(--bg-field) 98%, white 2%);
+  --button-hover-bg: var(--surface-elevated-subtle-bg);
   --button-hover-border: transparent;
   --button-hover-text: var(--text-primary);
   --button-hover-shadow: none;
@@ -336,7 +340,7 @@
 }
 
 .actionsMenuTrigger:focus-visible {
-  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
   border-radius: 999px;
 }
@@ -379,7 +383,7 @@
 }
 
 .actionsMenuItem:focus-visible {
-  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
 }
 

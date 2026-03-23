@@ -2,6 +2,15 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  --teacher-unit-surface: var(--role-surface, var(--foundation-surface));
+  --teacher-unit-surface-soft: var(--role-surface-soft, var(--foundation-surface-soft));
+  --teacher-unit-surface-strong: var(--role-surface-strong, var(--foundation-surface-strong));
+  --teacher-unit-outline: var(--role-outline, var(--foundation-outline));
+  --teacher-unit-paper-bg: var(--role-paper-bg, var(--foundation-paper-bg));
+  --teacher-unit-paper-bg-muted: var(--role-paper-bg-muted, var(--foundation-paper-bg-muted));
+  --teacher-unit-paper-bg-subtle: var(--role-paper-bg-subtle, var(--foundation-paper-bg-subtle));
+  --teacher-unit-box-bg: color-mix(in srgb, var(--teacher-unit-surface-strong) 84%, var(--teacher-unit-paper-bg-subtle));
+  --teacher-unit-box-bg-muted: color-mix(in srgb, var(--teacher-unit-surface-soft) 90%, var(--teacher-unit-paper-bg-muted));
   --header-chip-radius: calc(var(--control-radius) + 8px);
   --header-chip-inner-radius: calc(var(--control-radius) + 4px);
 }
@@ -48,7 +57,7 @@
 }
 
 .breadcrumbIconButton:focus-visible {
-  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
 }
 
@@ -286,10 +295,17 @@
 }
 
 .codeEditor {
+  --teacher-editor-bg: color-mix(in srgb, var(--teacher-unit-surface-strong) 94%, var(--teacher-unit-surface));
+  --teacher-editor-panel-bg: color-mix(in srgb, var(--teacher-unit-surface-soft) 90%, var(--teacher-unit-surface));
+  --teacher-editor-border: color-mix(in srgb, var(--teacher-unit-outline) 78%, transparent);
+  --teacher-editor-muted: color-mix(in srgb, var(--text-muted) 88%, transparent);
   flex: 1 1 auto;
   min-height: 0;
   width: 100%;
   overflow: hidden;
+  border: var(--border-width-thin) solid var(--teacher-editor-border);
+  border-radius: var(--control-radius);
+  background: var(--teacher-editor-bg);
 }
 
 .codeEditor :global(.cm-editor) {
@@ -299,6 +315,8 @@
   flex: 1 1 auto;
   min-height: 0;
   height: 100%;
+  background: var(--teacher-editor-bg);
+  color: var(--text-primary);
 }
 
 .codeEditor :global(.cm-theme) {
@@ -309,6 +327,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background: var(--teacher-editor-bg);
 }
 
 .codeEditor :global(.cm-scroller) {
@@ -319,11 +338,68 @@
   min-height: 0;
   height: 100%;
   overscroll-behavior: contain;
+  background: var(--teacher-editor-bg);
+  color: var(--text-primary);
+}
+
+.codeEditor :global(.cm-content),
+.codeEditor :global(.cm-line) {
+  color: var(--text-primary);
+  caret-color: var(--text-primary);
+}
+
+.codeEditor :global(.cm-gutters) {
+  background: var(--teacher-editor-panel-bg);
+  color: var(--teacher-editor-muted);
+  border-right: var(--border-width-thin) solid var(--teacher-editor-border);
+}
+
+.codeEditor :global(.cm-activeLine),
+.codeEditor :global(.cm-activeLineGutter) {
+  background: color-mix(in srgb, var(--teacher-unit-surface-soft) 76%, transparent);
+}
+
+.codeEditor :global(.cm-selectionBackground),
+.codeEditor :global(.cm-content ::selection) {
+  background: color-mix(in srgb, var(--border-primary) 18%, transparent);
+}
+
+.codeEditor :global(.cm-cursor),
+.codeEditor :global(.cm-dropCursor) {
+  border-left-color: var(--text-primary);
 }
 
 .codeEditor :global(.cm-lineWrapping .cm-line) {
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+[data-theme="dark"] .codeEditor {
+  --teacher-editor-syntax-command: #34d399;
+  --teacher-editor-syntax-accent: #fbbf24;
+  --teacher-editor-syntax-keyword: #7dd3fc;
+  --teacher-editor-syntax-comment: color-mix(in srgb, var(--text-muted) 92%, transparent);
+  --teacher-editor-syntax-invalid: #fca5a5;
+}
+
+[data-theme="dark"] .codeEditor :global(.cm-latex-command) {
+  color: var(--teacher-editor-syntax-command);
+}
+
+[data-theme="dark"] .codeEditor :global(.cm-latex-accent) {
+  color: var(--teacher-editor-syntax-accent);
+}
+
+[data-theme="dark"] .codeEditor :global(.cm-latex-keyword) {
+  color: var(--teacher-editor-syntax-keyword);
+}
+
+[data-theme="dark"] .codeEditor :global(.cm-latex-comment) {
+  color: var(--teacher-editor-syntax-comment);
+}
+
+[data-theme="dark"] .codeEditor :global(.cm-latex-invalid) {
+  color: var(--teacher-editor-syntax-invalid);
 }
 
 .kicker {
@@ -416,7 +492,7 @@
 }
 
 .compileErrorAction:focus-visible {
-  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
 }
 
@@ -449,7 +525,7 @@
   height: 100%;
   border: 0;
   border-radius: 0;
-  background: #fff;
+  background: var(--teacher-unit-paper-bg);
   box-shadow: none;
 }
 
@@ -563,8 +639,8 @@
 }
 
 .previewHtmlContent :global(.DefinitionBox) {
-  border-left: 5px solid #1a202c;
-  background-color: #f1f5f9;
+  border-left: 5px solid color-mix(in srgb, var(--text-primary) 88%, var(--teacher-unit-outline));
+  background-color: var(--teacher-unit-box-bg);
 }
 
 .previewHtmlContent :global(.RemarkBox) {
@@ -580,8 +656,8 @@
 }
 
 .previewHtmlContent :global(.ExampleBox) {
-  border-left: 5px double #94a3b8;
-  background-color: #f8fafc;
+  border-left: 5px double color-mix(in srgb, var(--text-muted) 82%, var(--teacher-unit-outline));
+  background-color: var(--teacher-unit-box-bg-muted);
 }
 
 .previewHtmlContent :global(.unit-html-box-title) {
@@ -613,7 +689,7 @@
 .previewHtmlContent :global(.DefinitionBox strong),
 .previewHtmlContent :global(.RemarkBox strong),
 .previewHtmlContent :global(.ExampleBox strong) {
-  color: #1a202c;
+  color: var(--text-primary);
 }
 
 .previewHtmlContent :global(pre),
@@ -647,7 +723,7 @@
 
 .previewHtmlContent :global(.unit-html-table-number) {
   font-weight: 600;
-  color: #475569;
+  color: var(--text-muted);
 }
 
 .previewHtmlContent :global(th),
@@ -675,7 +751,7 @@
   padding: 1.5em;
   width: min(100%, 900px);
   max-width: 100%;
-  background: #ffffff;
+  background: var(--teacher-unit-paper-bg);
   border-radius: 16px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
 }
@@ -787,7 +863,7 @@
   margin: 0;
   padding: 1.1em 1.2em;
   border-radius: 14px;
-  background: #ffffff;
+  background: var(--teacher-unit-paper-bg);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.035);
 }
 
@@ -804,7 +880,7 @@
   padding: 1.5em;
   width: min(100%, 900px);
   max-width: 100%;
-  background: #ffffff;
+  background: var(--teacher-unit-paper-bg);
   border-radius: 16px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
 }
@@ -826,7 +902,7 @@
 
 .previewHtmlContent :global(.unit-html-figure-number) {
   font-weight: 600;
-  color: #475569;
+  color: var(--text-muted);
 }
 
 .previewHtmlContent :global(img),
@@ -846,6 +922,17 @@
 
 .previewHtmlContent :global(.unit-html-minipage > figure:not(.unit-html-subfigure):has(> img.unit-html-tikz-image) > img.unit-html-tikz-image) {
   margin-bottom: 0.85em;
+}
+
+[data-theme="dark"] .previewHtmlContent :global(.unit-html-figure-group .unit-html-subfigure),
+[data-theme="dark"] .previewHtmlContent :global(figure:not(.unit-html-subfigure):has(> img.unit-html-tikz-image)) {
+  background: color-mix(in srgb, var(--teacher-unit-surface-strong) 92%, var(--teacher-unit-surface));
+  border: var(--border-width-thin) solid color-mix(in srgb, var(--teacher-unit-outline) 76%, transparent);
+  box-shadow: var(--foundation-shadow-md);
+}
+
+[data-theme="dark"] .previewHtmlContent :global(img.unit-html-tikz-image) {
+  filter: invert(1) hue-rotate(180deg) saturate(1.08) brightness(1.04) contrast(1.02);
 }
 
 @media (max-width: 860px) {
@@ -1278,7 +1365,7 @@
 
 .taskEditAction:focus-visible,
 .taskDeleteAction:focus-visible {
-  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
 }
 
@@ -1366,7 +1453,7 @@
   max-height: 460px;
   object-fit: contain;
   margin: 0 auto;
-  background: #fff;
+  background: var(--teacher-unit-paper-bg);
 }
 
 .taskSolutionHeader {
@@ -1471,6 +1558,17 @@
   max-width: 100%;
 }
 
+[data-theme="dark"] .taskSolutionHtmlContent :global(.unit-html-figure-group .unit-html-subfigure),
+[data-theme="dark"] .taskSolutionHtmlContent :global(figure:not(.unit-html-subfigure):has(> img.unit-html-tikz-image)) {
+  background: color-mix(in srgb, var(--teacher-unit-surface-strong) 92%, var(--teacher-unit-surface));
+  border: var(--border-width-thin) solid color-mix(in srgb, var(--teacher-unit-outline) 76%, transparent);
+  box-shadow: var(--foundation-shadow-md);
+}
+
+[data-theme="dark"] .taskSolutionHtmlContent :global(img.unit-html-tikz-image) {
+  filter: invert(1) hue-rotate(180deg) saturate(1.08) brightness(1.04) contrast(1.02);
+}
+
 .taskSolutionStub {
   border: var(--border-width-thin) dashed var(--glass-border);
   border-radius: var(--control-radius);
@@ -1488,7 +1586,7 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: color-mix(in srgb, #0f172a 46%, transparent);
+  background: color-mix(in srgb, var(--foundation-bg) 46%, transparent);
   backdrop-filter: blur(4px) saturate(120%);
   -webkit-backdrop-filter: blur(4px) saturate(120%);
 }
@@ -1508,7 +1606,7 @@
 }
 
 .compileErrorModal:focus-visible {
-  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
 }
 

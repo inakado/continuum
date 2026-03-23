@@ -22,6 +22,19 @@
   --role-button-hover-text: var(--bright-snow);
   --role-button-hover-border: var(--iron-grey);
   --role-button-hover-shadow: 0 4px 12px rgba(33, 37, 41, 0.15);
+  --role-surface: var(--foundation-surface);
+  --role-surface-soft: var(--foundation-surface-soft);
+  --role-surface-strong: var(--foundation-surface-strong);
+  --role-outline: var(--foundation-outline);
+  --role-outline-strong: var(--foundation-outline-strong);
+  --role-shadow-sm: var(--foundation-shadow-sm);
+  --role-shadow-md: var(--foundation-shadow-md);
+  --role-shadow-lg: var(--foundation-shadow-lg);
+  --role-success: var(--foundation-success);
+  --role-success-surface: var(--foundation-success-surface);
+  --role-paper-bg: var(--foundation-paper-bg);
+  --role-paper-bg-muted: var(--foundation-paper-bg-muted);
+  --role-paper-bg-subtle: var(--foundation-paper-bg-subtle);
 
   --bg-accent: var(--role-accent-bg);
   --text-accent: var(--role-accent-text);
@@ -46,15 +59,15 @@
 
 [data-theme="dark"] .theme {
   /* DARK THEME MAPPING */
-  --role-accent-bg: var(--platinum);
+  --role-accent-bg: var(--foundation-text);
   --role-accent-text: var(--carbon-black);
-  
-  --role-nav-hover-bg: var(--carbon-black);
+
+  --role-nav-hover-bg: var(--role-surface-strong);
   --role-nav-active-bg: transparent;
-  --role-nav-active-text: var(--bright-snow);
-  
-  --role-button-hover-bg: var(--platinum);
+  --role-nav-active-text: var(--foundation-text);
+
+  --role-button-hover-bg: var(--foundation-text);
   --role-button-hover-text: var(--carbon-black);
-  --role-button-hover-border: var(--pale-slate);
+  --role-button-hover-border: var(--role-outline-strong);
   --role-button-hover-shadow: 0 4px 12px rgba(233, 236, 239, 0.15);
 }

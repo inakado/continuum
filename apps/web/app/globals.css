@@ -11,6 +11,23 @@
   --border-width: var(--border-width-strong);
   --focus-ring-width: 2px;
   --focus-ring-offset: 2px;
+  --focus-ring-color: var(--border-primary);
+  --focus-ring-border-color: color-mix(in srgb, var(--border-primary) 58%, transparent);
+  --focus-ring-soft-color: color-mix(in srgb, var(--border-primary) 32%, transparent);
+  --table-frame-border: color-mix(in srgb, rgba(15, 23, 42, 0.1) 74%, var(--card-border));
+  --table-frame-bg: linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 96%, white 4%), var(--card-bg));
+  --table-frame-shadow: 0 16px 32px rgba(15, 23, 42, 0.06);
+  --table-divider: color-mix(in srgb, var(--card-border) 80%, transparent);
+  --table-header-bg: rgba(248, 250, 252, 0.78);
+  --table-row-hover-bg: color-mix(in srgb, #0f172a 4%, rgba(248, 250, 252, 0.84));
+  --table-row-focus-bg: color-mix(in srgb, #0f172a 6%, rgba(248, 250, 252, 0.88));
+  --table-row-subtle-bg: color-mix(in srgb, #0f172a 3%, rgba(248, 250, 252, 0.86));
+  --switch-track-bg: #d1d1d6;
+  --switch-track-border: rgba(15, 23, 42, 0.08);
+  --switch-track-active-bg: var(--bg-accent);
+  --switch-track-active-border: color-mix(in srgb, var(--border-primary) 42%, transparent);
+  --switch-thumb-bg: #ffffff;
+  --switch-thumb-active-bg: var(--switch-thumb-bg);
   --radius-panel: 16px;
   --radius-card: 14px;
   --radius-control: 12px;
@@ -46,6 +63,22 @@
   --button-hover-text: var(--text-primary);
   --button-hover-border: var(--glass-border);
   --button-hover-shadow: var(--glass-shadow);
+  --foundation-bg: var(--bg-primary);
+  --foundation-surface: var(--surface-2);
+  --foundation-surface-soft: var(--surface-1);
+  --foundation-surface-strong: var(--surface-1);
+  --foundation-outline: var(--glass-border);
+  --foundation-outline-strong: var(--border-primary);
+  --foundation-text: var(--text-primary);
+  --foundation-text-muted: var(--text-muted);
+  --foundation-success: #10b981;
+  --foundation-success-surface: #ecfdf5;
+  --foundation-paper-bg: #ffffff;
+  --foundation-paper-bg-muted: #f8fafc;
+  --foundation-paper-bg-subtle: #f1f5f9;
+  --foundation-shadow-sm: 0 14px 28px rgba(2, 6, 23, 0.12);
+  --foundation-shadow-md: 0 18px 38px rgba(2, 6, 23, 0.12);
+  --foundation-shadow-lg: 0 22px 46px rgba(2, 6, 23, 0.16);
   --motion-fast: 160ms;
   --motion-base: 220ms;
   --motion-slow: 360ms;
@@ -74,6 +107,17 @@
   --surface-card-shadow: var(--card-shadow);
   --surface-inset-bg: color-mix(in srgb, var(--surface-1) 92%, transparent);
   --surface-inset-border: color-mix(in srgb, var(--glass-border) 84%, transparent);
+  --surface-elevated-bg: var(--surface-panel-bg);
+  --surface-elevated-border: var(--surface-panel-border);
+  --surface-elevated-shadow: var(--surface-panel-shadow);
+  --surface-elevated-subtle-bg: var(--surface-inset-bg);
+  --surface-elevated-subtle-border: var(--surface-inset-border);
+  --surface-elevated-control-bg: var(--surface-card-bg);
+  --surface-elevated-control-border: color-mix(
+    in srgb,
+    var(--surface-card-border) 84%,
+    var(--focus-ring-border-color) 16%
+  );
   --action-control-height-sm: 40px;
   --action-control-height-md: 44px;
   --action-control-height-lg: 52px;
@@ -157,29 +201,99 @@
   --surface-0: #f6f7fb;
   --surface-1: rgba(255, 255, 255, 0.82);
   --surface-2: rgba(255, 255, 255, 0.94);
+  --foundation-bg: #ffffff;
+  --foundation-surface: color-mix(in srgb, var(--surface-2) 90%, var(--surface-1));
+  --foundation-surface-soft: color-mix(in srgb, var(--surface-1) 92%, transparent);
+  --foundation-surface-strong: color-mix(in srgb, var(--surface-2) 96%, var(--surface-1));
+  --foundation-outline: color-mix(in srgb, var(--glass-border) 82%, transparent);
+  --foundation-outline-strong: color-mix(in srgb, var(--border-primary) 28%, var(--glass-border));
+  --foundation-text: var(--text-primary);
+  --foundation-text-muted: var(--text-muted);
+  --foundation-success: #10b981;
+  --foundation-success-surface: #ecfdf5;
+  --foundation-paper-bg: #ffffff;
+  --foundation-paper-bg-muted: #f8fafc;
+  --foundation-paper-bg-subtle: #f1f5f9;
+  --foundation-shadow-sm: 0 14px 28px rgba(15, 23, 42, 0.05);
+  --foundation-shadow-md: 0 18px 38px rgba(15, 23, 42, 0.08);
+  --foundation-shadow-lg: 0 22px 46px rgba(15, 23, 42, 0.12);
+  --focus-ring-color: var(--border-primary);
+  --focus-ring-border-color: color-mix(in srgb, var(--border-primary) 58%, transparent);
+  --focus-ring-soft-color: color-mix(in srgb, var(--border-primary) 32%, transparent);
+  --table-frame-border: color-mix(in srgb, rgba(15, 23, 42, 0.1) 74%, var(--card-border));
+  --table-frame-bg: linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 96%, white 4%), var(--card-bg));
+  --table-frame-shadow: 0 16px 32px rgba(15, 23, 42, 0.06);
+  --table-divider: color-mix(in srgb, var(--card-border) 80%, transparent);
+  --table-header-bg: rgba(248, 250, 252, 0.78);
+  --table-row-hover-bg: color-mix(in srgb, #0f172a 4%, rgba(248, 250, 252, 0.84));
+  --table-row-focus-bg: color-mix(in srgb, #0f172a 6%, rgba(248, 250, 252, 0.88));
+  --table-row-subtle-bg: color-mix(in srgb, #0f172a 3%, rgba(248, 250, 252, 0.86));
+  --switch-track-bg: #d1d1d6;
+  --switch-track-border: rgba(15, 23, 42, 0.08);
+  --switch-track-active-bg: var(--bg-accent);
+  --switch-track-active-border: color-mix(in srgb, var(--border-primary) 42%, transparent);
+  --switch-thumb-bg: #ffffff;
+  --switch-thumb-active-bg: var(--switch-thumb-bg);
 }
 
 [data-theme="dark"] {
   --bg-primary: #0f172a;
-  --bg-surface: #111b34;
+  --bg-surface: #1e293b;
   --bg-field: #0f172a;
   --page-gradient-1: rgba(255, 255, 255, 0.14);
   --page-gradient-2: rgba(255, 255, 255, 0.12);
   --page-gradient-3: rgba(255, 255, 255, 0.08);
-  --text-primary: #ffffff;
-  --border-primary: #ffffff;
-  --bg-accent: #ffffff;
+  --text-primary: #f8fafc;
+  --border-primary: #f8fafc;
+  --bg-accent: #f8fafc;
   --text-accent: #0f172a;
   --text-muted: #94a3b8;
-  --glass-bg: rgba(15, 23, 42, 0.6);
-  --glass-border: rgba(255, 255, 255, 0.18);
-  --glass-shadow: 0 14px 35px rgba(2, 6, 23, 0.275);
+  --glass-bg: rgba(30, 41, 59, 0.82);
+  --glass-border: color-mix(in srgb, #334155 78%, #94a3b8 22%);
+  --glass-shadow: 0 18px 40px rgba(2, 6, 23, 0.34);
   --glass-tint: rgba(255, 255, 255, 0.08);
-  --surface-0: #0b1020;
-  --surface-1: rgba(15, 23, 42, 0.72);
-  --surface-2: rgba(15, 23, 42, 0.88);
-  --sidebar-divider: rgba(255, 255, 255, 0.08);
+  --surface-0: #0f172a;
+  --surface-1: color-mix(in srgb, #1e293b 72%, #0f172a);
+  --surface-2: color-mix(in srgb, #1e293b 88%, #0f172a);
+  --sidebar-divider: color-mix(in srgb, #334155 86%, transparent);
   --nav-hover-shadow: 0 10px 22px rgba(2, 6, 23, 0.45);
+  --foundation-bg: #0f172a;
+  --foundation-surface: #1e293b;
+  --foundation-surface-soft: #162235;
+  --foundation-surface-strong: #243247;
+  --foundation-outline: #334155;
+  --foundation-outline-strong: color-mix(in srgb, #94a3b8 30%, #334155);
+  --foundation-text: #f8fafc;
+  --foundation-text-muted: #94a3b8;
+  --foundation-success: #10b981;
+  --foundation-success-surface: color-mix(in srgb, #10b981 12%, #1e293b);
+  --foundation-paper-bg: #ffffff;
+  --foundation-paper-bg-muted: #f8fafc;
+  --foundation-paper-bg-subtle: #f1f5f9;
+  --foundation-shadow-sm: 0 14px 28px rgba(2, 6, 23, 0.16);
+  --foundation-shadow-md: 0 18px 38px rgba(2, 6, 23, 0.22);
+  --foundation-shadow-lg: 0 22px 46px rgba(2, 6, 23, 0.28);
+  --focus-ring-color: color-mix(in srgb, var(--foundation-text) 24%, var(--foundation-outline-strong));
+  --focus-ring-border-color: color-mix(in srgb, var(--focus-ring-color) 62%, transparent);
+  --focus-ring-soft-color: color-mix(in srgb, var(--focus-ring-color) 36%, transparent);
+  --table-frame-border: color-mix(in srgb, var(--foundation-outline-strong) 72%, transparent);
+  --table-frame-bg: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--foundation-surface-strong) 92%, var(--foundation-bg) 8%),
+    color-mix(in srgb, var(--foundation-surface) 94%, var(--foundation-bg) 6%)
+  );
+  --table-frame-shadow: var(--foundation-shadow-md);
+  --table-divider: color-mix(in srgb, var(--foundation-outline) 82%, transparent);
+  --table-header-bg: color-mix(in srgb, var(--foundation-surface-strong) 88%, var(--foundation-bg) 12%);
+  --table-row-hover-bg: color-mix(in srgb, var(--foundation-surface-strong) 78%, var(--foundation-text) 4%);
+  --table-row-focus-bg: color-mix(in srgb, var(--foundation-surface-strong) 84%, var(--foundation-text) 6%);
+  --table-row-subtle-bg: color-mix(in srgb, var(--foundation-surface-strong) 80%, var(--foundation-text) 3%);
+  --switch-track-bg: color-mix(in srgb, var(--foundation-surface-strong) 86%, var(--foundation-bg) 14%);
+  --switch-track-border: color-mix(in srgb, var(--foundation-outline-strong) 64%, transparent);
+  --switch-track-active-bg: color-mix(in srgb, var(--foundation-text) 16%, var(--foundation-surface-strong));
+  --switch-track-active-border: color-mix(in srgb, var(--foundation-text) 22%, var(--foundation-outline-strong));
+  --switch-thumb-bg: color-mix(in srgb, var(--foundation-text) 92%, var(--foundation-surface-strong));
+  --switch-thumb-active-bg: var(--foundation-text);
 }
 
 html,

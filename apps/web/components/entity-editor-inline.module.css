@@ -40,7 +40,7 @@
   --button-bg: var(--bg-field);
   --button-border: var(--glass-border);
   --button-text: var(--text-primary);
-  --button-hover-bg: color-mix(in srgb, var(--bg-field) 98%, white 2%);
+  --button-hover-bg: color-mix(in srgb, var(--bg-field) 98%, var(--foundation-paper-bg) 2%);
   --button-hover-border: var(--border-primary);
   --button-hover-text: var(--text-primary);
   --button-hover-shadow: var(--nav-hover-shadow);

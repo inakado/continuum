@@ -4,10 +4,50 @@
   padding: clamp(28px, 4vw, 56px) clamp(20px, 4vw, 40px) clamp(44px, 6vw, 72px);
   display: grid;
   gap: clamp(22px, 3vw, 36px);
-  --student-success: #10b981;
-  --student-success-surface: #ecfdf5;
+  --student-success: var(--role-success, var(--foundation-success));
+  --student-success-surface: var(--role-success-surface, var(--foundation-success-surface));
+  --student-unit-surface: var(--role-surface, var(--foundation-surface));
+  --student-unit-surface-soft: var(--role-surface-soft, var(--foundation-surface-soft));
+  --student-unit-surface-strong: var(--role-surface-strong, var(--foundation-surface-strong));
+  --student-unit-outline: var(--role-outline, var(--foundation-outline));
+  --student-unit-outline-strong: var(--role-outline-strong, var(--foundation-outline-strong));
+  --student-unit-shadow-sm: var(--role-shadow-sm, var(--foundation-shadow-sm));
+  --student-unit-shadow-md: var(--role-shadow-md, var(--foundation-shadow-md));
+  --student-unit-shadow-lg: var(--role-shadow-lg, var(--foundation-shadow-lg));
+  --student-unit-paper-bg: var(--role-paper-bg, var(--foundation-paper-bg));
+  --student-unit-paper-bg-muted: var(--role-paper-bg-muted, var(--foundation-paper-bg-muted));
+  --student-unit-paper-bg-subtle: var(--role-paper-bg-subtle, var(--foundation-paper-bg-subtle));
+  --student-unit-box-bg: color-mix(in srgb, var(--student-unit-surface-strong) 84%, var(--student-unit-paper-bg-subtle));
+  --student-unit-box-bg-muted: color-mix(in srgb, var(--student-unit-surface-soft) 90%, var(--student-unit-paper-bg-muted));
+  --student-unit-task-input-bg: var(--student-unit-paper-bg);
+  --student-unit-task-input-border: color-mix(in srgb, var(--control-border) 92%, transparent);
+  --student-unit-task-input-text: var(--text-primary);
+  --student-unit-task-input-placeholder: color-mix(in srgb, var(--text-muted) 82%, transparent);
+  --student-unit-task-input-focus-border: var(--focus-ring-border-color);
+  --student-unit-task-input-focus-shadow: 0 0 0 3px var(--focus-ring-soft-color);
+  --student-unit-method-bg: color-mix(in srgb, var(--student-unit-surface-strong) 76%, var(--student-unit-paper-bg));
+  --student-unit-method-border: var(--glass-border);
+  --student-unit-method-icon-bg: var(--student-unit-paper-bg);
+  --student-unit-method-icon-border: var(--glass-border);
+  --student-unit-method-label: var(--text-primary);
+  --student-unit-method-text: var(--text-muted);
   --header-chip-radius: calc(var(--control-radius) + 8px);
   --header-chip-inner-radius: calc(var(--control-radius) + 4px);
+}
+
+[data-theme="dark"] .content {
+  --student-unit-task-input-bg: color-mix(in srgb, var(--student-unit-surface-strong) 88%, var(--student-unit-surface));
+  --student-unit-task-input-border: color-mix(in srgb, var(--student-unit-outline-strong) 88%, transparent);
+  --student-unit-task-input-text: var(--foundation-text);
+  --student-unit-task-input-placeholder: color-mix(in srgb, var(--foundation-text-muted) 86%, transparent);
+  --student-unit-task-input-focus-border: color-mix(in srgb, var(--student-unit-outline-strong) 92%, var(--foundation-text) 8%);
+  --student-unit-task-input-focus-shadow: 0 0 0 3px color-mix(in srgb, var(--foundation-text) 12%, transparent);
+  --student-unit-method-bg: color-mix(in srgb, var(--student-unit-surface-strong) 92%, var(--student-unit-surface));
+  --student-unit-method-border: color-mix(in srgb, var(--student-unit-outline-strong) 86%, transparent);
+  --student-unit-method-icon-bg: color-mix(in srgb, var(--student-unit-surface) 90%, var(--student-unit-surface-strong));
+  --student-unit-method-icon-border: color-mix(in srgb, var(--student-unit-outline) 88%, transparent);
+  --student-unit-method-label: var(--foundation-text);
+  --student-unit-method-text: color-mix(in srgb, var(--foundation-text) 82%, var(--foundation-text-muted));
 }
 
 .header {
@@ -75,7 +115,7 @@
 }
 
 .backInline:focus-visible {
-  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: 2px;
 }
 
@@ -162,10 +202,10 @@
 }
 
 .progressCard {
-  border: var(--border-width-thin) solid var(--glass-border);
-  background: color-mix(in srgb, white 94%, var(--surface-2));
+  border: var(--border-width-thin) solid var(--student-unit-outline);
+  background: var(--student-unit-surface-strong);
   border-radius: calc(var(--card-radius) + 6px);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.05);
+  box-shadow: var(--student-unit-shadow-md);
   padding: clamp(18px, 2.4vw, 28px);
   display: grid;
   gap: 18px;
@@ -331,7 +371,7 @@
   --button-bg: var(--bg-field);
   --button-border: var(--glass-border);
   --button-text: var(--text-primary);
-  --button-hover-bg: color-mix(in srgb, var(--bg-field) 98%, white 2%);
+  --button-hover-bg: color-mix(in srgb, var(--bg-field) 98%, var(--student-unit-paper-bg) 2%);
   --button-hover-border: var(--border-primary);
   --button-hover-text: var(--text-primary);
   --button-hover-shadow: var(--nav-hover-shadow);
@@ -420,7 +460,7 @@
 .pdfViewport {
   border: var(--border-width) solid var(--glass-border);
   border-radius: var(--card-radius);
-  background: #fff;
+  background: var(--student-unit-paper-bg);
   overflow: hidden;
   min-height: 420px;
   height: max(420px, calc(100dvh - 270px));
@@ -450,7 +490,7 @@
 .pdfFrame {
   width: 100%;
   height: 100%;
-  background: #fff;
+  background: var(--student-unit-paper-bg);
 }
 
 .downloadLink {
@@ -599,8 +639,8 @@
 }
 
 .htmlContent :global(.DefinitionBox) {
-  border-left: 5px solid #1a202c;
-  background-color: #f1f5f9;
+  border-left: 5px solid color-mix(in srgb, var(--text-primary) 88%, var(--student-unit-outline));
+  background-color: var(--student-unit-box-bg);
 }
 
 .htmlContent :global(.RemarkBox) {
@@ -614,8 +654,8 @@
 }
 
 .htmlContent :global(.ExampleBox) {
-  border-left: 5px double #94a3b8;
-  background-color: #f8fafc;
+  border-left: 5px double color-mix(in srgb, var(--text-muted) 82%, var(--student-unit-outline));
+  background-color: var(--student-unit-box-bg-muted);
 }
 
 .htmlContent :global(.unit-html-box-title) {
@@ -647,7 +687,7 @@
 .htmlContent :global(.DefinitionBox strong),
 .htmlContent :global(.RemarkBox strong),
 .htmlContent :global(.ExampleBox strong) {
-  color: #1a202c;
+  color: var(--text-primary);
 }
 
 .htmlContent :global(pre),
@@ -681,7 +721,7 @@
 
 .htmlContent :global(.unit-html-table-number) {
   font-weight: 600;
-  color: #475569;
+  color: var(--text-muted);
 }
 
 .htmlContent :global(th),
@@ -709,7 +749,7 @@
   padding: 1.5em;
   width: min(100%, 900px);
   max-width: 100%;
-  background: #ffffff;
+  background: var(--student-unit-paper-bg);
   border-radius: 16px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
 }
@@ -821,7 +861,7 @@
   margin: 0;
   padding: 1.1em 1.2em;
   border-radius: 14px;
-  background: #ffffff;
+  background: var(--student-unit-paper-bg);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.035);
 }
 
@@ -838,7 +878,7 @@
   padding: 1.5em;
   width: min(100%, 900px);
   max-width: 100%;
-  background: #ffffff;
+  background: var(--student-unit-paper-bg);
   border-radius: 16px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
 }
@@ -860,7 +900,7 @@
 
 .htmlContent :global(.unit-html-figure-number) {
   font-weight: 600;
-  color: #475569;
+  color: var(--text-muted);
 }
 
 .htmlContent :global(img),
@@ -880,6 +920,17 @@
 
 .htmlContent :global(.unit-html-minipage > figure:not(.unit-html-subfigure):has(> img.unit-html-tikz-image) > img.unit-html-tikz-image) {
   margin-bottom: 0.85em;
+}
+
+[data-theme="dark"] .htmlContent :global(.unit-html-figure-group .unit-html-subfigure),
+[data-theme="dark"] .htmlContent :global(figure:not(.unit-html-subfigure):has(> img.unit-html-tikz-image)) {
+  background: color-mix(in srgb, var(--student-unit-surface-strong) 92%, var(--student-unit-surface));
+  border: var(--border-width-thin) solid color-mix(in srgb, var(--student-unit-outline) 76%, transparent);
+  box-shadow: var(--student-unit-shadow-md);
+}
+
+[data-theme="dark"] .htmlContent :global(img.unit-html-tikz-image) {
+  filter: invert(1) hue-rotate(180deg) saturate(1.08) brightness(1.04) contrast(1.02);
 }
 
 @media (max-width: 860px) {
@@ -976,7 +1027,7 @@
 
 .taskTab {
   border: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 86%, transparent);
-  background: color-mix(in srgb, white 90%, var(--surface-2));
+  background: var(--student-unit-surface-strong);
   color: color-mix(in srgb, var(--text-muted) 72%, var(--text-primary));
   width: 38px;
   height: 38px;
@@ -998,9 +1049,9 @@
 }
 
 .taskTab:hover:not(:disabled) {
-  background: color-mix(in srgb, white 96%, var(--surface-2));
-  border-color: color-mix(in srgb, var(--glass-border) 40%, var(--border-primary));
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+  background: color-mix(in srgb, var(--student-unit-surface-strong) 94%, var(--student-unit-paper-bg));
+  border-color: color-mix(in srgb, var(--student-unit-outline) 48%, var(--student-unit-outline-strong));
+  box-shadow: var(--student-unit-shadow-sm);
   transform: translateY(-1px);
 }
 
@@ -1018,7 +1069,7 @@
   --button-bg: var(--bg-field);
   --button-border: var(--glass-border);
   --button-text: var(--text-primary);
-  --button-hover-bg: color-mix(in srgb, var(--bg-field) 98%, white 2%);
+  --button-hover-bg: color-mix(in srgb, var(--bg-field) 98%, var(--student-unit-paper-bg) 2%);
   --button-hover-border: var(--border-primary);
   --button-hover-text: var(--text-primary);
   --button-hover-shadow: var(--nav-hover-shadow);
@@ -1060,11 +1111,11 @@
 .taskCard {
   border: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 88%, transparent);
   padding: clamp(24px, 3vw, 42px);
-  background: color-mix(in srgb, white 96%, var(--surface-2));
+  background: var(--student-unit-surface-strong);
   display: grid;
   gap: 24px;
   border-radius: calc(var(--card-radius) + 8px);
-  box-shadow: 0 22px 50px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--student-unit-shadow-lg);
 }
 
 .photoCard {
@@ -1274,7 +1325,7 @@
   --button-bg: var(--bg-field);
   --button-border: var(--glass-border);
   --button-text: var(--text-primary);
-  --button-hover-bg: color-mix(in srgb, var(--bg-field) 98%, white 2%);
+  --button-hover-bg: color-mix(in srgb, var(--bg-field) 98%, var(--student-unit-paper-bg) 2%);
   --button-hover-border: var(--border-primary);
   --button-hover-text: var(--text-primary);
   --button-hover-shadow: var(--nav-hover-shadow);
@@ -1351,7 +1402,7 @@
   text-transform: uppercase;
   letter-spacing: 0.1em;
   font-weight: 700;
-  background: color-mix(in srgb, white 94%, var(--surface-2));
+  background: color-mix(in srgb, var(--student-unit-surface-strong) 94%, var(--student-unit-paper-bg));
   color: var(--text-muted);
   border-radius: 999px;
   display: inline-flex;
@@ -1472,9 +1523,9 @@
   align-items: flex-start;
   gap: 18px;
   padding: 24px;
-  border: var(--border-width-thin) solid var(--glass-border);
+  border: var(--border-width-thin) solid var(--student-unit-method-border);
   border-radius: calc(var(--card-radius) - 2px);
-  background: color-mix(in srgb, var(--surface-2) 52%, white);
+  background: var(--student-unit-method-bg);
 }
 
 .methodGuidanceIcon {
@@ -1484,9 +1535,9 @@
   width: 42px;
   height: 42px;
   flex: 0 0 auto;
-  border: var(--border-width-thin) solid var(--glass-border);
+  border: var(--border-width-thin) solid var(--student-unit-method-icon-border);
   border-radius: 14px;
-  background: white;
+  background: var(--student-unit-method-icon-bg);
   color: var(--text-muted);
 }
 
@@ -1498,19 +1549,19 @@
 
 .methodGuidanceLabel {
   font-size: 11px;
-  font-family: var(--font-display), sans-serif;
+  font-family: var(--font-heading), sans-serif;
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: var(--text-primary);
+  color: var(--student-unit-method-label);
 }
 
 .methodGuidanceText {
   margin: 0;
   font-size: 15px;
   line-height: 1.68;
-  color: var(--text-secondary);
+  color: var(--student-unit-method-text);
   white-space: pre-line;
 }
 
@@ -1559,7 +1610,7 @@
   --button-bg: var(--bg-field);
   --button-border: var(--glass-border);
   --button-text: var(--text-primary);
-  --button-hover-bg: color-mix(in srgb, var(--bg-field) 98%, white 2%);
+  --button-hover-bg: color-mix(in srgb, var(--bg-field) 98%, var(--student-unit-paper-bg) 2%);
   --button-hover-border: var(--border-primary);
   --button-hover-text: var(--text-primary);
   --button-hover-shadow: var(--nav-hover-shadow);
@@ -1630,7 +1681,7 @@
 }
 
 .solutionToggleLink:focus-visible {
-  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: 4px;
   border-radius: 6px;
 }
@@ -1722,22 +1773,28 @@
 }
 
 .answerInputInline {
-  border: var(--border-width-thin) solid color-mix(in srgb, var(--control-border) 92%, transparent);
-  background: white;
-  color: var(--text-primary);
+  border: var(--border-width-thin) solid var(--student-unit-task-input-border);
+  background: var(--student-unit-task-input-bg);
+  color: var(--student-unit-task-input-text);
   padding: 12px 14px;
   font-size: 0.95rem;
   min-width: 180px;
   border-radius: var(--control-radius);
   transition:
     border-color var(--motion-fast) ease,
-    box-shadow var(--motion-fast) ease;
+    box-shadow var(--motion-fast) ease,
+    background var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
+.answerInputInline::placeholder {
+  color: var(--student-unit-task-input-placeholder);
 }
 
 .answerInputInline:focus {
   outline: none;
-  border-color: var(--border-primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--border-primary) 12%, transparent);
+  border-color: var(--student-unit-task-input-focus-border);
+  box-shadow: var(--student-unit-task-input-focus-shadow);
 }
 
 .answerInputInline:disabled {
@@ -1759,8 +1816,8 @@
 
 .answerInput:focus {
   outline: none;
-  border-color: var(--border-primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--border-primary) 12%, transparent);
+  border-color: var(--student-unit-task-input-focus-border);
+  box-shadow: var(--student-unit-task-input-focus-shadow);
 }
 
 .optionList {
@@ -1777,15 +1834,15 @@
   cursor: pointer;
   border: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 86%, transparent);
   border-radius: calc(var(--control-radius) + 2px);
-  background: color-mix(in srgb, white 97%, var(--surface-2));
+  background: color-mix(in srgb, var(--student-unit-surface-strong) 94%, var(--student-unit-paper-bg));
   transition:
     background var(--motion-fast) ease,
     border-color var(--motion-fast) ease;
 }
 
 .optionItem:hover {
-  background: color-mix(in srgb, white 99%, var(--surface-2));
-  border-color: color-mix(in srgb, var(--glass-border) 48%, var(--border-primary));
+  background: color-mix(in srgb, var(--student-unit-paper-bg) 32%, var(--student-unit-surface-strong));
+  border-color: color-mix(in srgb, var(--student-unit-outline) 48%, var(--student-unit-outline-strong));
 }
 
 .optionInput {
@@ -1842,7 +1899,7 @@
 }
 
 .optionInput:focus-visible {
-  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
 }
 

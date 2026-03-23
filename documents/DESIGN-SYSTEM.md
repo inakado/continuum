@@ -86,15 +86,30 @@ C) Интерфейс и чтение
 
 **Токены (основа):**
 - `bg-primary`: light `#ffffff`, dark `#0f172a`
-- `text-primary`: light `#0f172a`, dark `#ffffff`
-- `border-primary`: light `#0f172a`, dark `#ffffff`
-- `bg-accent`: light `#0f172a`, dark `#ffffff`
+- `text-primary`: light `#0f172a`, dark `#f8fafc`
+- `border-primary`: light `#0f172a`, dark `#f8fafc`
+- `bg-accent`: light `#0f172a`, dark `#f8fafc`
 - `text-accent`: light `#ffffff`, dark `#0f172a`
 - `text-muted`: light `#64748b`, dark `#94a3b8`
 
 **Доп. фоны:**
-- `bg-surface`: light `#f1f5f9`, dark `#111b34`
+- `bg-surface`: light `#f1f5f9`, dark `#1e293b`
 - `bg-field`: light `#ffffff`, dark `#0f172a`
+
+**Semantic dark foundation (`Implemented`):**
+- В `apps/web/app/globals.css` закреплён общий dark foundation:
+  - `--foundation-bg`
+  - `--foundation-surface`
+  - `--foundation-surface-soft`
+  - `--foundation-surface-strong`
+  - `--foundation-outline`
+  - `--foundation-outline-strong`
+  - `--foundation-text`
+  - `--foundation-text-muted`
+  - `--foundation-success`
+  - `--foundation-success-surface`
+  - `--foundation-paper-bg*`
+- Эти токены являются единственным источником правды для dark neutral palette; role layers не дублируют raw neutral colors.
 
 **Принцип:** высокий контраст текста. Границы в glass‑режиме — полупрозрачные, без тяжёлых 2px линий.
 
@@ -124,6 +139,7 @@ Glass‑стиль — основа для **teacher dashboard baseline**.
   - student: `apps/web/components/student-dashboard-theme.module.css`;
   - teacher: `apps/web/components/teacher-dashboard-theme.module.css`.
 - Theme layer живёт на root shell (`StudentDashboardShell`/`TeacherDashboardShell`) и переопределяет только semantic UI tokens (`--bg-accent`, `--text-accent`, `--button-hover-*`, `--nav-*`) в пределах соответствующего subtree.
+- Role layer также маппит foundation в reusable role aliases (`--role-surface*`, `--role-outline*`, `--role-success*`, `--role-paper-bg*`), чтобы feature CSS мог писать dark-compatible стили без локальных `[data-theme="dark"]` patch-блоков.
 - Это позволяет использовать общий `Button`/`ButtonLink` API, но получать разные visual baseline для student и teacher без cross-impact.
 
 Порядок источников токенов (от общего к частному):
@@ -135,6 +151,7 @@ Glass‑стиль — основа для **teacher dashboard baseline**.
 Операционное правило:
 - Для role-specific UI/UX-задач нельзя начинать с `globals.css` или shared `ui/*`.
 - Сначала правим соответствующий role theme (`student-dashboard-theme.module.css` или `teacher-dashboard-theme.module.css`) и/или role shell CSS.
+- В role-specific feature CSS запрещены raw neutral literals для surface/outline/paper цветов; допустимы только foundation/theme layers и осознанные status/accent цвета.
 
 ---
 
@@ -184,6 +201,12 @@ Glass‑стиль — основа для **teacher dashboard baseline**.
 - Источник стилизации:
   - shape/typography/interaction contract задаётся в `apps/web/components/ui/button.module.css`;
   - role-specific color/hover behavior приходит из shell theme layer (`student-dashboard-theme.module.css` или `teacher-dashboard-theme.module.css`).
+- Для dark-theme адаптации role layers могут задавать variant-scoped button tokens:
+  - `--button-primary-*`
+  - `--button-secondary-*`
+  - `--button-ghost-*`
+  - `--button-danger-*`
+- Это канонический путь для teacher/student button theming; локальные feature-level правки допустимы только для truly special CTA.
 - Для route navigation, которая визуально выглядит как кнопка, используем `ButtonLink` или `Link`, стилизованный через button API; `router.push` не должен быть дефолтным способом навигации из CTA.
 - `primary` = main CTA.
 - `secondary` = стандартное glass-действие в toolbar/card/dialog.
@@ -263,6 +286,8 @@ Glass‑стиль — основа для **teacher dashboard baseline**.
   - border смещается к `--glass-border`.
 - `focus-within` для таких карточек всегда получает видимый focus ring через `--focus-ring-*`.
 - Локальные feature overrides не должны вводить отдельный hover-language для teacher cards, если это не особый доменный случай.
+- Elevated dialogs, filter bars и meta/inset blocks не собираются из raw `white`/`rgba(248,250,252,...)`; для них используются `--surface-elevated-*` и `--surface-elevated-control-*`.
+- `Switch` не задаёт dark palette локально в feature-модулях: visual state приходит через `--switch-track-*` и `--switch-thumb-*` из foundation/theme layer.
 
 ---
 

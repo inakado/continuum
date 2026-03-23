@@ -70,12 +70,13 @@
 }
 
 .formInput {
-  border: none;
-  background: rgba(255, 255, 255, 0.72);
+  --control-bg: rgba(255, 255, 255, 0.72);
+  --control-border: transparent;
+  --control-border-width: 0px;
+  --control-radius: 999px;
   color: #0f172a;
   padding: 14px 18px;
   padding-right: 56px;
-  border-radius: 999px;
   box-shadow: none;
   backdrop-filter: var(--glass-filter);
   -webkit-backdrop-filter: var(--glass-filter);
@@ -88,7 +89,8 @@
 .formInput:focus-visible {
   outline: 2px solid rgba(15, 23, 42, 0.45);
   outline-offset: 2px;
-  background: rgba(255, 255, 255, 0.82);
+  --control-bg: rgba(255, 255, 255, 0.82);
+  box-shadow: none;
 }
 
 .revealButton {

@@ -48,6 +48,7 @@
   - student dashboard theme: `apps/web/components/student-dashboard-theme.module.css`;
   - teacher dashboard theme: `apps/web/components/teacher-dashboard-theme.module.css`.
   - Theme-модули подключаются на root shell и переопределяют semantic tokens (`--bg-accent`, `--button-hover-*`, `--nav-*`) только в пределах своей role subtree.
+  - Нейтральный dark foundation (`surface/outline/text/success/paper`) живёт в `apps/web/app/globals.css`, а role theme modules только маппят его в role-level interactive tokens и reusable role surfaces (`--role-surface*`, `--role-outline*`, `--role-success*`, `--role-paper-bg*`).
 
 ### Практическая карта UI-правок (role ownership)
 
@@ -65,6 +66,7 @@
 Правило применения:
 - Если UX-изменение относится к одной роли, сначала ищем решение в role theme/shell/feature слое.
 - До `components/ui/*` и `globals.css` доходим только если изменение осознанно общее для teacher и student.
+- В role-specific CSS запрещены raw neutral literals (`#fff`, `#ffffff`, `white`, `#f8fafc`, `#f1f5f9`, `#1e293b`, `#334155` и аналоги) вне foundation/theme layers; новые элементы собираются из semantic tokens.
 
 ### Конвенция статусов в UI
 
@@ -151,6 +153,11 @@
   - variants: `primary`, `secondary`, `ghost`, `danger`
   - sizes: `sm`, `md`, `lg`
 - `Button`/`ButtonLink` остаются role-neutral primitives (`apps/web/components/ui/button.module.css`), а финальный visual результат зависит от role-scoped tokens, заданных в соответствующем dashboard shell theme module.
+- Для role-specific dark button tuning используем variant-scoped theme tokens (`--button-primary-*`, `--button-secondary-*`, `--button-ghost-*`, `--button-danger-*`) в `student-dashboard-theme.module.css` / `teacher-dashboard-theme.module.css`, а не локальные overrides по feature-экранам.
+- Focus states оформляются через semantic foundation tokens `--focus-ring-color`, `--focus-ring-border-color`, `--focus-ring-soft-color`; новые feature-модули не используют `--border-primary` как прямой источник focus outline/box-shadow в dark theme.
+- Table/list surfaces с header/row-hover состояниями оформляются через foundation tokens `--table-frame-*`, `--table-divider`, `--table-header-bg`, `--table-row-hover-bg`, `--table-row-focus-bg`, `--table-row-subtle-bg`; teacher/student feature-модули не должны вшивать light-biased `rgba(248,250,252,...)` или аналогичные raw neutrals в table UI.
+- Elevated form/filter/dialog surfaces оформляются через semantic surface tokens `--surface-elevated-*` и `--surface-elevated-control-*`; новые feature-модули не вшивают white-based `color-mix(..., white ...)` для modal/filter card backgrounds и inset meta blocks.
+- `Switch` остаётся role-neutral primitive и получает dark/light поведение через foundation tokens `--switch-track-*` и `--switch-thumb-*`, а не через локальные `[data-theme="dark"]` overrides в feature-CSS.
 - Для route navigation, которая выглядит как button CTA, используем `ButtonLink`/`Link`, а не `button + router.push`.
 - Teacher screens не должны по умолчанию строить CTA через контейнерные `--button-*` overrides; сначала выбирается variant/size, overrides остаются только для локально уникальных случаев.
 - Button semantics для teacher routes:
@@ -199,6 +206,7 @@
 - Новый student dashboard baseline развивается в `apps/web/features/student-dashboard/*` и используется маршрутом `/student`.
 - Shell-уровень student dashboard использует `StudentDashboardShell` с отдельным CSS-модулем (`student-dashboard-shell.module.css`).
 - Цвет/hover/CTA токены student dashboard задаются отдельным `student-dashboard-theme.module.css`, поэтому изменение кнопок и sidebar-интерактивов студента не должно затрагивать teacher dashboard.
+- Student routes используют тот же общий dark foundation, что и teacher, но через собственный role mapping; совпадение palette basis не означает совпадение visual baseline.
 - Текущий student flow опирается на aggregated read-model (`GET /student/dashboard`) + course detail read (`GET /courses/:id`) и встроенную навигацию `courses -> sections -> graph`.
 - Визуальная система student dashboard может осознанно отличаться от teacher dashboard; совпадение токенов/компонентов не является целью само по себе.
 - Legacy маршруты `/student/courses*` и `/student/sections/[id]` поддерживаются как переходный compatibility слой до завершения миграции.

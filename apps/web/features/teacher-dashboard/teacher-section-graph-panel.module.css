@@ -1,5 +1,9 @@
 .wrapper {
   --graph-edge-selected: #1e3a5f;
+  --graph-outline: var(--role-outline, var(--foundation-outline));
+  --graph-outline-strong: var(--role-outline-strong, var(--foundation-outline-strong));
+  --graph-surface: var(--role-surface, var(--foundation-surface));
+  --graph-surface-soft: var(--role-surface-soft, var(--foundation-surface-soft));
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -53,9 +57,9 @@
 }
 
 .error {
-  border: var(--border-width) solid var(--panel-border);
+  border: var(--border-width-thin) solid var(--graph-outline);
   padding: 10px;
-  background: var(--glass-tint);
+  background: var(--graph-surface);
   color: var(--text-primary);
   font-size: 13px;
   border-radius: var(--card-radius);
@@ -64,23 +68,24 @@
 }
 
 .status {
-  border: var(--border-width) solid var(--card-border);
+  border: var(--border-width-thin) solid var(--graph-outline);
   padding: 10px;
-  background: var(--card-bg);
+  background: var(--graph-surface);
   font-size: 13px;
   border-radius: var(--control-radius);
+  box-shadow: var(--role-shadow-sm, var(--foundation-shadow-sm));
 }
 
 .graphPanel {
-  border: var(--border-width) solid var(--panel-border);
-  background: var(--panel-bg);
+  border: var(--border-width-thin) solid var(--graph-outline);
+  background: var(--graph-surface);
   height: clamp(420px, calc(100dvh - clamp(132px, 16vh, 208px)), 1200px);
   min-height: 420px;
   position: relative;
   z-index: 1;
   overflow: hidden;
   border-radius: var(--panel-radius);
-  box-shadow: var(--panel-shadow);
+  box-shadow: var(--role-shadow-lg, var(--foundation-shadow-lg));
   backdrop-filter: var(--glass-filter);
   -webkit-backdrop-filter: var(--glass-filter);
 }
@@ -131,10 +136,10 @@
 
 .createPopup {
   width: min(420px, calc(100vw - 24px));
-  border: var(--border-width) solid var(--panel-border);
+  border: var(--border-width-thin) solid var(--graph-outline);
   border-radius: var(--card-radius);
-  background: var(--card-bg);
-  box-shadow: var(--panel-shadow);
+  background: var(--graph-surface);
+  box-shadow: var(--role-shadow-md, var(--foundation-shadow-md));
   backdrop-filter: var(--glass-filter);
   -webkit-backdrop-filter: var(--glass-filter);
   padding: 10px;
@@ -158,9 +163,9 @@
 }
 
 .selectionHint {
-  border: var(--border-width-thin) solid var(--glass-border);
+  border: var(--border-width-thin) solid var(--graph-outline);
   border-radius: var(--control-radius);
-  background: var(--surface-1);
+  background: var(--graph-surface-soft);
   padding: 6px 10px;
   color: var(--text-muted);
   font-size: 12px;
@@ -192,21 +197,21 @@
 }
 
 .node {
-  border: var(--border-width) solid var(--card-border);
-  background: var(--card-bg);
+  border: var(--border-width-thin) solid var(--graph-outline);
+  background: var(--graph-surface);
   color: var(--text-primary);
   padding: 10px 12px;
   min-width: 160px;
   text-align: left;
   position: relative;
   border-radius: var(--card-radius);
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--role-shadow-sm, var(--foundation-shadow-sm));
   cursor: pointer;
   transition: border-color 0.2s ease;
 }
 
 .node:hover {
-  border-color: var(--border-primary);
+  border-color: var(--graph-outline-strong);
 }
 
 .nodeTitle {
