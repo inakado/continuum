@@ -26,6 +26,7 @@ vi.mock("@/lib/api/teacher", async () => {
       getStudentProfile: vi.fn(),
       listTeacherPhotoInbox: vi.fn(),
       creditTask: vi.fn(),
+      overrideOpenSection: vi.fn(),
       overrideOpenUnit: vi.fn(),
     },
   };
@@ -59,6 +60,11 @@ const profileResponse = {
         id: "section-1",
         title: "Линейные уравнения",
         sortOrder: 1,
+        state: {
+          completionPercent: 20,
+          accessStatus: "available",
+          overrideOpened: false,
+        },
         units: [
           {
             id: "unit-1",
@@ -113,6 +119,7 @@ describe("TeacherStudentProfilePanel", () => {
     vi.mocked(teacherApi.getStudentProfile).mockReset();
     vi.mocked(teacherApi.listTeacherPhotoInbox).mockReset();
     vi.mocked(teacherApi.creditTask).mockReset();
+    vi.mocked(teacherApi.overrideOpenSection).mockReset();
     vi.mocked(teacherApi.overrideOpenUnit).mockReset();
     vi.mocked(teacherApi.getStudentProfile).mockResolvedValue(profileResponse as never);
     vi.mocked(teacherApi.listTeacherPhotoInbox).mockResolvedValue({ total: 2 } as never);
@@ -122,6 +129,7 @@ describe("TeacherStudentProfilePanel", () => {
       taskId: "task-1",
       studentId: "student-1",
     } as never);
+    vi.mocked(teacherApi.overrideOpenSection).mockResolvedValue({ ok: true } as never);
   });
 
   it("renders profile and opens review inbox with current student filter", async () => {
@@ -264,17 +272,61 @@ describe("TeacherStudentProfilePanel", () => {
     );
   });
 
-  it("opens section workspace from sections list", async () => {
-    renderWithQueryClient(
-      <TeacherStudentProfilePanel studentId="student-1" fallbackName="student1" />,
+  it("opens section manually, invalidates queries and shows notice", async () => {
+    const onRefreshStudents = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(teacherApi.getStudentProfile).mockResolvedValue({
+      ...profileResponse,
+      courseTree: {
+        ...profileResponse.courseTree,
+        sections: [
+          {
+            ...profileResponse.courseTree.sections[0],
+            state: {
+              completionPercent: 20,
+              accessStatus: "locked",
+              overrideOpened: false,
+            },
+          },
+        ],
+      },
+    } as never);
+    const { queryClient } = renderWithQueryClient(
+      <TeacherStudentProfilePanel
+        studentId="student-1"
+        fallbackName="student1"
+        onRefreshStudents={onRefreshStudents}
+      />,
     );
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
     const user = userEvent.setup();
 
     await user.click(await screen.findByRole("button", { name: /Алгебра/i }));
-    expect(screen.getByRole("link", { name: "Открыть раздел" })).toHaveAttribute(
-      "href",
-      "/teacher/sections/section-1",
+    await user.click(screen.getByRole("button", { name: "Открыть раздел" }));
+
+    await waitFor(() => {
+      expect(teacherApi.overrideOpenSection).toHaveBeenCalledWith("student-1", "section-1");
+    });
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: contentQueryKeys.teacherStudentProfileRoot("student-1"),
+      });
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: contentQueryKeys.teacherStudentReviewPendingTotal("student-1"),
+    });
+    expect(onRefreshStudents).toHaveBeenCalled();
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Раздел открыт вручную. Доступ ученика обновлён.",
     );
+  });
+
+  it("disables section open action when section is already available", async () => {
+    renderWithQueryClient(
+      <TeacherStudentProfilePanel studentId="student-1" fallbackName="student1" />,
+    );
+
+    await userEvent.setup().click(await screen.findByRole("button", { name: /Алгебра/i }));
+    expect(screen.getByRole("button", { name: "Уже открыт" })).toBeDisabled();
   });
 
   it("hydrates drilldown state from search params", async () => {

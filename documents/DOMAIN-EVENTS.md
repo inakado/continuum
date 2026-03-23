@@ -77,6 +77,7 @@
 - `RequiredTaskSkippedFlagSet` (system)
 - `TaskUnblockedForStudent` (admin)
 - `TaskTeacherCreditedForStudent` (admin)
+- `SectionOverrideOpenedForStudent` (admin)
 - `UnitOverrideOpenedForStudent` (admin)
 
 ### 1.5 Manual Review (Photo) (BC4)

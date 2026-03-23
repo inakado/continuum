@@ -11,6 +11,7 @@ import {
   TeacherCourseSchema,
   TeacherCreateStudentResponseSchema,
   TeacherDeleteStudentResponseSchema,
+  TeacherOverrideOpenSectionResponseSchema,
   TeacherOverrideOpenUnitResponseSchema,
   TeacherPhotoPresignViewResponseSchema,
   TeacherPhotoReviewResponseSchema,
@@ -967,6 +968,14 @@ export const teacherApi = {
     return apiRequestParsed(
       `/teacher/students/${studentId}/units/${unitId}/override-open`,
       TeacherOverrideOpenUnitResponseSchema,
+      { method: "POST" },
+    );
+  },
+
+  overrideOpenSection(studentId: string, sectionId: string) {
+    return apiRequestParsed(
+      `/teacher/students/${studentId}/sections/${sectionId}/override-open`,
+      TeacherOverrideOpenSectionResponseSchema,
       { method: "POST" },
     );
   },

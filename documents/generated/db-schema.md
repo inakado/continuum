@@ -44,6 +44,7 @@
 - `StudentUnitState` (`student_unit_state`): снапшот прогресса по юниту (status + counters + percents + timestamps).
 - `StudentTaskState` (`student_task_state`): статус по задаче, wrong attempts, `locked_until`, `required_skipped`, credited revision.
 - `Attempt` (`attempts`): попытки по task_revision с `attempt_no` + результат.
+- `SectionUnlockOverride` (`section_unlock_overrides`): teacher override “открыть раздел вручную”.
 - `UnitUnlockOverride` (`unit_unlock_overrides`): teacher override “открыть навсегда”.
 
 ### Manual review (photo)

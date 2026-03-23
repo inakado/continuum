@@ -4,6 +4,7 @@ import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventsLogService } from '../../src/events/events-log.service';
 import { LearningService } from '../../src/learning/learning.service';
+import { TeacherSectionOverrideOpenController } from '../../src/learning/teacher-section-override-open.controller';
 import { TeacherTaskCreditController } from '../../src/learning/teacher-task-credit.controller';
 import { TeacherUnitOverrideOpenController } from '../../src/learning/teacher-unit-override-open.controller';
 import { StudentsService } from '../../src/students/students.service';
@@ -24,6 +25,7 @@ describe('teacher students boundary integration', () => {
   };
   const learningService = {
     creditTaskWithReason: vi.fn(),
+    overrideOpenSection: vi.fn(),
     overrideOpenUnit: vi.fn(),
   };
   const eventsLogService = {
@@ -39,6 +41,7 @@ describe('teacher students boundary integration', () => {
     app = await createIntegrationApp({
       controllers: [
         TeacherStudentsController,
+        TeacherSectionOverrideOpenController,
         TeacherTaskCreditController,
         TeacherUnitOverrideOpenController,
       ],
@@ -51,6 +54,10 @@ describe('teacher students boundary integration', () => {
         {
           target: TeacherStudentsController,
           deps: [StudentsService, EventsLogService],
+        },
+        {
+          target: TeacherSectionOverrideOpenController,
+          deps: [LearningService],
         },
         {
           target: TeacherTaskCreditController,
@@ -233,11 +240,16 @@ describe('teacher students boundary integration', () => {
     );
   });
 
-  it('covers teacher task credit and unit override-open HTTP paths', async () => {
+  it('covers teacher task credit and section/unit override-open HTTP paths', async () => {
     learningService.creditTaskWithReason.mockResolvedValue({
       ok: true,
       taskId: 'task-1',
       creditedAt: '2026-03-01T10:00:00.000Z',
+    });
+    learningService.overrideOpenSection.mockResolvedValue({
+      ok: true,
+      sectionId: 'section-1',
+      overrideOpenedAt: '2026-03-01T10:00:00.000Z',
     });
     learningService.overrideOpenUnit.mockResolvedValue({
       ok: true,
@@ -248,17 +260,27 @@ describe('teacher students boundary integration', () => {
     const creditResponse = await request(app.getHttpServer())
       .post('/teacher/students/student-1/tasks/task-1/credit')
       .send({ reason: 'Teacher approved oral answer' });
+    const sectionOverrideResponse = await request(app.getHttpServer())
+      .post('/teacher/students/student-1/sections/section-1/override-open')
+      .send({ reason: 'Manual section unlock' });
     const overrideResponse = await request(app.getHttpServer())
       .post('/teacher/students/student-1/units/unit-1/override-open')
       .send({ reason: 'Manual unlock' });
 
     expect(creditResponse.status).toBe(200);
+    expect(sectionOverrideResponse.status).toBe(200);
     expect(overrideResponse.status).toBe(200);
     expect(learningService.creditTaskWithReason).toHaveBeenCalledWith(
       'teacher-1',
       'student-1',
       'task-1',
       'Teacher approved oral answer',
+    );
+    expect(learningService.overrideOpenSection).toHaveBeenCalledWith(
+      'teacher-1',
+      'student-1',
+      'section-1',
+      'Manual section unlock',
     );
     expect(learningService.overrideOpenUnit).toHaveBeenCalledWith(
       'teacher-1',

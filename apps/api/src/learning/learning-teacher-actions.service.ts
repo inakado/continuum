@@ -151,6 +151,97 @@ export class LearningTeacherActionsService {
     return { ok: true };
   }
 
+  async overrideOpenSection(
+    teacherId: string,
+    studentId: string,
+    sectionId: string,
+    reasonRaw?: string | null,
+  ) {
+    await this.studentsService.assertTeacherOwnsStudent(teacherId, studentId);
+
+    const section = await this.prisma.section.findFirst({
+      where: {
+        id: sectionId,
+        status: ContentStatus.published,
+        course: { status: ContentStatus.published },
+      },
+      select: {
+        id: true,
+        courseId: true,
+      },
+    });
+
+    if (!section) {
+      throw new NotFoundException({
+        code: 'SECTION_NOT_FOUND',
+        message: 'Section not found',
+      });
+    }
+
+    const normalizedReason =
+      typeof reasonRaw === 'string' && reasonRaw.trim().length > 0 ? reasonRaw.trim() : null;
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const existingOverride = await tx.sectionUnlockOverride.findUnique({
+          where: {
+            studentId_sectionId: {
+              studentId,
+              sectionId,
+            },
+          },
+          select: { id: true },
+        });
+
+        if (existingOverride) {
+          throw new ConflictException({
+            code: 'SECTION_OVERRIDE_ALREADY_EXISTS',
+            message: 'Section override already exists',
+          });
+        }
+
+        await tx.sectionUnlockOverride.create({
+          data: {
+            studentId,
+            sectionId,
+            openedByTeacherId: teacherId,
+            reason: normalizedReason,
+          },
+        });
+
+        await this.learningAvailabilityService.recomputeSectionAvailability(studentId, sectionId, tx);
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException({
+          code: 'SECTION_OVERRIDE_ALREADY_EXISTS',
+          message: 'Section override already exists',
+        });
+      }
+      throw error;
+    }
+
+    await this.learningAuditLogService.appendTeacherAdminEvent({
+      eventType: 'SectionOverrideOpenedForStudent',
+      teacherId,
+      entityType: 'section',
+      entityId: sectionId,
+      payload: {
+        teacher_id: teacherId,
+        teacherId: teacherId,
+        student_id: studentId,
+        studentUserId: studentId,
+        section_id: sectionId,
+        sectionId: sectionId,
+        course_id: section.courseId,
+        courseId: section.courseId,
+        reason: normalizedReason,
+      },
+    });
+
+    return { ok: true };
+  }
+
   async creditTask(teacherId: string, studentId: string, taskId: string) {
     return this.creditTaskWithReason(teacherId, studentId, taskId, null);
   }

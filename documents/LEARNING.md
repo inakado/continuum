@@ -7,7 +7,7 @@
 - Attempts (auto-check)
 - Task state (3+3 locks, auto-credit, teacher credit/unblock)
 - Unit availability + progress snapshots
-- Overrides (open unit)
+- Overrides (open section / open unit)
 - Notifications (teacher)
 - Photo tasks (manual review)
 
@@ -69,6 +69,8 @@
   - `locked` — раздел пока закрыт предыдущей последовательностью.
 - Первый опубликованный раздел курса открыт сразу.
 - Каждый следующий раздел открывается только после полного завершения предыдущего раздела.
+- Teacher section override открывает конкретный раздел ученику вручную, даже если предыдущий раздел не завершён.
+- Section override не считается завершением предыдущих разделов и сам по себе не открывает следующие разделы.
 - Published section без published units не должен блокировать последовательность следующих разделов.
 - `GET /sections/:id` и `GET /sections/:id/graph` для student fail-fast отвечают `SECTION_LOCKED`, если раздел ещё не открыт по последовательности курса.
 - Direct access к `GET /units/:id` также защищён section-level gate, чтобы student не обходил последовательность разделов прямой ссылкой.
@@ -94,6 +96,7 @@
 
 ## Teacher Actions (`Implemented`)
 
+- Override open section: создаёт `section_unlock_overrides` и открывает раздел ученику вручную без продвижения course sequence дальше.
 - Override open unit: создаёт `unit_unlock_overrides` и пересчитывает section availability.
 - Teacher credit task: переводит задачу в `teacher_credited` и пересчитывает availability.
 - Teacher unblock task: снимает `locked_until` и пересчитывает availability.

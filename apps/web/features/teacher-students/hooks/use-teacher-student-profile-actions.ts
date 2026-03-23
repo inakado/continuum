@@ -9,6 +9,7 @@ export const useTeacherStudentProfileActions = ({
   setActionError,
   setActionNotice,
   setCreditBusyTaskId,
+  setSectionOverrideBusyId,
   setOverrideBusyUnitId,
   studentId,
 }: {
@@ -16,10 +17,14 @@ export const useTeacherStudentProfileActions = ({
   setActionError: (value: string | null) => void;
   setActionNotice: (value: string | null) => void;
   setCreditBusyTaskId: (value: string | null) => void;
+  setSectionOverrideBusyId: (value: string | null) => void;
   setOverrideBusyUnitId: (value: string | null) => void;
   studentId: string;
 }) => {
   const queryClient = useQueryClient();
+  const overrideOpenSectionMutation = useMutation({
+    mutationFn: (sectionId: string) => teacherApi.overrideOpenSection(studentId, sectionId),
+  });
   const overrideOpenMutation = useMutation({
     mutationFn: (unitId: string) => teacherApi.overrideOpenUnit(studentId, unitId),
   });
@@ -64,6 +69,31 @@ export const useTeacherStudentProfileActions = ({
     ],
   );
 
+  const handleOverrideOpenSection = useCallback(
+    async (sectionId: string, isBusy: boolean) => {
+      if (isBusy) return;
+      setSectionOverrideBusyId(sectionId);
+      setActionError(null);
+      setActionNotice(null);
+      try {
+        await overrideOpenSectionMutation.mutateAsync(sectionId);
+        setActionNotice("Раздел открыт вручную. Доступ ученика обновлён.");
+        await invalidateStudentProfile();
+      } catch (err) {
+        setActionError(formatApiErrorPayload(err));
+      } finally {
+        setSectionOverrideBusyId(null);
+      }
+    },
+    [
+      invalidateStudentProfile,
+      overrideOpenSectionMutation,
+      setActionError,
+      setActionNotice,
+      setSectionOverrideBusyId,
+    ],
+  );
+
   const handleCreditTask = useCallback(
     async (task: TeacherStudentTreeTask, busyTaskId: string | null) => {
       if (busyTaskId) return;
@@ -85,6 +115,7 @@ export const useTeacherStudentProfileActions = ({
 
   return {
     handleCreditTask,
+    handleOverrideOpenSection,
     handleOverrideOpenUnit,
   };
 };

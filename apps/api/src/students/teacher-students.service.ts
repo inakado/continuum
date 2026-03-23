@@ -173,6 +173,11 @@ export class TeacherStudentsService {
         id: string;
         title: string;
         sortOrder: number;
+        state: {
+          completionPercent: number;
+          accessStatus: 'locked' | 'available' | 'completed';
+          overrideOpened: boolean;
+        };
         units: Array<{
           id: string;
           title: string;
@@ -242,6 +247,7 @@ export class TeacherStudentsService {
 
       if (course) {
         const allTasks = course.sections.flatMap((section) => section.units.flatMap((unit) => unit.tasks));
+        const allSectionIds = course.sections.map((section) => section.id);
         const allUnitIds = course.sections.flatMap((section) => section.units.map((unit) => unit.id));
         const taskIds = allTasks.map((task) => task.id);
         const activeRevisionIds = allTasks
@@ -315,6 +321,15 @@ export class TeacherStudentsService {
               },
             })
           : [];
+        const sectionOverrides = allSectionIds.length
+          ? await this.prisma.sectionUnlockOverride.findMany({
+              where: {
+                studentId,
+                sectionId: { in: allSectionIds },
+              },
+              select: { sectionId: true },
+            })
+          : [];
         const pendingPhotoReviewCountsByTask = taskIds.length
           ? await this.prisma.photoTaskSubmission.groupBy({
               by: ['taskId'],
@@ -335,77 +350,105 @@ export class TeacherStudentsService {
           creditedAttemptsUsed.map((item) => [`${item.taskId}:${item.taskRevisionId}`, item._count._all]),
         );
         const unitStatesMap = new Map(unitStates.map((state) => [state.unitId, state]));
+        const sectionOverrideIds = new Set(sectionOverrides.map((item) => item.sectionId));
         const pendingPhotoReviewMap = new Map(
           pendingPhotoReviewCountsByTask.map((item) => [item.taskId, item._count._all]),
         );
         const now = new Date();
+        let allPreviousSectionsCompleted = true;
 
         courseTree = {
           id: course.id,
           title: course.title,
-          sections: course.sections.map((section) => ({
-            id: section.id,
-            title: section.title,
-            sortOrder: section.sortOrder,
-            units: section.units.map((unit) => ({
-              id: unit.id,
-              title: unit.title,
-              sortOrder: unit.sortOrder,
+          sections: course.sections.map((section) => {
+            const progressSum = section.units.reduce(
+              (sum, unit) => sum + (unitStatesMap.get(unit.id)?.completionPercent ?? 0),
+              0,
+            );
+            const unitCount = section.units.length;
+            const completionPercent = unitCount > 0 ? Math.floor(progressSum / unitCount) : 0;
+            const isCompleted = unitCount === 0 || completionPercent >= 100;
+            const overrideOpened = sectionOverrideIds.has(section.id);
+            const accessStatus: 'locked' | 'available' | 'completed' =
+              allPreviousSectionsCompleted || overrideOpened
+                ? isCompleted
+                  ? 'completed'
+                  : 'available'
+                : 'locked';
+
+            if (!isCompleted) {
+              allPreviousSectionsCompleted = false;
+            }
+
+            return {
+              id: section.id,
+              title: section.title,
+              sortOrder: section.sortOrder,
               state: {
-                status: unitStatesMap.get(unit.id)?.status ?? StudentUnitStatus.locked,
-                completionPercent: unitStatesMap.get(unit.id)?.completionPercent ?? 0,
-                solvedPercent: unitStatesMap.get(unit.id)?.solvedPercent ?? 0,
-                countedTasks: unitStatesMap.get(unit.id)?.countedTasks ?? 0,
-                solvedTasks: unitStatesMap.get(unit.id)?.solvedTasks ?? 0,
-                totalTasks: unitStatesMap.get(unit.id)?.totalTasks ?? unit.tasks.length,
-                overrideOpened: unitStatesMap.get(unit.id)?.overrideOpened ?? false,
+                completionPercent,
+                accessStatus,
+                overrideOpened,
               },
-              tasks: unit.tasks.map((task) => {
-                const normalizedState = normalizeTaskState(
-                  statesMap.get(task.id) ?? null,
-                  task.activeRevisionId,
-                  now,
-                );
-                const activeAttemptsKey = task.activeRevisionId ? `${task.id}:${task.activeRevisionId}` : '';
-                const stateSnapshot = statesMap.get(task.id) ?? null;
-                const creditedAttemptsKey = stateSnapshot?.creditedRevisionId
-                  ? `${task.id}:${stateSnapshot.creditedRevisionId}`
-                  : '';
-                const status = normalizedState.status;
-                const attemptsUsed = creditedStatuses.has(status)
-                  ? creditedAttemptsKey
-                    ? (creditedAttemptsMap.get(creditedAttemptsKey) ?? 0)
+              units: section.units.map((unit) => ({
+                id: unit.id,
+                title: unit.title,
+                sortOrder: unit.sortOrder,
+                state: {
+                  status: unitStatesMap.get(unit.id)?.status ?? StudentUnitStatus.locked,
+                  completionPercent: unitStatesMap.get(unit.id)?.completionPercent ?? 0,
+                  solvedPercent: unitStatesMap.get(unit.id)?.solvedPercent ?? 0,
+                  countedTasks: unitStatesMap.get(unit.id)?.countedTasks ?? 0,
+                  solvedTasks: unitStatesMap.get(unit.id)?.solvedTasks ?? 0,
+                  totalTasks: unitStatesMap.get(unit.id)?.totalTasks ?? unit.tasks.length,
+                  overrideOpened: unitStatesMap.get(unit.id)?.overrideOpened ?? false,
+                },
+                tasks: unit.tasks.map((task) => {
+                  const normalizedState = normalizeTaskState(
+                    statesMap.get(task.id) ?? null,
+                    task.activeRevisionId,
+                    now,
+                  );
+                  const activeAttemptsKey = task.activeRevisionId ? `${task.id}:${task.activeRevisionId}` : '';
+                  const stateSnapshot = statesMap.get(task.id) ?? null;
+                  const creditedAttemptsKey = stateSnapshot?.creditedRevisionId
+                    ? `${task.id}:${stateSnapshot.creditedRevisionId}`
+                    : '';
+                  const status = normalizedState.status;
+                  const attemptsUsed = creditedStatuses.has(status)
+                    ? creditedAttemptsKey
+                      ? (creditedAttemptsMap.get(creditedAttemptsKey) ?? 0)
+                      : activeAttemptsKey
+                        ? (creditedAttemptsMap.get(activeAttemptsKey) ?? 0)
+                        : 0
                     : activeAttemptsKey
-                      ? (creditedAttemptsMap.get(activeAttemptsKey) ?? 0)
-                      : 0
-                  : activeAttemptsKey
-                    ? (autoAttemptsMap.get(activeAttemptsKey) ?? 0)
-                    : 0;
-                return {
-                  id: task.id,
-                  title: task.title,
-                  statementLite: task.activeRevision?.statementLite ?? '',
-                  answerType: task.activeRevision?.answerType ?? 'numeric',
-                  isRequired: task.isRequired,
-                  sortOrder: task.sortOrder,
-                  pendingPhotoReviewCount: pendingPhotoReviewMap.get(task.id) ?? 0,
-                  state: {
-                    status,
-                    attemptsUsed,
-                    wrongAttempts: normalizedState.wrongAttempts,
-                    blockedUntil: normalizedState.blockedUntil,
-                    requiredSkippedFlag: normalizedState.requiredSkipped,
-                    isCredited: creditedStatuses.has(status),
-                    isTeacherCredited: status === StudentTaskStatus.teacher_credited,
-                    canTeacherCredit:
-                      status !== StudentTaskStatus.correct &&
-                      status !== StudentTaskStatus.accepted &&
-                      status !== StudentTaskStatus.teacher_credited,
-                  },
-                };
-              }),
-            })),
-          })),
+                      ? (autoAttemptsMap.get(activeAttemptsKey) ?? 0)
+                      : 0;
+                  return {
+                    id: task.id,
+                    title: task.title,
+                    statementLite: task.activeRevision?.statementLite ?? '',
+                    answerType: task.activeRevision?.answerType ?? 'numeric',
+                    isRequired: task.isRequired,
+                    sortOrder: task.sortOrder,
+                    pendingPhotoReviewCount: pendingPhotoReviewMap.get(task.id) ?? 0,
+                    state: {
+                      status,
+                      attemptsUsed,
+                      wrongAttempts: normalizedState.wrongAttempts,
+                      blockedUntil: normalizedState.blockedUntil,
+                      requiredSkippedFlag: normalizedState.requiredSkipped,
+                      isCredited: creditedStatuses.has(status),
+                      isTeacherCredited: status === StudentTaskStatus.teacher_credited,
+                      canTeacherCredit:
+                        status !== StudentTaskStatus.correct &&
+                        status !== StudentTaskStatus.accepted &&
+                        status !== StudentTaskStatus.teacher_credited,
+                    },
+                  };
+                }),
+              })),
+            };
+          }),
         };
       }
     }

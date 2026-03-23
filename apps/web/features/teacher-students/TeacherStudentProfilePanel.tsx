@@ -7,7 +7,6 @@ import { useRouter, useSearchParams, type ReadonlyURLSearchParams } from "next/n
 import { ChevronDown, ChevronRight, GraduationCap } from "lucide-react";
 import LiteTex from "@/components/LiteTex";
 import Button from "@/components/ui/Button";
-import ButtonLink from "@/components/ui/ButtonLink";
 import {
   teacherApi,
   type TeacherStudentTreeTask,
@@ -58,6 +57,12 @@ const unitStatusClassName: Record<TeacherStudentTreeUnit["state"]["status"], str
   available: "unitStatusAvailable",
   in_progress: "unitStatusInProgress",
   completed: "unitStatusCompleted",
+};
+
+const sectionAccessStatusLabel: Record<TeacherStudentProfileSection["state"]["accessStatus"], string> = {
+  locked: "Закрыт",
+  available: "Открыт",
+  completed: "Завершён",
 };
 
 const formatPercent = (value: number) => `${Math.round(value)}%`;
@@ -213,10 +218,14 @@ const CoursesStage = ({
 
 const SectionsStage = ({
   courseTree,
+  onOverrideOpenSection,
   onOpenSection,
+  sectionOverrideBusyId,
 }: {
   courseTree: TeacherStudentProfileCourseTree | null;
+  onOverrideOpenSection: (sectionId: string) => void;
   onOpenSection: (sectionId: string) => void;
+  sectionOverrideBusyId: string | null;
 }) => (
   <section>
     {!courseTree || courseTree.sections.length === 0 ? (
@@ -235,6 +244,14 @@ const SectionsStage = ({
                 <div className={styles.cardBody}>
                   <div className={styles.cardTitle}>{section.title}</div>
                   <div className={styles.metaRow}>
+                    Статус: {sectionAccessStatusLabel[section.state.accessStatus]}
+                    <span className={styles.metaDot} aria-hidden="true">
+                      •
+                    </span>
+                    Прогресс: {formatPercent(section.state.completionPercent)}
+                    <span className={styles.metaDot} aria-hidden="true">
+                      •
+                    </span>
                     Юнитов: {section.units.length}
                     <span className={styles.metaDot} aria-hidden="true">
                       •
@@ -244,14 +261,22 @@ const SectionsStage = ({
                 </div>
               </button>
               <div className={styles.cardActionsRow}>
-                <ButtonLink
-                  href={`/teacher/sections/${section.id}`}
+                <Button
+                  type="button"
                   variant="secondary"
                   size="sm"
                   className={styles.inlineActionButton}
+                  onClick={() => onOverrideOpenSection(section.id)}
+                  disabled={sectionOverrideBusyId === section.id || section.state.accessStatus !== "locked"}
                 >
-                  Открыть раздел
-                </ButtonLink>
+                  {section.state.accessStatus !== "locked"
+                    ? section.state.overrideOpened
+                      ? "Раздел открыт"
+                      : "Уже открыт"
+                    : sectionOverrideBusyId === section.id
+                      ? "Открываем…"
+                      : "Открыть раздел"}
+                </Button>
               </div>
             </article>
           );
@@ -519,11 +544,13 @@ const StudentProfileContent = ({
   error,
   details,
   handleCreditTask,
+  handleOverrideOpenSection,
   handleOverrideOpenUnit,
   loading,
   openCourse,
   openReviewInbox,
   openSection,
+  sectionOverrideBusyId,
   openUnit,
   overrideBusyUnitId,
   selectedCourse,
@@ -539,11 +566,13 @@ const StudentProfileContent = ({
   error: string | null;
   details: TeacherStudentProfileDetails | null;
   handleCreditTask: (task: TeacherStudentTreeTask) => void;
+  handleOverrideOpenSection: (sectionId: string) => void;
   handleOverrideOpenUnit: (unitId: string) => void;
   loading: boolean;
   openCourse: (courseId: string) => void;
   openReviewInbox: (params?: ProfileContext) => void;
   openSection: (sectionId: string) => void;
+  sectionOverrideBusyId: string | null;
   openUnit: (unitId: string) => void;
   overrideBusyUnitId: string | null;
   selectedCourse: TeacherStudentProfileDetails["courses"][number] | null;
@@ -574,7 +603,12 @@ const StudentProfileContent = ({
       <>
         {stage === "courses" ? <CoursesStage courses={details.courses} onOpenCourse={openCourse} /> : null}
         {stage === "sections" ? (
-          <SectionsStage courseTree={courseTree} onOpenSection={openSection} />
+          <SectionsStage
+            courseTree={courseTree}
+            onOpenSection={openSection}
+            onOverrideOpenSection={handleOverrideOpenSection}
+            sectionOverrideBusyId={sectionOverrideBusyId}
+          />
         ) : null}
         {stage === "units" ? (
           <UnitsStage
@@ -635,6 +669,7 @@ function TeacherStudentProfilePanelContent({
 }) {
   const router = useRouter();
   const [creditBusyTaskId, setCreditBusyTaskId] = useState<string | null>(null);
+  const [sectionOverrideBusyId, setSectionOverrideBusyId] = useState<string | null>(null);
   const [overrideBusyUnitId, setOverrideBusyUnitId] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -701,11 +736,12 @@ function TeacherStudentProfilePanelContent({
     studentId,
   });
 
-  const { handleCreditTask, handleOverrideOpenUnit } = useTeacherStudentProfileActions({
+  const { handleCreditTask, handleOverrideOpenSection, handleOverrideOpenUnit } = useTeacherStudentProfileActions({
     onRefreshStudents,
     setActionError,
     setActionNotice,
     setCreditBusyTaskId,
+    setSectionOverrideBusyId,
     setOverrideBusyUnitId,
     studentId,
   });
@@ -738,6 +774,9 @@ function TeacherStudentProfilePanelContent({
           details={details}
           error={error}
           handleCreditTask={(task) => void handleCreditTask(task, creditBusyTaskId)}
+          handleOverrideOpenSection={(sectionId) =>
+            void handleOverrideOpenSection(sectionId, Boolean(sectionOverrideBusyId))
+          }
           handleOverrideOpenUnit={(unitId) =>
             void handleOverrideOpenUnit(unitId, Boolean(overrideBusyUnitId))
           }
@@ -745,6 +784,7 @@ function TeacherStudentProfilePanelContent({
           openCourse={openCourse}
           openReviewInbox={openReviewInbox}
           openSection={openSection}
+          sectionOverrideBusyId={sectionOverrideBusyId}
           openUnit={openUnit}
           overrideBusyUnitId={overrideBusyUnitId}
           selectedCourse={selectedCourse}

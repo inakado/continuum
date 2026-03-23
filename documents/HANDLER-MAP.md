@@ -44,9 +44,9 @@
   - создание `Attempt`,
   - обновление `StudentTaskState`,
   - события: `AttemptSubmitted`, `AttemptEvaluatedCorrect|Incorrect`, `TaskLockedForStudent`, `TaskAutoCreditedWithoutProgress`, `RequiredTaskSkippedFlagSet`.
-- Teacher actions: `LearningService.openUnitOverride|creditTask|unblockTask()`:
+- Teacher actions: `LearningService.overrideOpenSection|overrideOpenUnit|creditTask|unblockTask()`:
   - write-path делегируется в `LearningTeacherActionsService`,
-  - события: `UnitOverrideOpenedForStudent`, `TaskTeacherCreditedForStudent`, `TaskUnblockedForStudent`.
+  - события: `SectionOverrideOpenedForStudent`, `UnitOverrideOpenedForStudent`, `TaskTeacherCreditedForStudent`, `TaskUnblockedForStudent`.
 
 - Unit status/metrics для student UI вычисляются через `LearningAvailabilityService` (снапшоты по section) и persisted в `student_unit_state`.
 

@@ -222,7 +222,7 @@
 - Teacher create/edit flow для `Course/Section` открывает формы в modal `Dialog` с overlay/focus trap; inline-формы внутри списка карточек не используются, а create modal поддерживает тот же cover image flow (`pick preview -> create -> presign upload -> apply`) что и edit.
 - Teacher students flow использует focused modal `Dialog` для создания и редактирования ученика, а также для одноразового показа нового/сброшенного пароля; inline-формы внутри списка учеников не используются.
 - Teacher students list при больших наборах данных использует windowing/virtualized rendering; не рендерим длинный список учеников как full unbounded `.map()` без причины.
-- В teacher student profile drilldown (`/teacher/students/[studentId]`) карточки курсов и разделов рендерятся вертикальным списком; для раздела сохраняется внутренний drilldown в прогресс ученика и отдельное прямое действие `Открыть раздел`, ведущее в `/teacher/sections/[id]`.
+- В teacher student profile drilldown (`/teacher/students/[studentId]`) карточки курсов и разделов рендерятся вертикальным списком; для раздела сохраняется внутренний drilldown в прогресс ученика и отдельное прямое действие `Открыть раздел`, которое вручную открывает раздел ученику без выхода из teacher student profile.
 - Teacher `students` visual baseline:
   - список учеников = compact registry rows, а не высокие dashboard cards;
   - профиль ученика = compact identity header + immediate workspace;

@@ -25,6 +25,7 @@ import { StudentUnitsController } from './student-units.controller';
 import { TeacherPhotoReviewInboxController } from './teacher-photo-review-inbox.controller';
 import { TeacherPhotoSubmissionsController } from './teacher-photo-submissions.controller';
 import { TeacherNotificationsController } from './teacher-notifications.controller';
+import { TeacherSectionOverrideOpenController } from './teacher-section-override-open.controller';
 import { TeacherStudentUnitPreviewController } from './teacher-student-unit-preview.controller';
 import { TeacherTaskCreditController } from './teacher-task-credit.controller';
 import { TeacherTaskUnblockController } from './teacher-task-unblock.controller';
@@ -52,6 +53,7 @@ import { TeacherUnitOverrideOpenController } from './teacher-unit-override-open.
     TeacherPhotoReviewInboxController,
     TeacherPhotoSubmissionsController,
     TeacherNotificationsController,
+    TeacherSectionOverrideOpenController,
     TeacherStudentUnitPreviewController,
     TeacherTaskCreditController,
     TeacherTaskUnblockController,

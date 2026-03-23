@@ -488,6 +488,13 @@ export const TeacherStudentTreeSectionSchema = z
     id: z.string().min(1),
     title: z.string(),
     sortOrder: z.number(),
+    state: z
+      .object({
+        completionPercent: z.number(),
+        accessStatus: StudentSectionAccessStatusSchema,
+        overrideOpened: z.boolean(),
+      })
+      .passthrough(),
     units: z.array(TeacherStudentTreeUnitSchema),
   })
   .passthrough();
@@ -542,6 +549,12 @@ export const TeacherTaskCreditResponseSchema = z
   .passthrough();
 
 export const TeacherOverrideOpenUnitResponseSchema = z
+  .object({
+    ok: z.literal(true),
+  })
+  .passthrough();
+
+export const TeacherOverrideOpenSectionResponseSchema = z
   .object({
     ok: z.literal(true),
   })
@@ -604,3 +617,4 @@ export type TeacherStudentCourseTree = z.infer<typeof TeacherStudentCourseTreeSc
 export type TeacherStudentProfileResponse = z.infer<typeof TeacherStudentProfileResponseSchema>;
 export type TeacherTaskCreditResponse = z.infer<typeof TeacherTaskCreditResponseSchema>;
 export type TeacherOverrideOpenUnitResponse = z.infer<typeof TeacherOverrideOpenUnitResponseSchema>;
+export type TeacherOverrideOpenSectionResponse = z.infer<typeof TeacherOverrideOpenSectionResponseSchema>;

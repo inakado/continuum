@@ -45,6 +45,7 @@ type StudentSectionSequenceState = {
   section: PublishedSectionWithUnitIds;
   completionPercent: number;
   accessStatus: StudentSectionAccessStatus;
+  overrideOpened: boolean;
 };
 
 @Injectable()
@@ -462,6 +463,17 @@ export class LearningService {
     sections: PublishedSectionWithUnitIds[],
   ): Promise<StudentSectionSequenceState[]> {
     const sectionProgress = new Map<string, number>();
+    const sectionOverrideIds = new Set(
+      (
+        await this.prisma.sectionUnlockOverride.findMany({
+          where: {
+            studentId,
+            sectionId: { in: sections.map((section) => section.id) },
+          },
+          select: { sectionId: true },
+        })
+      ).map((item) => item.sectionId),
+    );
 
     await Promise.all(
       sections.map(async (section) => {
@@ -481,7 +493,8 @@ export class LearningService {
     return sections.map((section) => {
       const completionPercent = sectionProgress.get(section.id) ?? 0;
       const isCompleted = section.units.length === 0 || completionPercent >= 100;
-      const accessStatus: StudentSectionAccessStatus = allPreviousSectionsCompleted
+      const overrideOpened = sectionOverrideIds.has(section.id);
+      const accessStatus: StudentSectionAccessStatus = allPreviousSectionsCompleted || overrideOpened
         ? isCompleted
           ? 'completed'
           : 'available'
@@ -495,6 +508,7 @@ export class LearningService {
         section,
         completionPercent,
         accessStatus,
+        overrideOpened,
       };
     });
   }
@@ -738,6 +752,20 @@ export class LearningService {
     reasonRaw?: string | null,
   ) {
     return this.learningTeacherActionsService.overrideOpenUnit(teacherId, studentId, unitId, reasonRaw);
+  }
+
+  async overrideOpenSection(
+    teacherId: string,
+    studentId: string,
+    sectionId: string,
+    reasonRaw?: string | null,
+  ) {
+    return this.learningTeacherActionsService.overrideOpenSection(
+      teacherId,
+      studentId,
+      sectionId,
+      reasonRaw,
+    );
   }
 
   async creditTask(teacherId: string, studentId: string, taskId: string) {

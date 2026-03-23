@@ -11,6 +11,9 @@ describe('LearningService', () => {
     section: {
       findFirst: vi.fn(),
     },
+    sectionUnlockOverride: {
+      findMany: vi.fn(),
+    },
   };
   const contentService = {
     getPublishedSectionGraph: vi.fn(),
@@ -35,9 +38,11 @@ describe('LearningService', () => {
   beforeEach(() => {
     prisma.course.findFirst.mockReset();
     prisma.section.findFirst.mockReset();
+    prisma.sectionUnlockOverride.findMany.mockReset();
     contentService.getPublishedSectionGraph.mockReset();
     learningAvailabilityService.getSectionGraphAvailabilitySnapshot.mockReset();
     learningAvailabilityService.recomputeSectionAvailability.mockReset();
+    prisma.sectionUnlockOverride.findMany.mockResolvedValue([]);
   });
 
   it('maps student graph from graph-specific availability snapshot path', async () => {
@@ -315,5 +320,66 @@ describe('LearningService', () => {
       },
     } satisfies Partial<ConflictException>);
     expect(contentService.getPublishedSectionGraph).not.toHaveBeenCalled();
+  });
+
+  it('opens locked section when teacher override exists', async () => {
+    prisma.section.findFirst.mockResolvedValue({
+      id: 'section-2',
+      courseId: 'course-1',
+    });
+    prisma.course.findFirst.mockResolvedValue({
+      id: 'course-1',
+      title: 'Физика',
+      description: 'Описание',
+      coverImageAssetKey: null,
+      status: 'published',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+      sections: [
+        {
+          id: 'section-1',
+          courseId: 'course-1',
+          title: 'Механика',
+          description: 'Раздел 1',
+          coverImageAssetKey: null,
+          status: 'published',
+          sortOrder: 1,
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+          units: [{ id: 'unit-1' }],
+        },
+        {
+          id: 'section-2',
+          courseId: 'course-1',
+          title: 'Оптика',
+          description: 'Раздел 2',
+          coverImageAssetKey: null,
+          status: 'published',
+          sortOrder: 2,
+          createdAt: new Date('2026-01-03T00:00:00.000Z'),
+          updatedAt: new Date('2026-01-04T00:00:00.000Z'),
+          units: [{ id: 'unit-2' }],
+        },
+      ],
+    });
+    prisma.sectionUnlockOverride.findMany.mockResolvedValue([{ sectionId: 'section-2' }]);
+    learningAvailabilityService.recomputeSectionAvailability
+      .mockResolvedValueOnce(new Map([['unit-1', { completionPercent: 40 }]]))
+      .mockResolvedValueOnce(new Map([['unit-2', { completionPercent: 0 }]]));
+    contentService.getPublishedSectionGraph.mockResolvedValue({
+      sectionId: 'section-2',
+      nodes: [],
+      edges: [],
+    });
+    learningAvailabilityService.getSectionGraphAvailabilitySnapshot.mockResolvedValue(new Map());
+
+    const result = await service.getPublishedSectionGraphForStudent('student-1', 'section-2');
+
+    expect(result).toEqual({
+      sectionId: 'section-2',
+      nodes: [],
+      edges: [],
+    });
+    expect(contentService.getPublishedSectionGraph).toHaveBeenCalledWith('section-2');
   });
 });
