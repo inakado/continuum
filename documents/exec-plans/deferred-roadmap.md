@@ -81,3 +81,12 @@
 - Trigger: отдельная frontend quality initiative.
 - Источник: `documents/FRONTEND.md`
 - Статус: `deferred`
+
+#### DR-007
+
+- Область: Content / Teacher authoring / Student UX
+- Описание: добавить task-level поле методических указаний при создании и редактировании задачи в teacher UI, передавать его через shared task contracts и выводить на student unit screen отдельным блоком под карточкой задачи.
+- Почему отложено: текущий student redesign переносит только visual structure, а в доменных и transport контрактах задачи ещё нет поля для методической заметки.
+- Trigger: отдельная teacher authoring initiative по расширению формы задачи и student read-model.
+- Источник: `apps/web/features/teacher-content/tasks/TaskForm.tsx`, `apps/web/features/student-content/units/StudentUnitDetailScreen.tsx`
+- Статус: `deferred`

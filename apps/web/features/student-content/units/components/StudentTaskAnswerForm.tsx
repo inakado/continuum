@@ -36,28 +36,30 @@ export function StudentTaskAnswerForm({
           ) : (
             (task.numericPartsJson ?? []).map((part, idx) => (
               <div key={part.key} className={styles.answerRow}>
-                <div className={styles.answerInline}>
-                  <span className={styles.answerIndex}>{idx + 1}.</span>
-                  <span className={styles.answerLabelText}>
+                <span className={styles.answerIndex}>{idx + 1}.</span>
+                <div className={styles.answerContent}>
+                  <div className={styles.answerLabelText}>
                     <LiteTex value={part.labelLite ?? ""} />
-                  </span>
-                  <input
-                    className={styles.answerInputInline}
-                    value={numericValues[part.key] ?? ""}
-                    disabled={isTaskCredited}
-                    aria-label={`Ответ ${idx + 1}`}
-                    onChange={(event) => onNumericChange(part.key, event.target.value)}
-                    placeholder="Ответ"
-                  />
-                  {attemptPerPartByKey ? (
-                    <span
-                      className={`${styles.partResult} ${
-                        attemptPerPartByKey.get(part.key) ? styles.partResultCorrect : styles.partResultIncorrect
-                      }`}
-                    >
-                      {attemptPerPartByKey.get(part.key) ? "верно" : "ошибка"}
-                    </span>
-                  ) : null}
+                  </div>
+                  <div className={styles.answerInputRow}>
+                    <input
+                      className={styles.answerInputInline}
+                      value={numericValues[part.key] ?? ""}
+                      disabled={isTaskCredited}
+                      aria-label={`Ответ ${idx + 1}`}
+                      onChange={(event) => onNumericChange(part.key, event.target.value)}
+                      placeholder="Введите ответ"
+                    />
+                    {attemptPerPartByKey ? (
+                      <span
+                        className={`${styles.partResult} ${
+                          attemptPerPartByKey.get(part.key) ? styles.partResultCorrect : styles.partResultIncorrect
+                        }`}
+                      >
+                        {attemptPerPartByKey.get(part.key) ? "верно" : "ошибка"}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             ))

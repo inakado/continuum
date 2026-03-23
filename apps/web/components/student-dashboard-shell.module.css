@@ -125,6 +125,16 @@
   overflow: hidden;
 }
 
+.mainContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  margin: 0 auto;
+}
+
 .sidebarInner {
   padding: var(--sidebar-pad-y, 14px) var(--sidebar-pad-x, 12px);
   display: flex;

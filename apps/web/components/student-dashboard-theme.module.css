@@ -15,7 +15,7 @@
   --role-accent-text: var(--bright-snow);
   
   --role-nav-hover-bg: transparent; /* subtle float */
-  --role-nav-active-bg: var(--bright-snow);   /* the most unobtrusive gray against white */
+  --role-nav-active-bg: transparent;
   --role-nav-active-text: var(--carbon-black);
   
   --role-button-hover-bg: var(--carbon-black); /* keeping it unified */
@@ -50,7 +50,7 @@
   --role-accent-text: var(--carbon-black);
   
   --role-nav-hover-bg: var(--carbon-black);
-  --role-nav-active-bg: var(--gunmetal);
+  --role-nav-active-bg: transparent;
   --role-nav-active-text: var(--bright-snow);
   
   --role-button-hover-bg: var(--platinum);

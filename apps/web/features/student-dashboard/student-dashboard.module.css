@@ -20,13 +20,134 @@
   position: relative;
 }
 
-.panel,
+/* =========================================================================
+   GENERIC CARD SYSTEM
+   ========================================================================= */
+
+.sdGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.sdGridSingle {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  width: 100%;
+}
+
+.sdCard {
+  border: 1px solid var(--sd-border-soft);
+  border-radius: 20px;
+  background: var(--sd-card-bg);
+  backdrop-filter: var(--sd-glass-filter);
+  -webkit-backdrop-filter: var(--sd-glass-filter);
+  box-shadow: var(--sd-shadow);
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, background 0.2s ease;
+  height: 100%;
+}
+
+.sdCardHoverable {
+  cursor: pointer;
+}
+
+.sdCardHoverable:hover {
+  border-color: var(--sd-border-strong);
+  box-shadow: 0 18px 30px -24px rgba(15, 23, 42, 0.35);
+  transform: translateY(-2px);
+}
+
+.sdCardHoverable:active {
+  transform: scale(0.99);
+}
+
+.sdCardHeader {
+  padding: 24px 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.sdCardBody {
+  padding: 0 24px 24px;
+  flex: 1;
+}
+
+.sdCardFooter {
+  padding: 16px 24px;
+  border-top: 1px solid var(--sd-border-soft);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--sd-surface-1);
+}
+
+.sdCardMedia {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--sd-surface-1);
+  border-bottom: 1px solid var(--sd-border-soft);
+  overflow: hidden;
+  position: relative;
+}
+
+.sdCardMediaImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sdCardTitle {
+  font-family: var(--font-onest), sans-serif;
+  font-size: clamp(20px, 2vw, 24px);
+  font-weight: 500;
+  color: var(--sd-text);
+  line-height: 1.2;
+}
+
+.sdCardSubtitle {
+  font-size: 14px;
+  color: var(--sd-muted);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* =========================================================================
+   PAGE SECTIONS & LAYOUTS
+   ========================================================================= */
+
+.panel {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 0 16px;
+}
+
 .sectionsPage {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
   position: relative;
   width: 100%;
+  max-width: 100%;
+  padding: 0 16px;
+  margin: 0 auto;
 }
 
 .pageGlow {
@@ -35,22 +156,11 @@
 
 .pageIntro,
 .sectionsHeader,
-.bottomGrid,
 .sectionsListWrap,
-.carouselRoot,
 .empty,
 .error {
   position: relative;
   z-index: 1;
-}
-
-.pageIntro,
-.sectionsBackRow,
-.sectionsHeader,
-.sectionsListWrap {
-  width: 100%;
-  max-width: 1320px;
-  margin: 0 auto;
 }
 
 .pageTitle,
@@ -75,6 +185,54 @@
   max-width: 42rem;
 }
 
+.sectionsHeroCard {
+  border: 1px solid var(--sd-border-soft);
+  border-radius: 24px;
+  background: var(--sd-card-bg);
+  backdrop-filter: var(--sd-glass-filter);
+  -webkit-backdrop-filter: var(--sd-glass-filter);
+  box-shadow: var(--sd-shadow);
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr 38%;
+  align-items: stretch;
+  min-height: 280px;
+}
+
+.sectionsHeroContent {
+  padding: 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.sectionsHeroMedia {
+  position: relative;
+  background: var(--sd-surface-1);
+  min-height: 280px;
+}
+
+.sectionsHeroMediaImage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@media (max-width: 900px) {
+  .sectionsHeroCard {
+    grid-template-columns: 1fr;
+  }
+  .sectionsHeroMedia {
+    min-height: 200px;
+    order: -1;
+  }
+  .sectionsHeroContent {
+    padding: 32px 24px;
+  }
+}
+
 .error {
   border: 1px solid color-mix(in srgb, #ef4444 35%, var(--sd-border));
   background: color-mix(in srgb, #ef4444 10%, var(--sd-card-bg));
@@ -83,412 +241,38 @@
   border-radius: 16px;
   backdrop-filter: var(--sd-glass-filter);
   -webkit-backdrop-filter: var(--sd-glass-filter);
-}
-
-.empty,
-.emptyCompact {
-  border: 1px dashed var(--sd-border-soft);
-  background: var(--sd-card-bg);
-  color: var(--sd-muted);
-  border-radius: 16px;
+  max-width: 1320px;
+  margin: 0 auto;
 }
 
 .empty {
-  padding: 16px;
-}
-
-.emptyCompact {
-  padding: 12px;
-  font-size: 13px;
-}
-
-.carouselRoot {
-  width: 100%;
-  max-width: 1320px;
-  height: 344px;
-  min-height: 344px;
-  display: flex;
-  margin: 0 auto;
-  overflow: hidden;
-  border: 1px solid var(--sd-border-soft);
-  border-radius: 16px;
-  background: var(--sd-panel-bg);
-  box-shadow: var(--sd-panel-shadow);
-}
-
-.carouselActiveArea {
-  width: 80%;
-  height: 100%;
-  min-height: 344px;
-  border-right: 1px solid var(--sd-border-soft);
+  border: 1px dashed var(--sd-border-soft);
   background: var(--sd-card-bg);
-}
-
-.carouselActiveCard {
-  position: relative;
-  display: grid;
-  grid-template-rows: minmax(0, 264px) 80px;
-  height: 100%;
-  min-height: 100%;
-  overflow: hidden;
-}
-
-.carouselMainRow {
-  display: grid;
-  grid-template-columns: minmax(0, 1.12fr) minmax(320px, 0.62fr);
-  min-height: 0;
-  height: 100%;
-  align-items: stretch;
-}
-
-.carouselDecoration {
-  position: relative;
-  display: flex;
-  width: 100%;
-  height: 100%;
-  opacity: 1;
-  pointer-events: none;
-  mix-blend-mode: unset;
-  filter: none;
-  transform-origin: center;
-}
-
-.carouselMediaPane {
-  position: relative;
-  display: flex;
-  align-items: stretch;
-  justify-content: stretch;
-  min-height: 0;
-  overflow: hidden;
-  border-left: 1px solid var(--sd-border-soft);
-  background: var(--sd-surface-1);
-}
-
-.carouselDecorationImage,
-.continuePreviewImage,
-.deckCoverImage,
-.carouselCoverImage {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
-}
-
-.sectionsHeaderDecorationImage {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
-}
-
-.carouselContent {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 28px 40px 24px 28px;
-}
-
-.carouselTitle {
-  font-family: var(--font-onest), sans-serif;
-  font-weight: 500;
-  font-size: clamp(36px, 4.4vw, 58px);
-  line-height: 1.1;
-  color: var(--sd-text);
-  margin-bottom: 8px;
-  max-width: 42rem;
-  word-break: break-word;
-}
-
-.carouselDescriptionWrap {
-  display: flex;
-  gap: 24px;
-  max-width: 34rem;
-}
-
-.carouselDescriptionLine {
-  width: 3px;
-  border-radius: 999px;
-  background: var(--sd-border-soft);
-  flex-shrink: 0;
-}
-
-.carouselDescription {
-  font-size: clamp(14px, 1.4vw, 18px);
   color: var(--sd-muted);
-  line-height: 1.75;
-  font-weight: 300;
-}
-
-.carouselFooter {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  min-height: 80px;
-  border-top: 1px solid var(--sd-border-soft);
-  background: var(--sd-card-bg);
-  backdrop-filter: var(--sd-glass-filter);
-  -webkit-backdrop-filter: var(--sd-glass-filter);
-}
-
-.carouselStats {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 32px;
-  padding: 0 24px 0 32px;
-  border-right: 1px solid var(--sd-border-soft);
-}
-
-.carouselStatLabel,
-.progressCaption,
-.pillLabel,
-.notificationsPill,
-.sectionsCountPill {
-  font-size: 10px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-}
-
-.carouselStatLabel,
-.progressCaption {
-  color: var(--sd-muted);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
-}
-
-.carouselStatValue,
-.progressValue,
-.overallProgressValue {
-  color: var(--sd-text);
-  font-weight: 300;
-  font-family: var(--font-onest), sans-serif;
-  line-height: 1;
-}
-
-.carouselStatValue {
-  font-size: clamp(28px, 3vw, 42px);
-}
-
-.carouselDivider {
-  width: 1px;
-  height: 40px;
-  background: var(--sd-border-soft);
-}
-
-.carouselActionCell {
-  min-width: 220px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 24px;
-}
-
-.darkActionButton,
-.sectionOpenButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  background: transparent;
-  color: var(--sd-text);
-  border: 1px solid var(--sd-border-strong);
-  border-radius: 14px;
-  font-size: 14px;
-  font-weight: 500;
-  padding: 14px 24px;
-  cursor: pointer;
-  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-  box-shadow: var(--button-shadow);
-}
-
-.darkActionButton svg,
-.sectionOpenButton svg {
-  transition: transform 0.2s ease;
-}
-
-.darkActionButton:hover,
-.sectionOpenButton:hover {
-  background: var(--sd-surface-1);
-  border-color: var(--sd-text);
-}
-
-.darkActionButton:hover svg,
-.sectionOpenButton:hover svg,
-.sectionCard:hover .sectionOpenButton svg {
-  transform: translateX(4px);
-}
-
-.darkActionButton:active,
-.sectionOpenButton:active {
-  transform: scale(0.98);
-}
-
-.carouselActionCell .darkActionButton {
-  width: 100%;
-}
-
-.carouselActionCell .darkActionButton:hover {
-  background: var(--sd-surface-1);
-  color: var(--sd-text);
-  border-color: var(--sd-text);
-}
-
-.carouselDeckArea {
-  width: 20%;
-  position: relative;
-  background: var(--sd-surface-1);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 20px 16px;
-  overflow: visible;
-}
-
-.carouselDeckStack {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  min-height: 220px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 0;
-}
-
-.deckCard {
-  position: absolute;
-  width: 100%;
-  max-width: 140px;
-  aspect-ratio: 4 / 5;
-  border: 1px solid var(--sd-border-soft);
-  border-radius: 18px;
-  background: var(--sd-card-bg);
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  text-align: left;
-  cursor: pointer;
-  box-shadow: var(--sd-shadow);
-  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease, background 0.3s ease;
-  backdrop-filter: var(--sd-glass-filter);
-  -webkit-backdrop-filter: var(--sd-glass-filter);
-}
-
-.deckCard:hover {
-  border-color: var(--sd-border-strong);
-  box-shadow: var(--sd-panel-shadow);
-  background: var(--sd-surface-2);
-}
-
-.deckCardHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
-.deckArrowIcon {
-  width: 24px;
-  height: 24px;
-  border-radius: 999px;
-  background: var(--sd-surface-1);
-  color: var(--sd-muted);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.deckCard:hover .deckArrowIcon {
-  opacity: 1;
-}
-
-.deckCoverFrame {
-  width: 100%;
-  height: 48px;
-  margin-bottom: 12px;
-  opacity: 0.3;
-  filter: grayscale(1);
-  mix-blend-mode: multiply;
-  transition: opacity 0.3s ease, filter 0.3s ease;
-}
-
-.deckCard:hover .deckCoverFrame {
-  opacity: 0.8;
-  filter: grayscale(0);
-}
-
-.deckTitle {
-  color: var(--sd-text);
-  font-weight: 500;
-  line-height: 1.35;
-  font-size: 13px;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.carouselDeckInfo {
-  position: absolute;
-  bottom: 24px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--sd-muted);
-  background: var(--sd-surface-1);
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--sd-border-soft);
-}
-
-.carouselDeckInfoActive {
-  color: var(--sd-text);
-}
-
-.bottomGrid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
-  max-width: 1320px;
-  width: 100%;
-  margin: 0 auto;
-}
-
-.continueCard,
-.notificationsCard,
-.sectionsProgressPanel,
-.overallProgressCard,
-.sectionCard {
-  border: 1px solid var(--sd-border-soft);
-  background: var(--sd-card-bg);
-  backdrop-filter: var(--sd-glass-filter);
-  -webkit-backdrop-filter: var(--sd-glass-filter);
-  box-shadow: var(--sd-shadow);
-}
-
-.continueCard,
-.notificationsCard {
-  border-radius: 24px;
   padding: 24px;
-  position: relative;
-  overflow: hidden;
+  border-radius: 16px;
+  text-align: center;
 }
 
+/* =========================================================================
+   CONTINUE LEARNING CARD (Primary Action)
+   ========================================================================= */
+   
 .continueGlow {
   display: none;
+}
+
+.continueCard {
+  border: 1px solid var(--sd-border-strong);
+  box-shadow: var(--sd-panel-shadow);
+  border-radius: 24px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  background: var(--sd-card-bg);
+  backdrop-filter: var(--sd-glass-filter);
+  -webkit-backdrop-filter: var(--sd-glass-filter);
 }
 
 .pillLabel {
@@ -501,6 +285,10 @@
   border: 1px solid var(--sd-border-soft);
   box-shadow: var(--sd-shadow);
   color: var(--sd-muted);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
   margin-bottom: 24px;
 }
 
@@ -525,13 +313,12 @@
 }
 
 .continueBottom {
-  margin-top: 24px;
-  padding-top: 24px;
-  border-top: 1px solid var(--sd-border-soft);
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-end;
   gap: 24px;
+  flex-wrap: wrap;
+  margin-top: 8px;
 }
 
 .continueProgressBox {
@@ -540,9 +327,25 @@
   gap: 4px;
 }
 
+.progressCaption {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--sd-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
 .progressValue,
 .overallProgressValue {
   font-size: 32px;
+  color: var(--sd-text);
+  font-weight: 300;
+  font-family: var(--font-onest), sans-serif;
+  line-height: 1;
 }
 
 .continueImagePlaceholder {
@@ -557,236 +360,31 @@
   overflow: hidden;
 }
 
-.notificationsHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-  gap: 12px;
+.continuePreviewImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.notificationsPill {
-  display: inline-flex;
+/* =========================================================================
+   COMPONENTS
+   ========================================================================= */
+
+.flexRow {
+  display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  color: var(--sd-text);
-  background: var(--sd-surface-1);
-  border: 1px solid var(--sd-border-soft);
-  box-shadow: var(--sd-shadow);
 }
 
-.notificationsCount {
-  font-size: 12px;
-  color: var(--sd-muted);
-  font-weight: 500;
-}
-
-.pingWrap {
-  position: relative;
-  display: inline-flex;
-  width: 8px;
-  height: 8px;
-}
-
-.pingPulse,
-.pingDot {
-  position: absolute;
-  inset: 0;
-  border-radius: 999px;
-}
-
-.pingPulse {
-  background: rgba(96, 165, 250, 0.75);
-  animation: dashboard-ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
-}
-
-.pingDot {
-  background: #3b82f6;
-}
-
-.notificationsList {
+.flexColumn {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  min-height: 164px;
+  gap: 4px;
 }
 
-.notificationItem {
-  display: flex;
-  gap: 14px;
-  padding: 12px;
-  border-radius: 16px;
-  position: relative;
-  transition: background 0.2s ease;
-}
-
-.notificationItem:hover {
-  background: var(--sd-surface-1);
-}
-
-.notificationUnread::before {
-  content: "";
-  position: absolute;
-  top: 18px;
-  left: 4px;
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: #3b82f6;
-}
-
-.notificationIcon {
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  border: 1px solid transparent;
-}
-
-.notificationIconGreen {
-  background: #f0fdf4;
-  border-color: #dcfce7;
-  color: #22c55e;
-}
-
-.notificationIconBlue {
-  background: #eff6ff;
-  border-color: #dbeafe;
-  color: #2563eb;
-}
-
-.notificationIconSlate {
-  background: #f1f5f9;
-  border-color: #e2e8f0;
-  color: #475569;
-}
-
-.notificationBody {
-  min-width: 0;
-}
-
-.notificationTitle {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--sd-text);
-  margin-bottom: 4px;
-}
-
-.notificationText {
-  font-size: 12px;
-  line-height: 1.5;
+.mutedText {
   color: var(--sd-muted);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.notificationTime,
-.notificationsFooter {
-  font-size: 10px;
-  color: var(--sd-muted);
-}
-
-.notificationTime {
-  display: block;
-  margin-top: 8px;
-}
-
-.notificationsFooter {
-  margin-top: auto;
-  padding-top: 16px;
-  border-top: 1px solid var(--sd-border-soft);
-  text-align: center;
-  color: var(--sd-text);
-  font-weight: 500;
-}
-
-.sectionsPage {
-  padding-top: 8px;
-}
-
-.sectionsBackRow {
-  display: flex;
-  align-items: center;
-}
-
-.backChip {
-  width: fit-content;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--sd-surface-1);
-  border: 1px solid var(--sd-border-soft);
-  border-radius: 999px;
-  padding: 8px 12px;
-  color: var(--sd-muted);
-  cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-}
-
-.backChip:hover {
-  background: var(--sd-surface-2);
-  border-color: var(--sd-border-strong);
-}
-
-.backChip:active {
-  transform: scale(0.98);
-}
-
-.sectionsHero {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 240px;
-  align-items: stretch;
-  gap: 0;
-  min-height: 156px;
-}
-
-.sectionsHeroCopy {
-  max-width: 30rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 14px 18px;
-}
-
-.sectionsCourseTitle {
-  font-size: clamp(22px, 2.2vw, 30px);
-  line-height: 1.1;
-  margin-bottom: 8px;
-  max-width: 26rem;
-}
-
-.sectionsProgressPanel,
-.overallProgressCard {
-  min-width: 0;
-  padding: 0;
-  border-radius: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-start;
-  position: relative;
-  z-index: 1;
-  background: transparent;
-  border: none;
-  box-shadow: none;
-}
-
-.sectionsHeaderDecoration {
-  min-height: 156px;
-  height: 156px;
-  overflow: hidden;
-  border-left: 1px solid var(--sd-border-soft);
-  background: var(--sd-surface-1);
+  font-size: 13px;
 }
 
 .progressMetric {
@@ -819,75 +417,26 @@
   border-radius: inherit;
 }
 
-.sectionsHeader {
-  position: relative;
-  overflow: visible;
-  padding: 0;
-  border: none;
-  background: transparent;
-  box-shadow: none;
-  min-height: 0;
-}
-
-.sectionsMainCard {
-  border: 1px solid var(--sd-border-soft);
-  border-radius: 20px;
-  overflow: hidden;
-  background: var(--sd-card-bg);
-  box-shadow: 0 6px 18px -18px rgba(15, 23, 42, 0.14);
-}
-
-.sectionsHeroFooter {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 16px;
-  padding: 10px 18px 12px;
-  border-top: 1px solid var(--sd-border-soft);
-}
-
-.sectionsListWrap {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
 .sectionsListHead {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
   gap: 16px;
   padding-inline: 0;
+  margin-bottom: 8px;
 }
 
-.sectionsListTitle {
+.sectionsListTitle,
+.gridTitle {
   font-family: var(--font-onest), sans-serif;
   font-size: 24px;
   font-weight: 500;
   color: var(--sd-text);
 }
 
-.sectionsList {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.sectionCard {
-  display: grid;
-  grid-template-columns: 124px minmax(0, 1fr) 152px;
-  align-items: stretch;
-  gap: 16px;
-  padding: 18px;
-  text-align: left;
-  border-radius: 20px;
-  cursor: pointer;
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
-}
-
-.sectionCard:hover {
-  box-shadow: 0 18px 30px -24px rgba(15, 23, 42, 0.35);
-}
+/* =========================================================================
+   SECTION SPECIFIC STYLES
+   ========================================================================= */
 
 .sectionCardLocked {
   cursor: not-allowed;
@@ -895,13 +444,15 @@
 }
 
 .sectionCardLocked:hover {
-  box-shadow: none;
+  transform: none;
+  border-color: var(--sd-border-soft);
+  box-shadow: var(--sd-shadow);
 }
 
 .sectionMediaBlock {
   position: relative;
-  width: 124px;
-  aspect-ratio: 1;
+  width: 96px;
+  height: 96px;
   border-radius: 14px;
   background: var(--sd-surface-1);
   border: 1px solid var(--sd-border-soft);
@@ -942,35 +493,6 @@
   justify-content: center;
 }
 
-.sectionContentBlock {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.sectionTitleRow {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 6px;
-}
-
-.sectionTitle {
-  font-size: 18px;
-  font-weight: 500;
-  color: var(--sd-text);
-  letter-spacing: -0.02em;
-}
-
-.sectionDescription {
-  color: var(--sd-muted);
-  margin-bottom: 14px;
-  font-size: 13px;
-  line-height: 1.55;
-  max-width: 28rem;
-}
-
 .sectionProgressInline {
   display: flex;
   align-items: center;
@@ -997,183 +519,137 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  border-left: 1px solid var(--sd-border-soft);
-  padding-left: 16px;
 }
 
+.sectionsHeader {
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  min-height: 0;
+}
+
+.sectionsHeroFooter {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16px;
+}
+
+/* =========================================================================
+   BUTTONS
+   ========================================================================= */
+
+.darkActionButton,
 .sectionOpenButton {
-  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: transparent;
+  color: var(--sd-text);
+  border: 1px solid var(--sd-border-strong);
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  box-shadow: var(--button-shadow);
+}
+
+.darkActionButton svg,
+.sectionOpenButton svg {
+  transition: transform 0.2s ease;
+}
+
+.darkActionButton:hover,
+.sectionOpenButton:hover {
+  background: var(--sd-surface-1);
+  border-color: var(--sd-text);
+}
+
+.darkActionButton:hover svg,
+.sectionOpenButton:hover svg,
+.sdCardHoverable:hover .sectionOpenButton svg {
+  transform: translateX(4px);
+}
+
+.darkActionButton:active,
+.sectionOpenButton:active {
+  transform: scale(0.98);
 }
 
 .sectionOpenButtonLocked {
   background: var(--sd-surface-1);
   color: var(--sd-muted);
   box-shadow: none;
+  border-color: var(--sd-border-soft);
 }
 
-.sectionCardLocked .sectionOpenButton:hover,
 .sectionCardLocked .sectionOpenButtonLocked:hover {
   background: var(--sd-surface-1);
   color: var(--sd-muted);
+  border-color: var(--sd-border-soft);
 }
 
 .sectionOpenButtonLocked svg {
   transform: none;
 }
 
-@keyframes dashboard-ping {
-  75%,
-  100% {
-    transform: scale(2);
-    opacity: 0;
-  }
+.backChip {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 8px 0;
+  color: var(--sd-muted);
+  cursor: pointer;
+  transition:
+    color 0.2s ease,
+    transform 0.2s ease;
+  white-space: nowrap;
+  font-family: var(--font-body), sans-serif;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
-@media (max-width: 1200px) {
-  .carouselRoot {
-    height: 340px;
-    min-height: 340px;
-  }
-
-  .carouselActionCell {
-    min-width: 190px;
-  }
-
-  .sectionsHero {
-    grid-template-columns: minmax(0, 1fr) 220px;
-  }
-
+.backChipIcon {
+  flex: 0 0 auto;
 }
 
-@media (max-width: 1024px) {
-  .bottomGrid {
-    grid-template-columns: 1fr;
-    display: grid;
-  }
-
-  .sectionsHero {
-    align-items: stretch;
-  }
+.backChip:hover {
+  color: var(--sd-text);
 }
+
+.backChip:active {
+  transform: translateY(1px);
+}
+
+.backChip:focus-visible {
+  outline: 2px solid var(--sd-border-strong);
+  outline-offset: 2px;
+}
+
+/* =========================================================================
+   MEDIA QUERIES
+   ========================================================================= */
 
 @media (max-width: 900px) {
-  .carouselRoot {
-    flex-direction: column;
-    height: auto;
-    min-height: auto;
-  }
-
-  .carouselActiveArea,
-  .carouselDeckArea {
-    width: 100%;
-  }
-
-  .carouselActiveArea {
-    height: auto;
-    border-right: none;
-    border-bottom: 1px solid rgba(226, 232, 240, 0.5);
-  }
-
-  .carouselActiveCard {
-    grid-template-rows: minmax(0, 1fr) auto;
-    height: auto;
-  }
-
-  .carouselDeckArea {
-    padding-block: 20px 60px;
-    min-height: 220px;
-  }
-
-  .carouselDeckStack {
-    height: 150px;
-    margin-top: 0;
-  }
-
-  .deckCard {
-    max-width: 180px;
-  }
-
-  .sectionCard {
-    grid-template-columns: 1fr;
-  }
-
-  .carouselMainRow {
-    grid-template-columns: 1fr;
-    height: auto;
-  }
-
-  .carouselMediaPane {
-    min-height: 220px;
-    border-left: none;
-    border-top: 1px solid rgba(226, 232, 240, 0.45);
-  }
-
-  .sectionsHero {
-    grid-template-columns: 1fr;
-  }
-
-  .sectionsHeaderDecoration {
-    border-left: none;
-    border-top: 1px solid rgba(226, 232, 240, 0.45);
-    min-height: 140px;
-    height: 140px;
-  }
-
-  .sectionsHeroFooter {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
   .sectionMediaBlock {
-    width: 100%;
-    aspect-ratio: 16 / 9;
-  }
-
-  .sectionActionBlock {
-    width: 100%;
-    border-left: none;
-    border-top: 1px solid rgba(226, 232, 240, 0.5);
-    padding-left: 0;
-    padding-top: 20px;
-    justify-content: stretch;
+    display: none;
   }
 }
 
 @media (max-width: 640px) {
-  .carouselContent {
-    padding: 24px 20px;
-  }
-
-  .carouselFooter,
-  .continueBottom,
-  .sectionsListHead,
-  .sectionsHeroFooter {
+  .continueBottom {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .carouselStats {
-    border-right: none;
-    border-bottom: 1px solid rgba(226, 232, 240, 0.5);
-    padding: 16px 20px;
-    gap: 20px;
-  }
-
-  .carouselActionCell {
-    width: 100%;
-  }
-
-  .continueCard,
-  .sectionCard {
-    padding: 18px;
-  }
-
-  .pageTitle,
-  .sectionsCourseTitle {
-    max-width: none;
-  }
-
-  .deckCard {
-    max-width: 150px;
   }
 }

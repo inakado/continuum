@@ -66,6 +66,10 @@ export const StudentGraphNodeSchema = z
     position: z.object({ x: z.number(), y: z.number() }),
     completionPercent: z.number(),
     solvedPercent: z.number(),
+    solvedTasks: z.number().int().nonnegative(),
+    totalTasks: z.number().int().nonnegative(),
+    requiredDone: z.number().int().nonnegative(),
+    requiredTotal: z.number().int().nonnegative(),
   })
   .passthrough();
 

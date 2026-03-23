@@ -254,11 +254,19 @@ export class LearningService {
       sectionId: graph.sectionId,
       nodes: graph.nodes.map((node) => {
         const snapshot = snapshots.get(node.unitId);
+        const countedTasks = snapshot?.countedTasks ?? 0;
+        const optionalCountedTasks = snapshot?.optionalCountedTasks ?? 0;
+        const requiredDone = Math.max(0, countedTasks - optionalCountedTasks);
+
         return {
           ...node,
           status: snapshot?.status ?? StudentUnitStatus.locked,
           completionPercent: snapshot?.completionPercent ?? 0,
           solvedPercent: snapshot?.solvedPercent ?? 0,
+          solvedTasks: snapshot?.solvedTasks ?? 0,
+          totalTasks: snapshot?.totalTasks ?? 0,
+          requiredDone,
+          requiredTotal: snapshot?.requiredTasksCount ?? 0,
         };
       }),
       edges: graph.edges,

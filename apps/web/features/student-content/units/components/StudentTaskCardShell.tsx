@@ -14,7 +14,10 @@ export function StudentTaskCardShell({ task, taskIndex, children }: Props) {
   return (
     <div className={styles.taskCard}>
       <div className={styles.taskHeader}>
-        <div className={styles.taskTitle}>Задача №{taskIndex + 1}</div>
+        <div className={styles.taskHeaderCopy}>
+          <div className={styles.taskEyebrow}>Задача №{taskIndex + 1}</div>
+          {task.title?.trim() ? <div className={styles.taskTitle}>{task.title.trim()}</div> : null}
+        </div>
         <div className={styles.taskHeaderBadges}>
           {task.isRequired ? (
             <span className={styles.taskBadge}>

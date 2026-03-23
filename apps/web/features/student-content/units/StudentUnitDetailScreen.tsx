@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { studentApi, type Task, type TaskState, type UnitVideo, type UnitWithTasks } from "@/lib/api/student";
 import { ApiError } from "@/lib/api/client";
 import { learningPhotoQueryKeys } from "@/lib/query/keys";
@@ -61,27 +62,10 @@ const normalizePercent = (value: number) => Math.max(0, Math.min(100, Math.round
 
 const getProgressFillStyle = (percent: number) => {
   const level = normalizePercent(percent);
-  const startColor =
-    level >= 80
-      ? "color-mix(in srgb, #22c55e 82%, var(--border-primary))"
-      : level >= 55
-        ? "color-mix(in srgb, #22c55e 68%, var(--border-primary))"
-        : level >= 30
-          ? "color-mix(in srgb, #22c55e 56%, var(--border-primary))"
-          : "color-mix(in srgb, #22c55e 44%, var(--surface-2))";
-
-  const endColor =
-    level >= 80
-      ? "color-mix(in srgb, #22c55e 92%, var(--border-primary))"
-      : level >= 55
-        ? "color-mix(in srgb, #22c55e 80%, var(--border-primary))"
-        : level >= 30
-          ? "color-mix(in srgb, #22c55e 68%, var(--border-primary))"
-          : "color-mix(in srgb, #22c55e 56%, var(--border-primary))";
 
   return {
     width: `${level}%`,
-    background: `linear-gradient(90deg, ${startColor}, ${endColor})`,
+    background: "var(--student-success)",
   };
 };
 
@@ -203,49 +187,31 @@ function StudentUnitProgressCard({
 }) {
   return (
     <section className={styles.progressCard} aria-label="Прогресс юнита">
-      <div className={styles.progressGrid}>
-        <article className={styles.progressStat}>
-          <div className={styles.progressStatHead}>
-            <span className={styles.progressStatLabel}>Выполнение</span>
-            <span className={styles.progressStatValue}>{completionMeter}%</span>
-          </div>
-          <div className={styles.progressLine}>
-            <span className={styles.progressLineFill} style={getProgressFillStyle(completionMeter)} />
-          </div>
-        </article>
+      <div className={styles.progressLeadRow}>
+        <div className={styles.progressLead}>
+          <span className={styles.progressStatLabel}>Прогресс юнита</span>
+          <span className={styles.progressLeadValue}>{completionMeter}%</span>
+        </div>
 
-        <article className={styles.progressStat}>
-          <div className={styles.progressStatHead}>
-            <span className={styles.progressStatLabel}>Решено</span>
-            <span className={styles.progressStatValue}>{solvedMeter}%</span>
-          </div>
-          <div className={styles.progressLine}>
-            <span className={styles.progressLineFill} style={getProgressFillStyle(solvedMeter)} />
-          </div>
-        </article>
-
-        <article className={styles.progressStat}>
-          <div className={styles.progressStatHead}>
-            <span className={styles.progressStatLabel}>Ключевые</span>
-            <span className={styles.progressStatValue}>
-              {requiredDone}/{requiredTotal}
+        <div className={styles.progressSummary} aria-label="Сводка метрик">
+          <article className={styles.progressSummaryItem}>
+            <span className={styles.progressSummaryLabel}>Решено</span>
+            <span className={styles.progressSummaryValue}>
+              {solvedTasks}/{totalTasks} задач
             </span>
-          </div>
-          <div className={styles.progressLine}>
-            <span className={styles.progressLineFill} style={getProgressFillStyle(requiredMeter)} />
-          </div>
-        </article>
+          </article>
+          <div className={styles.progressSummaryDivider} aria-hidden="true" />
+          <article className={styles.progressSummaryItem}>
+            <span className={styles.progressSummaryLabel}>Ключевые</span>
+            <span className={styles.progressSummaryValue}>
+              {requiredDone}/{requiredTotal} задач
+            </span>
+          </article>
+        </div>
       </div>
 
-      <div className={styles.progressDivider} />
-
-      <div className={styles.progressMeta}>
-        <div className={styles.progressMetaItem}>
-          Учтено: <strong>{countedTasks}/{totalTasks}</strong>
-        </div>
-        <div className={styles.progressMetaItem}>
-          Решено задач: <strong>{solvedTasks}/{totalTasks}</strong>
-        </div>
+      <div className={styles.progressTrack} aria-hidden="true">
+        <span className={styles.progressTrackFill} style={getProgressFillStyle(completionMeter)} />
       </div>
     </section>
   );
@@ -346,7 +312,6 @@ function StudentTaskAttemptControls({
         </Button>
       ) : null}
 
-
       {attempt.isBlocked && attempt.blockedUntilIso ? (
         <BlockedCountdown blockedUntilIso={attempt.blockedUntilIso} />
       ) : null}
@@ -376,19 +341,16 @@ function StudentTaskProgressControls({
   return (
     <>
       {attempt.isTaskCredited && nextTaskId ? (
-        <Button variant="ghost" onClick={() => onSelectTask(nextTaskId)}>
-          Следующая
+        <Button onClick={() => onSelectTask(nextTaskId)}>
+          Следующая задача
         </Button>
       ) : null}
 
       {attempt.isTaskCredited && hasTaskSolutionHtml ? (
-        <Button variant="ghost" onClick={media.toggleSolutionVisibility}>
+        <button type="button" className={styles.solutionToggleLink} onClick={media.toggleSolutionVisibility}>
           {media.isSolutionVisible ? "Скрыть решение" : "Показать решение"}
-        </Button>
+        </button>
       ) : null}
-
-
-      <div className={styles.attemptsLeftBadge}>Осталось попыток: {attempt.attemptsLeft}</div>
     </>
   );
 }
@@ -408,17 +370,24 @@ function StudentTaskActions({
   media: MediaStateModel;
   onSelectTask: (taskId: string | null) => void;
 }) {
+  if (isPhotoTask) {
+    return null;
+  }
+
   return (
     <div className={styles.taskActions}>
-      <StudentTaskAttemptControls isPhotoTask={isPhotoTask} attempt={attempt} />
-      <StudentTaskProgressControls
-        nextTaskId={nextTaskId}
-        isPhotoTask={isPhotoTask}
-        hasTaskSolutionHtml={hasTaskSolutionHtml}
-        attempt={attempt}
-        media={media}
-        onSelectTask={onSelectTask}
-      />
+      <div className={styles.taskActionButtons}>
+        <StudentTaskAttemptControls isPhotoTask={isPhotoTask} attempt={attempt} />
+        <StudentTaskProgressControls
+          nextTaskId={nextTaskId}
+          isPhotoTask={isPhotoTask}
+          hasTaskSolutionHtml={hasTaskSolutionHtml}
+          attempt={attempt}
+          media={media}
+          onSelectTask={onSelectTask}
+        />
+      </div>
+      <div className={styles.taskAttemptsMeta}>Осталось попыток: {attempt.attemptsLeft}</div>
     </div>
   );
 }
@@ -440,20 +409,32 @@ function StudentUnitTasksPanel({
   media: MediaStateModel;
   onGoToStudentGraph: () => void;
 }) {
+  const activeTask = taskNavigation.activeTask;
+  const isPhotoTask = activeTask?.answerType === "photo";
+  const hasTaskSolutionHtml = Boolean(activeTask?.solutionHtmlAssetKey);
+  const showSolutionPanel = Boolean(
+    activeTask && !isPhotoTask && attempt.isTaskCredited && hasTaskSolutionHtml && media.isSolutionVisible,
+  );
+  const nextTaskId = activeTask ? orderedTasks[taskNavigation.activeTaskIndex + 1]?.id ?? null : null;
+
+  useEffect(() => {
+    if (!showSolutionPanel) return;
+
+    const frameId = window.requestAnimationFrame(() => {
+      const solutionPanel = document.getElementById("student-task-solution-panel");
+      solutionPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [showSolutionPanel]);
+
   if (!orderedTasks.length) {
     return <div className={styles.stub}>Задач пока нет.</div>;
   }
 
-  if (!taskNavigation.activeTask) {
+  if (!activeTask) {
     return null;
   }
-
-  const activeTask = taskNavigation.activeTask;
-  const isPhotoTask = activeTask.answerType === "photo";
-  const hasTaskSolutionHtml = Boolean(activeTask.solutionHtmlAssetKey);
-  const showSolutionPanel =
-    !isPhotoTask && attempt.isTaskCredited && hasTaskSolutionHtml && media.isSolutionVisible;
-  const nextTaskId = orderedTasks[taskNavigation.activeTaskIndex + 1]?.id ?? null;
 
   return (
     <div className={styles.tasks}>
@@ -743,6 +724,7 @@ function StudentUnitBody({
 }) {
   const activePanelId = `${tabsId}-${state.activeTab}-panel`;
   const activeTabId = `${tabsId}-${state.activeTab}`;
+  const isReadingTab = state.activeTab === "theory" || state.activeTab === "method";
 
   if (state.isLockedAccess) {
     return <StudentUnitLockedGate onGoToGraph={onGoToStudentGraph} onBack={onBack} />;
@@ -764,20 +746,28 @@ function StudentUnitBody({
       ) : null}
 
       <div className={styles.tabsRow}>
-        <Tabs
-          idBase={tabsId}
-          tabs={state.tabs}
-          active={state.activeTab}
-          onChange={state.setActiveTab}
-          ariaLabel="Вкладки юнита"
-          className={styles.unitTabs}
-        />
-        <Button variant="ghost" onClick={onBack} className={styles.backInline}>
-          ← Назад
-        </Button>
+        <div className={styles.tabsRail}>
+          <Tabs
+            idBase={tabsId}
+            tabs={state.tabs}
+            active={state.activeTab}
+            onChange={state.setActiveTab}
+            ariaLabel="Вкладки юнита"
+            className={styles.unitTabs}
+          />
+        </div>
+        <button type="button" onClick={onBack} className={styles.backInline}>
+          <ArrowLeft className={styles.backInlineIcon} size={16} strokeWidth={2.2} aria-hidden="true" />
+          <span>К ЮНИТАМ</span>
+        </button>
       </div>
 
-      <div id={activePanelId} role="tabpanel" aria-labelledby={activeTabId}>
+      <div
+        id={activePanelId}
+        role="tabpanel"
+        aria-labelledby={activeTabId}
+        className={isReadingTab ? styles.readingPanel : undefined}
+      >
         <StudentUnitTabContent
           activeTab={state.activeTab}
           unit={unit}
@@ -836,6 +826,7 @@ export default function StudentUnitDetailScreen({ unitId }: Props) {
         <div className={styles.header}>
           <div className={styles.headerLeft}>
             <h1 className={styles.title}>{state.unit?.title ?? "Юнит"}</h1>
+            {state.unit?.description ? <p className={styles.subtitle}>{state.unit.description}</p> : null}
           </div>
         </div>
 

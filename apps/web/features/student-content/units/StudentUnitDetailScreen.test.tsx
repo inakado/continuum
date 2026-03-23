@@ -411,7 +411,12 @@ describe("StudentUnitDetailScreen", () => {
     const user = userEvent.setup();
 
     expect(await screen.findByLabelText("Прогресс юнита")).toBeInTheDocument();
+    expect(screen.getByText("Прогресс юнита")).toBeInTheDocument();
+    expect(screen.getByText("Решено")).toBeInTheDocument();
+    expect(screen.getByText("Ключевые")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "К ЮНИТАМ" })).toBeInTheDocument();
     expect(screen.getByTestId("task-card-shell")).toBeInTheDocument();
+    expect(screen.queryByText("Методическая заметка")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Теория" }));
 
@@ -522,12 +527,12 @@ describe("StudentUnitDetailScreen", () => {
     renderWithQueryClient(<StudentUnitDetailScreen unitId="unit-1" />);
     const user = userEvent.setup();
 
-    expect(await screen.findByText("Следующая")).toBeInTheDocument();
+    expect(await screen.findByText("Следующая задача")).toBeInTheDocument();
     expect(screen.getByText("✓ Верно")).toBeInTheDocument();
     expect(screen.getByText("Скрыть решение")).toBeInTheDocument();
     expect(screen.getByText("Осталось попыток: 2")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Следующая" }));
+    await user.click(screen.getByRole("button", { name: "Следующая задача" }));
     expect(setActiveTaskIdMock).toHaveBeenCalledWith("task-2");
 
     await user.click(screen.getByRole("button", { name: "Скрыть решение" }));

@@ -107,8 +107,8 @@ describe("TeacherSettingsScreen", () => {
     renderWithSettings();
 
     expect(await screen.findByText("Настройки преподавателя")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Петрова")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Анна")).toBeInTheDocument();
+    expect(await screen.findByDisplayValue("Петрова")).toBeInTheDocument();
+    expect(await screen.findByDisplayValue("Анна")).toBeInTheDocument();
     expect(screen.getByText("Сидоров Борис")).toBeInTheDocument();
     expect(screen.getByText("Вы")).toBeInTheDocument();
   });

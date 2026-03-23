@@ -14,11 +14,11 @@ import ReactFlow, {
   type NodeProps,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { Check, CircleDot, Lock, Play } from "lucide-react";
-import Button from "@/components/ui/Button";
+import { ArrowLeft, Check, CircleDot, Lock, Play } from "lucide-react";
 import { studentApi, type GraphEdge, type GraphNode } from "@/lib/api/student";
 import { ApiError } from "@/lib/api/client";
 import styles from "./student-section-graph-panel.module.css";
+import dashboardStyles from "./student-dashboard.module.css";
 
 type Props = {
   sectionId: string;
@@ -33,6 +33,10 @@ type UnitNodeData = {
   status: GraphNode["status"];
   completionPercent: number;
   solvedPercent: number;
+  solvedTasks: number;
+  totalTasks: number;
+  requiredDone: number;
+  requiredTotal: number;
 };
 
 const NODE_SPACING_SCALE_X = 1.2;
@@ -81,46 +85,45 @@ const getStatusIcon = (status: GraphNode["status"]) => {
 
 const UnitNode = ({ data }: NodeProps<UnitNodeData>) => {
   const completionPercent = clampPercent(data.completionPercent);
-  const solvedPercent = clampPercent(data.solvedPercent);
   const StatusIcon = getStatusIcon(data.status);
 
   return (
-    <div className={`${styles.node} ${getStatusClassName(data.status)}`}>
-      <Handle
-        type="target"
-        position={Position.Top}
-        className={`${styles.handle} ${styles.handleTop}`}
-        style={HIDDEN_HANDLE_STYLE}
-      />
-      <div className={styles.nodeHeader}>
-        <div className={styles.nodeTitle}>{data.title}</div>
-        <span className={styles.nodeStatusIconWrap} aria-hidden="true">
-          <StatusIcon size={12} strokeWidth={2.2} />
-        </span>
+    <>
+      <Handle type="target" position={Position.Top} className={styles.handle} style={HIDDEN_HANDLE_STYLE} />
+      <div className={`${styles.node} ${getStatusClassName(data.status)}`}>
+        <div className={styles.nodeHeader}>
+          <div className={styles.nodeTitle}>{data.title}</div>
+          <span className={styles.nodeStatusIconWrap} aria-hidden="true">
+            <StatusIcon size={12} strokeWidth={2.2} />
+          </span>
+        </div>
+
+        <div className={styles.nodeProgress}>
+          <span className={styles.nodeProgressValue}>{completionPercent}%</span>
+        </div>
+
+        <div className={styles.nodeProgressTrack} aria-hidden="true">
+          <span className={styles.nodeProgressFill} style={{ width: `${completionPercent}%` }} />
+        </div>
+
+        <div className={styles.nodeSummary}>
+          <div className={styles.nodeSummaryItem}>
+            <span className={styles.nodeSummaryLabel}>Решено</span>
+            <span className={styles.nodeSummaryValue}>
+              {data.solvedTasks}/{data.totalTasks}
+            </span>
+          </div>
+          <div className={styles.nodeSummaryDivider} aria-hidden="true" />
+          <div className={styles.nodeSummaryItem}>
+            <span className={styles.nodeSummaryLabel}>Ключевые</span>
+            <span className={styles.nodeSummaryValue}>
+              {data.requiredDone}/{data.requiredTotal}
+            </span>
+          </div>
+        </div>
       </div>
-      <div className={styles.nodeMetrics}>
-        <div className={styles.nodeMetricRow}>
-          <span className={styles.nodeMetricLabel}>Выполнение</span>
-          <span className={styles.nodeMetricValue}>{completionPercent}%</span>
-        </div>
-        <div className={styles.nodeMetricTrack} aria-hidden>
-          <span className={styles.nodeMetricFillPrimary} style={{ width: `${completionPercent}%` }} />
-        </div>
-        <div className={styles.nodeMetricRow}>
-          <span className={styles.nodeMetricLabel}>Решено</span>
-          <span className={styles.nodeMetricValue}>{solvedPercent}%</span>
-        </div>
-        <div className={styles.nodeMetricTrack} aria-hidden>
-          <span className={styles.nodeMetricFillSecondary} style={{ width: `${solvedPercent}%` }} />
-        </div>
-      </div>
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        className={`${styles.handle} ${styles.handleBottom}`}
-        style={HIDDEN_HANDLE_STYLE}
-      />
-    </div>
+      <Handle type="source" position={Position.Bottom} className={styles.handle} style={HIDDEN_HANDLE_STYLE} />
+    </>
   );
 };
 
@@ -145,6 +148,10 @@ const buildFlowNodes = (nodes: GraphNode[]): Node<UnitNodeData>[] =>
       status: node.status,
       completionPercent: node.completionPercent,
       solvedPercent: node.solvedPercent,
+      solvedTasks: node.solvedTasks,
+      totalTasks: node.totalTasks,
+      requiredDone: node.requiredDone,
+      requiredTotal: node.requiredTotal,
     },
   }));
 
@@ -180,9 +187,9 @@ const buildFlowEdges = (edges: GraphEdge[], nodes: GraphNode[]): Edge[] => {
 
     const isLockedPath = targetNode?.status === "locked";
     const stroke = isCompletedPath
-      ? "var(--carbon-black)"
+      ? "var(--sd-text)"
       : isLockedPath
-        ? "var(--alabaster-grey)"
+        ? "var(--sd-border-soft)"
         : "var(--sd-border-strong)";
 
     return {
@@ -312,9 +319,10 @@ export default function StudentSectionGraphPanel({ sectionId, onBack, onNotFound
     <div className={styles.wrapper}>
       <div className={styles.topActions}>
         <div className={styles.header}>
-          <Button variant="ghost" onClick={onBack} className={styles.backButton}>
-            ← К разделам
-          </Button>
+          <button type="button" onClick={onBack} className={dashboardStyles.backChip}>
+            <ArrowLeft className={dashboardStyles.backChipIcon} size={16} strokeWidth={2.2} aria-hidden="true" />
+            <span>К РАЗДЕЛАМ</span>
+          </button>
         </div>
       </div>
 

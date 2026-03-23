@@ -1,46 +1,82 @@
 .content {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  width: min(100%, 1200px);
+  margin: 0 auto;
+  padding: clamp(28px, 4vw, 56px) clamp(20px, 4vw, 40px) clamp(44px, 6vw, 72px);
+  display: grid;
+  gap: clamp(22px, 3vw, 36px);
+  --student-success: #10b981;
+  --student-success-surface: #ecfdf5;
   --header-chip-radius: calc(var(--control-radius) + 8px);
   --header-chip-inner-radius: calc(var(--control-radius) + 4px);
 }
 
 .header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 16px;
-  flex-wrap: wrap;
+  display: grid;
+  gap: 10px;
 }
 
 .headerLeft {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  display: grid;
+  gap: 8px;
+  max-width: min(100%, 56rem);
 }
 
 .tabsRow {
   display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
-  gap: 10px;
-  overflow: visible;
-  padding-bottom: 8px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 10px;
+}
+
+.tabsRail {
+  flex: 1 1 auto;
+  min-width: 0;
+  border-bottom: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 92%, transparent);
 }
 
 .backInline {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   margin-left: auto;
+  flex: 0 0 auto;
+  align-self: center;
+  margin-bottom: 10px;
+  padding: 8px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    color var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
+  white-space: nowrap;
+  font-family: var(--font-body), sans-serif;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
-.backInline {
-  --button-bg: var(--bg-field);
-  --button-border: var(--glass-border);
-  --button-text: var(--text-primary);
-  --button-hover-bg: color-mix(in srgb, var(--bg-field) 98%, white 2%);
-  --button-hover-border: var(--border-primary);
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
+.backInlineIcon {
+  flex: 0 0 auto;
+}
+
+.backInline:hover {
+  color: var(--text-primary);
+}
+
+.backInline:active {
+  transform: translateY(1px);
+}
+
+.backInline:focus-visible {
+  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline-offset: 2px;
 }
 
 .unitTabs {
@@ -51,182 +87,211 @@
   min-width: max-content;
   max-width: 100%;
   flex-wrap: nowrap !important;
-  gap: 6px;
-  padding: 6px !important;
-  padding-bottom: 6px !important;
-  border-radius: var(--header-chip-radius);
-  border: var(--border-width) solid var(--glass-border);
-  border-bottom: var(--border-width) solid var(--glass-border) !important;
-  background: var(--surface-1);
+  gap: clamp(18px, 3vw, 32px);
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent;
+  border-radius: 0;
 }
 
 .unitTabs [role="tab"] {
   flex: 0 0 auto;
   text-transform: none;
   letter-spacing: 0.01em;
-  font-size: 14px;
-  font-weight: 600;
-  border-radius: var(--header-chip-inner-radius);
-  min-height: 44px;
-  padding: 8px 18px;
-  border: var(--border-width-thin) solid transparent;
-  background: transparent;
+  font-family: var(--font-body), sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.2;
+  font-weight: 500;
+  border-radius: 0;
+  min-height: auto;
+  padding: 0 0 16px;
+  border: 0 !important;
   color: var(--text-muted);
   box-shadow: none;
+  background: transparent !important;
+  position: relative;
 }
 
 .unitTabs [role="tab"]:hover {
-  background: var(--surface-2) !important;
-  border-color: var(--glass-border) !important;
   color: var(--text-primary) !important;
   box-shadow: none !important;
 }
 
 .unitTabs [role="tab"][aria-selected="true"] {
-  background: var(--surface-2);
   color: var(--text-primary);
-  border-color: var(--glass-border);
-  box-shadow: var(--button-shadow);
+  box-shadow: none;
+  font-weight: 700;
+}
+
+.unitTabs [role="tab"][aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--bg-accent);
 }
 
 .title {
-  font-family: var(--font-unbounded), sans-serif;
-  font-weight: 300;
-  font-size: clamp(22px, 2vw, 30px);
+  font-family: var(--text-title-display-family), sans-serif;
+  font-size: var(--text-title-display-size);
+  line-height: var(--text-title-display-line-height);
+  font-weight: 600;
+  letter-spacing: var(--text-title-display-tracking);
   text-wrap: balance;
+  color: color-mix(in srgb, var(--text-primary) 96%, transparent);
 }
 
 .subtitle {
-  color: var(--text-muted);
-  font-size: 14px;
+  max-width: 60ch;
+  color: color-mix(in srgb, var(--text-primary) 64%, var(--text-muted));
+  font-family: var(--font-body), sans-serif;
+  font-size: 1rem;
+  line-height: 1.65;
 }
 
 .error {
-  border: var(--border-width) solid var(--panel-border);
-  padding: 10px 12px;
-  background: var(--glass-tint);
+  border: var(--border-width-thin) solid color-mix(in srgb, #ef4444 18%, var(--panel-border));
+  padding: 14px 16px;
+  background: color-mix(in srgb, #ef4444 6%, var(--surface-2));
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 0.875rem;
   border-radius: var(--card-radius);
-  backdrop-filter: var(--glass-filter);
-  -webkit-backdrop-filter: var(--glass-filter);
 }
 
 .progressCard {
   border: var(--border-width-thin) solid var(--glass-border);
-  background: color-mix(in srgb, var(--surface-1) 92%, transparent);
-  border-radius: var(--card-radius);
-  backdrop-filter: var(--glass-filter);
-  -webkit-backdrop-filter: var(--glass-filter);
-  padding: 14px 16px;
+  background: color-mix(in srgb, white 94%, var(--surface-2));
+  border-radius: calc(var(--card-radius) + 6px);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.05);
+  padding: clamp(18px, 2.4vw, 28px);
   display: grid;
-  gap: 12px;
-}
-
-.progressGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
 }
 
-.progressStat {
-  display: grid;
-  gap: 8px;
-}
-
-.progressStatHead {
+.progressLeadRow {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
-  gap: 10px;
+  align-items: flex-end;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.progressLead {
+  display: grid;
+  gap: 8px;
+  min-width: 180px;
 }
 
 .progressStatLabel {
-  font-size: 10px;
+  font-family: var(--text-label-family), sans-serif;
+  font-size: var(--text-label-size);
+  line-height: var(--text-label-line-height);
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.11em;
+  letter-spacing: 0.14em;
   font-weight: 700;
   white-space: nowrap;
 }
 
-.progressStatValue {
-  font-family: inherit;
-  font-size: clamp(20px, 2vw, 30px);
+.progressLeadValue {
+  font-family: var(--font-heading), sans-serif;
+  font-size: clamp(2rem, 2.7vw, 2.6rem);
   font-weight: 600;
   line-height: 1;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.03em;
   color: var(--text-primary);
-  white-space: nowrap;
 }
 
-.progressLine {
+.progressSummary {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.progressSummaryItem {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+  min-width: 0;
+}
+
+.progressSummaryLabel {
+  font-family: var(--text-overline-family), sans-serif;
+  font-size: var(--text-overline-size);
+  line-height: var(--text-overline-line-height);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+}
+
+.progressSummaryValue {
+  font-family: var(--font-heading), sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: right;
+}
+
+.progressSummaryDivider {
+  width: 1px;
+  min-height: 42px;
+  background: color-mix(in srgb, var(--glass-border) 82%, transparent);
+}
+
+.progressTrack {
   width: 100%;
-  height: 2px;
+  height: 7px;
   border-radius: 999px;
   overflow: hidden;
-  background: color-mix(in srgb, var(--text-muted) 20%, transparent);
+  background: color-mix(in srgb, var(--surface-0) 78%, var(--glass-border));
 }
 
-.progressLineFill {
+.progressTrackFill {
   display: block;
   height: 100%;
   border-radius: 999px;
 }
 
-.progressDivider {
-  border-top: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 84%, transparent);
-}
-
-.progressMeta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.progressMetaItem {
-  font-size: clamp(12px, 1.1vw, 15px);
-  color: var(--text-muted);
-  font-family: inherit;
-  letter-spacing: 0.01em;
-}
-
-.progressMetaItem strong {
-  color: var(--text-primary);
-  font-weight: 700;
-}
-
 @media (max-width: 960px) {
   .tabsRow {
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 10px;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .tabsRail {
+    width: 100%;
   }
 
   .unitTabs {
     min-width: max-content;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px !important;
   }
 
-  .progressCard {
-    padding: 12px 14px;
-  }
-
-  .progressGrid {
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-  }
-
-  .progressStat:nth-child(3) {
-    grid-column: 1 / -1;
-  }
-
-  .progressMeta {
-    flex-direction: column;
+  .progressLeadRow {
     align-items: flex-start;
-    gap: 8px;
+  }
+
+  .progressSummary {
+    width: 100%;
+  }
+
+  .progressSummaryItem {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .progressSummaryValue {
+    text-align: left;
   }
 }
 
@@ -371,6 +436,15 @@
   -webkit-backdrop-filter: var(--glass-filter);
   overflow: hidden;
   min-height: 420px;
+}
+
+.readingPanel :where(.htmlViewport, .pdfViewport) {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .pdfFrame {
@@ -890,7 +964,7 @@
 
 .tasks {
   display: grid;
-  gap: 16px;
+  gap: 18px;
 }
 
 .taskTabs {
@@ -901,22 +975,20 @@
 }
 
 .taskTab {
-  border: var(--border-width) solid var(--glass-border);
-  background: var(--glass-tint);
-  color: var(--text-primary);
-  padding: 8px 14px;
-  min-width: 44px;
-  min-height: 40px;
+  border: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 86%, transparent);
+  background: color-mix(in srgb, white 90%, var(--surface-2));
+  color: color-mix(in srgb, var(--text-muted) 72%, var(--text-primary));
+  width: 38px;
+  height: 38px;
   text-align: center;
-  font-size: 13px;
+  font-size: 0.875rem;
   font-weight: 600;
-  font-family: var(--font-heading), sans-serif;
+  font-family: var(--font-body), sans-serif;
   cursor: pointer;
-  border-radius: 999px;
-  display: grid;
-  gap: 4px;
+  border-radius: 12px;
+  display: inline-flex;
   align-items: center;
-  justify-items: center;
+  justify-content: center;
   transition:
     background var(--motion-fast) ease,
     color var(--motion-fast) ease,
@@ -926,9 +998,9 @@
 }
 
 .taskTab:hover:not(:disabled) {
-  background: var(--surface-2);
-  border-color: color-mix(in srgb, var(--glass-border) 60%, var(--border-primary) 40%);
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  background: color-mix(in srgb, white 96%, var(--surface-2));
+  border-color: color-mix(in srgb, var(--glass-border) 40%, var(--border-primary));
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
   transform: translateY(-1px);
 }
 
@@ -956,7 +1028,7 @@
   background: var(--bg-accent);
   color: var(--text-accent);
   border-color: var(--bg-accent);
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.16);
 }
 
 .taskTabActive:hover:not(:disabled) {
@@ -967,15 +1039,15 @@
 }
 
 .taskTabDone {
-  background: color-mix(in srgb, #22c55e 18%, var(--surface-2));
-  border-color: color-mix(in srgb, #22c55e 40%, var(--glass-border));
-  color: color-mix(in srgb, #15803d 82%, var(--text-primary));
+  background: var(--student-success-surface);
+  border-color: color-mix(in srgb, var(--student-success) 32%, var(--glass-border));
+  color: var(--student-success);
 }
 
 .taskTabDone:hover:not(:disabled) {
-  background: color-mix(in srgb, #22c55e 24%, var(--surface-2));
-  border-color: color-mix(in srgb, #22c55e 52%, var(--glass-border));
-  box-shadow: 0 2px 10px rgba(34, 197, 94, 0.12);
+  background: var(--student-success-surface);
+  border-color: color-mix(in srgb, var(--student-success) 46%, var(--glass-border));
+  box-shadow: 0 10px 22px rgba(16, 185, 129, 0.12);
 }
 
 .taskTabStatus {
@@ -986,17 +1058,13 @@
 }
 
 .taskCard {
-  border: var(--border-width) solid var(--glass-border);
-  padding: 18px 20px;
-  background:
-    radial-gradient(ellipse at top right, color-mix(in srgb, var(--surface-2) 50%, transparent), transparent 60%),
-    var(--card-bg);
+  border: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 88%, transparent);
+  padding: clamp(24px, 3vw, 42px);
+  background: color-mix(in srgb, white 96%, var(--surface-2));
   display: grid;
-  gap: 16px;
-  border-radius: var(--card-radius);
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
-  backdrop-filter: var(--glass-filter);
-  -webkit-backdrop-filter: var(--glass-filter);
+  gap: 24px;
+  border-radius: calc(var(--card-radius) + 8px);
+  box-shadow: 0 22px 50px rgba(15, 23, 42, 0.06);
 }
 
 .photoCard {
@@ -1049,8 +1117,8 @@
 }
 
 .photoStatusAccepted {
-  border-color: color-mix(in srgb, #16a34a 35%, var(--glass-border));
-  background: color-mix(in srgb, #16a34a 16%, var(--surface-2));
+  border-color: color-mix(in srgb, var(--student-success) 35%, var(--glass-border));
+  background: var(--student-success-surface);
 }
 
 .photoStatusRejected {
@@ -1240,11 +1308,25 @@
 .taskHeader {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 12px;
+  align-items: flex-start;
+  gap: 16px;
   flex-wrap: wrap;
-  padding-bottom: 12px;
-  border-bottom: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 70%, transparent);
+}
+
+.taskHeaderCopy {
+  display: grid;
+  gap: 8px;
+  max-width: min(100%, 36rem);
+}
+
+.taskEyebrow {
+  font-family: var(--text-overline-family), sans-serif;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
 .taskHeaderBadges {
@@ -1257,18 +1339,19 @@
 .taskTitle {
   font-family: var(--font-heading), sans-serif;
   font-weight: 600;
-  font-size: 1.05rem;
-  letter-spacing: -0.01em;
+  font-size: clamp(1.4rem, 2vw, 1.8rem);
+  letter-spacing: -0.025em;
+  line-height: 1.14;
 }
 
 .taskBadge {
-  border: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 70%, color-mix(in srgb, #f59e0b 20%, transparent));
-  padding: 4px 12px;
+  border: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 88%, transparent);
+  padding: 7px 12px;
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  font-weight: 600;
-  background: color-mix(in srgb, #f59e0b 8%, var(--surface-2));
+  font-weight: 700;
+  background: color-mix(in srgb, white 94%, var(--surface-2));
   color: var(--text-muted);
   border-radius: 999px;
   display: inline-flex;
@@ -1276,11 +1359,12 @@
   gap: 6px;
 }
 
-
 .taskStatement {
-  font-size: 15px;
-  line-height: 1.6;
+  font-family: var(--font-body), sans-serif;
+  font-size: clamp(1rem, 1.35vw, 1.2rem);
+  line-height: 1.72;
   color: var(--text-primary);
+  max-width: 44rem;
 }
 
 .statementImageBlock {
@@ -1335,8 +1419,8 @@
 }
 
 .statusBadgeSuccess {
-  background: color-mix(in srgb, #22c55e 16%, var(--surface-2));
-  border-color: color-mix(in srgb, #22c55e 35%, var(--glass-border));
+  background: var(--student-success-surface);
+  border-color: color-mix(in srgb, var(--student-success) 35%, var(--glass-border));
 }
 
 .statusBadgeWarn {
@@ -1455,17 +1539,59 @@
 
 .taskActions {
   display: flex;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 18px;
   flex-wrap: wrap;
   align-items: center;
-  padding-top: 14px;
-  border-top: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 70%, transparent);
+  padding-top: 22px;
+  border-top: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 80%, transparent);
+}
+
+.taskActionButtons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.taskAttemptsMeta {
+  margin-left: auto;
+  font-family: var(--text-overline-family), sans-serif;
+  font-size: 0.625rem;
+  line-height: 1.2;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: color-mix(in srgb, var(--text-muted) 74%, transparent);
+}
+
+.solutionToggleLink {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-body), sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.2;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--motion-fast) ease;
+}
+
+.solutionToggleLink:hover {
+  color: var(--text-primary);
+}
+
+.solutionToggleLink:focus-visible {
+  outline: var(--focus-ring-width) solid var(--border-primary);
+  outline-offset: 4px;
+  border-radius: 6px;
 }
 
 .taskResultCorrect {
-  border: var(--border-width-thin) solid color-mix(in srgb, #22c55e 30%, var(--glass-border));
-  background: color-mix(in srgb, #22c55e 10%, var(--surface-2));
-  color: color-mix(in srgb, #15803d 82%, var(--text-primary));
+  border: var(--border-width-thin) solid color-mix(in srgb, var(--student-success) 30%, var(--glass-border));
+  background: var(--student-success-surface);
+  color: var(--student-success);
   padding: 8px 14px;
   border-radius: var(--control-radius);
   font-size: 13px;
@@ -1495,7 +1621,7 @@
 .taskDone {
   border: var(--border-width) solid var(--glass-border);
   padding: 8px 10px;
-  background: color-mix(in srgb, #22c55e 12%, var(--surface-2));
+  background: var(--student-success-surface);
   color: var(--text-primary);
   font-size: 12px;
   border-radius: var(--control-radius);
@@ -1503,39 +1629,58 @@
 
 .answerList {
   display: grid;
-  gap: 10px;
+  gap: 14px;
 }
 
 .answerRow {
-  display: block;
-}
-
-.answerInline {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 14px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .answerIndex {
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: 0.9rem;
   min-width: 20px;
+  padding-top: 0;
+}
+
+.answerContent {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.answerInputRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex: 0 0 auto;
 }
 
 .answerLabelText {
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: 0.98rem;
   font-weight: 500;
+  line-height: 1.55;
+  flex: 0 1 auto;
 }
 
 .answerInputInline {
-  border: var(--border-width) solid var(--control-border);
-  background: var(--bg-field);
+  border: var(--border-width-thin) solid color-mix(in srgb, var(--control-border) 92%, transparent);
+  background: white;
   color: var(--text-primary);
-  padding: 10px 12px;
-  font-size: 14px;
-  min-width: 160px;
+  padding: 12px 14px;
+  font-size: 0.95rem;
+  min-width: 180px;
   border-radius: var(--control-radius);
   transition:
     border-color var(--motion-fast) ease,
@@ -1573,27 +1718,27 @@
 
 .optionList {
   display: grid;
-  gap: 6px;
+  gap: 10px;
 }
 
 .optionItem {
   display: grid;
-  grid-template-columns: 22px minmax(0, 18px) minmax(0, 1fr);
-  gap: 6px;
+  grid-template-columns: 24px minmax(0, 20px) minmax(0, 1fr);
+  gap: 12px;
   align-items: center;
-  padding: 10px 12px;
+  padding: 16px 18px;
   cursor: pointer;
-  border: var(--border-width-thin) solid transparent;
-  border-radius: var(--control-radius);
-  background: transparent;
+  border: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 86%, transparent);
+  border-radius: calc(var(--control-radius) + 2px);
+  background: color-mix(in srgb, white 97%, var(--surface-2));
   transition:
     background var(--motion-fast) ease,
     border-color var(--motion-fast) ease;
 }
 
 .optionItem:hover {
-  background: color-mix(in srgb, var(--surface-2) 80%, transparent);
-  border-color: color-mix(in srgb, var(--glass-border) 50%, transparent);
+  background: color-mix(in srgb, white 99%, var(--surface-2));
+  border-color: color-mix(in srgb, var(--glass-border) 48%, var(--border-primary));
 }
 
 .optionInput {
@@ -1661,15 +1806,15 @@
 
 .optionIndex {
   color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 0.8125rem;
+  font-weight: 600;
   letter-spacing: 0.06em;
 }
 
 .optionText {
   color: var(--text-primary);
-  font-size: 14px;
-  line-height: 1.45;
+  font-size: 0.98rem;
+  line-height: 1.55;
 }
 
 .partResult {
@@ -1684,9 +1829,9 @@
 }
 
 .partResultCorrect {
-  background: color-mix(in srgb, #22c55e 18%, var(--surface-2));
-  border-color: color-mix(in srgb, #22c55e 40%, var(--glass-border));
-  color: color-mix(in srgb, #15803d 82%, var(--text-primary));
+  background: var(--student-success-surface);
+  border-color: color-mix(in srgb, var(--student-success) 40%, var(--glass-border));
+  color: var(--student-success);
 }
 
 .partResultIncorrect {
@@ -1766,37 +1911,78 @@
 @media (max-width: 720px) {
   .progressCard {
     padding: 12px;
+    gap: 14px;
+  }
+
+  .progressSummary {
     gap: 10px;
   }
 
-  .progressGrid {
-    grid-template-columns: 1fr;
-    gap: 12px;
+  .progressSummaryDivider {
+    display: none;
   }
 
-  .progressStat:nth-child(3) {
-    grid-column: auto;
-  }
-
-  .progressStatValue {
-    font-size: clamp(19px, 7vw, 26px);
-  }
-
-  .progressMetaItem {
-    font-size: clamp(12px, 4.2vw, 14px);
+  .progressLeadValue {
+    font-size: clamp(1.8rem, 9vw, 2.4rem);
   }
 
   .unitTabs {
     width: 100% !important;
     min-width: 0;
     flex: 1 1 auto !important;
-    border-radius: var(--header-chip-radius);
+    gap: 18px;
   }
 
   .unitTabs [role="tab"] {
-    min-height: 46px;
-    font-size: 14px;
-    padding: 8px 14px;
+    min-height: auto;
+    font-size: 0.9rem;
+    padding-bottom: 14px;
+  }
+
+  .taskCard {
+    padding: 18px;
+    gap: 18px;
+  }
+
+  .taskTitle {
+    font-size: 1.2rem;
+  }
+
+  .taskActions {
+    align-items: flex-start;
+  }
+
+  .taskActionButtons {
+    width: 100%;
+  }
+
+  .taskAttemptsMeta {
+    margin-left: 0;
+  }
+
+  .answerRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .answerContent {
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .answerInputRow {
+    width: 100%;
+  }
+
+  .answerInputInline {
+    width: min(100%, 240px);
+  }
+
+  .optionItem {
+    grid-template-columns: 24px minmax(0, 18px) minmax(0, 1fr);
+    padding: 14px;
   }
 
   .solutionHtmlViewport {

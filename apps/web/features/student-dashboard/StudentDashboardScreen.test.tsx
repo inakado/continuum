@@ -163,7 +163,7 @@ describe("StudentDashboardScreen", () => {
     await user.click(await screen.findByRole("button", { name: /Алгебра/i }));
 
     expect(await screen.findByText("Линейные уравнения")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Курсы" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "К КУРСАМ" })).toBeInTheDocument();
     await waitFor(() => {
       expect(studentApi.getCourse).toHaveBeenCalledWith("course-1");
     });
@@ -273,7 +273,8 @@ describe("StudentDashboardScreen", () => {
 
     await user.click(await screen.findByRole("button", { name: /Алгебра/i }));
 
-    expect(screen.getByRole("button", { name: /Квадратные уравнения/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Квадратные уравнения/i })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("button", { name: /Квадратные уравнения/i })).toHaveAttribute("tabindex", "-1");
     expect(screen.getByText("Сначала завершите предыдущий раздел")).toBeInTheDocument();
   });
 
@@ -400,6 +401,6 @@ describe("StudentDashboardScreen", () => {
     await user.click(screen.getByRole("button", { name: "Назад к разделам" }));
 
     expect(await screen.findByText("Линейные уравнения")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Курсы" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "К КУРСАМ" })).toBeInTheDocument();
   });
 });

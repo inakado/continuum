@@ -8,8 +8,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
+  ArrowLeft,
   BookOpen,
-  ChevronLeft,
   Clock3,
   PlayCircle,
   Sparkles,
@@ -81,13 +81,6 @@ const motionItem: Variants = {
     },
   },
 };
-
-const carouselSwapMotion = {
-  initial: { opacity: 0, scale: 0.98, filter: "blur(8px)" },
-  animate: { opacity: 1, scale: 1, filter: "blur(0px)" },
-  exit: { opacity: 0, scale: 1.02, filter: "blur(8px)" },
-  transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] },
-} as const;
 
 const StudentSectionGraphPanel = dynamic(() => import("./StudentSectionGraphPanel"), {
   ssr: false,
@@ -163,176 +156,6 @@ const ProgressBar = ({
   </div>
 );
 
-const StudentCourseCarousel = ({
-  courses,
-  dashboardOverview,
-  initialCourseId,
-  onCourseClick,
-}: {
-  courses: Course[];
-  dashboardOverview: StudentDashboardOverview | null;
-  initialCourseId: string | null;
-  onCourseClick: (courseId: string) => void;
-}) => {
-  const [activeIndex, setActiveIndex] = useState(0);
-
-  useEffect(() => {
-    setActiveIndex((current) => {
-      if (courses.length === 0) return 0;
-      const preferredIndex = initialCourseId
-        ? courses.findIndex((course) => course.id === initialCourseId)
-        : 0;
-      if (preferredIndex >= 0) {
-        return preferredIndex;
-      }
-      return current >= courses.length ? 0 : current;
-    });
-  }, [courses, initialCourseId]);
-
-  if (courses.length === 0) {
-    return <div className={styles.empty}>Пока нет опубликованных курсов</div>;
-  }
-
-  const safeIndex = Math.min(activeIndex, courses.length - 1);
-  const activeCourse = courses[safeIndex] ?? courses[0];
-  const deckCourses = courses.filter((_, index) => index !== safeIndex);
-  const activeCourseProgress = getCourseProgress(dashboardOverview, activeCourse.id);
-  const activeCourseSections = getCourseSectionCount(dashboardOverview, activeCourse.id);
-  const activeCourseCoverUrl = getCourseCoverUrl(dashboardOverview, activeCourse.id);
-
-  return (
-    <div className={styles.carouselRoot}>
-      <div className={styles.carouselActiveArea}>
-        <AnimatePresence mode="wait">
-          <m.div
-            key={activeCourse.id}
-            className={styles.carouselActiveCard}
-            initial={carouselSwapMotion.initial}
-            animate={carouselSwapMotion.animate}
-            exit={carouselSwapMotion.exit}
-            transition={carouselSwapMotion.transition}
-          >
-            <div className={styles.carouselMainRow}>
-              <div className={styles.carouselContent}>
-                <h2 className={styles.carouselTitle}>{activeCourse.title}</h2>
-                <div className={styles.carouselDescriptionWrap}>
-                  <div className={styles.carouselDescriptionLine} />
-                  <p className={styles.carouselDescription}>
-                    {activeCourse.description ?? "Описание курса появится после публикации преподавателем."}
-                  </p>
-                </div>
-              </div>
-
-              <div className={styles.carouselMediaPane}>
-                {activeCourseCoverUrl ? (
-                  <div className={styles.carouselDecoration}>
-                    <Image
-                      alt=""
-                      className={styles.carouselDecorationImage}
-                      src={activeCourseCoverUrl}
-                      width={1440}
-                      height={960}
-                      unoptimized
-                    />
-                  </div>
-                ) : null}
-              </div>
-            </div>
-
-            <div className={styles.carouselFooter}>
-              <div className={styles.carouselStats}>
-                <div className={styles.carouselStat}>
-                  <div className={styles.carouselStatLabel}>Прогресс</div>
-                  <div className={styles.carouselStatValue}>{activeCourseProgress}%</div>
-                </div>
-                <div className={styles.carouselDivider} />
-                <div className={styles.carouselStat}>
-                  <div className={styles.carouselStatLabel}>
-                    <BookOpen size={12} /> Разделов
-                  </div>
-                  <div className={styles.carouselStatValue}>{activeCourseSections}</div>
-                </div>
-              </div>
-
-              <div className={styles.carouselActionCell}>
-                <button
-                  type="button"
-                  aria-label={activeCourse.title}
-                  className={styles.darkActionButton}
-                  onClick={() => onCourseClick(activeCourse.id)}
-                >
-                  Перейти к курсу
-                  <ArrowRight size={18} />
-                </button>
-              </div>
-            </div>
-          </m.div>
-        </AnimatePresence>
-      </div>
-
-      <div className={styles.carouselDeckArea}>
-        <div className={styles.carouselDeckStack}>
-          <AnimatePresence>
-            {deckCourses.map((course, index) => {
-              const originalIndex = courses.findIndex((candidate) => candidate.id === course.id);
-              const courseCoverUrl = getCourseCoverUrl(dashboardOverview, course.id);
-              return (
-                <m.button
-                  key={course.id}
-                  type="button"
-                  className={styles.deckCard}
-                  onClick={() => setActiveIndex(originalIndex)}
-                  initial={{ opacity: 0, x: 30, scale: 0.9 }}
-                  animate={{
-                    opacity: 1,
-                    x: 0,
-                    y: index * -18,
-                    scale: 1 - index * 0.04,
-                    rotateZ: index === 0 ? 0 : index % 2 === 0 ? 2 : -2,
-                  }}
-                  exit={{ opacity: 0, x: -30, scale: 0.9 }}
-                  transition={{
-                    type: "spring",
-                    stiffness: 300,
-                    damping: 25,
-                    delay: index * 0.05,
-                  }}
-                >
-                  <div className={styles.deckCardHeader}>
-                    <div className={styles.deckArrowIcon}>
-                      <ArrowRight size={12} />
-                    </div>
-                  </div>
-
-                  <div>
-                    {courseCoverUrl ? (
-                      <div className={styles.deckCoverFrame}>
-                        <Image
-                          alt=""
-                          className={styles.deckCoverImage}
-                          src={courseCoverUrl}
-                          width={480}
-                          height={192}
-                          unoptimized
-                        />
-                      </div>
-                    ) : null}
-                    <h3 className={styles.deckTitle}>{course.title}</h3>
-                  </div>
-                </m.button>
-              );
-            })}
-          </AnimatePresence>
-        </div>
-
-        <div className={styles.carouselDeckInfo}>
-          <span className={styles.carouselDeckInfoActive}>{safeIndex + 1}</span> / {courses.length}
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const StudentCoursesView = ({
   courses,
   dashboardOverview,
@@ -356,87 +179,129 @@ const StudentCoursesView = ({
       <div className={styles.pageGlow} aria-hidden="true" />
 
       <m.section variants={motionItem} className={styles.pageIntro}>
-        <h1 className={styles.pageTitle}>Мои курсы</h1>
+        <h1 className={styles.pageTitle}>Обучение</h1>
         <p className={styles.pageSubtitle}>
-          Выберите курс, чтобы продолжить обучение. Здесь собраны все доступные программы.
+          Продолжите изучение текущего материала или выберите новый курс.
         </p>
       </m.section>
 
+      {/* Primary Action First! */}
+      {continueLearning || !loadingCourses ? (
+        <m.section variants={motionItem}>
+          <div className={styles.continueCard}>
+            <div className={styles.continueGlow} aria-hidden="true" />
+
+            <div>
+              <div className={styles.pillLabel}>
+                <Clock3 size={12} className={styles.pillLabelBlue} />
+                <span>Продолжить</span>
+              </div>
+
+              {continueLearning ? (
+                <>
+                  <h2 className={styles.continueTitle}>{continueLearning.unitTitle}</h2>
+                  <p className={styles.continueMeta}>
+                    Раздел: {continueLearning.sectionTitle} • Курс: {continueLearning.courseTitle}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h2 className={styles.continueTitle}>Следующий шаг появится здесь</h2>
+                  <p className={styles.continueMeta}>
+                    Как только преподаватель откроет новый юнит, на карточке появится точка возврата.
+                  </p>
+                </>
+              )}
+            </div>
+
+            <div className={styles.continueBottom}>
+              <div className={styles.continueProgressBox}>
+                <div className={styles.progressCaption}>Прогресс юнита</div>
+                <div className={styles.progressValue}>
+                  {continueLearning ? `${continueLearning.completionPercent}%` : "0%"}
+                </div>
+              </div>
+
+              {continueLearning ? (
+                <button
+                  type="button"
+                  className={styles.darkActionButton}
+                  onClick={() => onContinueLearning(continueLearning.href)}
+                >
+                  Продолжить обучение
+                  <ArrowRight size={16} />
+                </button>
+              ) : (
+                <div className={styles.continueImagePlaceholder}>
+                  {continueCourseCoverUrl ? (
+                    <Image
+                      alt=""
+                      className={styles.continuePreviewImage}
+                      src={continueCourseCoverUrl}
+                      width={288}
+                      height={288}
+                      unoptimized
+                    />
+                  ) : (
+                    <Sparkles size={22} />
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </m.section>
+      ) : null}
+
+      {/* Then all available courses grid */}
       <m.section variants={motionItem}>
+        <div className={styles.sectionsListHead}>
+          <h2 className={styles.gridTitle}>Все курсы</h2>
+        </div>
         {loadingCourses ? (
           <div className={styles.empty}>Загрузка курсов…</div>
+        ) : courses.length === 0 ? (
+          <div className={styles.empty}>Пока нет опубликованных курсов</div>
         ) : (
-          <StudentCourseCarousel
-            courses={courses}
-            dashboardOverview={dashboardOverview}
-            initialCourseId={continueLearning?.courseId ?? null}
-            onCourseClick={onCourseClick}
-          />
+          <div className={styles.sdGrid}>
+            {courses.map(course => (
+              <m.div key={course.id} variants={motionItem}>
+                <div 
+                  className={`${styles.sdCard} ${styles.sdCardHoverable}`} 
+                  onClick={() => onCourseClick(course.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onCourseClick(course.id) }}
+                >
+                  {getCourseCoverUrl(dashboardOverview, course.id) ? (
+                    <div className={styles.sdCardMedia}>
+                      <Image 
+                        src={getCourseCoverUrl(dashboardOverview, course.id)!} 
+                        alt="" 
+                        className={styles.sdCardMediaImage} 
+                        width={640} 
+                        height={320} 
+                        unoptimized 
+                      />
+                    </div>
+                  ) : null}
+                  <div className={styles.sdCardHeader}>
+                    <h3 className={styles.sdCardTitle}>{course.title}</h3>
+                    {course.description && <p className={styles.sdCardSubtitle}>{course.description}</p>}
+                  </div>
+                  <div className={styles.sdCardFooter}>
+                    <div className={styles.flexRow}>
+                      <span className={styles.mutedText}>Прогресс {getCourseProgress(dashboardOverview, course.id)}%</span>
+                    </div>
+                    <div className={styles.flexRow}>
+                      <BookOpen size={14} className={styles.mutedText} /> 
+                      <span className={styles.mutedText}>{getCourseSectionCount(dashboardOverview, course.id)}</span>
+                    </div>
+                  </div>
+                </div>
+              </m.div>
+            ))}
+          </div>
         )}
-      </m.section>
-
-      <m.section variants={motionItem} className={styles.bottomGrid}>
-        <div className={styles.continueCard}>
-          <div className={styles.continueGlow} aria-hidden="true" />
-
-          <div>
-            <div className={styles.pillLabel}>
-              <Clock3 size={12} className={styles.pillLabelBlue} />
-              <span>Продолжить обучение</span>
-            </div>
-
-            {continueLearning ? (
-              <>
-                <h2 className={styles.continueTitle}>{continueLearning.unitTitle}</h2>
-                <p className={styles.continueMeta}>
-                  Раздел: {continueLearning.sectionTitle} • Курс: {continueLearning.courseTitle}
-                </p>
-              </>
-            ) : (
-              <>
-                <h2 className={styles.continueTitle}>Следующий шаг появится здесь</h2>
-                <p className={styles.continueMeta}>
-                  Как только преподаватель откроет новый юнит, на карточке появится точка возврата.
-                </p>
-              </>
-            )}
-          </div>
-
-          <div className={styles.continueBottom}>
-            <div className={styles.continueProgressBox}>
-              <div className={styles.progressCaption}>Прогресс раздела</div>
-              <div className={styles.progressValue}>
-                {continueLearning ? `${continueLearning.completionPercent}%` : "0%"}
-              </div>
-            </div>
-
-            {continueLearning ? (
-              <button
-                type="button"
-                className={styles.darkActionButton}
-                onClick={() => onContinueLearning(continueLearning.href)}
-              >
-                Продолжить обучение
-                <ArrowRight size={16} />
-              </button>
-            ) : (
-              <div className={styles.continueImagePlaceholder}>
-                {continueCourseCoverUrl ? (
-                  <Image
-                    alt=""
-                    className={styles.continuePreviewImage}
-                    src={continueCourseCoverUrl}
-                    width={288}
-                    height={288}
-                    unoptimized
-                  />
-                ) : (
-                  <Sparkles size={22} />
-                )}
-              </div>
-            )}
-          </div>
-        </div>
       </m.section>
     </m.div>
   );
@@ -460,100 +325,89 @@ const StudentSectionsView = ({
 
     <m.div variants={motionItem} className={styles.sectionsBackRow}>
       <button type="button" className={styles.backChip} onClick={onBackToCourses}>
-        <ChevronLeft size={14} aria-hidden="true" />
-        <span>Курсы</span>
+        <ArrowLeft className={styles.backChipIcon} size={16} strokeWidth={2.2} aria-hidden="true" />
+        <span>К КУРСАМ</span>
       </button>
     </m.div>
 
-    <m.header variants={motionItem} className={styles.sectionsHeader}>
-      <div className={styles.sectionsMainCard}>
-        <div className={styles.sectionsHero}>
-          <div className={styles.sectionsHeroCopy}>
-            <h1 className={styles.sectionsCourseTitle}>{course.title}</h1>
-            {course.description ? (
-              <p className={styles.sectionsCourseDescription}>{course.description}</p>
-            ) : null}
-          </div>
-
-          <div className={styles.sectionsHeaderDecoration}>
-            {courseSummary?.coverImageUrl ? (
-              <Image
-                alt=""
-                className={styles.sectionsHeaderDecorationImage}
-                src={courseSummary.coverImageUrl}
-                width={720}
-                height={312}
-                unoptimized
-              />
-            ) : null}
-          </div>
-        </div>
-
-        <div className={styles.sectionsHeroFooter}>
-          <div className={styles.sectionsProgressPanel}>
-            <div className={styles.progressCaption}>Общий прогресс</div>
-            <div className={styles.overallProgressValue}>{courseSummary?.progressPercent ?? 0}%</div>
-            <ProgressBar value={courseSummary?.progressPercent ?? 0} label="По курсу" showValue={false} />
-          </div>
-        </div>
+    <m.header variants={motionItem} className={styles.sectionsHeroCard}>
+      <div className={styles.sectionsHeroContent}>
+         <h1 className={styles.pageTitle} style={{ marginBottom: "16px" }}>{course.title}</h1>
+         {course.description && <p className={styles.pageSubtitle} style={{ marginBottom: "32px", maxWidth: "42rem" }}>{course.description}</p>}
+         
+         <div>
+            <div className={styles.progressCaption}>Прогресс курса</div>
+            <div className={styles.overallProgressValue} style={{ fontSize: "40px" }}>{courseSummary?.progressPercent ?? 0}%</div>
+         </div>
       </div>
+      {courseSummary?.coverImageUrl ? (
+        <div className={styles.sectionsHeroMedia}>
+          <Image
+            alt=""
+            className={styles.sectionsHeroMediaImage}
+            src={courseSummary.coverImageUrl}
+            width={800}
+            height={600}
+            unoptimized
+          />
+        </div>
+      ) : null}
     </m.header>
 
     <m.section variants={motionItem} className={styles.sectionsListWrap}>
       <div className={styles.sectionsListHead}>
-        <h2 className={styles.sectionsListTitle}>Разделы курса</h2>
+        <h2 className={styles.sectionsListTitle}>Разделы</h2>
       </div>
 
-      <div className={styles.sectionsList}>
+      <div className={styles.sdGridSingle}>
         {sections.length === 0 ? (
           <div className={styles.empty}>Разделов пока нет</div>
         ) : (
           sections.map((section, index) => (
-            <m.button
+             <m.div
               key={section.id}
-              type="button"
               variants={motionItem}
-              className={`${styles.sectionCard} ${section.accessStatus === "locked" ? styles.sectionCardLocked : ""}`}
-              whileHover={section.accessStatus === "locked" ? undefined : { y: -2 }}
-              whileTap={{ scale: 0.995 }}
-              onClick={() => onSectionClick(section)}
-              disabled={section.accessStatus === "locked"}
-              aria-disabled={section.accessStatus === "locked"}
+             className={`${styles.sdCard} ${section.accessStatus === "locked" ? styles.sectionCardLocked : styles.sdCardHoverable}`}
+              onClick={section.accessStatus === "locked" ? undefined : () => onSectionClick(section)}
+              role="button"
+              aria-disabled={section.accessStatus === "locked" ? "true" : undefined}
+              tabIndex={section.accessStatus === "locked" ? -1 : 0}
+              onKeyDown={(e) => {
+                 if (section.accessStatus !== "locked" && (e.key === 'Enter' || e.key === ' ')) {
+                   onSectionClick(section)
+                 }
+              }}
             >
-              <div className={styles.sectionMediaBlock}>
-                <div className={styles.sectionOrdinalPill}>{String(index + 1).padStart(2, "0")}</div>
-                <div className={styles.sectionPlayBadge}>
-                  <PlayCircle size={18} />
-                </div>
+              <div className={styles.sdCardHeader} style={{ flexDirection: 'row', alignItems: 'center', gap: '16px', paddingBottom: '24px' }}>
+                 <div className={styles.sectionMediaBlock}>
+                   <div className={styles.sectionOrdinalPill}>{String(index + 1).padStart(2, "0")}</div>
+                   <div className={styles.sectionPlayBadge}>
+                     <PlayCircle size={18} />
+                   </div>
+                 </div>
+                 
+                 <div style={{ flex: 1 }}>
+                   <h3 className={styles.sdCardTitle} style={{ fontSize: '18px' }}>{section.title}</h3>
+                   <p className={styles.sdCardSubtitle} style={{ marginTop: '8px', WebkitLineClamp: 3, lineClamp: 3 }}>
+                     {getSectionDescription(section, index, course.title)}
+                   </p>
+                   {section.accessStatus === "locked" ? (
+                     <div className={styles.sectionLockHint}>Сначала завершите предыдущий раздел</div>
+                   ) : null}
+                 </div>
+                 
+                 <div className={styles.sectionActionBlock}>
+                     <span
+                      className={`${styles.sectionOpenButton} ${
+                        section.accessStatus === "locked" ? styles.sectionOpenButtonLocked : ""
+                      }`}
+                    >
+                      {section.accessStatus === "locked" ? "Заблокирован" : "Открыть"}
+                      {section.accessStatus !== "locked" && <ArrowRight size={14} />}
+                    </span>
+                 </div>
               </div>
-
-              <div className={styles.sectionContentBlock}>
-                <div className={styles.sectionTitleRow}>
-                  <h3 className={styles.sectionTitle}>{section.title}</h3>
-                </div>
-                <p className={styles.sectionDescription}>
-                  {getSectionDescription(section, index, course.title)}
-                </p>
-                <div className={styles.sectionProgressInline}>
-                  <div className={styles.progressCaption}>Прогресс</div>
-                  <div className={styles.sectionProgressBadge}>{section.completionPercent ?? 0}%</div>
-                </div>
-                {section.accessStatus === "locked" ? (
-                  <div className={styles.sectionLockHint}>Сначала завершите предыдущий раздел</div>
-                ) : null}
-              </div>
-
-              <div className={styles.sectionActionBlock}>
-                <span
-                  className={`${styles.sectionOpenButton} ${
-                    section.accessStatus === "locked" ? styles.sectionOpenButtonLocked : ""
-                  }`}
-                >
-                  {section.accessStatus === "locked" ? "Заблокирован" : "Открыть"}
-                  <ArrowRight size={14} />
-                </span>
-              </div>
-            </m.button>
+            </m.div>
           ))
         )}
       </div>
