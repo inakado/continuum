@@ -92,27 +92,52 @@ type ChoiceAnswerFieldsProps = {
   onRemoveChoice: (index: number) => void;
 };
 
+let localTaskFormItemSeed = 0;
+
+const createLocalItemKey = (prefix: "part" | "choice") => {
+  localTaskFormItemSeed += 1;
+  return `${prefix}-${localTaskFormItemSeed}`;
+};
+
 const defaultNumericPart = (): NumericPart => ({
-  key: "",
+  key: createLocalItemKey("part"),
   labelLite: "",
   correctValue: "",
 });
 
 const defaultChoice = (): Choice => ({
-  key: "",
+  key: createLocalItemKey("choice"),
   textLite: "",
 });
 
-const defaultState: TaskFormData = {
+const createDefaultState = (): TaskFormData => ({
   statementLite: "",
   methodGuidance: "",
   answerType: "numeric",
-  numericParts: [{ ...defaultNumericPart(), key: "" }],
-  choices: [{ ...defaultChoice(), key: "" }, { ...defaultChoice(), key: "" }],
+  numericParts: [defaultNumericPart()],
+  choices: [defaultChoice(), defaultChoice()],
   correctAnswer: null,
   isRequired: false,
   sortOrder: 1,
-};
+});
+
+const defaultState = createDefaultState();
+
+const normalizeNumericParts = (parts?: NumericPart[]) =>
+  parts?.length
+    ? parts.map((part) => ({
+        ...part,
+        key: createLocalItemKey("part"),
+      }))
+    : createDefaultState().numericParts;
+
+const normalizeChoices = (choices?: Choice[]) =>
+  choices?.length
+    ? choices.map((choice) => ({
+        ...choice,
+        key: createLocalItemKey("choice"),
+      }))
+    : createDefaultState().choices;
 
 const buildCorrectAnswer = (answerType: AnswerType, key: string, keys: string[]): CorrectAnswer => {
   if (answerType === "single_choice") {
@@ -418,15 +443,6 @@ function ChoiceAnswerFields({
   );
 }
 
-function PhotoAnswerFields() {
-  return (
-    <div className={styles.section}>
-      <div className={styles.sectionTitle}>Фото-ответ</div>
-      <div className={styles.stub}>Загрузка фото будет добавлена в следующем слайсе.</div>
-    </div>
-  );
-}
-
 export default function TaskForm({
   title,
   submitLabel,
@@ -439,7 +455,7 @@ export default function TaskForm({
   afterStatementSection,
   extraSection,
 }: TaskFormProps) {
-  const [form, setForm] = useState<TaskFormData>(defaultState);
+  const [form, setForm] = useState<TaskFormData>(() => createDefaultState());
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [correctSingleIndex, setCorrectSingleIndex] = useState<number | null>(null);
   const [correctMultiIndices, setCorrectMultiIndices] = useState<number[]>([]);
@@ -456,8 +472,9 @@ export default function TaskForm({
   }, [correctMultiIndices]);
 
   useEffect(() => {
-    const numericParts = initial?.numericParts?.length ? initial.numericParts : defaultState.numericParts;
-    const choices = initial?.choices?.length ? initial.choices : defaultState.choices;
+    const baseState = createDefaultState();
+    const numericParts = normalizeNumericParts(initial?.numericParts);
+    const choices = normalizeChoices(initial?.choices);
     const initialCorrectSingleIndex =
       initial?.correctAnswer && choices.length && "key" in initial.correctAnswer && initial.correctAnswer.key
         ? choices.findIndex((choice) => choice.key === initial.correctAnswer?.key)
@@ -470,7 +487,7 @@ export default function TaskForm({
         : [];
 
     setForm({
-      ...defaultState,
+      ...baseState,
       ...initial,
       numericParts,
       choices,
@@ -492,7 +509,7 @@ export default function TaskForm({
     }
     const nextComparable = buildComparableState({
       form: {
-        ...defaultState,
+        ...baseState,
         ...initial,
         numericParts,
         choices,
@@ -510,10 +527,10 @@ export default function TaskForm({
     setForm((prev) => ({
       ...prev,
       answerType: nextType,
-      numericParts: nextType === "numeric" ? [{ ...defaultNumericPart(), key: "" }] : [],
+      numericParts: nextType === "numeric" ? [defaultNumericPart()] : [],
       choices:
         nextType === "single_choice" || nextType === "multi_choice"
-          ? [{ ...defaultChoice(), key: "" }, { ...defaultChoice(), key: "" }]
+          ? [defaultChoice(), defaultChoice()]
           : [],
       correctAnswer: null,
     }));
@@ -560,7 +577,7 @@ export default function TaskForm({
   const addNumericPart = () => {
     setForm((prev) => ({
       ...prev,
-      numericParts: [...prev.numericParts, { ...defaultNumericPart(), key: "" }],
+      numericParts: [...prev.numericParts, defaultNumericPart()],
     }));
   };
 
@@ -592,7 +609,7 @@ export default function TaskForm({
   const addChoice = () => {
     setForm((prev) => ({
       ...prev,
-      choices: [...prev.choices, { ...defaultChoice(), key: "" }],
+      choices: [...prev.choices, defaultChoice()],
     }));
   };
 
@@ -667,7 +684,7 @@ export default function TaskForm({
         onRemoveChoice={removeChoiceAt}
       />
     ),
-    photo: <PhotoAnswerFields />,
+    photo: null,
   };
 
   const handleSubmit = async () => {
