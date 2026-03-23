@@ -539,6 +539,30 @@ describe("StudentUnitDetailScreen", () => {
     expect(toggleSolutionVisibilityMock).toHaveBeenCalledTimes(1);
   });
 
+  it("renders method guidance below the task card when the task has a note", async () => {
+    const task = buildTask({
+      methodGuidance:
+        "При сложении векторов не забывайте использовать правило параллелограмма или правило треугольника.",
+    });
+    const unit = buildUnit({ tasks: [task] });
+    vi.mocked(studentApi.getUnit).mockResolvedValueOnce(unit);
+    vi.mocked(useStudentTaskNavigation).mockReturnValue({
+      activeTaskId: task.id,
+      activeTaskIndex: 0,
+      activeTask: task,
+      setActiveTaskId: setActiveTaskIdMock,
+    });
+
+    renderWithQueryClient(<StudentUnitDetailScreen unitId="unit-1" />);
+
+    expect(await screen.findByLabelText("Методическая заметка")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "При сложении векторов не забывайте использовать правило параллелограмма или правило треугольника.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("renders photo task actions instead of answer submission flow", async () => {
     const task = buildTask({
       id: "photo-task",

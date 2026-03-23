@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, BookOpenText } from "lucide-react";
 import { studentApi, type Task, type TaskState, type UnitVideo, type UnitWithTasks } from "@/lib/api/student";
 import { ApiError } from "@/lib/api/client";
 import { learningPhotoQueryKeys } from "@/lib/query/keys";
@@ -270,6 +270,24 @@ function StudentTaskStatusNotices({ activeState }: { activeState: TaskState | nu
   );
 }
 
+function StudentTaskMethodGuidance({ methodGuidance }: { methodGuidance: string | null | undefined }) {
+  if (!methodGuidance?.trim()) {
+    return null;
+  }
+
+  return (
+    <section className={styles.methodGuidanceBlock} aria-label="Методическая заметка">
+      <div className={styles.methodGuidanceIcon} aria-hidden="true">
+        <BookOpenText size={18} />
+      </div>
+      <div className={styles.methodGuidanceBody}>
+        <div className={styles.methodGuidanceLabel}>Методическая заметка</div>
+        <p className={styles.methodGuidanceText}>{methodGuidance}</p>
+      </div>
+    </section>
+  );
+}
+
 function StudentPhotoActions({
   taskId,
   photo,
@@ -509,6 +527,8 @@ function StudentUnitTasksPanel({
           onSelectTask={taskNavigation.setActiveTaskId}
         />
       </StudentTaskCardShell>
+
+      <StudentTaskMethodGuidance methodGuidance={activeTask.methodGuidance} />
     </div>
   );
 }

@@ -1467,6 +1467,53 @@
   font-size: 12px;
 }
 
+.methodGuidanceBlock {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 24px;
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: calc(var(--card-radius) - 2px);
+  background: color-mix(in srgb, var(--surface-2) 52%, white);
+}
+
+.methodGuidanceIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: 14px;
+  background: white;
+  color: var(--text-muted);
+}
+
+.methodGuidanceBody {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.methodGuidanceLabel {
+  font-size: 11px;
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.methodGuidanceText {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.68;
+  color: var(--text-secondary);
+  white-space: pre-line;
+}
+
 .solutionPanel {
   border: var(--border-width-thin) solid color-mix(in srgb, #38bdf8 30%, var(--glass-border));
   background:

@@ -175,6 +175,7 @@
   - читает `solutionHtmlAssetKey` из storage;
   - подписывает URLs для `solutionHtmlAssetsJson`.
 - Published unit/task payload также несёт `TaskRevision.methodGuidance`; student UI может использовать это поле без отдельного write/read расширения.
+- Student unit screen при наличии `TaskRevision.methodGuidance` показывает отдельный блок `Методическая заметка` под карточкой активной задачи.
 
 ### Teacher read path
 
