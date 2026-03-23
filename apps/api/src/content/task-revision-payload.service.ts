@@ -9,6 +9,7 @@ export type CorrectAnswer = { key?: string; keys?: string[] };
 export type NormalizedTaskPayload = {
   answerType: TaskAnswerType;
   statementLite: string;
+  methodGuidance: string | null;
   numericPartsJson: NumericPart[] | null;
   choicesJson: Choice[] | null;
   correctAnswerJson: CorrectAnswer | null;
@@ -24,6 +25,7 @@ export type TaskRevisionRecord = {
   id: string;
   answerType: TaskAnswerType;
   statementLite: string;
+  methodGuidance: string | null;
   statementImageAssetKey: string | null;
   solutionLite: string | null;
   solutionRichLatex: string | null;
@@ -84,6 +86,7 @@ export class TaskRevisionPayloadService {
       unitId: task.unitId,
       title: task.title,
       statementLite: revision.statementLite,
+      methodGuidance: revision.methodGuidance,
       answerType: revision.answerType,
       numericPartsJson:
         revision.answerType === TaskAnswerType.numeric ? sortedNumericParts : null,
@@ -127,6 +130,7 @@ export class TaskRevisionPayloadService {
         revisionNo,
         answerType: normalized.answerType,
         statementLite: normalized.statementLite,
+        methodGuidance: normalized.methodGuidance,
         statementImageAssetKey: normalized.statementImageAssetKey,
         solutionLite: normalized.solutionLite,
         solutionRichLatex: normalized.solutionRichLatex,
@@ -184,6 +188,7 @@ export class TaskRevisionPayloadService {
   normalizeTaskPayload(payload: {
     answerType: unknown;
     statementLite: unknown;
+    methodGuidance?: unknown;
     numericPartsJson?: unknown;
     choicesJson?: unknown;
     correctAnswerJson?: unknown;
@@ -201,6 +206,11 @@ export class TaskRevisionPayloadService {
         maxLength: 20_000,
         errorCode: 'InvalidStatementLite',
       }) ?? '';
+    const methodGuidance = this.sanitizeLiteText(payload.methodGuidance, {
+      required: false,
+      maxLength: 20_000,
+      errorCode: 'InvalidMethodGuidance',
+    });
     const solutionLite = this.sanitizeLiteText(payload.solutionLite, {
       required: false,
       maxLength: 20_000,
@@ -240,6 +250,7 @@ export class TaskRevisionPayloadService {
       return {
         answerType,
         statementLite,
+        methodGuidance,
         numericPartsJson: numericParts,
         choicesJson: null,
         correctAnswerJson: null,
@@ -262,6 +273,7 @@ export class TaskRevisionPayloadService {
       return {
         answerType,
         statementLite,
+        methodGuidance,
         numericPartsJson: null,
         choicesJson: choices,
         correctAnswerJson: correctAnswer,
@@ -287,6 +299,7 @@ export class TaskRevisionPayloadService {
     return {
       answerType,
       statementLite,
+      methodGuidance,
       numericPartsJson: null,
       choicesJson: null,
       correctAnswerJson: null,

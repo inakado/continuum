@@ -45,6 +45,7 @@
   - `activeRevisionId` указывает на `TaskRevision`
 - `TaskRevision`:
   - statement/solution поля
+  - `methodGuidance` — plain text методические указания для teacher-authored task hint
   - render asset keys: `solutionHtmlAssetKey`
   - HTML asset manifests: `solutionHtmlAssetsJson`
   - auto-check данные: numeric parts / choices / correct choices
@@ -169,6 +170,7 @@
   - проверяет доступ (published chain, unit unlocked, задача зачтена);
   - читает `solutionHtmlAssetKey` из storage;
   - подписывает URLs для `solutionHtmlAssetsJson`.
+- Published unit/task payload также несёт `TaskRevision.methodGuidance`; student UI может использовать это поле без отдельного write/read расширения.
 
 ### Teacher read path
 

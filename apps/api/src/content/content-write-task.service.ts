@@ -86,6 +86,7 @@ export class ContentWriteTaskService {
     const normalized = this.taskRevisionPayloadService.normalizeTaskPayload({
       answerType: dto.answerType,
       statementLite: dto.statementLite,
+      methodGuidance: dto.methodGuidance ?? null,
       numericPartsJson: dto.numericPartsJson,
       choicesJson: dto.choicesJson,
       correctAnswerJson: dto.correctAnswerJson,
@@ -156,6 +157,8 @@ export class ContentWriteTaskService {
     const merged = {
       title: null,
       statementLite: dto.statementLite ?? currentView.statementLite,
+      methodGuidance:
+        dto.methodGuidance !== undefined ? dto.methodGuidance : currentView.methodGuidance ?? null,
       answerType: (dto.answerType ?? currentView.answerType) as TaskAnswerType,
       numericPartsJson:
         dto.numericPartsJson !== undefined ? dto.numericPartsJson : currentView.numericPartsJson,
@@ -177,6 +180,7 @@ export class ContentWriteTaskService {
     const normalized = this.taskRevisionPayloadService.normalizeTaskPayload({
       answerType: merged.answerType,
       statementLite: merged.statementLite,
+      methodGuidance: merged.methodGuidance,
       numericPartsJson: merged.numericPartsJson,
       choicesJson: merged.choicesJson,
       correctAnswerJson: merged.correctAnswerJson,
@@ -285,6 +289,7 @@ export class ContentWriteTaskService {
       id: string;
       answerType: TaskAnswerType;
       statementLite: string;
+      methodGuidance: string | null;
       statementImageAssetKey: string | null;
       solutionLite: string | null;
       solutionRichLatex: string | null;
@@ -318,6 +323,7 @@ export class ContentWriteTaskService {
       id: string;
       answerType: TaskAnswerType;
       statementLite: string;
+      methodGuidance: string | null;
       statementImageAssetKey: string | null;
       solutionLite: string | null;
       solutionRichLatex: string | null;
@@ -342,6 +348,7 @@ export class ContentWriteTaskService {
       id: revision.id,
       answerType: revision.answerType,
       statementLite: revision.statementLite,
+      methodGuidance: revision.methodGuidance,
       statementImageAssetKey: revision.statementImageAssetKey,
       solutionLite: revision.solutionLite,
       solutionRichLatex: revision.solutionRichLatex,

@@ -165,6 +165,7 @@ vi.mock("./components/TeacherTaskSolutionSection", () => ({
 
 const sampleTaskFormData: TaskFormData = {
   statementLite: "x+1=2",
+  methodGuidance: "Сначала перенесите единицу в правую часть.",
   answerType: "numeric",
   numericParts: [{ key: "x", labelLite: "x", correctValue: "1" }],
   choices: [],
@@ -226,6 +227,7 @@ const buildTask = (overrides: Partial<Task> = {}): Task => ({
   unitId: "unit-1",
   title: "Задача 1",
   statementLite: "x+1=2",
+  methodGuidance: null,
   answerType: "numeric",
   numericPartsJson: [{ key: "x", labelLite: "x", correctValue: "1" }],
   choicesJson: null,
@@ -397,6 +399,7 @@ describe("TeacherUnitDetailScreen", () => {
       expect(teacherApi.createTask).toHaveBeenCalledWith({
         unitId: "unit-1",
         statementLite: "x+1=2",
+        methodGuidance: "Сначала перенесите единицу в правую часть.",
         answerType: "numeric",
         isRequired: true,
         sortOrder: 1,

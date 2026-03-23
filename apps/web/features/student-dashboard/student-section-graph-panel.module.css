@@ -224,7 +224,7 @@
   font-family: var(--font-onest), sans-serif;
   font-size: clamp(24px, 1.6vw, 28px);
   line-height: 1;
-  font-weight: 600;
+  font-weight: 300;
   letter-spacing: -0.04em;
   color: var(--sd-text);
 }

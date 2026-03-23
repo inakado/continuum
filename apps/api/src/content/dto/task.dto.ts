@@ -2,6 +2,7 @@ export class CreateTaskDto {
   unitId!: string;
   title?: string | null;
   statementLite!: string;
+  methodGuidance?: string | null;
   answerType!: string;
   numericPartsJson?: unknown;
   choicesJson?: unknown;
@@ -14,6 +15,7 @@ export class CreateTaskDto {
 export class UpdateTaskDto {
   title?: string | null;
   statementLite?: string;
+  methodGuidance?: string | null;
   answerType?: string;
   numericPartsJson?: unknown;
   choicesJson?: unknown;

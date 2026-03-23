@@ -310,6 +310,7 @@ model TaskRevision {
   revisionNo    Int            @map("revision_no")
   answerType    TaskAnswerType @map("answer_type")
   statementLite String         @map("statement_lite")
+  methodGuidance String?       @map("method_guidance")
   statementImageAssetKey String? @map("statement_image_asset_key")
   solutionLite  String?        @map("solution_lite")
   solutionRichLatex String?    @map("solution_rich_latex")

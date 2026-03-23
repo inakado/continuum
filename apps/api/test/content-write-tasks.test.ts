@@ -23,6 +23,7 @@ import { ContentWriteService } from '../src/content/content-write.service';
 const normalizedTaskPayload = {
   answerType: 'numeric',
   statementLite: '2 + 2 = ?',
+  methodGuidance: 'Вспомните базовое сложение.',
   numericPartsJson: [{ key: 'p1', labelLite: null, correctValue: '4' }],
   choicesJson: null,
   correctAnswerJson: null,
@@ -92,6 +93,7 @@ describe('ContentWriteService tasks slice', () => {
       id: 'revision-1',
       answerType: 'numeric',
       statementLite: '2 + 2 = ?',
+      methodGuidance: 'Вспомните базовое сложение.',
       statementImageAssetKey: null,
       solutionLite: 'Решение',
       solutionRichLatex: null,
@@ -116,6 +118,7 @@ describe('ContentWriteService tasks slice', () => {
       unitId: 'unit-1',
       answerType: 'numeric',
       statementLite: '2 + 2 = ?',
+      methodGuidance: 'Вспомните базовое сложение.',
       numericPartsJson: [{ key: 'p1', labelLite: null, correctValue: '4' }],
       solutionLite: 'Решение',
       isRequired: true,
@@ -125,6 +128,7 @@ describe('ContentWriteService tasks slice', () => {
     expect(taskRevisionPayloadService.normalizeTaskPayload).toHaveBeenCalledWith(
       expect.objectContaining({
         statementImageAssetKey: null,
+        methodGuidance: 'Вспомните базовое сложение.',
         solutionPdfAssetKey: null,
         solutionHtmlAssetKey: null,
         solutionHtmlAssetsJson: null,
@@ -168,6 +172,7 @@ describe('ContentWriteService tasks slice', () => {
         unitId: 'unit-1',
         title: null,
         statementLite: 'old',
+        methodGuidance: 'Старая подсказка',
         answerType: 'numeric',
         numericPartsJson: [{ key: 'old', labelLite: null, correctValue: '1' }],
         choicesJson: null,
@@ -193,6 +198,7 @@ describe('ContentWriteService tasks slice', () => {
       .mockReturnValueOnce({ id: 'task-1', status: 'published' });
     taskRevisionPayloadService.normalizeTaskPayload.mockReturnValue({
       ...normalizedTaskPayload,
+      methodGuidance: 'Новая подсказка',
       statementImageAssetKey: 'tasks/task-1/revisions/revision-1/statement-image/file.png',
       solutionPdfAssetKey: 'tasks/task-1/revisions/revision-1/solution/file.pdf',
       solutionHtmlAssetKey: 'tasks/task-1/revisions/revision-1/solution/file.html',
@@ -210,6 +216,7 @@ describe('ContentWriteService tasks slice', () => {
       id: 'revision-2',
       answerType: 'numeric',
       statementLite: 'new',
+      methodGuidance: 'Новая подсказка',
       statementImageAssetKey: 'tasks/task-1/revisions/revision-1/statement-image/file.png',
       solutionLite: 'new-solution',
       solutionRichLatex: null,
@@ -237,6 +244,7 @@ describe('ContentWriteService tasks slice', () => {
 
     const result = await service.updateTask('task-1', {
       statementLite: 'new',
+      methodGuidance: 'Новая подсказка',
       numericPartsJson: [{ key: 'p1', labelLite: null, correctValue: '4' }],
       solutionLite: 'new-solution',
       isRequired: true,
@@ -246,6 +254,7 @@ describe('ContentWriteService tasks slice', () => {
     expect(taskRevisionPayloadService.normalizeTaskPayload).toHaveBeenCalledWith(
       expect.objectContaining({
         statementImageAssetKey: 'tasks/task-1/revisions/revision-1/statement-image/file.png',
+        methodGuidance: 'Новая подсказка',
         solutionPdfAssetKey: 'tasks/task-1/revisions/revision-1/solution/file.pdf',
         solutionHtmlAssetKey: 'tasks/task-1/revisions/revision-1/solution/file.html',
         solutionHtmlAssetsJson: [

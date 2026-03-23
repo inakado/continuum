@@ -94,6 +94,9 @@ export class TeacherTasksController {
     if ('statementLite' in dto && dto.statementLite !== undefined) {
       sizes.statementLite = (dto.statementLite ?? '').length;
     }
+    if ('methodGuidance' in dto && dto.methodGuidance !== undefined) {
+      sizes.methodGuidance = (dto.methodGuidance ?? '').length;
+    }
     if ('solutionLite' in dto && dto.solutionLite !== undefined) {
       sizes.solutionLite = (dto.solutionLite ?? '').length;
     }

@@ -106,6 +106,7 @@ export type Task = {
   unitId: string;
   title: string | null;
   statementLite: string;
+  methodGuidance?: string | null;
   statementImageAssetKey?: string | null;
   answerType: TaskAnswerType;
   numericPartsJson?: NumericPart[] | null;
@@ -710,6 +711,7 @@ export const teacherApi = {
     unitId: string;
     title?: string | null;
     statementLite: string;
+    methodGuidance?: string | null;
     answerType: TaskAnswerType;
     numericPartsJson?: NumericPart[] | null;
     choicesJson?: Choice[] | null;
@@ -725,6 +727,7 @@ export const teacherApi = {
     data: {
       title?: string | null;
       statementLite?: string;
+      methodGuidance?: string | null;
       answerType?: TaskAnswerType;
       numericPartsJson?: NumericPart[] | null;
       choicesJson?: Choice[] | null;

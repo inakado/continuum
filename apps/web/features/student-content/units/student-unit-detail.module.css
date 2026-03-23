@@ -138,7 +138,7 @@
   font-family: var(--text-title-display-family), sans-serif;
   font-size: var(--text-title-display-size);
   line-height: var(--text-title-display-line-height);
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: var(--text-title-display-tracking);
   text-wrap: balance;
   color: color-mix(in srgb, var(--text-primary) 96%, transparent);
@@ -199,7 +199,7 @@
 .progressLeadValue {
   font-family: var(--font-heading), sans-serif;
   font-size: clamp(2rem, 2.7vw, 2.6rem);
-  font-weight: 600;
+  font-weight: 300;
   line-height: 1;
   letter-spacing: -0.03em;
   color: var(--text-primary);
@@ -1338,7 +1338,7 @@
 
 .taskTitle {
   font-family: var(--font-heading), sans-serif;
-  font-weight: 600;
+  font-weight: 500;
   font-size: clamp(1.4rem, 2vw, 1.8rem);
   letter-spacing: -0.025em;
   line-height: 1.14;

@@ -94,6 +94,7 @@ export type Task = {
   unitId: string;
   title: string | null;
   statementLite: string;
+  methodGuidance?: string | null;
   hasStatementImage?: boolean;
   solutionRichLatex?: string | null;
   solutionHtmlAssetKey?: string | null;

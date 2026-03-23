@@ -28,6 +28,7 @@ export type CorrectAnswer = { key?: string; keys?: string[] } | null;
 
 export type TaskFormData = {
   statementLite: string;
+  methodGuidance: string;
   answerType: AnswerType;
   numericParts: NumericPart[];
   choices: Choice[];
@@ -59,6 +60,11 @@ type StatementSectionProps = {
   statementLite: string;
   onStatementChange: (value: string) => void;
   statementError?: string;
+};
+
+type MethodGuidanceSectionProps = {
+  methodGuidance: string;
+  onMethodGuidanceChange: (value: string) => void;
 };
 
 type NumericAnswerFieldsProps = {
@@ -98,6 +104,7 @@ const defaultChoice = (): Choice => ({
 
 const defaultState: TaskFormData = {
   statementLite: "",
+  methodGuidance: "",
   answerType: "numeric",
   numericParts: [{ ...defaultNumericPart(), key: "" }],
   choices: [{ ...defaultChoice(), key: "" }, { ...defaultChoice(), key: "" }],
@@ -208,6 +215,25 @@ function StatementSection({ statementLite, onStatementChange, statementError }: 
         </div>
       </div>
       {statementError ? <div className={styles.fieldError}>{statementError}</div> : null}
+    </div>
+  );
+}
+
+function MethodGuidanceSection({
+  methodGuidance,
+  onMethodGuidanceChange,
+}: MethodGuidanceSectionProps) {
+  return (
+    <div className={styles.section}>
+      <div className={styles.sectionTitle}>Методические указания</div>
+      <FieldLabel className={styles.label} label="Подсказка для ученика">
+        <Textarea
+          value={methodGuidance}
+          className={styles.textarea}
+          placeholder="Например: на что обратить внимание, какую формулу вспомнить, как лучше подойти к решению."
+          onChange={(event) => onMethodGuidanceChange(event.target.value)}
+        />
+      </FieldLabel>
     </div>
   );
 }
@@ -593,6 +619,11 @@ export default function TaskForm({
         statementLite={form.statementLite}
         onStatementChange={(value) => setForm((prev) => ({ ...prev, statementLite: value }))}
         statementError={fieldErrors.statementLite}
+      />
+
+      <MethodGuidanceSection
+        methodGuidance={form.methodGuidance}
+        onMethodGuidanceChange={(value) => setForm((prev) => ({ ...prev, methodGuidance: value }))}
       />
 
       {afterStatementSection}

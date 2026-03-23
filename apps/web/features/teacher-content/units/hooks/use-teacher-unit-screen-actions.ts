@@ -15,6 +15,7 @@ const buildSortMap = (tasks: Task[]) => new Map(tasks.map((task) => [task.id, ta
 const buildTaskPayload = (data: TaskFormData) => {
   const base = {
     statementLite: data.statementLite,
+    methodGuidance: data.methodGuidance,
     answerType: data.answerType,
     isRequired: data.isRequired,
     sortOrder: data.sortOrder,
@@ -48,6 +49,7 @@ const buildTaskPayload = (data: TaskFormData) => {
 
 const mapTaskToFormData = (task: Task): TaskFormData => ({
   statementLite: task.statementLite ?? "",
+  methodGuidance: task.methodGuidance ?? "",
   answerType: task.answerType,
   numericParts: (task.numericPartsJson ?? []).map((part) => ({
     key: part.key ?? "",
