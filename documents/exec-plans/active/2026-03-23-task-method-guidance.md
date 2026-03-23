@@ -37,6 +37,8 @@
 
 - Методические указания хранятся в `TaskRevision`, а не в `Task`, потому что это часть content snapshot и должна ревизироваться вместе с условием/ответом.
 - Формат поля на первом шаге: nullable plain text (`string | null`) без отдельного render pipeline.
+- Teacher create-flow после первого `Создать` остаётся в том же editor session и автоматически переключается на edit-mode новой draft-задачи; это минимальный способ открыть image/solution actions без отдельного unsaved asset pipeline.
+- Возврат из task editor в список задач идёт через explicit `К задачам`: форма делает best-effort autosave только если изменения валидны и отличаются от initial snapshot, чтобы не создавать пустые/no-op revisions.
 
 ## Риски
 

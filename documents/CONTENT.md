@@ -49,6 +49,10 @@
   - render asset keys: `solutionHtmlAssetKey`
   - HTML asset manifests: `solutionHtmlAssetsJson`
   - auto-check данные: numeric parts / choices / correct choices
+- Teacher task create-flow после первого сохранения draft не закрывает редактор:
+  - newly created task сразу переходит в edit-mode того же экрана;
+  - это открывает upload statement image и compile solution HTML без повторного входа в редактирование.
+- Кнопка возврата из task editor в список задач (`К задачам`) выполняет best-effort autosave только для валидных и реально изменённых данных; пустая или невалидная форма просто закрывается без создания лишней ревизии.
 
 ### Section ordering
 

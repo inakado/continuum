@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import EntityEditorInline from "@/components/EntityEditorInline";
 import FieldLabel from "@/components/ui/FieldLabel";
 import Input from "@/components/ui/Input";
@@ -41,8 +41,9 @@ type TaskFormProps = {
   title: string;
   submitLabel: string;
   initial?: Partial<TaskFormData>;
-  onSubmit: (data: TaskFormData) => Promise<void> | void;
+  onSubmit: (data: TaskFormData) => Promise<boolean | void> | boolean | void;
   onCancel?: () => void;
+  cancelLabel?: string;
   rightAction?: ReactNode;
   error?: string | null;
   afterStatementSection?: ReactNode;
@@ -122,6 +123,51 @@ const buildCorrectAnswer = (answerType: AnswerType, key: string, keys: string[])
   }
   return null;
 };
+
+type ComparableTaskFormState = {
+  statementLite: string;
+  methodGuidance: string;
+  answerType: AnswerType;
+  numericParts: Array<{ labelLite: string; correctValue: string }>;
+  choices: Array<{ textLite: string }>;
+  correctSingleIndex: number | null;
+  correctMultiIndices: number[];
+  isRequired: boolean;
+  sortOrder: number;
+};
+
+const buildComparableState = ({
+  form,
+  correctSingleIndex,
+  correctMultiIndices,
+}: {
+  form: TaskFormData;
+  correctSingleIndex: number | null;
+  correctMultiIndices: number[];
+}): ComparableTaskFormState => ({
+  statementLite: form.statementLite,
+  methodGuidance: form.methodGuidance,
+  answerType: form.answerType,
+  numericParts: form.numericParts.map((part) => ({
+    labelLite: part.labelLite,
+    correctValue: part.correctValue,
+  })),
+  choices: form.choices.map((choice) => ({
+    textLite: choice.textLite,
+  })),
+  correctSingleIndex,
+  correctMultiIndices: [...correctMultiIndices].sort((left, right) => left - right),
+  isRequired: form.isRequired,
+  sortOrder: form.sortOrder,
+});
+
+const hasMeaningfulContent = (state: ComparableTaskFormState) =>
+  Boolean(
+    state.statementLite.trim() ||
+      state.methodGuidance.trim() ||
+      state.numericParts.some((part) => part.labelLite.trim() || part.correctValue.trim()) ||
+      state.choices.some((choice) => choice.textLite.trim()),
+  );
 
 const validateTaskForm = (
   next: TaskFormData,
@@ -387,6 +433,7 @@ export default function TaskForm({
   initial,
   onSubmit,
   onCancel,
+  cancelLabel = "К задачам",
   rightAction,
   error,
   afterStatementSection,
@@ -396,6 +443,7 @@ export default function TaskForm({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [correctSingleIndex, setCorrectSingleIndex] = useState<number | null>(null);
   const [correctMultiIndices, setCorrectMultiIndices] = useState<number[]>([]);
+  const initialComparableRef = useRef<string>("");
 
   const correctSingleKey = useMemo(() => {
     if (correctSingleIndex === null) return "";
@@ -410,6 +458,16 @@ export default function TaskForm({
   useEffect(() => {
     const numericParts = initial?.numericParts?.length ? initial.numericParts : defaultState.numericParts;
     const choices = initial?.choices?.length ? initial.choices : defaultState.choices;
+    const initialCorrectSingleIndex =
+      initial?.correctAnswer && choices.length && "key" in initial.correctAnswer && initial.correctAnswer.key
+        ? choices.findIndex((choice) => choice.key === initial.correctAnswer?.key)
+        : -1;
+    const initialCorrectMultiIndices =
+      initial?.correctAnswer && choices.length && "keys" in initial.correctAnswer && initial.correctAnswer.keys?.length
+        ? initial.correctAnswer.keys
+            .map((key) => choices.findIndex((choice) => choice.key === key))
+            .filter((index) => index >= 0)
+        : [];
 
     setForm({
       ...defaultState,
@@ -421,13 +479,9 @@ export default function TaskForm({
 
     if (initial?.correctAnswer && choices.length) {
       if ("key" in initial.correctAnswer && initial.correctAnswer.key) {
-        const index = choices.findIndex((choice) => choice.key === initial.correctAnswer?.key);
-        setCorrectSingleIndex(index >= 0 ? index : null);
+        setCorrectSingleIndex(initialCorrectSingleIndex >= 0 ? initialCorrectSingleIndex : null);
       } else if ("keys" in initial.correctAnswer && initial.correctAnswer.keys?.length) {
-        const indices = initial.correctAnswer.keys
-          .map((key) => choices.findIndex((choice) => choice.key === key))
-          .filter((index) => index >= 0);
-        setCorrectMultiIndices(indices);
+        setCorrectMultiIndices(initialCorrectMultiIndices);
       } else {
         setCorrectSingleIndex(null);
         setCorrectMultiIndices([]);
@@ -436,6 +490,18 @@ export default function TaskForm({
       setCorrectSingleIndex(null);
       setCorrectMultiIndices([]);
     }
+    const nextComparable = buildComparableState({
+      form: {
+        ...defaultState,
+        ...initial,
+        numericParts,
+        choices,
+        correctAnswer: initial?.correctAnswer ?? null,
+      },
+      correctSingleIndex: initialCorrectSingleIndex >= 0 ? initialCorrectSingleIndex : null,
+      correctMultiIndices: initialCorrectMultiIndices,
+    });
+    initialComparableRef.current = JSON.stringify(nextComparable);
     setFieldErrors({});
   }, [initial]);
 
@@ -476,6 +542,20 @@ export default function TaskForm({
     [nextForm, correctMultiKeys, correctSingleKey],
   );
   const canSubmit = Object.keys(validationErrors).length === 0;
+  const comparableState = useMemo(
+    () =>
+      buildComparableState({
+        form,
+        correctSingleIndex,
+        correctMultiIndices,
+      }),
+    [correctMultiIndices, correctSingleIndex, form],
+  );
+  const hasContent = useMemo(() => hasMeaningfulContent(comparableState), [comparableState]);
+  const isDirty = useMemo(
+    () => JSON.stringify(comparableState) !== initialComparableRef.current,
+    [comparableState],
+  );
 
   const addNumericPart = () => {
     setForm((prev) => ({
@@ -597,13 +677,23 @@ export default function TaskForm({
     await onSubmit(nextForm);
   };
 
+  const handleBackToTasks = async () => {
+    if (!onCancel) return;
+    const shouldAutosave = hasContent && canSubmit && isDirty;
+    if (shouldAutosave) {
+      const saved = await onSubmit(nextForm);
+      if (saved === false) return;
+    }
+    onCancel();
+  };
+
   return (
     <EntityEditorInline
       title={title}
       titleClassName={styles.formTitle}
       submitLabel={submitLabel}
       onSubmit={handleSubmit}
-      secondaryAction={onCancel ? { label: "Отменить", onClick: onCancel } : undefined}
+      secondaryAction={onCancel ? { label: cancelLabel, onClick: () => void handleBackToTasks() } : undefined}
       rightAction={rightAction}
       error={error}
       disabled={!canSubmit}
@@ -621,14 +711,14 @@ export default function TaskForm({
         statementError={fieldErrors.statementLite}
       />
 
+      {afterStatementSection}
+
+      {answerFieldsByType[form.answerType]}
+
       <MethodGuidanceSection
         methodGuidance={form.methodGuidance}
         onMethodGuidanceChange={(value) => setForm((prev) => ({ ...prev, methodGuidance: value }))}
       />
-
-      {afterStatementSection}
-
-      {answerFieldsByType[form.answerType]}
 
       {extraSection}
     </EntityEditorInline>

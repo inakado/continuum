@@ -156,11 +156,15 @@ vi.mock("./components/TeacherCompileErrorDialog", () => ({
 }));
 
 vi.mock("./components/TeacherTaskStatementImageSection", () => ({
-  TeacherTaskStatementImageSection: () => <div>statement-image-section</div>,
+  TeacherTaskStatementImageSection: ({ editingTask }: { editingTask: Task | null }) => (
+    <div>{editingTask ? `statement-image-section:${editingTask.id}` : "statement-image-section:locked"}</div>
+  ),
 }));
 
 vi.mock("./components/TeacherTaskSolutionSection", () => ({
-  TeacherTaskSolutionSection: () => <div>task-solution-section</div>,
+  TeacherTaskSolutionSection: ({ editingTask }: { editingTask: Task | null }) => (
+    <div>{editingTask ? `task-solution-section:${editingTask.id}` : "task-solution-section:locked"}</div>
+  ),
 }));
 
 const sampleTaskFormData: TaskFormData = {
@@ -176,16 +180,29 @@ const sampleTaskFormData: TaskFormData = {
 
 vi.mock("./components/TeacherUnitTasksPanel", () => ({
   TeacherUnitTasksPanel: ({
+    creatingTask,
+    editingTask,
     taskOrder,
     onStartCreateTask,
     onTaskSubmit,
+    afterStatementSection,
+    extraSection,
   }: {
+    creatingTask: boolean;
+    editingTask: Task | null;
     taskOrder: Task[];
     onStartCreateTask: () => void;
     onTaskSubmit: (data: TaskFormData) => Promise<void>;
+    afterStatementSection: React.ReactNode;
+    extraSection: React.ReactNode;
   }) => (
     <div>
       <div data-testid="teacher-unit-task-count">{taskOrder.length}</div>
+      <div data-testid="teacher-unit-task-mode">
+        {creatingTask ? "creating" : editingTask ? `editing:${editingTask.id}` : "idle"}
+      </div>
+      {afterStatementSection}
+      {extraSection}
       <button type="button" onClick={onStartCreateTask}>
         Начать создание задачи
       </button>
@@ -409,6 +426,9 @@ describe("TeacherUnitDetailScreen", () => {
       });
     });
     expect(teacherApi.publishTask).not.toHaveBeenCalled();
+    expect(await screen.findByTestId("teacher-unit-task-mode")).toHaveTextContent("editing:task-2");
+    expect(screen.getByText("statement-image-section:task-2")).toBeInTheDocument();
+    expect(screen.getByText("task-solution-section:task-2")).toBeInTheDocument();
   });
 
   it("deletes unit after confirmation and returns to section route", async () => {

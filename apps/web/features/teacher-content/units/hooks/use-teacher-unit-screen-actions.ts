@@ -11,6 +11,8 @@ export type DeleteConfirmState =
   | null;
 
 const buildSortMap = (tasks: Task[]) => new Map(tasks.map((task) => [task.id, task.sortOrder ?? 0]));
+const findTaskInUnit = (unit: UnitWithTasks | null, taskId: string) =>
+  unit?.tasks.find((task) => task.id === taskId) ?? null;
 
 const buildTaskPayload = (data: TaskFormData) => {
   const base = {
@@ -209,11 +211,14 @@ export const useTeacherUnitScreenActions = ({
       if (!unit) return;
       setFormError(null);
       try {
-        await createTaskMutation.mutateAsync({ unitId: unit.id, ...buildTaskPayload(data) });
+        const createdTask = await createTaskMutation.mutateAsync({ unitId: unit.id, ...buildTaskPayload(data) });
+        const refreshedUnit = await fetchUnit();
+        setEditingTask(findTaskInUnit(refreshedUnit, createdTask.id) ?? createdTask);
         setCreatingTask(false);
-        await fetchUnit();
+        return true;
       } catch (err) {
         setFormError(getApiErrorMessage(err));
+        return false;
       }
     },
     [createTaskMutation, fetchUnit, unit],
@@ -227,8 +232,10 @@ export const useTeacherUnitScreenActions = ({
         await updateTaskMutation.mutateAsync({ taskId: editingTask.id, data: buildTaskPayload(data) });
         setEditingTask(null);
         await fetchUnit();
+        return true;
       } catch (err) {
         setFormError(getApiErrorMessage(err));
+        return false;
       }
     },
     [editingTask, fetchUnit, updateTaskMutation],

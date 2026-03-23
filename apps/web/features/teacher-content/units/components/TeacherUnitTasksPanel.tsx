@@ -137,8 +137,8 @@ type Props = {
   editingTaskNumber: number | null;
   nextTaskOrder: number;
   taskFormInitial: Partial<TaskFormData>;
-  onTaskSubmit: (data: TaskFormData) => Promise<void>;
-  onTaskUpdate: (data: TaskFormData) => Promise<void>;
+  onTaskSubmit: (data: TaskFormData) => Promise<boolean | void>;
+  onTaskUpdate: (data: TaskFormData) => Promise<boolean | void>;
   onTaskPublishToggle: (task: Task) => Promise<void>;
 
   afterStatementSection: ReactNode;
@@ -326,6 +326,7 @@ export function TeacherUnitTasksPanel({
           onSubmit={editingTask ? onTaskUpdate : onTaskSubmit}
           error={formError}
           onCancel={onCancelTaskForm}
+          cancelLabel="К задачам"
           initial={taskFormInitial}
           afterStatementSection={afterStatementSection}
           extraSection={extraSection}
