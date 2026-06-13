@@ -13,8 +13,8 @@
   --sd-glass-filter: var(--glass-filter);
   display: flex;
   flex-direction: column;
-  gap: 22px;
-  width: min(100%, 1360px);
+  gap: 16px;
+  width: min(100%, 1280px);
   margin: 0 auto;
   min-height: 100%;
   position: relative;
@@ -26,21 +26,21 @@
 
 .sdGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
   width: 100%;
 }
 
 .sdGridSingle {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 16px;
+  gap: 12px;
   width: 100%;
 }
 
 .sdCard {
   border: 1px solid var(--sd-border-soft);
-  border-radius: 20px;
+  border-radius: 14px;
   background: var(--sd-card-bg);
   backdrop-filter: var(--sd-glass-filter);
   -webkit-backdrop-filter: var(--sd-glass-filter);
@@ -60,8 +60,8 @@
 
 .sdCardHoverable:hover {
   border-color: var(--sd-border-strong);
-  box-shadow: 0 18px 30px -24px rgba(15, 23, 42, 0.35);
-  transform: translateY(-2px);
+  box-shadow: 0 10px 18px -16px rgba(15, 23, 42, 0.3);
+  transform: translateY(-1px);
 }
 
 .sdCardHoverable:active {
@@ -69,7 +69,7 @@
 }
 
 .sdCardHeader {
-  padding: 24px 24px 16px;
+  padding: 16px 16px 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -77,12 +77,12 @@
 }
 
 .sdCardBody {
-  padding: 0 24px 24px;
+  padding: 0 16px 16px;
   flex: 1;
 }
 
 .sdCardFooter {
-  padding: 16px 24px;
+  padding: 11px 16px;
   border-top: 1px solid var(--sd-border-soft);
   display: flex;
   align-items: center;
@@ -93,7 +93,7 @@
 
 .sdCardMedia {
   width: 100%;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 2.35 / 1;
   background: var(--sd-surface-1);
   border-bottom: 1px solid var(--sd-border-soft);
   overflow: hidden;
@@ -108,16 +108,16 @@
 
 .sdCardTitle {
   font-family: var(--font-onest), sans-serif;
-  font-size: clamp(20px, 2vw, 24px);
+  font-size: clamp(18px, 1.6vw, 21px);
   font-weight: 500;
   color: var(--sd-text);
   line-height: 1.2;
 }
 
 .sdCardSubtitle {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--sd-muted);
-  line-height: 1.5;
+  line-height: 1.42;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
@@ -135,18 +135,18 @@
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 32px;
-  padding: 0 16px;
+  gap: 18px;
+  padding: 0;
 }
 
 .sectionsPage {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 14px;
   position: relative;
   width: 100%;
   max-width: 100%;
-  padding: 0 16px;
+  padding: 0;
   margin: 0 auto;
 }
 
@@ -173,34 +173,34 @@
 }
 
 .pageTitle {
-  font-size: clamp(30px, 3vw, 40px);
-  margin-bottom: 8px;
+  font-size: clamp(26px, 2.3vw, 34px);
+  margin-bottom: 4px;
 }
 
 .pageSubtitle,
 .sectionsCourseDescription {
   color: var(--sd-muted);
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: 14px;
+  line-height: 1.45;
   max-width: 42rem;
 }
 
 .sectionsHeroCard {
   border: 1px solid var(--sd-border-soft);
-  border-radius: 24px;
+  border-radius: 16px;
   background: var(--sd-card-bg);
   backdrop-filter: var(--sd-glass-filter);
   -webkit-backdrop-filter: var(--sd-glass-filter);
   box-shadow: var(--sd-shadow);
   overflow: hidden;
   display: grid;
-  grid-template-columns: 1fr 38%;
+  grid-template-columns: 1fr 30%;
   align-items: stretch;
-  min-height: 280px;
+  min-height: 168px;
 }
 
 .sectionsHeroContent {
-  padding: 48px;
+  padding: 22px 24px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -209,7 +209,16 @@
 .sectionsHeroMedia {
   position: relative;
   background: var(--sd-surface-1);
-  min-height: 280px;
+  min-height: 168px;
+}
+
+.sectionsHeroTitle {
+  margin-bottom: 8px;
+}
+
+.sectionsHeroSubtitle {
+  margin-bottom: 18px;
+  max-width: 42rem;
 }
 
 .sectionsHeroMediaImage {
@@ -225,11 +234,11 @@
     grid-template-columns: 1fr;
   }
   .sectionsHeroMedia {
-    min-height: 200px;
+    min-height: 160px;
     order: -1;
   }
   .sectionsHeroContent {
-    padding: 32px 24px;
+    padding: 18px;
   }
 }
 
@@ -249,8 +258,8 @@
   border: 1px dashed var(--sd-border-soft);
   background: var(--sd-card-bg);
   color: var(--sd-muted);
-  padding: 24px;
-  border-radius: 16px;
+  padding: 18px;
+  border-radius: 14px;
   text-align: center;
 }
 
@@ -264,12 +273,12 @@
 
 .continueCard {
   border: 1px solid var(--sd-border-strong);
-  box-shadow: var(--sd-panel-shadow);
-  border-radius: 24px;
-  padding: 32px;
+  box-shadow: var(--sd-shadow);
+  border-radius: 16px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 14px;
   background: var(--sd-card-bg);
   backdrop-filter: var(--sd-glass-filter);
   -webkit-backdrop-filter: var(--sd-glass-filter);
@@ -278,8 +287,8 @@
 .pillLabel {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: 6px;
+  padding: 5px 9px;
   border-radius: 999px;
   background: var(--sd-surface-1);
   border: 1px solid var(--sd-border-soft);
@@ -289,7 +298,8 @@
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  margin-bottom: 24px;
+  letter-spacing: 0.08em;
+  margin-bottom: 12px;
 }
 
 .pillLabelBlue {
@@ -299,7 +309,7 @@
 .continueTitle {
   font-family: var(--font-onest), sans-serif;
   font-weight: 500;
-  font-size: clamp(28px, 3vw, 36px);
+  font-size: clamp(22px, 2vw, 28px);
   line-height: 1.12;
   color: var(--sd-text);
   margin-bottom: 8px;
@@ -307,7 +317,7 @@
 
 .continueMeta {
   color: var(--sd-muted);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 300;
   max-width: 34rem;
 }
@@ -316,9 +326,9 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  gap: 24px;
+  gap: 14px;
   flex-wrap: wrap;
-  margin-top: 8px;
+  margin-top: 2px;
 }
 
 .continueProgressBox {
@@ -331,7 +341,7 @@
   font-size: 10px;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.08em;
   color: var(--sd-muted);
   display: inline-flex;
   align-items: center;
@@ -341,7 +351,7 @@
 
 .progressValue,
 .overallProgressValue {
-  font-size: 32px;
+  font-size: 28px;
   color: var(--sd-text);
   font-weight: 300;
   font-family: var(--font-onest), sans-serif;
@@ -349,9 +359,9 @@
 }
 
 .continueImagePlaceholder {
-  width: 72px;
-  height: 72px;
-  border-radius: 18px;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
   background: var(--sd-surface-1);
   color: var(--sd-muted);
   display: inline-flex;
@@ -423,13 +433,13 @@
   align-items: flex-end;
   gap: 16px;
   padding-inline: 0;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .sectionsListTitle,
 .gridTitle {
   font-family: var(--font-onest), sans-serif;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 500;
   color: var(--sd-text);
 }
@@ -451,9 +461,9 @@
 
 .sectionMediaBlock {
   position: relative;
-  width: 96px;
-  height: 96px;
-  border-radius: 14px;
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
   background: var(--sd-surface-1);
   border: 1px solid var(--sd-border-soft);
   display: flex;
@@ -479,10 +489,10 @@
 
 .sectionPlayBadge {
   position: absolute;
-  right: 10px;
-  bottom: 10px;
-  width: 34px;
-  height: 34px;
+  right: 7px;
+  bottom: 7px;
+  width: 28px;
+  height: 28px;
   border-radius: 999px;
   background: var(--sd-surface-2);
   border: 1px solid var(--sd-border-soft);
@@ -521,6 +531,28 @@
   justify-content: flex-end;
 }
 
+.sectionCardHeader {
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 16px;
+}
+
+.sectionCardCopy {
+  flex: 1;
+  min-width: 0;
+}
+
+.sectionCardTitle {
+  font-size: 17px;
+}
+
+.sectionCardSubtitle {
+  margin-top: 6px;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
 .sectionsHeader {
   padding: 0;
   border: none;
@@ -549,10 +581,10 @@
   background: transparent;
   color: var(--sd-text);
   border: 1px solid var(--sd-border-strong);
-  border-radius: 14px;
-  font-size: 14px;
+  border-radius: 12px;
+  font-size: 13px;
   font-weight: 500;
-  padding: 10px 20px;
+  padding: 8px 16px;
   cursor: pointer;
   transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   box-shadow: var(--button-shadow);

@@ -305,7 +305,7 @@
   border-top: 0;
   border-left: 0;
   background: var(--main-bg);
-  padding: clamp(20px, 3vw, 36px);
+  padding: clamp(12px, 2vw, 24px);
   /* margin-top: 24px;
   margin-bottom: 24px;
   margin-right: 24px; */

@@ -332,12 +332,12 @@ const StudentSectionsView = ({
 
     <m.header variants={motionItem} className={styles.sectionsHeroCard}>
       <div className={styles.sectionsHeroContent}>
-         <h1 className={styles.pageTitle} style={{ marginBottom: "16px" }}>{course.title}</h1>
-         {course.description && <p className={styles.pageSubtitle} style={{ marginBottom: "32px", maxWidth: "42rem" }}>{course.description}</p>}
+         <h1 className={`${styles.pageTitle} ${styles.sectionsHeroTitle}`}>{course.title}</h1>
+         {course.description && <p className={`${styles.pageSubtitle} ${styles.sectionsHeroSubtitle}`}>{course.description}</p>}
          
          <div>
             <div className={styles.progressCaption}>Прогресс курса</div>
-            <div className={styles.overallProgressValue} style={{ fontSize: "40px" }}>{courseSummary?.progressPercent ?? 0}%</div>
+            <div className={styles.overallProgressValue}>{courseSummary?.progressPercent ?? 0}%</div>
          </div>
       </div>
       {courseSummary?.coverImageUrl ? (
@@ -378,7 +378,7 @@ const StudentSectionsView = ({
                  }
               }}
             >
-              <div className={styles.sdCardHeader} style={{ flexDirection: 'row', alignItems: 'center', gap: '16px', paddingBottom: '24px' }}>
+              <div className={`${styles.sdCardHeader} ${styles.sectionCardHeader}`}>
                  <div className={styles.sectionMediaBlock}>
                    <div className={styles.sectionOrdinalPill}>{String(index + 1).padStart(2, "0")}</div>
                    <div className={styles.sectionPlayBadge}>
@@ -386,9 +386,9 @@ const StudentSectionsView = ({
                    </div>
                  </div>
                  
-                 <div style={{ flex: 1 }}>
-                   <h3 className={styles.sdCardTitle} style={{ fontSize: '18px' }}>{section.title}</h3>
-                   <p className={styles.sdCardSubtitle} style={{ marginTop: '8px', WebkitLineClamp: 3, lineClamp: 3 }}>
+                 <div className={styles.sectionCardCopy}>
+                   <h3 className={`${styles.sdCardTitle} ${styles.sectionCardTitle}`}>{section.title}</h3>
+                   <p className={`${styles.sdCardSubtitle} ${styles.sectionCardSubtitle}`}>
                      {getSectionDescription(section, index, course.title)}
                    </p>
                    {section.accessStatus === "locked" ? (
