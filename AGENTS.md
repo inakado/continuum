@@ -23,6 +23,7 @@
 - Архитектурная карта и bounded contexts: `documents/ARCHITECTURE.md`
 - Инженерные принципы и guardrails: `documents/ARCHITECTURE-PRINCIPLES.md`
 - Dev/test/build/deploy runbook: `documents/DEVELOPMENT.md`
+- Повторяемые dev/run/build/test сбои: `documents/ops/TROUBLESHOOTING.md`
 - Доменный SoR: профильные документы в `documents/`
 - Правила lifecycle для execution plans и backlog-хранилищ: `documents/PLANS.md`
 - Активный прогресс, decision log, task-specific troubleshooting: `documents/exec-plans/active/*`
@@ -35,8 +36,14 @@
   - хранит только стабильные инженерные принципы, budgets, enforced practices и архитектурные ограничения;
   - не хранит phase/wave history, rollout logs и implementation backlog.
 - `documents/DEVELOPMENT.md`:
-  - хранит только runbook, команды, окружение, troubleshooting и операционные инварианты;
+  - хранит только короткий dev/build/test runbook, команды, окружение и операционные инварианты;
   - не хранит архитектурные rationale, продуктовые решения и историю рефакторинга.
+- `documents/ops/TROUBLESHOOTING.md`:
+  - хранит повторяемые dev/run/build/test сбои и проверенные способы диагностики;
+  - не хранит базовые команды запуска, production deploy runbook и доменные/продуктовые инварианты.
+- `deploy/README.md`:
+  - хранит production deploy runbook и production-first troubleshooting;
+  - не дублирует локальный dev runbook из `documents/DEVELOPMENT.md`.
 - `documents/DOCS-INDEX.md`:
   - хранит только карту документов и их назначение;
   - не хранит policy, planning и status-модель.

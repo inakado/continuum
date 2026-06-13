@@ -14,10 +14,13 @@ import {
 import path from "node:path";
 
 const sourceFiles = [
+  "README.md",
   "AGENTS.md",
+  "PRODUCT.md",
+  "DESIGN.md",
   "deploy/README.md",
   ...listDocMarkdownFiles(),
-];
+].filter(fileExists);
 
 const anchorCache = new Map();
 const errors = [];

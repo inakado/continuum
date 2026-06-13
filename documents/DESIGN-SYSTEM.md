@@ -7,13 +7,11 @@
 
 ---
 
-## Статусы фактов
+## Текущие baseline
 
-- `Implemented`: правила/токены/паттерны, которые уже видны в текущем UI (сверяется по `apps/web`).
-- `Planned`: будущие изменения дизайн‑системы (если добавляются — помечаются явно в разделе).
-- Ролевые baseline фиксируются раздельно:
-  - teacher dashboard design system — `Implemented`;
-  - student dashboard design system — `In progress` (отдельная ветка визуальной системы, старт с `/student`).
+- Teacher dashboard и student dashboard описываются как раздельные UI-системы.
+- Teacher dashboard baseline является каноническим только для teacher routes.
+- Student dashboard baseline развивается отдельно в `apps/web/features/student-dashboard/*`, начиная с `/student`.
 
 ## 1) Типографика
 
@@ -35,7 +33,7 @@ C) Интерфейс и чтение
 - Токен: `--font-inter`
 - Использование: основной UI‑текст, меню, карточки, формы, длинные тексты
 
-### 1.2 Typography contract (`Implemented`)
+### 1.2 Typography contract
 
 - `Unbounded` используется только как `--font-logo` для бренда `Континуум`.
 - `Onest` (`--font-heading`) используется для:
@@ -49,7 +47,7 @@ C) Интерфейс и чтение
   - helper/meta/error copy.
 - `JetBrains Mono` допускается только как `--font-mono` для technical/meta/counter contexts, где моноширинность действительно нужна.
 
-### 1.3 Semantic type scale (`Implemented`)
+### 1.3 Semantic type scale
 
 В `apps/web/app/globals.css` зафиксирован семантический scale:
 - `--text-title-display-*`
@@ -96,7 +94,7 @@ C) Интерфейс и чтение
 - `bg-surface`: light `#f1f5f9`, dark `#1e293b`
 - `bg-field`: light `#ffffff`, dark `#0f172a`
 
-**Semantic dark foundation (`Implemented`):**
+**Semantic dark foundation:**
 - В `apps/web/app/globals.css` закреплён общий dark foundation:
   - `--foundation-bg`
   - `--foundation-surface`
@@ -132,7 +130,7 @@ Glass‑стиль — основа для **teacher dashboard baseline**.
 - Фон ч/б, зернистый, без кислотных оттенков.
 - Все элементы входа нейтральные и прозрачные, чтобы не конфликтовать с зерном.
 
-### 2.3 Role-scoped dashboard themes (`Implemented`)
+### 2.3 Role-scoped dashboard themes
 
 - Foundation tokens остаются общими в `apps/web/app/globals.css`.
 - Для dashboard-веток применяется отдельный role theme layer:
@@ -157,7 +155,7 @@ Glass‑стиль — основа для **teacher dashboard baseline**.
 
 ## 3) Геометрия UI
 
-### 3.0 Semantic foundation tokens (`Implemented`)
+### 3.0 Semantic foundation tokens
 
 Поверх foundation tokens в `globals.css` заведён второй слой:
 - spacing/layout: `--space-*`, `--layout-*`
@@ -234,7 +232,7 @@ Glass‑стиль — основа для **teacher dashboard baseline**.
 - Ошибка всегда читается на фоне glass
 - На логине: лёгкая плашка‑капсула (без агрессивных красных заливок)
 
-### 4.4 Headless primitives (`Implemented`)
+### 4.4 Headless primitives
 - Сложные interactive-компоненты собраны на Radix primitives, но визуально остаются в текущей системе токенов:
   - `Dialog` / `AlertDialog` / `DropdownMenu` / `Select` / `Switch` / `Tabs`.
 - Контракты UI по-прежнему проходят через `apps/web/components/ui/*` (продуктовые экраны не импортируют Radix напрямую).
@@ -255,7 +253,7 @@ Glass‑стиль — основа для **teacher dashboard baseline**.
   - с видимым `:focus-visible` ring,
   - позиционирование и отступы задаются локально в фиче, но с сохранением читаемости и hit-area.
 
-### 4.5 Shared presentation primitives (`Implemented`)
+### 4.5 Shared presentation primitives
 
 - `PageHeader` — канонический header для teacher dashboard sections:
   - `kicker`
@@ -276,7 +274,7 @@ Glass‑стиль — основа для **teacher dashboard baseline**.
   - identity header ученика остаётся единственным сильным surface над drilldown;
   - `courses` и `sections` не используют oversized empty cards и визуально ведут к более плотному `units` table view.
 
-### 4.6 Teacher dashboard card hover (`Implemented`)
+### 4.6 Teacher dashboard card hover
 
 - Для interactive card surfaces в teacher dashboard (`курсы`, `разделы`, `ученики`, drilldown row-cards) используется единый hover-contract.
 - Hover-состояние карточки:
@@ -323,7 +321,7 @@ Glass‑стиль — основа для **teacher dashboard baseline**.
 - без browser viewer UI
 - PDF.js canvas/text-layer
 
-### 6.3 HTML unit content (`Implemented`)
+### 6.3 HTML unit content
 - Для student unit `theory/method` при наличии собранного HTML показываем адаптивный HTML panel вместо PDF canvas.
 - HTML panel ощущается частью glass-страницы, а не отдельным viewer:
   - собственный content-skin внутри panel scope;

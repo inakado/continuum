@@ -58,3 +58,12 @@
 - Приоритет: medium
 - Статус: open
 - План устранения: продолжать tuning worker post-processing и scoped content CSS на реальном corpus; новые найденные системные cases сначала классифицировать как renderer issue, а не исправлять точечно в teacher source.
+
+### TD-006 — Batch availability recompute contour
+
+- Область: Learning / Reliability
+- Описание: publish/unpublish и graph updates сейчас запускают синхронный recompute availability/progress по активным студентам в API.
+- Влияние: текущий путь проще и консистентен, но тяжёлые массовые изменения могут давать высокий latency и нагрузку на API.
+- Приоритет: medium
+- Статус: open
+- План устранения: при появлении реального performance pressure вынести тяжёлые пересчёты в отдельный batch/worker contour с явными retry/idempotency правилами.

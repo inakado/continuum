@@ -1,0 +1,238 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-13T13:29:29Z",
+  "title": "Design System: Континуум",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "primary",
+        "displayName": "Continuum Ink",
+        "canonical": "#0f172a",
+        "tonalRamp": ["oklch(15% 0.035 260)", "oklch(25% 0.04 260)", "oklch(35% 0.045 260)", "oklch(45% 0.045 260)", "oklch(58% 0.035 260)", "oklch(72% 0.025 260)", "oklch(86% 0.015 260)", "oklch(96% 0.006 260)"]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "canonical": "#ffffff",
+        "tonalRamp": ["#0f172a", "#1e293b", "#334155", "#64748b", "#94a3b8", "#cbd5e1", "#f1f5f9", "#ffffff"]
+      },
+      "student-carbon": {
+        "role": "primary",
+        "displayName": "Student Carbon",
+        "canonical": "#212529",
+        "tonalRamp": ["#111315", "#212529", "#343a40", "#495057", "#6c757d", "#adb5bd", "#e9ecef", "#f8f9fa"]
+      },
+      "success": {
+        "role": "status",
+        "displayName": "Semantic Success",
+        "canonical": "#10b981",
+        "tonalRamp": ["oklch(18% 0.05 160)", "oklch(30% 0.08 160)", "oklch(42% 0.11 160)", "oklch(54% 0.14 160)", "oklch(66% 0.15 160)", "oklch(78% 0.11 160)", "oklch(88% 0.06 160)", "oklch(96% 0.025 160)"]
+      },
+      "warning": {
+        "role": "status",
+        "displayName": "Semantic Warning",
+        "canonical": "#d97706",
+        "tonalRamp": ["oklch(20% 0.05 65)", "oklch(32% 0.08 65)", "oklch(44% 0.11 65)", "oklch(56% 0.14 65)", "oklch(68% 0.14 65)", "oklch(80% 0.09 65)", "oklch(90% 0.045 65)", "oklch(97% 0.02 65)"]
+      },
+      "danger": {
+        "role": "status",
+        "displayName": "Semantic Danger",
+        "canonical": "#ef4444",
+        "tonalRamp": ["oklch(18% 0.06 25)", "oklch(30% 0.1 25)", "oklch(42% 0.14 25)", "oklch(54% 0.17 25)", "oklch(66% 0.18 25)", "oklch(78% 0.12 25)", "oklch(90% 0.06 25)", "oklch(97% 0.025 25)"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Rare high-level dashboard identity moments."
+      },
+      "page": {
+        "displayName": "Page",
+        "purpose": "Primary screen titles and page headers."
+      },
+      "section": {
+        "displayName": "Section",
+        "purpose": "In-panel stage headings and major workspace sections."
+      },
+      "card": {
+        "displayName": "Card",
+        "purpose": "Entity titles in cards, rows and compact summaries."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default UI text, form copy and learning content."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Compact labels, status pills and controlled overline use."
+      }
+    },
+    "shadows": [
+      {
+        "name": "glass-panel",
+        "value": "0 12px 30px rgba(15, 23, 42, 0.075)",
+        "purpose": "Light teacher glass panel elevation."
+      },
+      {
+        "name": "glass-panel-dark",
+        "value": "0 18px 40px rgba(2, 6, 23, 0.34)",
+        "purpose": "Dark teacher glass panel separation."
+      },
+      {
+        "name": "card-low",
+        "value": "0 9px 20px rgba(15, 23, 42, 0.04)",
+        "purpose": "Low secondary card lift."
+      },
+      {
+        "name": "foundation-md",
+        "value": "0 18px 38px rgba(2, 6, 23, 0.12)",
+        "purpose": "Reusable medium role-level elevation."
+      }
+    ],
+    "motion": [
+      {
+        "name": "motion-fast",
+        "value": "160ms",
+        "purpose": "Default control hover, focus and color transitions."
+      },
+      {
+        "name": "motion-base",
+        "value": "220ms",
+        "purpose": "Standard state transitions in product UI."
+      },
+      {
+        "name": "motion-slow",
+        "value": "360ms",
+        "purpose": "Larger shell or layout transitions."
+      },
+      {
+        "name": "student-sidebar-ease",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Expanded student sidebar motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "student-sidebar-wide",
+        "value": "desktop shell state",
+        "purpose": "Student sidebar expands from 72px to 288px+ depending on viewport."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main create/save/confirm/next-step action.",
+      "html": "<button class=\"ds-button ds-button-primary\">Сохранить</button>",
+      "css": ".ds-button { min-height: 44px; padding: 10px 16px; border-radius: 12px; border: 1.5px solid #0f172a; font: 600 14px/1.2 Inter, system-ui, sans-serif; letter-spacing: 0.01em; transition: background 160ms ease, color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease; } .ds-button-primary { background: #0f172a; color: #ffffff; } .ds-button-primary:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(15, 23, 42, 0.16); } .ds-button-primary:focus-visible { outline: 2px solid #0f172a; outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Utility action for refresh/open/compile flows.",
+      "html": "<button class=\"ds-button ds-button-secondary\">Открыть</button>",
+      "css": ".ds-button { min-height: 44px; padding: 10px 16px; border-radius: 12px; font: 600 14px/1.2 Inter, system-ui, sans-serif; letter-spacing: 0.01em; transition: background 160ms ease, color 160ms ease, border-color 160ms ease, box-shadow 160ms ease; } .ds-button-secondary { background: #ffffff; color: #0f172a; border: 1px solid rgba(15, 23, 42, 0.12); } .ds-button-secondary:hover { border-color: #0f172a; box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.78); } .ds-button-secondary:focus-visible { outline: 2px solid #0f172a; outline-offset: 2px; }"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Destructive delete/reject/remove action.",
+      "html": "<button class=\"ds-button ds-button-danger\">Удалить</button>",
+      "css": ".ds-button { min-height: 44px; padding: 10px 16px; border-radius: 12px; font: 600 14px/1.2 Inter, system-ui, sans-serif; letter-spacing: 0.01em; transition: background 160ms ease, color 160ms ease, border-color 160ms ease, box-shadow 160ms ease; } .ds-button-danger { background: #ffffff; color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.34); } .ds-button-danger:hover { background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.48); box-shadow: 0 8px 18px rgba(239, 68, 68, 0.14); } .ds-button-danger:focus-visible { outline: 2px solid rgba(239, 68, 68, 0.72); outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Default form field for teacher and student workflows.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-label\">Название</span><input class=\"ds-input\" placeholder=\"Введите название\" /></label>",
+      "css": ".ds-field { display: grid; gap: 8px; color: #0f172a; font-family: Inter, system-ui, sans-serif; } .ds-label { font: 500 11px/1.2 Onest, system-ui, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; } .ds-input { min-height: 44px; width: 100%; border: 1.5px solid rgba(15, 23, 42, 0.12); background: #ffffff; color: #0f172a; border-radius: 12px; padding: 10px 12px; font: 400 15px/1.5 Inter, system-ui, sans-serif; transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease; } .ds-input::placeholder { color: #64748b; } .ds-input:focus-visible { outline: none; border-color: rgba(15, 23, 42, 0.58); box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.32); }"
+    },
+    {
+      "name": "Panel Surface",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "Primary workspace surface for dashboard panels.",
+      "html": "<section class=\"ds-panel\"><h3>Материалы и прогресс</h3><p>Компактная рабочая область с ясной иерархией.</p></section>",
+      "css": ".ds-panel { display: grid; gap: 16px; border: 1.5px solid rgba(15, 23, 42, 0.12); background: rgba(255, 255, 255, 0.82); box-shadow: 0 12px 30px rgba(15, 23, 42, 0.075); border-radius: 16px; padding: 18px; color: #0f172a; font-family: Inter, system-ui, sans-serif; } .ds-panel h3 { margin: 0; font: 500 18px/1.2 Onest, system-ui, sans-serif; letter-spacing: -0.01em; } .ds-panel p { margin: 0; color: #64748b; font: 400 13px/1.45 Inter, system-ui, sans-serif; }"
+    },
+    {
+      "name": "Inline Status",
+      "kind": "chip",
+      "refersTo": "status-chip",
+      "description": "Canonical compact status label.",
+      "html": "<span class=\"ds-status ds-status-success\">Опубликовано</span>",
+      "css": ".ds-status { display: inline-flex; align-items: center; justify-content: center; width: fit-content; min-height: 26px; padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(15, 23, 42, 0.12); font: 500 11px/1.2 Onest, system-ui, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #0f172a; white-space: nowrap; } .ds-status-success { border-color: rgba(34, 197, 94, 0.38); background: rgba(34, 197, 94, 0.12); }"
+    },
+    {
+      "name": "Navigation Item",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "Role-themed sidebar navigation item.",
+      "html": "<a class=\"ds-nav-item ds-nav-item-active\" href=\"#\">Разделы</a>",
+      "css": ".ds-nav-item { display: inline-flex; align-items: center; min-height: 40px; padding: 8px 12px; border-radius: 12px; color: #0f172a; font: 500 14px/1.2 Inter, system-ui, sans-serif; text-decoration: none; transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 160ms ease; } .ds-nav-item:hover { background: rgba(255, 255, 255, 0.4); box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08); } .ds-nav-item-active { background: rgba(255, 255, 255, 0.94); color: #0f172a; } .ds-nav-item:focus-visible { outline: 2px solid #0f172a; outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Система координат обучения",
+    "overview": "Визуальная система «Континуума» описывает рабочую учебную среду, где каждый экран помогает определить положение: роль пользователя, текущий раздел, доступность юнита, статус задачи, прогресс и следующий шаг. Это product UI, а не маркетинговая поверхность: дизайн служит навигации, управлению контентом, проверке решений и прохождению материала.\n\nСистема держится на строгой светло-тёмной foundation palette, локальных шрифтах Onest и Inter, аккуратных радиусах 12-16px, glass baseline для teacher dashboard и отдельном student dashboard baseline. Teacher и student интерфейсы не обязаны выглядеть одинаково: они делят foundation tokens и shared primitives, но развиваются через собственные shell/theme layers.",
+    "keyCharacteristics": [
+      "Раздельные role-scoped visual baselines для teacher и student routes.",
+      "Foundation-first token model: globals.css задаёт основу, role theme modules переопределяют только semantic UI tokens.",
+      "Рабочая плотность без потери сканируемости: списки, таблицы, графы и drilldown-экраны должны оставаться читаемыми.",
+      "Типографика без CDN: Unbounded только для логотипа, Onest для заголовков и акцентов, Inter для UI и чтения.",
+      "Статусы, прогресс и доступность всегда читаются как состояние системы, а не как украшение."
+    ],
+    "rules": [
+      {
+        "name": "The Role Boundary Rule",
+        "body": "Цвета teacher и student интерфейсов меняются через teacher-dashboard-theme.module.css и student-dashboard-theme.module.css; role-specific задача не переписывает чужой theme layer.",
+        "section": "colors"
+      },
+      {
+        "name": "The Accent Scarcity Rule",
+        "body": "Акцент служит primary action, current selection и status semantics. Не использовать акцент как декоративную заливку для пустых карточек или фона.",
+        "section": "colors"
+      },
+      {
+        "name": "The Glass Legibility Rule",
+        "body": "Glass допустим только с fallback и читаемым foreground. Если blur ухудшает контраст или структуру, поверхность становится непрозрачной.",
+        "section": "colors"
+      },
+      {
+        "name": "The Logo Isolation Rule",
+        "body": "Unbounded не используется как обычный heading face. Он принадлежит только логотипному тексту Континуум.",
+        "section": "typography"
+      },
+      {
+        "name": "The Product Scale Rule",
+        "body": "Product UI использует semantic type tokens из globals.css; новые произвольные font-size допускаются только как локально обоснованное исключение.",
+        "section": "typography"
+      },
+      {
+        "name": "The State Earns Shadow Rule",
+        "body": "Shadows appear for hierarchy or interaction state. A resting component should not combine a decorative 1px border with a broad soft shadow unless it is an intentional panel/card primitive.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do preserve role boundaries: teacher changes stay in teacher shell/theme/features; student changes stay in student shell/theme/features.",
+      "Do use foundation and role tokens for surfaces, borders, shadows, status colors and controls instead of raw neutral literals in feature CSS.",
+      "Do keep completionPercent and solvedPercent, locked/available states, draft/published states and review statuses visually distinct.",
+      "Do use Button, ButtonLink, SurfaceCard, PageHeader, InlineStatus and Radix-backed primitives before writing one-off controls.",
+      "Do support dark theme, focus states, reduced motion and WCAG AA contrast as baseline requirements."
+    ],
+    "donts": [
+      "Don't make the product feel like детский edtech with decorative gamified visuals as the baseline.",
+      "Don't turn product screens into маркетинговый SaaS с фиолетовыми градиентами, hero metrics or promotional copy.",
+      "Don't build перегруженный админский Excel: density without hierarchy is a failure.",
+      "Don't use glass ради glass. Transparent blur is forbidden when it harms contrast, menus, forms or table readability.",
+      "Don't use gradient text, side-stripe card borders, repeating stripe backgrounds, nested cards or numbered section scaffolding as default patterns.",
+      "Don't render raw enum strings in UI. Map statuses through apps/web/lib/status-labels.ts."
+    ]
+  }
+}

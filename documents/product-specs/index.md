@@ -1,13 +1,15 @@
 # product-specs/index
 
-Статус: `Scaffold`.
-
 ## Назначение
 
-Каталог продуктовых спецификаций по сценариям.
+Индекс продуктовых спецификаций и proposal-документов, которые не являются SoR и не описывают текущее поведение системы.
 
-## Planned specs
+## Правила
 
-- onboarding
-- teacher review workflow
-- student progression flow
+- Product specs не заменяют SoR-доки.
+- Когда spec становится active work, для него создаётся execution plan.
+- После реализации факты переносятся в профильные SoR-доки.
+
+## Specs
+
+- `documents/product-specs/gamification-proposal.md` — proposal по будущему мотивационному/геймификационному слою. Не является SoR; реализация требует отдельного execution plan.

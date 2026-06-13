@@ -8,6 +8,8 @@
 
 ## Migrated (legacy vertical slices)
 
+Legacy vertical slices — исторические specs и execution context. Они не являются SoR текущего поведения; текущие факты задаются кодом и профильными SoR-доками.
+
 - `VERTICAL-SLICES-PLAN.md`
 - `VERTICAL-SLICE-VS-01.md`
 - `VERTICAL-SLICE-VS-02.md`

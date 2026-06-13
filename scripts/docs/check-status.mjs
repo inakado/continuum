@@ -1,6 +1,21 @@
 import { failWithErrors, readFile } from "./_shared.mjs";
 
 const DOCUMENT_RULES = {
+  "README.md": {
+    requiredPatterns: [
+      /Континуум/,
+      /documents\/DOCS-INDEX\.md/,
+      /documents\/DEVELOPMENT\.md/,
+      /pnpm dev:infra/,
+      /pnpm dev:backend/,
+      /pnpm dev:web/,
+    ],
+    forbiddenPatterns: [
+      /bootstrap/i,
+      /код будут добавляться/i,
+      /Статус: draft/i,
+    ],
+  },
   "AGENTS.md": {
     requiredPatterns: [
       /documents\/DOCS-INDEX\.md/,
@@ -25,6 +40,7 @@ const DOCUMENT_RULES = {
       /AGENTS\.md/,
       /documents\/PLANS\.md/,
       /documents\/DEVELOPMENT\.md/,
+      /documents\/ops\/TROUBLESHOOTING\.md/,
       /documents\/ARCHITECTURE-PRINCIPLES\.md/,
       /documents\/exec-plans\/deferred-roadmap\.md/,
     ],
@@ -34,6 +50,20 @@ const DOCUMENT_RULES = {
       /## Границы документов/,
       /stable rule → SoR/i,
       /governance/i,
+    ],
+  },
+  "documents/ARCHITECTURE.md": {
+    requiredPatterns: [
+      /## 1\) Архитектурный стиль и принципы/,
+      /## 2\) Bounded Contexts/,
+      /## 5\) Очереди и фоновые процессы/,
+      /## 6\) Фиксация политики пересчётов/,
+    ],
+    forbiddenPatterns: [
+      /\bPlanned\b/,
+      /## Planned/i,
+      /Search \(Concepts/i,
+      /### BC8 — Analytics/i,
     ],
   },
   "documents/PLANS.md": {
@@ -81,6 +111,7 @@ const DOCUMENT_RULES = {
       /## Dev Runbook/,
       /## Verification Commands/,
       /## Troubleshooting/,
+      /documents\/ops\/TROUBLESHOOTING\.md/,
     ],
     forbiddenPatterns: [
       /\bImplemented\b/,
@@ -90,6 +121,19 @@ const DOCUMENT_RULES = {
       /\bPhase\b/i,
       /\bWave\b/i,
       /\bprogress\b/i,
+    ],
+  },
+  "documents/ops/TROUBLESHOOTING.md": {
+    requiredPatterns: [
+      /## Troubleshooting/,
+      /повторяемые dev\/run\/build\/test\/deploy сбои/,
+      /deploy\/README\.md/,
+    ],
+    forbiddenPatterns: [
+      /\bImplemented\b/,
+      /\bPlanned\b/,
+      /## Границы документа/,
+      /## Статус-модель/,
     ],
   },
   "documents/FRONTEND.md": {
@@ -142,6 +186,26 @@ const DOCUMENT_RULES = {
   "documents/PRODUCT_SENSE.md": {
     requiredPatterns: [/## Назначение/, /## Decision Heuristics/, /## Product Regressions/],
     forbiddenPatterns: [/\bPlanned\b/, /\bTODO\b/],
+  },
+  "documents/DECISIONS.md": {
+    requiredPatterns: [/## DEC-01/, /## DEC-21/, /## DEC-AUTH-02/],
+    forbiddenPatterns: [/\bPlanned\b/, /\bTODO\b/, /Mini-gap-check/i, /пока не зафиксирован/i],
+  },
+  "documents/DOMAIN-EVENTS.md": {
+    requiredPatterns: [/## 0\) Общие правила/, /## 1\) Список событий/, /## 2\) Source links/],
+    forbiddenPatterns: [/## Planned/i, /\bTODO\b/, /UserAuthenticated/],
+  },
+  "documents/RELIABILITY.md": {
+    requiredPatterns: [/## Scope/, /## Current invariants/, /## Source links/],
+    forbiddenPatterns: [/## Planned/i, /\bTODO\b/],
+  },
+  "documents/DESIGN-SYSTEM.md": {
+    requiredPatterns: [/## Текущие baseline/, /## 1\) Типографика/, /## Source links/],
+    forbiddenPatterns: [/\bPlanned\b/, /\bTODO\b/, /## Статусы фактов/],
+  },
+  "documents/product-specs/index.md": {
+    requiredPatterns: [/documents\/product-specs\/gamification-proposal\.md/, /не являются SoR/],
+    forbiddenPatterns: [/Scaffold/i, /## Planned specs/i],
   },
 };
 

@@ -9,9 +9,7 @@
 
 ### 1.1 Стиль
 - **Modular Monolith** на **NestJS** (единый деплой API), разбиение по модулям/Bounded Contexts.
-- Отдельный процесс **Worker** (BullMQ consumers) для:
-  - Rich LaTeX рендера (TeX Live + `pdflatex` / `dvisvgm`),
-  - (Planned) batch-пересчётов прогресса/доступности при publish/unpublish и обновлениях графа (в текущем коде пересчёт делается синхронно в API).
+- Отдельный процесс **Worker** (BullMQ consumers) для Rich LaTeX рендера (TeX Live + `pdflatex` / `dvisvgm`).
 
 ### 1.2 Доменная декомпозиция (DDD)
 - Ключевая доменная сложность: **Learning Progress & Unlock** (attempts, 3+3, два процента, required-гейт, граф unlock).
@@ -20,7 +18,6 @@
 
 ### 1.3 Консистентность
 - **Прогресс и unlock**: консистентно и “сразу” (синхронно/инкрементально на критическом пути).
-- **Analytics и Search**: eventual consistency (проекции/агрегаты по доменным событиям).
 - **Rendering**: асинхронно через очередь; API поток не блокируется.
 
 ---
@@ -37,7 +34,7 @@
 - ведущего учителя можно сменить; прогресс сохраняется, меняется проверяющий фото
 
 ### BC2 — Content (Authoring & Publishing)
-**Ответственность:** курс/раздел/юнит/задача + публикация + граф юнитов внутри раздела + concepts + ревизии задач.  
+**Ответственность:** курс/раздел/юнит/задача + публикация + граф юнитов внутри раздела + ревизии задач.  
 **Инварианты:**
 - иерархическая видимость draft/published: draft родителя скрывает всё
 - любая правка задачи → новая ревизия, активная ревизия переключается
@@ -66,7 +63,6 @@
 **Инварианты:**
 - доступ к файлам только через backend-проверку прав
 - asset keys хранятся в доменных сущностях (например `Unit.theoryPdfAssetKey|theoryHtmlAssetKey`, `TaskRevision.solutionHtmlAssetKey`, `PhotoTaskSubmission.assetKeysJson`)
-- (Planned) универсальная привязка файлов к сущностям (если понадобится)
 
 ### BC6 — Rendering (Rich LaTeX)
 **Ответственность:** очередь компиляции LaTeX → PDF/HTML, worker compile + apply результата в API, логи ошибок/сниппеты.  
@@ -76,15 +72,9 @@
 - TeX runtime размещён только в worker-контуре; API (включая debug compile endpoint) ограничен queue-orchestration и read/apply API
 - unit theory/method compile публикует согласованную пару артефактов `PDF + HTML`
 - API защищается от stale-результатов при apply (сравнение assetKey и active revision)
-- при `failed` статусе job API отдаёт структурированную ошибку компиляции: `code/message + log tail (+logTruncated)`; `logSnippet` сохранён для backward compatibility (`Implemented`)
+- при `failed` статусе job API отдаёт структурированную ошибку компиляции: `code/message + log tail (+logTruncated)`; `logSnippet` сохранён для backward compatibility.
 
-### BC7 — Search (Concepts & Content Search)
-**Статус:** `Planned` (в коде сейчас нет моделей `concepts`/индекса).
-
-### BC8 — Analytics
-**Статус:** `Planned` (в коде сейчас нет проекций/агрегатов).
-
-### BC9 — Audit & Domain Events Log
+### BC7 — Audit & Domain Events Log
 **Ответственность:** единый лог доменных событий (admin/learning/system) с фильтрацией и payload.  
 **Принцип:** “события — факт домена”, покрывают и админские, и учебные действия.
 
@@ -97,7 +87,6 @@
 - **ManualReview → Learning**: принятие/отклонение фото меняет состояние задачи/прогресса.
 - **Rendering → Storage/Content**: результат (`PDF`, `HTML`, `SVG assets`) сохраняется в object storage и применяется в Content через internal endpoint.
 - **Content/Learning/ManualReview/Rendering → Audit**: пишут события.
-- **Search/Analytics ← Audit (+ read)**: строят проекции и агрегаты.
 
 ### 3.2 Запрещённые зависимости
 - UI/Next.js не обращается напрямую к S3 — только через API выдачи signed URL.
@@ -114,7 +103,7 @@
 ### 4.2 Application layer
 - команды (commands) и их handlers
 - транзакции, оркестрация внутри BC
-- публикация доменных событий в BC9
+- публикация доменных событий в BC7
 
 ### 4.3 Infrastructure layer
 - Prisma repositories
@@ -127,10 +116,8 @@
 ## 5) Очереди и фоновые процессы
 
 ### 5.1 Очереди (BullMQ)
-- `latex.compile` — compile LaTeX→PDF/HTML (unit theory/method) и LaTeX→PDF (task solution)
 - `latex.compile` — compile LaTeX→PDF/HTML (unit theory/method) и LaTeX→HTML (task solution)
 - `system.ping` — debug queue (smoke/проверка worker)
-- (Planned) `batch.*` — массовые пересчёты (publish/unpublish, graph updates)
 
 ### 5.2 Worker процессы
 - `apps/worker` обрабатывает `latex.compile` и `system.ping` (в одном процессе).
@@ -139,7 +126,7 @@
 
 ## 6) Фиксация политики пересчётов (unlock/progress)
 
-### Политика пересчётов сейчас (`Implemented`)
+### Политика пересчётов
 
 **RecomputeAvailability: детерминированный пересчёт снапшотов по section-графу**
 
@@ -149,11 +136,6 @@
   - persisted в `student_unit_state` (upsert).
 - На критических путях (attempt, student views) пересчёт вызывается синхронно.
 - На publish/unpublish и обновлениях графа пересчёт выполняется синхронно в API через `LearningRecomputeService` (по всем активным студентам).
-
-### Planned evolution
-
-- Инкрементальный пересчёт “вперёд” + события reach (`UnitBecameAvailableForStudent`).
-- Перенос тяжёлых batch-пересчётов в worker queue.
 
 ---
 

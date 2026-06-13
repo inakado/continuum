@@ -4,9 +4,13 @@
 
 Статус: `Draft` (источник истины — код).
 
+Полный route inventory генерируется отдельно в `documents/generated/api-routes.md`.
+Этот документ фиксирует смысловые цепочки `controller → service → БД/очередь → domain event/side effect`, а не полный список endpoints.
+
 ## 0) Принципы (`Implemented`)
 
 - Source of truth: код (`apps/api/src/**`, `apps/worker/src/**`).
+- Для механического списка HTTP method + path использовать `documents/generated/api-routes.md`.
 - После успешных write-операций часто пишется событие в `domain_event_log` через `EventsLogService`.
 - “Published-only” доступ для student реализован через фильтры Prisma-запросов (проверка `status` по цепочке).
 
@@ -27,12 +31,13 @@
 - `teacher/sections` → `ContentService` + events `Section*`
 - `teacher/units` → `ContentService` + events `Unit*`
 - `teacher/tasks` → `ContentService` + events `Task*` (+ statement image presign)
-- `teacher/section-graph` → `ContentService.updateSectionGraph()` + event `UnitGraphUpdated`
+- `GET|PUT /teacher/sections/:id/graph` → `ContentService.updateSectionGraph()` + event `UnitGraphUpdated`
 - `teacher/latex/*` → постановка compile job в очередь `latex.compile`
 
 ### Student endpoints (read-only published content)
 
-- `student/courses`, `student/sections`, `student/units` → published-only queries.
+- `GET /courses`, `GET /courses/:id`, `GET /sections/:id`, `GET /sections/:id/graph` → published-only queries with student access checks.
+- `GET /units/:id` живёт в learning-контуре, потому что должен учитывать availability/progress и возвращать `UNIT_LOCKED` для закрытых юнитов.
 
 Источник: `apps/api/src/content/*`.
 
@@ -49,6 +54,14 @@
   - события: `SectionOverrideOpenedForStudent`, `UnitOverrideOpenedForStudent`, `TaskTeacherCreditedForStudent`, `TaskUnblockedForStudent`.
 
 - Unit status/metrics для student UI вычисляются через `LearningAvailabilityService` (снапшоты по section) и persisted в `student_unit_state`.
+- Student dashboard:
+  - `GET /student/dashboard` → aggregated read-model для `/student`.
+- Teacher student management:
+  - `GET|POST /teacher/students`, `GET|PATCH|DELETE /teacher/students/:id`
+  - `POST /teacher/students/:id/reset-password`
+  - `PATCH /teacher/students/:id/transfer`
+  - `GET|PATCH /teacher/me`, `POST /teacher/me/change-password`
+  - `GET|POST /teacher/teachers`, `DELETE /teacher/teachers/:id`
 
 Источник:
 - `apps/api/src/learning/learning.service.ts` (facade)

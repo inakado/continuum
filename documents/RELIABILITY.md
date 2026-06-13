@@ -58,13 +58,6 @@
 - Откат выполняется до предыдущего commit/tag + пересборка backend контейнеров + rebuild/restart web systemd service.
 - Базовый rollback runbook зафиксирован в `deploy/README.md`.
 
-## Planned
-
-- SLO/SLA по критическим сценариям (login, открыть unit, submit attempt, photo submit/review, render pdf).
-- Runbooks: деградация Redis, object storage (S3/MinIO), worker lag, prisma migrate/rollback (углублённый аварийный режим).
-- Явная стратегия “availability recompute” (см. also: вопрос про записи на чтении).
-- Healthcheck/alerting интеграция в внешнюю систему мониторинга (Prometheus/Grafana или managed).
-
 ## Source links
 
 - Queue + worker:

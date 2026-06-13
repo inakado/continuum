@@ -1,13 +1,14 @@
 # Континуум
 
-«Континуум» — закрытая платформа обучения.
-Сейчас идёт bootstrap репозитория: инфраструктура и код будут добавляться по шагам.
+«Континуум» — закрытая платформа обучения с раздельными рабочими интерфейсами для учителя и ученика.
 
 Документация:
-- `documents/DOCS-INDEX.md`
+- `documents/DOCS-INDEX.md` — карта документации и SoR-доков.
+- `documents/DEVELOPMENT.md` — dev/build/test/deploy runbook.
 
-Статус: draft / bootstrap.
+Локальный dev-контур:
 
-## Infra (Docker)
-- `docker compose up -d`
-- `docker compose ps`
+- `pnpm dev:infra` — Postgres, Redis, MinIO.
+- `pnpm dev:backend` — API и worker в Docker.
+- `pnpm dev:web` — Next.js web на `http://localhost:3001`.
+- `pnpm smoke` — базовая проверка health/ready/queue/web.

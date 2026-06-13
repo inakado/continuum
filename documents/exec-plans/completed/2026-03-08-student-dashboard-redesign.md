@@ -31,7 +31,7 @@
 
 - Student dashboard реализован в [StudentDashboardScreen.tsx](../../../apps/web/features/student-dashboard/StudentDashboardScreen.tsx) и уже держит внутреннюю навигацию `courses → sections → graph`.
 - Навигация синхронизируется через `window.history.state` и `LAST_SECTION_KEY`.
-- Базовый shell и glass-контекст уже существуют в [DashboardShell.tsx](../../../apps/web/components/DashboardShell.tsx).
+- Базовый shell и glass-контекст сейчас живут в [StudentDashboardShell.tsx](../../../apps/web/components/StudentDashboardShell.tsx); на момент плана использовался старый compatibility wrapper `DashboardShell`.
 - Graph screen уже использует `ReactFlow`, `framer-motion` в проекте уже установлен, `lucide-react` уже используется.
 
 ### Архитектурные и дизайн-ограничения

@@ -1,6 +1,6 @@
 # DOMAIN-EVENTS
 **Проект:** «Континуум»  
-**Назначение:** единый каталог доменных событий (audit log + диагностика + будущие проекции).  
+**Назначение:** единый каталог доменных событий (audit log + диагностика).  
 
 Статус: `Draft` (источник истины — код).
 
@@ -86,16 +86,7 @@
 - `PhotoAttemptAccepted` (admin)
 - `PhotoAttemptRejected` (admin)
 
-## 2) Planned / TODO
-
-> Эти события встречаются в старых legacy-доках/планах, но пока не подтверждены в коде как эмитящиеся.
-
-- `UserAuthenticated`, `UserLoggedOut`, `UserPasswordChanged`
-- `UnitBecameAvailableForStudent`, `UnitProgressStartedForStudent`, `UnitCompletedByStudent`
-- `TaskRequiredFlagChanged` (если вводим отдельную команду вместо “пересоздания ревизии/обновления”)
-- Rendering job lifecycle events (`RenderJobQueued|Started|Succeeded|Failed`, etc.) — если решим фиксировать их как события (сейчас это не нужно для core behavior).
-
-## 3) Source links
+## 2) Source links
 
 - Event store:
   - `apps/api/prisma/schema.prisma` (model `DomainEventLog`)
