@@ -73,8 +73,8 @@
   --sidebar-width: var(--sidebar-collapsed);
   --sidebar-pad-x: var(--sidebar-pad-x-collapsed);
   --sidebar-pad-y: var(--sidebar-pad-y-collapsed);
-  --sidebar-motion-duration: 0.6s;
-  --sidebar-motion-ease: cubic-bezier(0.33, 0, 0.67, 1);
+  --sidebar-motion-duration: 0.28s;
+  --sidebar-motion-ease: cubic-bezier(0.4, 0, 0.2, 1);
   --theme-toggle-compact: 34px;
   --theme-toggle-icon: 20px;
   --theme-toggle-radius: var(--control-radius);
@@ -84,11 +84,6 @@
   align-items: stretch;
   min-height: 100vh;
   overflow: visible;
-  will-change: auto;
-  transition:
-    --sidebar-width var(--sidebar-motion-duration) var(--sidebar-motion-ease),
-    --sidebar-pad-x var(--sidebar-motion-duration) var(--sidebar-motion-ease),
-    --sidebar-pad-y var(--sidebar-motion-duration) var(--sidebar-motion-ease);
 }
 
 .shellWithSettings {
@@ -123,6 +118,8 @@
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   overflow: hidden;
+  contain: layout paint style;
+  transition: width var(--sidebar-motion-duration) var(--sidebar-motion-ease);
 }
 
 .mainContent {
@@ -145,6 +142,7 @@
   min-height: 100%;
   height: auto;
   width: 100%;
+  transition: padding var(--sidebar-motion-duration) var(--sidebar-motion-ease);
 }
 
 .sidebarHeader {
@@ -155,7 +153,8 @@
   padding-bottom: 4px;
   padding-left: 0;
   padding-right: 0;
-  transition: padding-left var(--sidebar-motion-duration) var(--sidebar-motion-ease),
+  transition:
+    padding-left var(--sidebar-motion-duration) var(--sidebar-motion-ease),
     padding-right var(--sidebar-motion-duration) var(--sidebar-motion-ease),
     gap var(--sidebar-motion-duration) var(--sidebar-motion-ease);
   width: 100%;
@@ -167,7 +166,8 @@
   max-width: 100%;
   opacity: 1;
   transform: translateY(0);
-  transition: max-width var(--sidebar-motion-duration) var(--sidebar-motion-ease),
+  transition:
+    max-width var(--sidebar-motion-duration) var(--sidebar-motion-ease),
     opacity var(--sidebar-motion-duration) var(--sidebar-motion-ease),
     transform var(--sidebar-motion-duration) var(--sidebar-motion-ease);
 }
@@ -252,14 +252,13 @@
 }
 
 .navLink {
+  box-sizing: border-box;
   border: var(--border-width) solid var(--panel-border);
   padding: 12px 16px;
   text-transform: uppercase;
   font-weight: 700;
   font-size: 12px;
   letter-spacing: 0.08em;
-  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease,
-    box-shadow 0.2s ease;
   touch-action: manipulation;
   display: flex;
   align-items: center;
@@ -269,7 +268,12 @@
   background: transparent;
   min-height: 44px;
   width: 100%;
-  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease,
+  overflow: hidden;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease,
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
     padding var(--sidebar-motion-duration) var(--sidebar-motion-ease),
     width var(--sidebar-motion-duration) var(--sidebar-motion-ease),
     border-radius var(--sidebar-motion-duration) var(--sidebar-motion-ease),
@@ -322,7 +326,6 @@
   --sidebar-width: var(--sidebar-collapsed);
   --sidebar-pad-x: var(--sidebar-pad-x-collapsed);
   --sidebar-pad-y: var(--sidebar-pad-y-collapsed);
-  --sidebar-motion-ease: cubic-bezier(0.33, 0, 0.67, 1);
   --theme-toggle-compact: 44px;
   --theme-toggle-radius: 14px;
 }
@@ -331,7 +334,6 @@
   --sidebar-width: var(--sidebar-expanded);
   --sidebar-pad-x: var(--sidebar-pad-x-expanded);
   --sidebar-pad-y: var(--sidebar-pad-y-expanded);
-  --sidebar-motion-ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .shell[data-sidebar-open="false"] .sidebarHeaderText {
@@ -426,6 +428,10 @@
     min-height: auto;
   }
 
+  .shell[data-sidebar-open="true"] .sidebar {
+    width: 100%;
+  }
+
   .shell[data-sidebar-open="false"] .kicker,
   .shell[data-sidebar-open="false"] .sidebarTitle,
   .shell[data-sidebar-open="false"] .sidebarSubtitle {
@@ -460,7 +466,7 @@
     border-radius: var(--control-radius);
   }
 
-  .navLabelMotion {
+  .navLabel {
     opacity: 1;
     transform: translateX(0);
     max-width: 100%;
@@ -481,8 +487,16 @@
   justify-content: center;
 }
 
-.navLabelMotion {
+.navLabel {
   white-space: nowrap;
-  display: block;
+  display: inline-block;
   overflow: hidden;
+  min-width: max-content;
+  line-height: 20px;
+  transform: translateX(0);
+  transition: transform var(--sidebar-motion-duration) var(--sidebar-motion-ease);
+}
+
+.shell[data-sidebar-open="false"] .navLabel {
+  transform: translateX(14px);
 }
