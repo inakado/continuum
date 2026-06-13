@@ -73,8 +73,8 @@
   --sidebar-width: var(--sidebar-collapsed);
   --sidebar-pad-x: var(--sidebar-pad-x-collapsed);
   --sidebar-pad-y: var(--sidebar-pad-y-collapsed);
-  --sidebar-motion-duration: 0.28s;
-  --sidebar-motion-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --sidebar-motion-duration: 0.3s;
+  --sidebar-motion-ease: cubic-bezier(0.25, 1, 0.5, 1);
   --theme-toggle-compact: 34px;
   --theme-toggle-icon: 20px;
   --theme-toggle-radius: var(--control-radius);
