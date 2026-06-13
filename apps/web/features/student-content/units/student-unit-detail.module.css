@@ -1,9 +1,9 @@
 .content {
-  width: min(100%, 1200px);
+  width: min(100%, 1280px);
   margin: 0 auto;
-  padding: clamp(28px, 4vw, 56px) clamp(20px, 4vw, 40px) clamp(44px, 6vw, 72px);
+  padding: clamp(8px, 1.4vw, 18px) clamp(18px, 3vw, 36px) clamp(36px, 5vw, 56px);
   display: grid;
-  gap: clamp(22px, 3vw, 36px);
+  gap: clamp(10px, 1.4vw, 16px);
   --student-success: var(--role-success, var(--foundation-success));
   --student-success-surface: var(--role-success-surface, var(--foundation-success-surface));
   --student-unit-surface: var(--role-surface, var(--foundation-surface));
@@ -52,12 +52,12 @@
 
 .header {
   display: grid;
-  gap: 10px;
+  gap: 6px;
 }
 
 .headerLeft {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   max-width: min(100%, 56rem);
 }
 
@@ -65,8 +65,8 @@
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 24px;
-  padding-bottom: 10px;
+  gap: 14px;
+  padding-bottom: 2px;
 }
 
 .tabsRail {
@@ -83,8 +83,8 @@
   margin-left: auto;
   flex: 0 0 auto;
   align-self: center;
-  margin-bottom: 10px;
-  padding: 8px 0;
+  margin-bottom: 6px;
+  padding: 4px 0;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -127,7 +127,7 @@
   min-width: max-content;
   max-width: 100%;
   flex-wrap: nowrap !important;
-  gap: clamp(18px, 3vw, 32px);
+  gap: clamp(16px, 2vw, 24px);
   padding: 0 !important;
   border: 0 !important;
   background: transparent;
@@ -139,12 +139,12 @@
   text-transform: none;
   letter-spacing: 0.01em;
   font-family: var(--font-body), sans-serif;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   line-height: 1.2;
   font-weight: 500;
   border-radius: 0;
   min-height: auto;
-  padding: 0 0 16px;
+  padding: 0 0 10px;
   border: 0 !important;
   color: var(--text-muted);
   box-shadow: none;
@@ -176,10 +176,10 @@
 
 .title {
   font-family: var(--text-title-display-family), sans-serif;
-  font-size: var(--text-title-display-size);
-  line-height: var(--text-title-display-line-height);
+  font-size: clamp(1.9rem, 2.3vw, 2.45rem);
+  line-height: 1.06;
   font-weight: 500;
-  letter-spacing: var(--text-title-display-tracking);
+  letter-spacing: -0.025em;
   text-wrap: balance;
   color: color-mix(in srgb, var(--text-primary) 96%, transparent);
 }
@@ -204,25 +204,25 @@
 .progressCard {
   border: var(--border-width-thin) solid var(--student-unit-outline);
   background: var(--student-unit-surface-strong);
-  border-radius: calc(var(--card-radius) + 6px);
-  box-shadow: var(--student-unit-shadow-md);
-  padding: clamp(18px, 2.4vw, 28px);
+  border-radius: var(--card-radius);
+  box-shadow: var(--student-unit-shadow-sm);
+  padding: clamp(12px, 1.3vw, 16px);
   display: grid;
-  gap: 18px;
+  gap: 10px;
 }
 
 .progressLeadRow {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  gap: 24px;
+  gap: 18px;
   flex-wrap: wrap;
 }
 
 .progressLead {
   display: grid;
-  gap: 8px;
-  min-width: 180px;
+  gap: 4px;
+  min-width: 132px;
 }
 
 .progressStatLabel {
@@ -238,7 +238,7 @@
 
 .progressLeadValue {
   font-family: var(--font-heading), sans-serif;
-  font-size: clamp(2rem, 2.7vw, 2.6rem);
+  font-size: clamp(1.5rem, 1.8vw, 1.85rem);
   font-weight: 300;
   line-height: 1;
   letter-spacing: -0.03em;
@@ -280,13 +280,13 @@
 
 .progressSummaryDivider {
   width: 1px;
-  min-height: 42px;
+  min-height: 34px;
   background: color-mix(in srgb, var(--glass-border) 82%, transparent);
 }
 
 .progressTrack {
   width: 100%;
-  height: 7px;
+  height: 4px;
   border-radius: 999px;
   overflow: hidden;
   background: color-mix(in srgb, var(--surface-0) 78%, var(--glass-border));
@@ -1015,13 +1015,13 @@
 
 .tasks {
   display: grid;
-  gap: 18px;
+  gap: 10px;
 }
 
 .taskTabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
 }
 
@@ -1029,14 +1029,14 @@
   border: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 86%, transparent);
   background: var(--student-unit-surface-strong);
   color: color-mix(in srgb, var(--text-muted) 72%, var(--text-primary));
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   text-align: center;
-  font-size: 0.875rem;
+  font-size: 0.82rem;
   font-weight: 600;
   font-family: var(--font-body), sans-serif;
   cursor: pointer;
-  border-radius: 12px;
+  border-radius: 10px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1110,12 +1110,12 @@
 
 .taskCard {
   border: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 88%, transparent);
-  padding: clamp(24px, 3vw, 42px);
+  padding: clamp(14px, 1.6vw, 22px);
   background: var(--student-unit-surface-strong);
   display: grid;
-  gap: 24px;
-  border-radius: calc(var(--card-radius) + 8px);
-  box-shadow: var(--student-unit-shadow-lg);
+  gap: 14px;
+  border-radius: var(--card-radius);
+  box-shadow: var(--student-unit-shadow-md);
 }
 
 .photoCard {
@@ -1366,7 +1366,7 @@
 
 .taskHeaderCopy {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   max-width: min(100%, 36rem);
 }
 
@@ -1375,7 +1375,7 @@
   font-size: 0.75rem;
   line-height: 1.2;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
@@ -1390,8 +1390,8 @@
 .taskTitle {
   font-family: var(--font-heading), sans-serif;
   font-weight: 500;
-  font-size: clamp(1.4rem, 2vw, 1.8rem);
-  letter-spacing: -0.025em;
+  font-size: clamp(1.2rem, 1.6vw, 1.45rem);
+  letter-spacing: -0.015em;
   line-height: 1.14;
 }
 
@@ -1412,8 +1412,8 @@
 
 .taskStatement {
   font-family: var(--font-body), sans-serif;
-  font-size: clamp(1rem, 1.35vw, 1.2rem);
-  line-height: 1.72;
+  font-size: clamp(0.98rem, 1.1vw, 1.08rem);
+  line-height: 1.62;
   color: var(--text-primary);
   max-width: 44rem;
 }
@@ -1421,16 +1421,16 @@
 .statementImageBlock {
   display: grid;
   justify-items: center;
-  gap: 10px;
+  gap: 6px;
   width: 100%;
-  padding: 12px 0;
+  padding: 0;
 }
 
 .statementImage {
   display: block;
-  width: min(100%, 560px);
+  width: auto;
   max-width: 100%;
-  max-height: 520px;
+  max-height: min(46vh, 420px);
   border-radius: var(--card-radius);
   object-fit: contain;
   background: transparent;

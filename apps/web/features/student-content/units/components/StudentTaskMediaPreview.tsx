@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import Image from "next/image";
 import Button from "@/components/ui/Button";
 import styles from "../student-unit-detail.module.css";
 import { typesetMathInElement } from "../mathjax-helper";
@@ -53,13 +52,13 @@ export function StudentTaskMediaPreview({
               {statementImageError}
             </div>
           ) : statementImageUrl ? (
-            <Image
+            // Task images come from generated/teacher assets with variable aspect ratios.
+            // Use the intrinsic image box here; Next Image's fixed 4:3 placeholder leaves
+            // large vertical whitespace for wide diagrams.
+            <img
               src={statementImageUrl}
               alt="Иллюстрация к условию задачи"
               className={styles.statementImage}
-              width={1120}
-              height={840}
-              unoptimized
               onError={onStatementImageLoadError}
             />
           ) : (
