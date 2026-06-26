@@ -31,6 +31,8 @@
   --student-unit-method-icon-border: var(--glass-border);
   --student-unit-method-label: var(--text-primary);
   --student-unit-method-text: var(--text-muted);
+  --student-unit-answer-mode-active-bg: var(--role-accent-bg, var(--bg-accent));
+  --student-unit-answer-mode-active-text: var(--role-accent-text, var(--text-accent));
   --header-chip-radius: calc(var(--control-radius) + 8px);
   --header-chip-inner-radius: calc(var(--control-radius) + 4px);
 }
@@ -1319,6 +1321,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
 }
 
 .photoActions button {
@@ -1336,6 +1339,90 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.photoSubmissionPanel {
+  display: grid;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.photoModeSwitch {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: var(--border-width-thin) solid var(--student-unit-task-input-border);
+  border-radius: var(--control-radius);
+  background: var(--student-unit-task-input-bg);
+}
+
+.photoModeButton {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: calc(var(--control-radius) - 4px);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-body), sans-serif;
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
+.photoModeButton:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--student-unit-surface-soft) 82%, transparent);
+}
+
+.photoModeButton[aria-pressed="true"] {
+  background: var(--student-unit-answer-mode-active-bg);
+  color: var(--student-unit-answer-mode-active-text);
+}
+
+.photoModeButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.photoModeButton:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: 2px;
+}
+
+.photoSelectionMeta {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+.boardSubmissionArea {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.boardCanvasShell,
+.boardLoading {
+  width: 100%;
+  min-width: 0;
+  height: min(640px, max(420px, calc(100dvh - 320px)));
+  border: var(--border-width-thin) solid var(--student-unit-task-input-border);
+  border-radius: var(--control-radius);
+  background: var(--student-unit-paper-bg);
+  overflow: hidden;
+}
+
+.boardLoading {
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
 }
 
 .photoStatusMessage {
@@ -2054,6 +2141,11 @@
 
   .taskActions {
     align-items: flex-start;
+  }
+
+  .boardCanvasShell,
+  .boardLoading {
+    height: min(560px, max(360px, calc(100dvh - 260px)));
   }
 
   .taskActionButtons {

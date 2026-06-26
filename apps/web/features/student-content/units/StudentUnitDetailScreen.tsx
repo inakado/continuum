@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { ArrowLeft, BookOpenText } from "lucide-react";
 import { studentApi, type Task, type TaskState, type UnitVideo, type UnitWithTasks } from "@/lib/api/student";
 import { ApiError } from "@/lib/api/client";
@@ -27,6 +28,14 @@ import { StudentTaskTabs } from "./components/StudentTaskTabs";
 import { StudentTaskCardShell } from "./components/StudentTaskCardShell";
 import { StudentTaskAnswerForm } from "./components/StudentTaskAnswerForm";
 import { StudentTaskMediaPreview } from "./components/StudentTaskMediaPreview";
+
+const StudentExcalidrawBoard = dynamic(
+  () => import("./components/StudentExcalidrawBoard").then((mod) => mod.StudentExcalidrawBoard),
+  {
+    ssr: false,
+    loading: () => <div className={styles.boardLoading}>Загрузка доски...</div>,
+  },
+);
 
 type Props = {
   unitId: string;
@@ -299,14 +308,62 @@ function StudentPhotoActions({
     return null;
   }
 
+  const mode = photo.photoAnswerMode;
+
   return (
-    <div className={styles.photoActions}>
-      <Button variant="ghost" onClick={() => photo.openPhotoFileDialog(taskId)} disabled={photo.isPhotoLoading}>
-        Загрузить фото
-      </Button>
-      <Button onClick={() => photo.submitPhotoTask(taskId)} disabled={photo.isPhotoLoading || photo.photoSelectedFiles.length === 0}>
-        {photo.isPhotoLoading ? "Отправка..." : "Отправить"}
-      </Button>
+    <div className={styles.photoSubmissionPanel}>
+      <div className={styles.photoModeSwitch} aria-label="Способ ответа">
+        <button
+          type="button"
+          className={styles.photoModeButton}
+          aria-pressed={mode === "photo"}
+          onClick={() => photo.setPhotoAnswerMode(taskId, "photo")}
+          disabled={photo.isPhotoLoading}
+        >
+          Фото
+        </button>
+        <button
+          type="button"
+          className={styles.photoModeButton}
+          aria-pressed={mode === "board"}
+          onClick={() => photo.setPhotoAnswerMode(taskId, "board")}
+          disabled={photo.isPhotoLoading}
+        >
+          Доска
+        </button>
+      </div>
+
+      {mode === "photo" ? (
+        <div className={styles.photoActions}>
+          <Button variant="ghost" onClick={() => photo.openPhotoFileDialog(taskId)} disabled={photo.isPhotoLoading}>
+            Загрузить фото
+          </Button>
+          <Button
+            onClick={() => photo.submitPhotoTask(taskId)}
+            disabled={photo.isPhotoLoading || photo.photoSelectedFiles.length === 0}
+          >
+            {photo.isPhotoLoading ? "Отправка..." : "Отправить"}
+          </Button>
+          {photo.photoSelectedFiles.length > 0 ? (
+            <span className={styles.photoSelectionMeta}>Выбрано: {photo.photoSelectedFiles.length}</span>
+          ) : null}
+        </div>
+      ) : (
+        <div className={styles.boardSubmissionArea}>
+          <StudentExcalidrawBoard
+            onReady={photo.setBoardApi}
+            onChange={(elements) => photo.handleBoardChange(taskId, elements)}
+          />
+          <div className={styles.photoActions}>
+            <Button
+              onClick={() => photo.submitBoardTask(taskId)}
+              disabled={photo.isPhotoLoading || !photo.boardHasElements}
+            >
+              {photo.isPhotoLoading ? "Отправка..." : "Отправить доску"}
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

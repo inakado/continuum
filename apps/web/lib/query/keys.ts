@@ -11,6 +11,8 @@ export const learningPhotoQueryKeys = {
     ["learning-photo", "student", "task", taskId, "solution-rendered-content"] as const,
   studentTaskStatementImagePreview: (taskId: string) =>
     ["learning-photo", "student", "task", taskId, "statement-image"] as const,
+  studentPhotoBoardPreview: (taskId: string, assetKey: string) =>
+    ["learning-photo", "student", "task", taskId, "board-preview", assetKey] as const,
   teacherReviewInbox: (filters: TeacherReviewInboxFilters | undefined) =>
     ["learning-photo", "teacher", "review", "inbox", filters ?? {}] as const,
   teacherReviewSubmissionDetail: (

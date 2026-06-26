@@ -183,6 +183,10 @@ vi.mock("./components/StudentTaskMediaPreview", () => ({
   ),
 }));
 
+vi.mock("./components/StudentExcalidrawBoard", () => ({
+  StudentExcalidrawBoard: () => <div data-testid="student-excalidraw-board">board</div>,
+}));
+
 vi.mock("./hooks/use-student-unit-rendered-content", () => ({
   useStudentUnitRenderedContent: vi.fn(),
 }));
@@ -271,6 +275,8 @@ describe("StudentUnitDetailScreen", () => {
   const setActiveTaskIdMock = vi.fn();
   const openPhotoFileDialogMock = vi.fn();
   const submitPhotoTaskMock = vi.fn();
+  const submitBoardTaskMock = vi.fn();
+  const setPhotoAnswerModeMock = vi.fn();
   const toggleSolutionVisibilityMock = vi.fn();
 
   beforeEach(() => {
@@ -279,6 +285,8 @@ describe("StudentUnitDetailScreen", () => {
     setActiveTaskIdMock.mockReset();
     openPhotoFileDialogMock.mockReset();
     submitPhotoTaskMock.mockReset();
+    submitBoardTaskMock.mockReset();
+    setPhotoAnswerModeMock.mockReset();
     toggleSolutionVisibilityMock.mockReset();
 
     vi.mocked(useRouter).mockReturnValue({ push: pushMock, back: backMock } as never);
@@ -339,8 +347,14 @@ describe("StudentUnitDetailScreen", () => {
       canUploadPhoto: false,
       isPhotoLoading: false,
       photoSelectedFiles: [],
+      photoAnswerMode: "photo",
+      boardHasElements: false,
+      setPhotoAnswerMode: setPhotoAnswerModeMock,
+      setBoardApi: vi.fn(),
+      handleBoardChange: vi.fn(),
       openPhotoFileDialog: openPhotoFileDialogMock,
       submitPhotoTask: submitPhotoTaskMock,
+      submitBoardTask: submitBoardTaskMock,
     });
 
     vi.mocked(useStudentTaskMediaPreview).mockReturnValue({
@@ -520,8 +534,14 @@ describe("StudentUnitDetailScreen", () => {
       canUploadPhoto: false,
       isPhotoLoading: false,
       photoSelectedFiles: [],
+      photoAnswerMode: "photo",
+      boardHasElements: false,
+      setPhotoAnswerMode: setPhotoAnswerModeMock,
+      setBoardApi: vi.fn(),
+      handleBoardChange: vi.fn(),
       openPhotoFileDialog: openPhotoFileDialogMock,
       submitPhotoTask: submitPhotoTaskMock,
+      submitBoardTask: submitBoardTaskMock,
     });
 
     renderWithQueryClient(<StudentUnitDetailScreen unitId="unit-1" />);
@@ -589,8 +609,14 @@ describe("StudentUnitDetailScreen", () => {
       canUploadPhoto: true,
       isPhotoLoading: false,
       photoSelectedFiles: [new File(["1"], "answer.jpg", { type: "image/jpeg" })],
+      photoAnswerMode: "photo",
+      boardHasElements: false,
+      setPhotoAnswerMode: setPhotoAnswerModeMock,
+      setBoardApi: vi.fn(),
+      handleBoardChange: vi.fn(),
       openPhotoFileDialog: openPhotoFileDialogMock,
       submitPhotoTask: submitPhotoTaskMock,
+      submitBoardTask: submitBoardTaskMock,
     });
 
     renderWithQueryClient(<StudentUnitDetailScreen unitId="unit-1" />);
@@ -604,9 +630,58 @@ describe("StudentUnitDetailScreen", () => {
     await user.click(screen.getByRole("button", { name: "Загрузить фото" }));
     expect(openPhotoFileDialogMock).toHaveBeenCalledWith("photo-task");
 
+    await user.click(screen.getByRole("button", { name: "Доска" }));
+    expect(setPhotoAnswerModeMock).toHaveBeenCalledWith("photo-task", "board");
+
     await user.click(screen.getByRole("button", { name: "Отправить" }));
     await waitFor(() => {
       expect(submitPhotoTaskMock).toHaveBeenCalledWith("photo-task");
     });
+  });
+
+  it("renders board mode for photo tasks and submits board answer", async () => {
+    const task = buildTask({
+      id: "photo-task",
+      title: "Фото-задача",
+      answerType: "photo",
+      state: {
+        status: "in_progress",
+        wrongAttempts: 0,
+        blockedUntil: null,
+        requiredSkipped: false,
+      },
+    });
+    const unit = buildUnit({ tasks: [task] });
+    vi.mocked(studentApi.getUnit).mockResolvedValueOnce(unit);
+    vi.mocked(useStudentTaskNavigation).mockReturnValue({
+      activeTaskId: task.id,
+      activeTaskIndex: 0,
+      activeTask: task,
+      setActiveTaskId: setActiveTaskIdMock,
+    });
+    vi.mocked(useStudentPhotoSubmit).mockReturnValue({
+      photoFileInputRef: { current: null },
+      handlePhotoFileSelection: vi.fn(),
+      canUploadPhoto: true,
+      isPhotoLoading: false,
+      photoSelectedFiles: [],
+      photoAnswerMode: "board",
+      boardHasElements: true,
+      setPhotoAnswerMode: setPhotoAnswerModeMock,
+      setBoardApi: vi.fn(),
+      handleBoardChange: vi.fn(),
+      openPhotoFileDialog: openPhotoFileDialogMock,
+      submitPhotoTask: submitPhotoTaskMock,
+      submitBoardTask: submitBoardTaskMock,
+    });
+
+    renderWithQueryClient(<StudentUnitDetailScreen unitId="unit-1" />);
+    const user = userEvent.setup();
+
+    expect(await screen.findByTestId("student-excalidraw-board")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Отправить доску" })).toBeEnabled();
+
+    await user.click(screen.getByRole("button", { name: "Отправить доску" }));
+    expect(submitBoardTaskMock).toHaveBeenCalledWith("photo-task");
   });
 });

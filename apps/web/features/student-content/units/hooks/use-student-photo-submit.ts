@@ -1,5 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useRef, useState, type ChangeEvent } from "react";
+import type { AppState, BinaryFiles, ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
+import type { ExcalidrawElement, NonDeletedExcalidrawElement } from "@excalidraw/excalidraw/element/types";
 import {
   studentApi,
   type StudentPhotoFileInput,
@@ -12,6 +14,8 @@ const PHOTO_MAX_FILES = 5;
 const PHOTO_MAX_SIZE_BYTES = 20 * 1024 * 1024;
 const PHOTO_ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const PHOTO_REVIEWABLE_STATUS = new Set<TaskState["status"]>(["not_started", "in_progress", "rejected"]);
+const BOARD_JSON_CONTENT_TYPE = "application/json";
+const BOARD_PREVIEW_CONTENT_TYPE = "image/png";
 
 const formatBytes = (bytes: number) => {
   if (bytes >= 1024 * 1024) {
@@ -29,12 +33,50 @@ type Params = {
   unitId: string;
 };
 
+type PhotoAnswerMode = "photo" | "board";
+
+const hasVisibleBoardElements = (elements: readonly ExcalidrawElement[]) =>
+  elements.some((element) => !element.isDeleted);
+
+const isVisibleBoardElement = (element: ExcalidrawElement): element is NonDeletedExcalidrawElement =>
+  !element.isDeleted;
+
+const putPresignedObject = async ({
+  body,
+  contentType,
+  headers,
+  url,
+}: {
+  body: Blob;
+  contentType: string;
+  headers?: Record<string, string>;
+  url: string;
+}) => {
+  const requestHeaders = new Headers(headers ?? {});
+  if (!requestHeaders.has("Content-Type")) {
+    requestHeaders.set("Content-Type", contentType);
+  }
+
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: requestHeaders,
+    body,
+  });
+
+  if (!response.ok) {
+    throw new Error("Не удалось загрузить ответ.");
+  }
+};
+
 export const useStudentPhotoSubmit = ({ activeTask, activeState, unitId }: Params) => {
   const queryClient = useQueryClient();
   const photoFileInputRef = useRef<HTMLInputElement | null>(null);
+  const boardApiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const [photoSelectedFilesByTask, setPhotoSelectedFilesByTask] = useState<Record<string, File[]>>({});
   const [photoLoadingByTask, setPhotoLoadingByTask] = useState<Record<string, boolean>>({});
   const [photoFileDialogTaskId, setPhotoFileDialogTaskId] = useState<string | null>(null);
+  const [photoAnswerModeByTask, setPhotoAnswerModeByTask] = useState<Record<string, PhotoAnswerMode>>({});
+  const [boardHasElementsByTask, setBoardHasElementsByTask] = useState<Record<string, boolean>>({});
 
   const submitPhotoMutation = useMutation({
     mutationFn: async ({ taskId, files }: { taskId: string; files: File[] }) => {
@@ -73,6 +115,68 @@ export const useStudentPhotoSubmit = ({ activeTask, activeState, unitId }: Param
         taskId,
         presigned.uploads.map((item) => item.assetKey),
       );
+    },
+  });
+
+  const submitBoardMutation = useMutation({
+    mutationFn: async ({ taskId, api }: { taskId: string; api: ExcalidrawImperativeAPI }) => {
+      const elements = api.getSceneElements();
+      if (!hasVisibleBoardElements(elements)) {
+        throw new Error("Доска пуста.");
+      }
+
+      const appState = api.getAppState();
+      const files = api.getFiles();
+      const [{ serializeAsJSON, exportToBlob }] = await Promise.all([
+        import("@excalidraw/excalidraw"),
+        document.fonts?.ready ?? Promise.resolve(),
+      ]);
+
+      const boardJson = serializeAsJSON(
+        elements,
+        {
+          viewBackgroundColor: appState.viewBackgroundColor,
+        } satisfies Partial<AppState>,
+        files as BinaryFiles,
+        "database",
+      );
+      const boardBlob = new Blob([boardJson], { type: BOARD_JSON_CONTENT_TYPE });
+      const previewBlob = await exportToBlob({
+        elements: elements.filter(isVisibleBoardElement),
+        appState: {
+          exportBackground: true,
+          viewBackgroundColor: appState.viewBackgroundColor,
+        },
+        files,
+        mimeType: BOARD_PREVIEW_CONTENT_TYPE,
+        exportPadding: 16,
+        maxWidthOrHeight: 2400,
+      });
+
+      const presigned = await studentApi.presignPhotoBoardUpload(taskId, {
+        jsonSizeBytes: boardBlob.size,
+        previewSizeBytes: previewBlob.size,
+      });
+
+      await Promise.all([
+        putPresignedObject({
+          body: boardBlob,
+          contentType: presigned.board.contentType,
+          headers: presigned.board.headers,
+          url: presigned.board.url,
+        }),
+        putPresignedObject({
+          body: previewBlob,
+          contentType: presigned.preview.contentType,
+          headers: presigned.preview.headers,
+          url: presigned.preview.url,
+        }),
+      ]);
+
+      await studentApi.submitPhotoBoard(taskId, {
+        boardAssetKey: presigned.board.assetKey,
+        boardPreviewAssetKey: presigned.preview.assetKey,
+      });
     },
   });
 
@@ -142,6 +246,50 @@ export const useStudentPhotoSubmit = ({ activeTask, activeState, unitId }: Param
     [photoSelectedFilesByTask, queryClient, submitPhotoMutation, unitId, validatePhotoFiles],
   );
 
+  const setPhotoAnswerMode = useCallback((taskId: string, mode: PhotoAnswerMode) => {
+    setPhotoAnswerModeByTask((prev) => ({ ...prev, [taskId]: mode }));
+  }, []);
+
+  const setBoardApi = useCallback((api: ExcalidrawImperativeAPI) => {
+    boardApiRef.current = api;
+  }, []);
+
+  const handleBoardChange = useCallback(
+    (taskId: string, elements: readonly ExcalidrawElement[]) => {
+      const hasElements = hasVisibleBoardElements(elements);
+      setBoardHasElementsByTask((prev) => {
+        if (prev[taskId] === hasElements) return prev;
+        return { ...prev, [taskId]: hasElements };
+      });
+    },
+    [],
+  );
+
+  const submitBoardTask = useCallback(
+    async (taskId: string) => {
+      const api = boardApiRef.current;
+      if (!api || !boardHasElementsByTask[taskId]) {
+        return;
+      }
+
+      setPhotoLoadingByTask((prev) => ({ ...prev, [taskId]: true }));
+      try {
+        await submitBoardMutation.mutateAsync({ taskId, api });
+        api.resetScene();
+        setBoardHasElementsByTask((prev) => ({ ...prev, [taskId]: false }));
+
+        await queryClient.invalidateQueries({
+          queryKey: learningPhotoQueryKeys.studentUnit(unitId),
+          exact: true,
+        });
+      } catch {
+      } finally {
+        setPhotoLoadingByTask((prev) => ({ ...prev, [taskId]: false }));
+      }
+    },
+    [boardHasElementsByTask, queryClient, submitBoardMutation, unitId],
+  );
+
   const activeTaskId = activeTask?.id ?? null;
   const isPhotoTask = activeTask?.answerType === "photo";
   const canUploadPhoto =
@@ -155,7 +303,13 @@ export const useStudentPhotoSubmit = ({ activeTask, activeState, unitId }: Param
     canUploadPhoto,
     isPhotoLoading: activeTaskId ? Boolean(photoLoadingByTask[activeTaskId]) : false,
     photoSelectedFiles: activeTaskId ? (photoSelectedFilesByTask[activeTaskId] ?? []) : [],
+    photoAnswerMode: activeTaskId ? (photoAnswerModeByTask[activeTaskId] ?? "photo") : "photo",
+    boardHasElements: activeTaskId ? Boolean(boardHasElementsByTask[activeTaskId]) : false,
+    setPhotoAnswerMode,
+    setBoardApi,
+    handleBoardChange,
     openPhotoFileDialog,
     submitPhotoTask,
+    submitBoardTask,
   };
 };

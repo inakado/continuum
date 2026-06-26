@@ -4,12 +4,14 @@
   "private": true,
   "scripts": {
     "sync:mathjax": "node scripts/sync-mathjax-assets.mjs",
-    "dev": "pnpm sync:mathjax && next dev --webpack",
-    "build": "pnpm sync:mathjax && next build",
+    "sync:excalidraw": "node scripts/sync-excalidraw-assets.mjs",
+    "sync:vendor": "pnpm sync:mathjax && pnpm sync:excalidraw",
+    "dev": "pnpm sync:vendor && next dev --webpack",
+    "build": "pnpm sync:vendor && next build",
     "lint": "pnpm exec eslint \"**/*.{ts,tsx}\"",
     "typecheck": "pnpm exec tsc -p tsconfig.json --noEmit",
     "test": "pnpm exec vitest run --config vitest.config.ts",
-    "start": "pnpm sync:mathjax && next start"
+    "start": "pnpm sync:vendor && next start"
   },
   "dependencies": {
     "@codemirror/language": "^6.12.3",
@@ -19,6 +21,7 @@
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
+    "@excalidraw/excalidraw": "^0.18.1",
     "@fontsource/inter": "^5.2.8",
     "@fontsource/onest": "^5.2.11",
     "@fontsource/unbounded": "^5.2.8",

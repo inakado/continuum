@@ -18,6 +18,7 @@ import "@fontsource/unbounded/600.css";
 import "@fontsource/unbounded/700.css";
 import "./globals.css";
 import "katex/dist/katex.min.css";
+import "@excalidraw/excalidraw/index.css";
 import ThemeHydration from "@/components/ThemeHydration";
 import QueryProvider from "@/lib/query/query-provider";
 
@@ -56,6 +57,9 @@ export default function RootLayout({
     document.documentElement.dataset.theme = "light";
   }
 })();`}
+        </Script>
+        <Script id="excalidraw-asset-path" strategy="beforeInteractive">
+          {`window.EXCALIDRAW_ASSET_PATH = "/vendor/excalidraw/";`}
         </Script>
         <ThemeHydration />
         <QueryProvider>{children}</QueryProvider>

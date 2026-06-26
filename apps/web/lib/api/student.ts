@@ -5,6 +5,7 @@ import {
   StudentSectionDetailResponseSchema,
   StudentSectionGraphResponseSchema,
   StudentAttemptResponseSchema,
+  StudentPhotoBoardPresignUploadResponseSchema,
   StudentPhotoPresignUploadResponseSchema,
   StudentPhotoPresignViewResponseSchema,
   StudentPhotoSubmitResponseSchema,
@@ -21,6 +22,8 @@ import {
   type NumericAttemptRequest as SharedNumericAttemptRequest,
   type SingleChoiceAttemptRequest as SharedSingleChoiceAttemptRequest,
   type StudentPhotoPresignUploadRequest as SharedStudentPhotoPresignUploadRequest,
+  type StudentPhotoBoardPresignUploadRequest as SharedStudentPhotoBoardPresignUploadRequest,
+  type StudentPhotoBoardSubmitRequest as SharedStudentPhotoBoardSubmitRequest,
   type StudentPhotoPresignViewQuery as SharedStudentPhotoPresignViewQuery,
   type StudentPhotoSubmitRequest as SharedStudentPhotoSubmitRequest,
   type StudentTaskSolutionRenderedContentResponse as SharedStudentTaskSolutionRenderedContentResponse,
@@ -132,6 +135,7 @@ type UnitPdfPresignedResponse = {
 export type StudentUnitRenderedContentResponse = SharedStudentUnitRenderedContentResponse;
 
 export type StudentPhotoFileInput = SharedStudentPhotoPresignUploadRequest["files"][number];
+export type StudentPhotoBoardPresignUploadRequest = SharedStudentPhotoBoardPresignUploadRequest;
 
 type StudentPhotoTaskSubmission = {
   id: string;
@@ -141,7 +145,10 @@ type StudentPhotoTaskSubmission = {
   unitId: string;
   attemptId: string;
   status: "submitted" | "accepted" | "rejected";
+  answerKind: "photo" | "board";
   assetKeys: string[];
+  boardAssetKey?: string | null;
+  boardPreviewAssetKey?: string | null;
   rejectedReason: string | null;
   submittedAt: string;
   reviewedAt: string | null;
@@ -250,6 +257,27 @@ export const studentApi = {
     return apiRequestParsed(`/student/tasks/${taskId}/photo/submit`, StudentPhotoSubmitResponseSchema, {
       method: "POST",
       body: { assetKeys },
+    });
+  },
+
+  presignPhotoBoardUpload(
+    taskId: string,
+    body: StudentPhotoBoardPresignUploadRequest,
+  ) {
+    return apiRequestParsed(
+      `/student/tasks/${taskId}/photo/board/presign-upload`,
+      StudentPhotoBoardPresignUploadResponseSchema,
+      {
+        method: "POST",
+        body,
+      },
+    );
+  },
+
+  submitPhotoBoard(taskId: string, body: SharedStudentPhotoBoardSubmitRequest) {
+    return apiRequestParsed(`/student/tasks/${taskId}/photo/board/submit`, StudentPhotoSubmitResponseSchema, {
+      method: "POST",
+      body,
     });
   },
 
