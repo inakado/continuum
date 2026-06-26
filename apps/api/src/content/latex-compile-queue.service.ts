@@ -1,6 +1,5 @@
 import { Injectable, type OnModuleDestroy } from '@nestjs/common';
 import { type Job, Queue } from 'bullmq';
-import IORedis from 'ioredis';
 import {
   type DebugLatexCompileQueuePayload,
   LATEX_COMPILE_JOB_NAME,
@@ -11,14 +10,12 @@ import {
 
 @Injectable()
 export class LatexCompileQueueService implements OnModuleDestroy {
-  private readonly connection = new IORedis({
-    host: process.env.REDIS_HOST || 'redis',
-    port: Number(process.env.REDIS_PORT || 6379),
-    maxRetriesPerRequest: null,
-  });
-
   private readonly queue = new Queue(LATEX_COMPILE_QUEUE_NAME, {
-    connection: this.connection,
+    connection: {
+      host: process.env.REDIS_HOST || 'redis',
+      port: Number(process.env.REDIS_PORT || 6379),
+      maxRetriesPerRequest: null,
+    },
     defaultJobOptions: {
       removeOnComplete: { count: 200 },
       removeOnFail: { count: 200 },
@@ -47,6 +44,5 @@ export class LatexCompileQueueService implements OnModuleDestroy {
 
   async onModuleDestroy(): Promise<void> {
     await this.queue.close();
-    await this.connection.quit();
   }
 }
