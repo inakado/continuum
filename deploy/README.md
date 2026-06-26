@@ -1,5 +1,19 @@
 # Deploy Guide (Beget VPS, Ubuntu/Debian)
 
+## Quick connect
+
+Подключение к production VPS с локальной машины выполняется через SSH alias:
+
+```bash
+ssh continuum-vps
+```
+
+После входа рабочий каталог проекта:
+
+```bash
+cd /srv/continuum
+```
+
 ## 1) Link local repo to GitHub
 
 ```bash
