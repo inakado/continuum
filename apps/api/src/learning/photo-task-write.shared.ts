@@ -5,6 +5,9 @@ import type { UnitProgressSnapshot } from './learning-availability.service';
 export const buildPhotoTaskAssetPrefix = (taskId: string, studentId: string, taskRevisionId: string) =>
   `tasks/${taskId}/photo/${studentId}/${taskRevisionId}/`;
 
+export const buildPhotoTaskBoardAssetPrefix = (taskId: string, studentId: string, taskRevisionId: string) =>
+  `${buildPhotoTaskAssetPrefix(taskId, studentId, taskRevisionId)}board/`;
+
 export const buildGeneratedAssetKey = ({
   contentTypeExtension,
   index,

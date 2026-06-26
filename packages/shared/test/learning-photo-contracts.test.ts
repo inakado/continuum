@@ -6,10 +6,14 @@ import {
   StudentAttemptRequestSchema,
   StudentAttemptResponseSchema,
   StudentPhotoPresignUploadRequestSchema,
+  StudentPhotoBoardPresignUploadRequestSchema,
+  StudentPhotoBoardPresignUploadResponseSchema,
+  StudentPhotoBoardSubmitRequestSchema,
   StudentPhotoSubmitRequestSchema,
   TeacherPhotoInboxQuerySchema,
   TeacherPhotoQueueQuerySchema,
   TeacherReviewInboxResponseSchema,
+  TeacherReviewSubmissionDetailResponseSchema,
 } from "../src/contracts/learning-photo";
 
 describe("learning-photo contracts", () => {
@@ -50,6 +54,88 @@ describe("learning-photo contracts", () => {
 
     expect(uploadResult.success).toBe(false);
     expect(submitResult.success).toBe(false);
+  });
+
+  it("validates board upload/submit payloads for photo tasks", () => {
+    expect(
+      StudentPhotoBoardPresignUploadRequestSchema.parse({
+        jsonSizeBytes: 1024,
+        previewSizeBytes: 2048,
+        ttlSec: "300",
+      }),
+    ).toEqual({
+      jsonSizeBytes: 1024,
+      previewSizeBytes: 2048,
+      ttlSec: 300,
+    });
+
+    expect(
+      StudentPhotoBoardSubmitRequestSchema.parse({
+        boardAssetKey: "tasks/task-1/photo/student-1/rev-1/board/1700000000000-deadbeef-1.json",
+        boardPreviewAssetKey: "tasks/task-1/photo/student-1/rev-1/board/1700000000000-deadbeef-2.png",
+      }),
+    ).toMatchObject({
+      boardAssetKey: expect.stringContaining(".json"),
+      boardPreviewAssetKey: expect.stringContaining(".png"),
+    });
+
+    expect(
+      StudentPhotoBoardPresignUploadRequestSchema.safeParse({
+        jsonSizeBytes: 6 * 1024 * 1024,
+        previewSizeBytes: 1024,
+      }).success,
+    ).toBe(false);
+    expect(
+      StudentPhotoBoardSubmitRequestSchema.safeParse({
+        boardAssetKey: "bad key.json",
+        boardPreviewAssetKey: "preview.png",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("parses board presign and teacher review responses", () => {
+    expect(
+      StudentPhotoBoardPresignUploadResponseSchema.parse({
+        board: {
+          assetKey: "tasks/task-1/photo/student-1/rev-1/board/1700000000000-deadbeef-1.json",
+          url: "https://storage.test/board.json",
+          contentType: "application/json",
+        },
+        preview: {
+          assetKey: "tasks/task-1/photo/student-1/rev-1/board/1700000000000-deadbeef-2.png",
+          url: "https://storage.test/preview.png",
+          contentType: "image/png",
+        },
+        expiresInSec: 300,
+      }),
+    ).toMatchObject({
+      board: { contentType: "application/json" },
+      preview: { contentType: "image/png" },
+    });
+
+    const parsed = TeacherReviewSubmissionDetailResponseSchema.parse({
+      submission: {
+        submissionId: "submission-1",
+        status: "pending_review",
+        submittedAt: "2026-06-26T00:00:00.000Z",
+        reviewedAt: null,
+        rejectedReason: null,
+        answerKind: "board",
+        assetKeys: [],
+        boardAssetKey: "board.json",
+        boardPreviewAssetKey: "preview.png",
+        student: { id: "student-1", login: "student1", firstName: null, lastName: null },
+        course: { id: "course-1", title: "Course" },
+        section: { id: "section-1", title: "Section" },
+        unit: { id: "unit-1", title: "Unit" },
+        task: { id: "task-1", title: null, sortOrder: 0, statementLite: "Task" },
+      },
+      navigation: { prevSubmissionId: null, nextSubmissionId: null },
+      appliedFilters: { sort: "oldest" },
+    });
+
+    expect(parsed.submission.answerKind).toBe("board");
+    expect(parsed.submission.boardPreviewAssetKey).toBe("preview.png");
   });
 
   it("applies queue/inbox query defaults and transforms", () => {

@@ -112,6 +112,13 @@
 | `POST` | `/teacher/units/:id/publish` | `publish` | `apps/api/src/content/teacher-units.controller.ts:178` |
 | `GET` | `/teacher/units/:id/rendered-content` | `getRenderedContent` | `apps/api/src/content/teacher-units.controller.ts:79` |
 | `POST` | `/teacher/units/:id/unpublish` | `unpublish` | `apps/api/src/content/teacher-units.controller.ts:195` |
+| `GET` | `/units/:id` | `get` | `apps/api/src/content/student-units.controller.ts:14` |
 | `GET` | `/units/:id` | `get` | `apps/api/src/learning/student-units.controller.ts:25` |
 | `GET` | `/units/:id/pdf-presign` | `getPdfPresignedUrl` | `apps/api/src/learning/student-units.controller.ts:30` |
 | `GET` | `/units/:id/rendered-content` | `getRenderedContent` | `apps/api/src/learning/student-units.controller.ts:60` |
+
+## Route collisions
+
+Эти пары требуют ручной проверки: Nest обработает только один из конкурирующих handlers для одинакового HTTP method + path.
+
+- `GET /units/:id`: `apps/api/src/content/student-units.controller.ts:14#get`, `apps/api/src/learning/student-units.controller.ts:25#get`

@@ -43,7 +43,10 @@ export const listStudentPhotoSubmissions = async ({
       taskRevisionId: true,
       unitId: true,
       status: true,
+      answerKind: true,
       assetKeysJson: true,
+      boardAssetKey: true,
+      boardPreviewAssetKey: true,
       rejectedReason: true,
       submittedAt: true,
       reviewedAt: true,
@@ -87,9 +90,11 @@ export const presignStudentPhotoView = async ({
     where: {
       studentUserId: studentId,
       taskId,
-      assetKeysJson: {
-        array_contains: [assetKey],
-      },
+      OR: [
+        { assetKeysJson: { array_contains: [assetKey] } },
+        { boardAssetKey: assetKey },
+        { boardPreviewAssetKey: assetKey },
+      ],
     },
     select: { id: true },
   });

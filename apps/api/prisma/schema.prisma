@@ -69,6 +69,11 @@ enum PhotoTaskSubmissionStatus {
   rejected
 }
 
+enum PhotoTaskSubmissionAnswerKind {
+  photo
+  board
+}
+
 enum NotificationType {
   photo_reviewed
   unit_override_opened
@@ -490,7 +495,10 @@ model PhotoTaskSubmission {
   taskRevisionId          String                    @map("task_revision_id") @db.Uuid
   unitId                  String                    @map("unit_id") @db.Uuid
   attemptId               String                    @unique @map("attempt_id") @db.Uuid
+  answerKind              PhotoTaskSubmissionAnswerKind @default(photo) @map("answer_kind")
   assetKeysJson           Json                      @map("asset_keys_json")
+  boardAssetKey           String?                   @map("board_asset_key")
+  boardPreviewAssetKey    String?                   @map("board_preview_asset_key")
   status                  PhotoTaskSubmissionStatus @default(submitted)
   rejectedReason          String?                   @map("rejected_reason")
   reviewedByTeacherUserId String?                   @map("reviewed_by_teacher_user_id") @db.Uuid

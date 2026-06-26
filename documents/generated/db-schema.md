@@ -19,6 +19,7 @@
 - `AttemptKind`: `numeric` | `single_choice` | `multi_choice` | `photo`
 - `AttemptResult`: `correct` | `incorrect` | `pending_review` | `accepted` | `rejected`
 - `PhotoTaskSubmissionStatus`: `submitted` | `accepted` | `rejected`
+- `PhotoTaskSubmissionAnswerKind`: `photo` | `board`
 - `NotificationType`: `photo_reviewed` | `unit_override_opened` | `required_task_skipped` | `task_locked`
 
 ## Models
@@ -438,7 +439,10 @@
 | `taskRevisionId` | `String` | `@map("task_revision_id") @db.Uuid` |
 | `unitId` | `String` | `@map("unit_id") @db.Uuid` |
 | `attemptId` | `String` | `@unique @map("attempt_id") @db.Uuid` |
+| `answerKind` | `PhotoTaskSubmissionAnswerKind` | `@default(photo) @map("answer_kind")` |
 | `assetKeysJson` | `Json` | `@map("asset_keys_json")` |
+| `boardAssetKey` | `String?` | `@map("board_asset_key")` |
+| `boardPreviewAssetKey` | `String?` | `@map("board_preview_asset_key")` |
 | `status` | `PhotoTaskSubmissionStatus` | `@default(submitted)` |
 | `rejectedReason` | `String?` | `@map("rejected_reason")` |
 | `reviewedByTeacherUserId` | `String?` | `@map("reviewed_by_teacher_user_id") @db.Uuid` |

@@ -1,6 +1,13 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { Role } from '@prisma/client';
-import { PHOTO_ALLOWED_CONTENT_TYPES, PHOTO_UPLOAD_TTL_DEFAULT_SEC, PHOTO_VIEW_TTL_STUDENT_DEFAULT_SEC, PHOTO_VIEW_TTL_TEACHER_DEFAULT_SEC } from './photo-task-policy.constants';
+import {
+  BOARD_JSON_CONTENT_TYPE,
+  BOARD_PREVIEW_CONTENT_TYPE,
+  PHOTO_ALLOWED_CONTENT_TYPES,
+  PHOTO_UPLOAD_TTL_DEFAULT_SEC,
+  PHOTO_VIEW_TTL_STUDENT_DEFAULT_SEC,
+  PHOTO_VIEW_TTL_TEACHER_DEFAULT_SEC,
+} from './photo-task-policy.constants';
 
 @Injectable()
 export class PhotoTaskPolicyService {
@@ -30,6 +37,15 @@ export class PhotoTaskPolicyService {
     }
   }
 
+  assertBoardAssetKeysMatchGeneratedPattern(input: {
+    boardAssetKey: string;
+    boardPreviewAssetKey: string;
+    prefix: string;
+  }) {
+    this.assertAssetKeyGeneratedPattern(input.boardAssetKey, input.prefix, ['json']);
+    this.assertAssetKeyGeneratedPattern(input.boardPreviewAssetKey, input.prefix, ['png']);
+  }
+
   assertAssetKeyPrefix(assetKey: string, prefix: string) {
     this.assertAssetKeyFormat(assetKey);
     if (!assetKey.startsWith(prefix)) {
@@ -40,10 +56,12 @@ export class PhotoTaskPolicyService {
     }
   }
 
-  assertAssetKeyGeneratedPattern(assetKey: string, prefix: string) {
+  assertAssetKeyGeneratedPattern(assetKey: string, prefix: string, extensions = ['jpg', 'png', 'webp']) {
     this.assertAssetKeyPrefix(assetKey, prefix);
     const suffix = assetKey.slice(prefix.length);
-    if (!/^\d{13}-[a-f0-9]{8}-\d+\.(jpg|png|webp)$/i.test(suffix)) {
+    const allowed = extensions.join('|');
+    const pattern = new RegExp(`^\\d{13}-[a-f0-9]{8}-\\d+\\.(${allowed})$`, 'i');
+    if (!pattern.test(suffix)) {
       throw new ConflictException({
         code: 'INVALID_ASSET_KEY',
         message: 'assetKey does not match server-generated pattern',
@@ -68,7 +86,16 @@ export class PhotoTaskPolicyService {
     if (lowered.endsWith('.jpg') || lowered.endsWith('.jpeg')) return 'image/jpeg';
     if (lowered.endsWith('.png')) return 'image/png';
     if (lowered.endsWith('.webp')) return 'image/webp';
+    if (lowered.endsWith('.json')) return 'application/json';
     return undefined;
+  }
+
+  boardJsonContentType(): string {
+    return BOARD_JSON_CONTENT_TYPE;
+  }
+
+  boardPreviewContentType(): string {
+    return BOARD_PREVIEW_CONTENT_TYPE;
   }
 
   private normalizeContentType(raw: unknown): string {

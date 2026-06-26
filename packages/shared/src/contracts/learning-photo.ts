@@ -5,8 +5,12 @@ const PHOTO_FILES_MIN = 1;
 const PHOTO_FILES_MAX = 5;
 const PHOTO_MAX_SIZE_BYTES = 20 * 1024 * 1024;
 const PHOTO_TTL_MAX_SEC = 600;
+const BOARD_JSON_MAX_SIZE_BYTES = 5 * 1024 * 1024;
+const BOARD_PREVIEW_MAX_SIZE_BYTES = 10 * 1024 * 1024;
 
 const PHOTO_ALLOWED_CONTENT_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+const BOARD_JSON_CONTENT_TYPE = "application/json";
+const BOARD_PREVIEW_CONTENT_TYPE = "image/png";
 
 const trimToUndefined = (value: unknown) => {
   if (typeof value !== "string") return value;
@@ -110,6 +114,34 @@ export const StudentPhotoSubmitRequestSchema = z
       .refine((values) => new Set(values).size === values.length, {
         message: "assetKeys must be unique",
       }),
+  })
+  .passthrough();
+
+export const StudentPhotoBoardPresignUploadRequestSchema = z
+  .object({
+    jsonSizeBytes: z.coerce.number().int().positive().max(BOARD_JSON_MAX_SIZE_BYTES),
+    previewSizeBytes: z.coerce.number().int().positive().max(BOARD_PREVIEW_MAX_SIZE_BYTES),
+    ttlSec: coerceOptionalPositiveInt.refine(
+      (value) => value === undefined || value <= PHOTO_TTL_MAX_SEC,
+      `ttlSec must be <= ${PHOTO_TTL_MAX_SEC}`,
+    ),
+  })
+  .passthrough();
+
+export const StudentPhotoBoardSubmitRequestSchema = z
+  .object({
+    boardAssetKey: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .regex(/^[a-zA-Z0-9\-_/\.]+$/),
+    boardPreviewAssetKey: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .regex(/^[a-zA-Z0-9\-_/\.]+$/),
   })
   .passthrough();
 
@@ -245,6 +277,22 @@ export const StudentPhotoPresignUploadResponseSchema = z
   })
   .passthrough();
 
+const PresignedUploadSchema = z
+  .object({
+    assetKey: z.string(),
+    url: z.string(),
+    headers: z.record(z.string(), z.string()).optional(),
+  })
+  .passthrough();
+
+export const StudentPhotoBoardPresignUploadResponseSchema = z
+  .object({
+    board: PresignedUploadSchema.extend({ contentType: z.literal(BOARD_JSON_CONTENT_TYPE) }),
+    preview: PresignedUploadSchema.extend({ contentType: z.literal(BOARD_PREVIEW_CONTENT_TYPE) }),
+    expiresInSec: z.number().int().positive(),
+  })
+  .passthrough();
+
 export const StudentPhotoSubmitResponseSchema = z
   .object({
     ok: z.literal(true),
@@ -264,12 +312,14 @@ export const StudentPhotoPresignViewResponseSchema = z
   .passthrough();
 
 const TeacherReviewSubmissionStatusSchema = z.enum(["pending_review", "accepted", "rejected"]);
+const PhotoSubmissionAnswerKindSchema = z.enum(["photo", "board"]);
 
 const TeacherReviewInboxItemSchema = z
   .object({
     submissionId: z.string(),
     status: TeacherReviewSubmissionStatusSchema,
     submittedAt: z.string(),
+    answerKind: PhotoSubmissionAnswerKindSchema.default("photo"),
     assetKeysCount: z.number().int().nonnegative(),
     student: z.object({
       id: z.string(),
@@ -307,7 +357,10 @@ export const TeacherReviewSubmissionDetailResponseSchema = z
         submittedAt: z.string(),
         reviewedAt: z.string().nullable(),
         rejectedReason: z.string().nullable(),
+        answerKind: PhotoSubmissionAnswerKindSchema.default("photo"),
         assetKeys: z.array(z.string()),
+        boardAssetKey: z.string().nullable().optional(),
+        boardPreviewAssetKey: z.string().nullable().optional(),
         student: z.object({
           id: z.string(),
           login: z.string(),
@@ -357,7 +410,10 @@ export const TeacherPhotoReviewResponseSchema = z
         unitId: z.string(),
         attemptId: z.string(),
         status: z.enum(["submitted", "accepted", "rejected"]),
+        answerKind: PhotoSubmissionAnswerKindSchema.default("photo"),
         assetKeys: z.array(z.string()),
+        boardAssetKey: z.string().nullable().optional(),
+        boardPreviewAssetKey: z.string().nullable().optional(),
         rejectedReason: z.string().nullable(),
         submittedAt: z.string(),
         reviewedAt: z.string().nullable(),
@@ -382,6 +438,7 @@ export const TeacherStudentPhotoQueueResponseSchema = z
           status: z.enum(["submitted", "accepted", "rejected"]),
           submittedAt: z.string(),
           rejectedReason: z.string().nullable(),
+          answerKind: PhotoSubmissionAnswerKindSchema.default("photo"),
           assetKeysCount: z.number().int().nonnegative(),
         })
         .passthrough(),
@@ -399,6 +456,8 @@ export type MultiChoiceAttemptRequest = z.infer<typeof MultiChoiceAttemptRequest
 
 export type StudentPhotoPresignUploadRequest = z.infer<typeof StudentPhotoPresignUploadRequestSchema>;
 export type StudentPhotoSubmitRequest = z.infer<typeof StudentPhotoSubmitRequestSchema>;
+export type StudentPhotoBoardPresignUploadRequest = z.infer<typeof StudentPhotoBoardPresignUploadRequestSchema>;
+export type StudentPhotoBoardSubmitRequest = z.infer<typeof StudentPhotoBoardSubmitRequestSchema>;
 export type StudentPhotoPresignViewQuery = z.infer<typeof StudentPhotoPresignViewQuerySchema>;
 
 export type TeacherPhotoQueueQuery = z.infer<typeof TeacherPhotoQueueQuerySchema>;
@@ -409,6 +468,7 @@ export type TeacherPhotoRejectRequest = z.infer<typeof TeacherPhotoRejectRequest
 
 export type StudentAttemptResponse = z.infer<typeof StudentAttemptResponseSchema>;
 export type StudentPhotoPresignUploadResponse = z.infer<typeof StudentPhotoPresignUploadResponseSchema>;
+export type StudentPhotoBoardPresignUploadResponse = z.infer<typeof StudentPhotoBoardPresignUploadResponseSchema>;
 export type StudentPhotoSubmitResponse = z.infer<typeof StudentPhotoSubmitResponseSchema>;
 export type StudentPhotoPresignViewResponse = z.infer<typeof StudentPhotoPresignViewResponseSchema>;
 

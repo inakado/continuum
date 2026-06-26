@@ -6,6 +6,7 @@ import {
   TaskAnswerType,
 } from '@prisma/client';
 import type { PhotoTaskSubmissionStatus } from '@prisma/client';
+import { PhotoTaskSubmissionAnswerKind } from '@prisma/client';
 import type { LearningAvailabilityService } from './learning-availability.service';
 import type { PrismaService } from '../prisma/prisma.service';
 
@@ -129,7 +130,10 @@ export const mapSubmission = (submission: {
   unitId: string;
   attemptId: string;
   status: PhotoTaskSubmissionStatus;
+  answerKind: PhotoTaskSubmissionAnswerKind;
   assetKeysJson: Prisma.JsonValue;
+  boardAssetKey: string | null;
+  boardPreviewAssetKey: string | null;
   rejectedReason: string | null;
   submittedAt: Date;
   reviewedAt: Date | null;
@@ -142,7 +146,10 @@ export const mapSubmission = (submission: {
   unitId: submission.unitId,
   attemptId: submission.attemptId,
   status: submission.status,
+  answerKind: submission.answerKind ?? PhotoTaskSubmissionAnswerKind.photo,
   assetKeys: parseAssetKeysJson(submission.assetKeysJson),
+  boardAssetKey: submission.boardAssetKey,
+  boardPreviewAssetKey: submission.boardPreviewAssetKey,
   rejectedReason: submission.rejectedReason,
   submittedAt: submission.submittedAt,
   reviewedAt: submission.reviewedAt,
