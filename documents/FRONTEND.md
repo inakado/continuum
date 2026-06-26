@@ -78,6 +78,13 @@
 - В user-facing копирайте фронта required-задачи именуются как `Ключевая`/`Ключевые`.
 - Доменный и контрактный нейминг не меняется: `isRequired`, `requiredSkipped`, `required_*` events/notification codes.
 - На student unit screen (`/student/units/[id]`) ключевые задачи визуально отмечаются иконкой в task tabs и в заголовке task card.
+- Student sidebar показывает события через `StudentNotificationsButton` в header actions:
+  - `Bell` icon показывает unread badge из `GET /student/notifications`;
+  - popover фиксируется относительно sidebar и не рендерится внутри clipping-контейнера;
+  - клик по событию `photo_reviewed` ведёт на `/student/units/:unitId?taskId=:taskId` и отмечает уведомление прочитанным.
+- Student unit route принимает `taskId` в query string и передаёт его как initial focus в task navigation.
+- Для проверенных `photo` задач student unit screen показывает “Разбор учителя”, если latest reviewed submission содержит `teacherFeedbackBoardAssetKey`.
+- Teacher feedback board открывается student-side как read-only Excalidraw scene через student `presign-view`; при ошибке JSON используется PNG preview fallback.
 
 ## Routes Map
 

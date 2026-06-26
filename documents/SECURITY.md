@@ -77,6 +77,11 @@ Operational pitfall (`Implemented`):
 - **Фикс:** добавить CORS policy на bucket (origin frontend, methods `GET/HEAD/PUT`, headers `*`).
 - **Проверка:** `curl -I -H "Origin: https://<frontend-domain>" "<presigned-url>"` возвращает `Access-Control-Allow-Origin`.
 
+Photo/board feedback ACL (`Implemented`):
+- Student `presign-view` разрешает читать только собственные photo/board submission assets.
+- `teacherFeedbackBoardAssetKey` и `teacherFeedbackPreviewAssetKey` доступны ученику только для собственной submission после review.
+- Teacher feedback upload keys валидируются по отдельному `teacher-feedback/` prefix и не перезаписывают оригинальные student board assets.
+
 ## Source Links
 
 - Auth:

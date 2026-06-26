@@ -187,6 +187,10 @@ vi.mock("./components/StudentExcalidrawBoard", () => ({
   StudentExcalidrawBoard: () => <div data-testid="student-excalidraw-board">board</div>,
 }));
 
+vi.mock("./components/StudentFeedbackExcalidrawBoard", () => ({
+  StudentFeedbackExcalidrawBoard: () => <div data-testid="student-feedback-board">feedback board</div>,
+}));
+
 vi.mock("./hooks/use-student-unit-rendered-content", () => ({
   useStudentUnitRenderedContent: vi.fn(),
 }));
@@ -214,6 +218,8 @@ vi.mock("@/lib/api/student", async () => {
     studentApi: {
       ...actual.studentApi,
       getUnit: vi.fn(),
+      listPhotoSubmissions: vi.fn(),
+      presignPhotoView: vi.fn(),
     },
   };
 });
@@ -280,6 +286,7 @@ describe("StudentUnitDetailScreen", () => {
   const toggleSolutionVisibilityMock = vi.fn();
 
   beforeEach(() => {
+    vi.unstubAllGlobals();
     pushMock.mockReset();
     backMock.mockReset();
     setActiveTaskIdMock.mockReset();
@@ -291,6 +298,15 @@ describe("StudentUnitDetailScreen", () => {
 
     vi.mocked(useRouter).mockReturnValue({ push: pushMock, back: backMock } as never);
     vi.mocked(studentApi.getUnit).mockReset();
+    vi.mocked(studentApi.listPhotoSubmissions).mockReset();
+    vi.mocked(studentApi.presignPhotoView).mockReset();
+    vi.mocked(studentApi.listPhotoSubmissions).mockResolvedValue({ items: [] });
+    vi.mocked(studentApi.presignPhotoView).mockResolvedValue({
+      ok: true,
+      assetKey: "feedback.json",
+      expiresInSec: 300,
+      url: "https://cdn.local/feedback.json",
+    });
 
     vi.mocked(useStudentUnitRenderedContent).mockReturnValue({
       theoryContent: {
@@ -637,6 +653,86 @@ describe("StudentUnitDetailScreen", () => {
     await waitFor(() => {
       expect(submitPhotoTaskMock).toHaveBeenCalledWith("photo-task");
     });
+  });
+
+  it("passes focused task id from route state into task navigation", async () => {
+    const task1 = buildTask({ id: "task-1", title: "Задача 1", sortOrder: 1 });
+    const task2 = buildTask({ id: "task-2", title: "Задача 2", sortOrder: 2 });
+    const unit = buildUnit({ tasks: [task1, task2] });
+    vi.mocked(studentApi.getUnit).mockResolvedValueOnce(unit);
+    vi.mocked(useStudentTaskNavigation).mockReturnValue({
+      activeTaskId: task2.id,
+      activeTaskIndex: 1,
+      activeTask: task2,
+      setActiveTaskId: setActiveTaskIdMock,
+    });
+
+    renderWithQueryClient(<StudentUnitDetailScreen unitId="unit-1" focusTaskId="task-2" />);
+
+    await screen.findByTestId("task-tabs-active-index");
+    expect(useStudentTaskNavigation).toHaveBeenCalledWith(unit.tasks, "task-2");
+  });
+
+  it("opens teacher feedback board for reviewed photo task", async () => {
+    const task = buildTask({
+      id: "photo-task",
+      title: "Фото-задача",
+      answerType: "photo",
+      state: {
+        status: "rejected",
+        wrongAttempts: 0,
+        blockedUntil: null,
+        requiredSkipped: false,
+      },
+    });
+    const unit = buildUnit({ tasks: [task] });
+    vi.mocked(studentApi.getUnit).mockResolvedValueOnce(unit);
+    vi.mocked(useStudentTaskNavigation).mockReturnValue({
+      activeTaskId: task.id,
+      activeTaskIndex: 0,
+      activeTask: task,
+      setActiveTaskId: setActiveTaskIdMock,
+    });
+    vi.mocked(studentApi.listPhotoSubmissions).mockResolvedValue({
+      items: [
+        {
+          id: "submission-1",
+          studentUserId: "student-1",
+          taskId: "photo-task",
+          taskRevisionId: "revision-1",
+          unitId: "unit-1",
+          attemptId: "attempt-1",
+          status: "rejected",
+          answerKind: "board",
+          assetKeys: [],
+          boardAssetKey: "board.json",
+          boardPreviewAssetKey: "preview.png",
+          teacherFeedbackBoardAssetKey: "feedback.json",
+          teacherFeedbackPreviewAssetKey: "feedback.png",
+          rejectedReason: null,
+          submittedAt: "2026-06-26T00:00:00.000Z",
+          reviewedAt: "2026-06-26T00:05:00.000Z",
+          reviewedByTeacherUserId: "teacher-1",
+        },
+      ],
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(JSON.stringify({ elements: [], appState: { viewBackgroundColor: "#ffffff" }, files: {} }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+
+    renderWithQueryClient(<StudentUnitDetailScreen unitId="unit-1" />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "Посмотреть разбор" }));
+
+    expect(await screen.findByTestId("student-feedback-board")).toBeInTheDocument();
+    expect(studentApi.presignPhotoView).toHaveBeenCalledWith("photo-task", "feedback.json", 300);
   });
 
   it("renders board mode for photo tasks and submits board answer", async () => {

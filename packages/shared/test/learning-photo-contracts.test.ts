@@ -9,6 +9,7 @@ import {
   StudentPhotoBoardPresignUploadRequestSchema,
   StudentPhotoBoardPresignUploadResponseSchema,
   StudentPhotoBoardSubmitRequestSchema,
+  StudentPhotoSubmissionsResponseSchema,
   StudentPhotoSubmitRequestSchema,
   TeacherPhotoAcceptRequestSchema,
   TeacherPhotoFeedbackBoardPresignUploadRequestSchema,
@@ -193,6 +194,34 @@ describe("learning-photo contracts", () => {
     expect(parsed.submission.answerKind).toBe("board");
     expect(parsed.submission.boardPreviewAssetKey).toBe("preview.png");
     expect(parsed.submission.teacherFeedbackPreviewAssetKey).toBe("feedback.png");
+  });
+
+  it("parses student photo submissions with teacher feedback keys", () => {
+    const parsed = StudentPhotoSubmissionsResponseSchema.parse({
+      items: [
+        {
+          id: "submission-1",
+          studentUserId: "student-1",
+          taskId: "task-1",
+          taskRevisionId: "revision-1",
+          unitId: "unit-1",
+          attemptId: "attempt-1",
+          status: "rejected",
+          answerKind: "board",
+          assetKeys: [],
+          boardAssetKey: "board.json",
+          boardPreviewAssetKey: "preview.png",
+          teacherFeedbackBoardAssetKey: "feedback.json",
+          teacherFeedbackPreviewAssetKey: "feedback.png",
+          rejectedReason: null,
+          submittedAt: "2026-06-26T00:00:00.000Z",
+          reviewedAt: "2026-06-26T00:05:00.000Z",
+          reviewedByTeacherUserId: "teacher-1",
+        },
+      ],
+    });
+
+    expect(parsed.items[0]?.teacherFeedbackBoardAssetKey).toBe("feedback.json");
   });
 
   it("applies queue/inbox query defaults and transforms", () => {

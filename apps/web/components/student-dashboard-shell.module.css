@@ -90,12 +90,6 @@
   --sidebar-icon-slot: 44px;
 }
 
-.shellWithSettings .sidebarHeaderActions {
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-
 .sidebar {
   position: fixed;
   top: 0;
@@ -174,8 +168,9 @@
 
 .sidebarHeaderActions {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex: 0 0 auto;
 }
 
@@ -203,6 +198,173 @@
 .sidebarIconAction:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
+}
+
+.notificationRoot {
+  position: relative;
+}
+
+.notificationButton {
+  position: relative;
+}
+
+.notificationBadge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--student-danger, #b42318);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.notificationsPopover {
+  position: fixed;
+  z-index: 9;
+  top: 18px;
+  left: calc(var(--sidebar-width) + 12px);
+  width: min(360px, calc(100vw - var(--sidebar-width) - 24px));
+  max-height: min(520px, calc(100dvh - 36px));
+  border: var(--border-width) solid var(--panel-border);
+  border-radius: var(--card-radius);
+  background: var(--panel-bg);
+  color: var(--text-primary);
+  overflow: hidden;
+  box-shadow: 0 8px 8px rgb(15 23 42 / 0.08);
+}
+
+.notificationsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 12px 10px;
+  border-bottom: var(--border-width-thin) solid var(--panel-border);
+  font-size: 12px;
+  line-height: 1.25;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.notificationsHeader span:last-child {
+  color: var(--text-muted);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.notificationsList {
+  display: grid;
+  max-height: min(460px, calc(100dvh - 94px));
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.notificationsState {
+  padding: 16px 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  display: grid;
+  gap: 10px;
+}
+
+.notificationsRetry {
+  justify-self: start;
+  border: var(--border-width-thin) solid var(--panel-border);
+  border-radius: var(--control-radius);
+  background: var(--panel-bg);
+  color: var(--text-primary);
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.notificationsRetry:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.notificationItem {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px;
+  border-radius: var(--control-radius);
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.notificationItem:hover {
+  background: var(--nav-hover-bg);
+}
+
+.notificationItem:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.notificationItemUnread {
+  background: color-mix(in srgb, var(--border-primary) 9%, transparent);
+}
+
+.notificationItemIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--control-radius);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-1);
+}
+
+.notificationToneNeutral {
+  color: var(--text-muted);
+}
+
+.notificationToneSuccess {
+  color: var(--student-success, #067647);
+}
+
+.notificationToneDanger {
+  color: var(--student-danger, #b42318);
+}
+
+.notificationItemBody {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.notificationItemTitle {
+  font-size: 13px;
+  line-height: 1.25;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.notificationItemText {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+.notificationItemTime {
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--text-muted);
 }
 
 .kicker {
@@ -401,6 +563,10 @@
   .shell {
     --sidebar-motion-duration: 0s;
   }
+
+  .notificationItem {
+    transition: none;
+  }
 }
 
 @media (max-width: 900px) {
@@ -426,6 +592,14 @@
     align-items: stretch;
     height: auto;
     min-height: auto;
+  }
+
+  .notificationsPopover {
+    top: 84px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-height: min(520px, calc(100dvh - 104px));
   }
 
   .shell[data-sidebar-open="true"] .sidebar {

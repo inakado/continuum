@@ -13,6 +13,12 @@ export const learningPhotoQueryKeys = {
     ["learning-photo", "student", "task", taskId, "statement-image"] as const,
   studentPhotoBoardPreview: (taskId: string, assetKey: string) =>
     ["learning-photo", "student", "task", taskId, "board-preview", assetKey] as const,
+  studentPhotoSubmissions: (taskId: string) =>
+    ["learning-photo", "student", "task", taskId, "submissions"] as const,
+  studentFeedbackBoardScene: (taskId: string, assetKey: string) =>
+    ["learning-photo", "student", "task", taskId, "feedback-board", assetKey] as const,
+  studentFeedbackBoardPreview: (taskId: string, assetKey: string) =>
+    ["learning-photo", "student", "task", taskId, "feedback-preview", assetKey] as const,
   teacherReviewInbox: (filters: TeacherReviewInboxFilters | undefined) =>
     ["learning-photo", "teacher", "review", "inbox", filters ?? {}] as const,
   teacherReviewSubmissionDetail: (
@@ -59,6 +65,7 @@ export const contentQueryKeys = {
   teacherStudentReviewPendingTotal: (studentId: string) =>
     ["content", "teacher", "student-review-pending-total", studentId] as const,
   studentDashboardOverview: () => ["content", "student", "dashboard-overview"] as const,
+  studentNotifications: () => ["content", "student", "notifications"] as const,
   studentCourses: () => ["content", "student", "courses"] as const,
   studentCourse: (courseId: string) => ["content", "student", "course", courseId] as const,
   studentSection: (sectionId: string) => ["content", "student", "section", sectionId] as const,

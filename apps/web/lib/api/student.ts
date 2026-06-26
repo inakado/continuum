@@ -2,10 +2,13 @@ import {
   StudentDashboardOverviewResponseSchema,
   StudentCourseDetailResponseSchema,
   StudentCourseListResponseSchema,
+  StudentNotificationReadResponseSchema,
+  StudentNotificationsResponseSchema,
   StudentSectionDetailResponseSchema,
   StudentSectionGraphResponseSchema,
   StudentAttemptResponseSchema,
   StudentPhotoBoardPresignUploadResponseSchema,
+  StudentPhotoSubmissionsResponseSchema,
   StudentPhotoPresignUploadResponseSchema,
   StudentPhotoPresignViewResponseSchema,
   StudentPhotoSubmitResponseSchema,
@@ -13,6 +16,8 @@ import {
   StudentUnitRenderedContentResponseSchema,
   type StudentCourse as SharedStudentCourse,
   type StudentDashboardOverviewResponse as SharedStudentDashboardOverviewResponse,
+  type StudentNotification as SharedStudentNotification,
+  type StudentNotificationsResponse as SharedStudentNotificationsResponse,
   type StudentCourseDetailResponse as SharedStudentCourseDetailResponse,
   type StudentGraphEdge as SharedStudentGraphEdge,
   type StudentGraphNode as SharedStudentGraphNode,
@@ -24,6 +29,7 @@ import {
   type StudentPhotoPresignUploadRequest as SharedStudentPhotoPresignUploadRequest,
   type StudentPhotoBoardPresignUploadRequest as SharedStudentPhotoBoardPresignUploadRequest,
   type StudentPhotoBoardSubmitRequest as SharedStudentPhotoBoardSubmitRequest,
+  type StudentPhotoSubmissionsResponse as SharedStudentPhotoSubmissionsResponse,
   type StudentPhotoPresignViewQuery as SharedStudentPhotoPresignViewQuery,
   type StudentPhotoSubmitRequest as SharedStudentPhotoSubmitRequest,
   type StudentTaskSolutionRenderedContentResponse as SharedStudentTaskSolutionRenderedContentResponse,
@@ -38,6 +44,8 @@ export type StudentUnitStatus = "locked" | "available" | "in_progress" | "comple
 export type Course = SharedStudentCourse;
 export type StudentDashboardOverview = SharedStudentDashboardOverviewResponse;
 export type StudentDashboardCourseSummary = StudentDashboardOverview["courses"][number];
+export type StudentNotification = SharedStudentNotification;
+export type StudentNotificationsResponse = SharedStudentNotificationsResponse;
 
 export type UnitVideo = { id: string; title: string; embedUrl: string };
 type UnitAttachment = { id: string; name: string; urlOrKey?: string | null };
@@ -137,27 +145,8 @@ export type StudentUnitRenderedContentResponse = SharedStudentUnitRenderedConten
 export type StudentPhotoFileInput = SharedStudentPhotoPresignUploadRequest["files"][number];
 export type StudentPhotoBoardPresignUploadRequest = SharedStudentPhotoBoardPresignUploadRequest;
 
-type StudentPhotoTaskSubmission = {
-  id: string;
-  studentUserId: string;
-  taskId: string;
-  taskRevisionId: string;
-  unitId: string;
-  attemptId: string;
-  status: "submitted" | "accepted" | "rejected";
-  answerKind: "photo" | "board";
-  assetKeys: string[];
-  boardAssetKey?: string | null;
-  boardPreviewAssetKey?: string | null;
-  rejectedReason: string | null;
-  submittedAt: string;
-  reviewedAt: string | null;
-  reviewedByTeacherUserId: string | null;
-};
-
-type StudentPhotoSubmissionsResponse = {
-  items: StudentPhotoTaskSubmission[];
-};
+export type StudentPhotoSubmissionsResponse = SharedStudentPhotoSubmissionsResponse;
+export type StudentPhotoTaskSubmission = StudentPhotoSubmissionsResponse["items"][number];
 
 export type StudentTaskSolutionRenderedContentResponse =
   SharedStudentTaskSolutionRenderedContentResponse;
@@ -196,6 +185,18 @@ export const studentApi = {
     return apiRequestParsed(
       `/student/dashboard?${search.toString()}`,
       StudentDashboardOverviewResponseSchema,
+    );
+  },
+
+  listNotifications() {
+    return apiRequestParsed("/student/notifications", StudentNotificationsResponseSchema);
+  },
+
+  markNotificationRead(notificationId: string) {
+    return apiRequestParsed(
+      `/student/notifications/${notificationId}/read`,
+      StudentNotificationReadResponseSchema,
+      { method: "POST" },
     );
   },
 
@@ -282,7 +283,10 @@ export const studentApi = {
   },
 
   listPhotoSubmissions(taskId: string) {
-    return apiRequest<StudentPhotoSubmissionsResponse>(`/student/tasks/${taskId}/photo/submissions`);
+    return apiRequestParsed(
+      `/student/tasks/${taskId}/photo/submissions`,
+      StudentPhotoSubmissionsResponseSchema,
+    );
   },
 
   presignPhotoView(

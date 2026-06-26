@@ -5,7 +5,15 @@ import { useEffect, useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { ArrowLeft, BookOpenText } from "lucide-react";
-import { studentApi, type Task, type TaskState, type UnitVideo, type UnitWithTasks } from "@/lib/api/student";
+import type { ExcalidrawInitialDataState } from "@excalidraw/excalidraw/types";
+import {
+  studentApi,
+  type StudentPhotoTaskSubmission,
+  type Task,
+  type TaskState,
+  type UnitVideo,
+  type UnitWithTasks,
+} from "@/lib/api/student";
 import { ApiError } from "@/lib/api/client";
 import { learningPhotoQueryKeys } from "@/lib/query/keys";
 import { getStudentErrorMessage } from "../shared/student-errors";
@@ -37,8 +45,18 @@ const StudentExcalidrawBoard = dynamic(
   },
 );
 
+const StudentFeedbackExcalidrawBoard = dynamic(
+  () =>
+    import("./components/StudentFeedbackExcalidrawBoard").then((mod) => mod.StudentFeedbackExcalidrawBoard),
+  {
+    ssr: false,
+    loading: () => <div className={styles.feedbackBoardPlaceholder}>Загрузка доски разбора...</div>,
+  },
+);
+
 type Props = {
   unitId: string;
+  focusTaskId?: string | null;
 };
 
 type TabKey = "theory" | "method" | "tasks" | "video" | "attachments";
@@ -57,6 +75,7 @@ const CREDITED_TASK_STATUSES = new Set<TaskState["status"]>([
 ]);
 
 const SOLVED_TASK_STATUSES = new Set<TaskState["status"]>(["correct", "accepted", "teacher_credited"]);
+const REVIEWED_PHOTO_STATUSES = new Set<TaskState["status"]>(["accepted", "rejected"]);
 
 const formatRemainingDuration = (remainingMs: number) => {
   const totalSeconds = Math.ceil(Math.max(0, remainingMs) / 1000);
@@ -77,6 +96,37 @@ const getProgressFillStyle = (percent: number) => {
     background: "var(--student-success)",
   };
 };
+
+const parseExcalidrawScene = (value: unknown): ExcalidrawInitialDataState => {
+  if (!value || typeof value !== "object") {
+    throw new Error("Некорректный формат доски.");
+  }
+  const data = value as ExcalidrawInitialDataState;
+  return {
+    elements: data.elements ?? [],
+    appState: {
+      viewBackgroundColor: "#ffffff",
+      ...data.appState,
+    },
+    files: data.files ?? {},
+  };
+};
+
+const fetchFeedbackBoardScene = async (url: string) => {
+  const response = await fetch(url, { credentials: "omit" });
+  if (!response.ok) {
+    throw new Error("Не удалось загрузить доску разбора.");
+  }
+  return parseExcalidrawScene(await response.json());
+};
+
+const findFeedbackSubmission = (submissions: StudentPhotoTaskSubmission[]) =>
+  submissions.find(
+    (submission) =>
+      (submission.status === "accepted" || submission.status === "rejected") &&
+      submission.teacherFeedbackBoardAssetKey &&
+      submission.teacherFeedbackPreviewAssetKey,
+  ) ?? null;
 
 const getStudentUnitRetry = (failureCount: number, error: Error) => {
   if (error instanceof ApiError) {
@@ -368,6 +418,96 @@ function StudentPhotoActions({
   );
 }
 
+function StudentPhotoFeedbackBoard({
+  activeState,
+  taskId,
+}: {
+  activeState: TaskState | null;
+  taskId: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const shouldQuery = REVIEWED_PHOTO_STATUSES.has((activeState?.status ?? "not_started") as TaskState["status"]);
+
+  const submissionsQuery = useQuery({
+    queryKey: learningPhotoQueryKeys.studentPhotoSubmissions(taskId),
+    queryFn: () => studentApi.listPhotoSubmissions(taskId),
+    enabled: shouldQuery,
+    staleTime: 30_000,
+  });
+
+  const feedbackSubmission = useMemo(
+    () => findFeedbackSubmission(submissionsQuery.data?.items ?? []),
+    [submissionsQuery.data?.items],
+  );
+  const boardAssetKey = feedbackSubmission?.teacherFeedbackBoardAssetKey ?? null;
+  const previewAssetKey = feedbackSubmission?.teacherFeedbackPreviewAssetKey ?? null;
+
+  const boardSceneQuery = useQuery({
+    queryKey: boardAssetKey
+      ? learningPhotoQueryKeys.studentFeedbackBoardScene(taskId, boardAssetKey)
+      : ["learning-photo", "student", "task", taskId, "feedback-board", null],
+    enabled: open && Boolean(boardAssetKey),
+    queryFn: async () => {
+      if (!boardAssetKey) throw new Error("Доска разбора недоступна.");
+      const response = await studentApi.presignPhotoView(taskId, boardAssetKey, 300);
+      return fetchFeedbackBoardScene(response.url);
+    },
+    retry: 1,
+  });
+
+  const previewQuery = useQuery({
+    queryKey: previewAssetKey
+      ? learningPhotoQueryKeys.studentFeedbackBoardPreview(taskId, previewAssetKey)
+      : ["learning-photo", "student", "task", taskId, "feedback-preview", null],
+    enabled: open && boardSceneQuery.isError && Boolean(previewAssetKey),
+    queryFn: async () => {
+      if (!previewAssetKey) throw new Error("Превью разбора недоступно.");
+      const response = await studentApi.presignPhotoView(taskId, previewAssetKey, 300);
+      return response.url;
+    },
+    retry: 1,
+  });
+
+  if (!shouldQuery || submissionsQuery.isPending || !feedbackSubmission) {
+    return null;
+  }
+
+  const statusLabel = feedbackSubmission.status === "accepted" ? "Принято" : "Отклонено";
+
+  return (
+    <section className={styles.feedbackBoardPanel} aria-label="Разбор учителя">
+      <div className={styles.feedbackBoardHeader}>
+        <div>
+          <div className={styles.feedbackBoardTitle}>Разбор учителя</div>
+          <div className={styles.feedbackBoardMeta}>{statusLabel}</div>
+        </div>
+        <button
+          type="button"
+          className={styles.feedbackBoardToggle}
+          onClick={() => setOpen((value) => !value)}
+          aria-expanded={open}
+        >
+          {open ? "Скрыть разбор" : "Посмотреть разбор"}
+        </button>
+      </div>
+
+      {open ? (
+        <div className={styles.feedbackBoardFrame}>
+          {boardSceneQuery.data ? (
+            <StudentFeedbackExcalidrawBoard initialData={boardSceneQuery.data} />
+          ) : boardSceneQuery.isError && previewQuery.data ? (
+            <img className={styles.feedbackBoardPreview} src={previewQuery.data} alt="Превью разбора учителя" />
+          ) : boardSceneQuery.isError && previewQuery.isError ? (
+            <div className={styles.feedbackBoardPlaceholder}>Не удалось открыть разбор.</div>
+          ) : (
+            <div className={styles.feedbackBoardPlaceholder}>Доска разбора загружается...</div>
+          )}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function StudentTaskAttemptControls({
   isPhotoTask,
   attempt,
@@ -574,6 +714,7 @@ function StudentUnitTasksPanel({
         ) : null}
 
         {isPhotoTask ? <StudentPhotoActions taskId={activeTask.id} photo={photo} /> : null}
+        {isPhotoTask ? <StudentPhotoFeedbackBoard activeState={activeState} taskId={activeTask.id} /> : null}
 
         <StudentTaskActions
           nextTaskId={nextTaskId}
@@ -741,8 +882,8 @@ const useStudentUnitTabsState = (unit: UnitWithTasks | null) => {
   };
 };
 
-const useStudentUnitTaskState = (orderedTasks: Task[], unitId: string) => {
-  const taskNavigation = useStudentTaskNavigation(orderedTasks);
+const useStudentUnitTaskState = (orderedTasks: Task[], unitId: string, focusTaskId?: string | null) => {
+  const taskNavigation = useStudentTaskNavigation(orderedTasks, focusTaskId);
   const activeState = taskNavigation.activeTask?.state ?? null;
   const attempt = useStudentTaskAttempt({ activeTask: taskNavigation.activeTask, unitId });
   const photo = useStudentPhotoSubmit({ activeTask: taskNavigation.activeTask, activeState, unitId });
@@ -757,7 +898,7 @@ const useStudentUnitTaskState = (orderedTasks: Task[], unitId: string) => {
   };
 };
 
-const useStudentUnitScreenState = (unitId: string) => {
+const useStudentUnitScreenState = (unitId: string, focusTaskId?: string | null) => {
   const queryState = useStudentUnitQueryState(unitId);
   const tabsState = useStudentUnitTabsState(queryState.unit);
   const unitRenderedContent = useStudentUnitRenderedContent({ unit: queryState.unit, unitId });
@@ -770,7 +911,7 @@ const useStudentUnitScreenState = (unitId: string) => {
       ? normalizePercent((progressMetrics.requiredDone / progressMetrics.requiredTotal) * 100)
       : 100;
   const shouldShowProgressCard = Boolean(queryState.unit) && tabsState.activeTab !== "theory" && tabsState.activeTab !== "method";
-  const taskState = useStudentUnitTaskState(orderedTasks, unitId);
+  const taskState = useStudentUnitTaskState(orderedTasks, unitId, focusTaskId);
 
   return {
     ...queryState,
@@ -874,12 +1015,12 @@ function StudentUnitBody({
   );
 }
 
-export default function StudentUnitDetailScreen({ unitId }: Props) {
+export default function StudentUnitDetailScreen({ unitId, focusTaskId = null }: Props) {
   const tabsId = useId();
   const router = useRouter();
   const handleLogout = useStudentLogout();
   const identity = useStudentIdentity();
-  const state = useStudentUnitScreenState(unitId);
+  const state = useStudentUnitScreenState(unitId, focusTaskId);
 
   const navItems = useMemo(
     () => [

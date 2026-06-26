@@ -427,6 +427,22 @@ export const TeacherNotificationSchema = z
   })
   .passthrough();
 
+export const StudentNotificationSchema = TeacherNotificationSchema;
+
+export const StudentNotificationsResponseSchema = z
+  .object({
+    activeCount: z.number(),
+    items: z.array(StudentNotificationSchema),
+  })
+  .passthrough();
+
+export const StudentNotificationReadResponseSchema = z
+  .object({
+    ok: z.literal(true),
+    notification: StudentNotificationSchema,
+  })
+  .passthrough();
+
 export const TeacherStudentTaskStateSchema = z
   .object({
     status: z.enum([
@@ -615,6 +631,9 @@ export type TeacherStudentTreeUnit = z.infer<typeof TeacherStudentTreeUnitSchema
 export type TeacherStudentTreeSection = z.infer<typeof TeacherStudentTreeSectionSchema>;
 export type TeacherStudentCourseTree = z.infer<typeof TeacherStudentCourseTreeSchema>;
 export type TeacherStudentProfileResponse = z.infer<typeof TeacherStudentProfileResponseSchema>;
+export type StudentNotification = z.infer<typeof StudentNotificationSchema>;
+export type StudentNotificationsResponse = z.infer<typeof StudentNotificationsResponseSchema>;
+export type StudentNotificationReadResponse = z.infer<typeof StudentNotificationReadResponseSchema>;
 export type TeacherTaskCreditResponse = z.infer<typeof TeacherTaskCreditResponseSchema>;
 export type TeacherOverrideOpenUnitResponse = z.infer<typeof TeacherOverrideOpenUnitResponseSchema>;
 export type TeacherOverrideOpenSectionResponse = z.infer<typeof TeacherOverrideOpenSectionResponseSchema>;

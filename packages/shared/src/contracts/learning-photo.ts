@@ -326,6 +326,34 @@ export const StudentPhotoPresignViewResponseSchema = z
 const TeacherReviewSubmissionStatusSchema = z.enum(["pending_review", "accepted", "rejected"]);
 const PhotoSubmissionAnswerKindSchema = z.enum(["photo", "board"]);
 
+export const StudentPhotoTaskSubmissionSchema = z
+  .object({
+    id: z.string(),
+    studentUserId: z.string(),
+    taskId: z.string(),
+    taskRevisionId: z.string(),
+    unitId: z.string(),
+    attemptId: z.string(),
+    status: z.enum(["submitted", "accepted", "rejected"]),
+    answerKind: PhotoSubmissionAnswerKindSchema.default("photo"),
+    assetKeys: z.array(z.string()),
+    boardAssetKey: z.string().nullable().optional(),
+    boardPreviewAssetKey: z.string().nullable().optional(),
+    teacherFeedbackBoardAssetKey: z.string().nullable().optional(),
+    teacherFeedbackPreviewAssetKey: z.string().nullable().optional(),
+    rejectedReason: z.string().nullable(),
+    submittedAt: z.string(),
+    reviewedAt: z.string().nullable(),
+    reviewedByTeacherUserId: z.string().nullable(),
+  })
+  .passthrough();
+
+export const StudentPhotoSubmissionsResponseSchema = z
+  .object({
+    items: z.array(StudentPhotoTaskSubmissionSchema),
+  })
+  .passthrough();
+
 const TeacherReviewInboxItemSchema = z
   .object({
     submissionId: z.string(),
@@ -494,6 +522,8 @@ export type TeacherPhotoFeedbackBoardPresignUploadResponse = z.infer<
 >;
 export type StudentPhotoSubmitResponse = z.infer<typeof StudentPhotoSubmitResponseSchema>;
 export type StudentPhotoPresignViewResponse = z.infer<typeof StudentPhotoPresignViewResponseSchema>;
+export type StudentPhotoTaskSubmission = z.infer<typeof StudentPhotoTaskSubmissionSchema>;
+export type StudentPhotoSubmissionsResponse = z.infer<typeof StudentPhotoSubmissionsResponseSchema>;
 
 export type TeacherReviewInboxResponse = z.infer<typeof TeacherReviewInboxResponseSchema>;
 export type TeacherReviewSubmissionDetailResponse = z.infer<typeof TeacherReviewSubmissionDetailResponseSchema>;

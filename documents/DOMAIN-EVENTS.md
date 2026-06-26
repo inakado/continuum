@@ -86,6 +86,14 @@
 - `PhotoAttemptAccepted` (admin)
 - `PhotoAttemptRejected` (admin)
 
+`PhotoAttemptAccepted` / `PhotoAttemptRejected` payload включает:
+- `answer_kind`;
+- для photo submissions: `asset_keys`;
+- для board submissions: `board_asset_key`, `board_preview_asset_key`;
+- если учитель сохранил разбор: `teacher_feedback_board_asset_key`, `teacher_feedback_preview_asset_key`.
+
+После `accepted/rejected` создаётся student notification `photo_reviewed`; его payload содержит `unitId`, `taskId`, `submissionId`, `status`, `answerKind` и optional teacher feedback keys.
+
 ## 2) Source links
 
 - Event store:

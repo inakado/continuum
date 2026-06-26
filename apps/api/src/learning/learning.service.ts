@@ -8,6 +8,7 @@ import {
   ContentStatus,
   StudentTaskStatus,
   StudentUnitStatus,
+  type Notification,
 } from '@prisma/client';
 import type { StudentAttemptRequest } from '@continuum/shared';
 import { ContentService } from '../content/content.service';
@@ -25,6 +26,19 @@ const TASK_SOLUTION_ALLOWED_STATUSES = new Set<StudentTaskStatus>([
   StudentTaskStatus.credited_without_progress,
   StudentTaskStatus.teacher_credited,
 ]);
+
+const normalizeNotificationPayload = (payload: unknown): Record<string, unknown> => {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return {};
+  return payload as Record<string, unknown>;
+};
+
+const mapNotification = (notification: Notification) => ({
+  id: notification.id,
+  type: notification.type,
+  payload: normalizeNotificationPayload(notification.payload),
+  createdAt: notification.createdAt.toISOString(),
+  readAt: notification.readAt?.toISOString() ?? null,
+});
 
 type StudentSectionAccessStatus = 'locked' | 'available' | 'completed';
 
@@ -738,6 +752,57 @@ export class LearningService {
 
   async listNotifications(teacherId: string, studentId?: string) {
     return this.learningTeacherActionsService.listNotifications(teacherId, studentId);
+  }
+
+  async listStudentNotifications(studentId: string) {
+    const [activeCount, notifications] = await Promise.all([
+      this.prisma.notification.count({
+        where: {
+          recipientUserId: studentId,
+          readAt: null,
+        },
+      }),
+      this.prisma.notification.findMany({
+        where: {
+          recipientUserId: studentId,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }),
+    ]);
+
+    return {
+      activeCount,
+      items: notifications.map(mapNotification),
+    };
+  }
+
+  async markStudentNotificationRead(studentId: string, notificationId: string) {
+    const notification = await this.prisma.notification.findFirst({
+      where: {
+        id: notificationId,
+        recipientUserId: studentId,
+      },
+    });
+
+    if (!notification) {
+      throw new NotFoundException({
+        code: 'NOTIFICATION_NOT_FOUND',
+        message: 'Notification not found',
+      });
+    }
+
+    const updated = notification.readAt
+      ? notification
+      : await this.prisma.notification.update({
+          where: { id: notification.id },
+          data: { readAt: new Date() },
+        });
+
+    return {
+      ok: true,
+      notification: mapNotification(updated),
+    };
   }
 
   async getTeacherUnitPreview(teacherId: string, studentId: string, unitId: string) {

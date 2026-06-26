@@ -443,6 +443,8 @@
 | `assetKeysJson` | `Json` | `@map("asset_keys_json")` |
 | `boardAssetKey` | `String?` | `@map("board_asset_key")` |
 | `boardPreviewAssetKey` | `String?` | `@map("board_preview_asset_key")` |
+| `teacherFeedbackBoardAssetKey` | `String?` | `@map("teacher_feedback_board_asset_key")` |
+| `teacherFeedbackPreviewAssetKey` | `String?` | `@map("teacher_feedback_preview_asset_key")` |
 | `status` | `PhotoTaskSubmissionStatus` | `@default(submitted)` |
 | `rejectedReason` | `String?` | `@map("rejected_reason")` |
 | `reviewedByTeacherUserId` | `String?` | `@map("reviewed_by_teacher_user_id") @db.Uuid` |

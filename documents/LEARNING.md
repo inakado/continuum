@@ -104,17 +104,24 @@
 ## Notifications (`Implemented`)
 
 - В БД есть `NotificationType`:
-  - `task_locked`, `required_task_skipped` — реально используются сейчас;
-  - `photo_reviewed`, `unit_override_opened` — есть в enum.
+  - `task_locked`, `required_task_skipped` — teacher-facing уведомления по попыткам;
+  - `photo_reviewed` — student-facing уведомление после `accepted/rejected` photo/board submission;
+  - `unit_override_opened` — есть в enum.
+- Student notifications:
+  - `GET /student/notifications` возвращает последние события текущего ученика и `activeCount`;
+  - `POST /student/notifications/:notificationId/read` отмечает только собственное уведомление ученика как прочитанное.
+- `photo_reviewed.payload` содержит `unitId`, `taskId`, `submissionId`, `status`, `answerKind` и optional `teacherFeedbackBoardAssetKey`/`teacherFeedbackPreviewAssetKey`.
 
 ## Photo Tasks (`Implemented` частично)
 
 - Student:
   - presign upload + submit photo попытки;
-  - list submissions + presign view.
+  - list submissions + presign view;
+  - для проверенной board submission может открыть teacher feedback board read-only.
 - Teacher:
   - inbox + detail;
-  - accept/reject с domain events `PhotoAttemptAccepted|Rejected`.
+  - accept/reject с domain events `PhotoAttemptAccepted|Rejected`;
+  - для board submissions может сохранить отдельный teacher feedback board JSON+PNG.
 
 ## Source Links
 

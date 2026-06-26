@@ -452,6 +452,7 @@ Existing photo submissions должны работать из-за default `answ
 - 2026-06-26: Scope расширен: вместо static PNG preview нужен teacher editable Excalidraw review board и student-facing feedback board после `accepted/rejected`. Старые ограничения `teacher-side Excalidraw viewer не делать` и `teacher review uses PNG preview` считаются промежуточным состоянием, не финальным UX.
 - 2026-06-26: Завершён backend foundation для teacher feedback board: добавлены `teacher_feedback_*` поля и миграция, shared contracts для feedback presign/accept/reject, teacher feedback presign endpoint, storage policy prefix `teacher-feedback/`, accept/reject сохраняют feedback keys и создают student notification `photo_reviewed`, read ACL расширен для feedback keys. Проверки: `pnpm --filter @continuum/shared test`, focused API tests, Docker API typecheck, `pnpm --filter web typecheck`, `pnpm lint:boundaries`, live feedback presign `HTTP 200`.
 - 2026-06-26: Завершён teacher frontend stage для board review: detail-view для `answerKind=board` открывает student Excalidraw JSON как editable scene, accept/reject при наличии teacher interaction экспортируют feedback JSON+PNG, загружают их через feedback presign и отправляют feedback keys в review mutation. Photo submissions остались на прежнем image viewer. Проверки: `pnpm --filter web test -- TeacherReviewSubmissionDetailPanel.test.tsx --reporter verbose --testTimeout 10000`, `pnpm --filter web typecheck`, `pnpm lint:boundaries`.
+- 2026-06-26: Завершён student notification/feedback surface stage: добавлены `GET /student/notifications`, `POST /student/notifications/:notificationId/read`, sidebar `Bell` popover с unread badge, link `/student/units/:unitId?taskId=:taskId`, focus taskId на unit route и read-only teacher feedback board с PNG fallback. Проверки: shared contract tests, targeted web tests, `pnpm --filter web typecheck`, Docker API typecheck, `pnpm lint:boundaries`, `pnpm docs:generate`.
 
 ## 14. Scope expansion: teacher feedback board
 
@@ -558,6 +559,9 @@ Existing photo submissions должны работать из-за default `answ
 ### 14.6 Student frontend
 
 1. Add student-facing reviewed feedback surface:
+   - add `GET /student/notifications` and `POST /student/notifications/:notificationId/read`;
+   - expose events from `StudentDashboardShell` via compact `Bell` icon in sidebar header;
+   - sidebar popover shows unread count, recent events, status, and direct action;
    - notification item links to `/student/units/:unitId?taskId=...` or existing unit route with focus;
    - unit task card shows reviewed board feedback when `teacherFeedbackBoardAssetKey` exists.
 2. Student opens teacher feedback as read-only Excalidraw board:
@@ -590,6 +594,7 @@ Existing photo submissions должны работать из-за default `answ
    - teacher board detail loads Excalidraw from student JSON;
    - accept/reject exports and uploads feedback board before mutation;
    - upload failure prevents review mutation;
+   - student sidebar notification button renders unread count and events popover;
    - student reviewed submission renders “Посмотреть разбор” and read-only board.
 
 ### 14.8 Documentation

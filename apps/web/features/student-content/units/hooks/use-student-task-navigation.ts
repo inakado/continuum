@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Task } from "@/lib/api/student";
 
-export const useStudentTaskNavigation = (orderedTasks: Task[]) => {
+export const useStudentTaskNavigation = (orderedTasks: Task[], preferredTaskId?: string | null) => {
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -12,12 +12,15 @@ export const useStudentTaskNavigation = (orderedTasks: Task[]) => {
 
     setActiveTaskId((prev) => {
       const fallbackId = orderedTasks[0].id;
+      if (preferredTaskId && orderedTasks.some((task) => task.id === preferredTaskId)) {
+        return preferredTaskId;
+      }
       if (!prev) return fallbackId;
       const index = orderedTasks.findIndex((task) => task.id === prev);
       if (index === -1) return fallbackId;
       return prev;
     });
-  }, [orderedTasks]);
+  }, [orderedTasks, preferredTaskId]);
 
   const activeTaskIndex = useMemo(() => {
     if (!orderedTasks.length) return 0;

@@ -3,6 +3,8 @@ import {
   StudentCourseDetailResponseSchema,
   StudentDashboardOverviewResponseSchema,
   StudentCourseListResponseSchema,
+  StudentNotificationReadResponseSchema,
+  StudentNotificationsResponseSchema,
   StudentSectionGraphResponseSchema,
   TeacherCreateStudentRequestSchema,
   TeacherSectionMetaSchema,
@@ -109,6 +111,40 @@ describe("content non-learning contracts", () => {
 
     expect(courseDetail.sections[0]?.completionPercent).toBe(45);
     expect(courseDetail.sections[0]?.accessStatus).toBe("available");
+  });
+
+  it("accepts valid student notifications payloads", () => {
+    const notifications = StudentNotificationsResponseSchema.parse({
+      activeCount: 1,
+      items: [
+        {
+          id: "notification-1",
+          type: "photo_reviewed",
+          payload: {
+            unitId: "unit-1",
+            taskId: "task-1",
+            submissionId: "submission-1",
+            status: "rejected",
+            answerKind: "board",
+            teacherFeedbackBoardAssetKey: "tasks/task-1/photo/student-1/revision-1/teacher-feedback/board.json",
+            teacherFeedbackPreviewAssetKey: "tasks/task-1/photo/student-1/revision-1/teacher-feedback/preview.png",
+          },
+          createdAt: "2026-06-26T01:00:00.000Z",
+          readAt: null,
+        },
+      ],
+    });
+
+    const readResponse = StudentNotificationReadResponseSchema.parse({
+      ok: true,
+      notification: {
+        ...notifications.items[0],
+        readAt: "2026-06-26T01:05:00.000Z",
+      },
+    });
+
+    expect(notifications.activeCount).toBe(1);
+    expect(readResponse.notification.readAt).toBe("2026-06-26T01:05:00.000Z");
   });
 
   it("accepts valid teacher students query/request shapes", () => {

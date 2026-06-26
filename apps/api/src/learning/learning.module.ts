@@ -16,6 +16,7 @@ import { PhotoTaskReviewWriteService } from './photo-task-review-write.service';
 import { PhotoTaskService } from './photo-task.service';
 import { StudentAttemptsController } from './student-attempts.controller';
 import { StudentDashboardController } from './student-dashboard.controller';
+import { StudentNotificationsController } from './student-notifications.controller';
 import { StudentPhotoTasksController } from './student-photo-tasks.controller';
 import { StudentSectionsController } from '../content/student-sections.controller';
 import { StudentSectionGraphController } from './student-section-graph.controller';
@@ -44,6 +45,7 @@ import { TeacherUnitOverrideOpenController } from './teacher-unit-override-open.
     StudentCoursesController,
     StudentAttemptsController,
     StudentDashboardController,
+    StudentNotificationsController,
     StudentPhotoTasksController,
     StudentSectionsController,
     StudentSectionGraphController,

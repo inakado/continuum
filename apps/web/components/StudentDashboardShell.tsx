@@ -11,6 +11,7 @@ import {
   type FocusEvent as ReactFocusEvent,
   type ReactNode,
 } from "react";
+import StudentNotificationsButton from "@/components/StudentNotificationsButton";
 import ThemeToggle from "@/components/ThemeToggle";
 import styles from "./student-dashboard-shell.module.css";
 import themeStyles from "./student-dashboard-theme.module.css";
@@ -116,6 +117,7 @@ function SidebarInner({
                 <Settings className={styles.navIcon} aria-hidden="true" strokeWidth={1.7} />
               </Link>
             ) : null}
+            <StudentNotificationsButton />
             <ThemeToggle compact />
           </div>
         </div>
