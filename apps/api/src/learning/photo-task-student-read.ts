@@ -47,6 +47,8 @@ export const listStudentPhotoSubmissions = async ({
       assetKeysJson: true,
       boardAssetKey: true,
       boardPreviewAssetKey: true,
+      teacherFeedbackBoardAssetKey: true,
+      teacherFeedbackPreviewAssetKey: true,
       rejectedReason: true,
       submittedAt: true,
       reviewedAt: true,
@@ -94,6 +96,18 @@ export const presignStudentPhotoView = async ({
         { assetKeysJson: { array_contains: [assetKey] } },
         { boardAssetKey: assetKey },
         { boardPreviewAssetKey: assetKey },
+        {
+          AND: [
+            { teacherFeedbackBoardAssetKey: assetKey },
+            { status: { in: ['accepted', 'rejected'] } },
+          ],
+        },
+        {
+          AND: [
+            { teacherFeedbackPreviewAssetKey: assetKey },
+            { status: { in: ['accepted', 'rejected'] } },
+          ],
+        },
       ],
     },
     select: { id: true },

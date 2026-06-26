@@ -5,6 +5,8 @@ import type {
   StudentPhotoPresignUploadRequest,
   StudentPhotoPresignViewQuery,
   StudentPhotoSubmitRequest,
+  TeacherPhotoAcceptRequest,
+  TeacherPhotoFeedbackBoardPresignUploadRequest,
   TeacherPhotoInboxQuery,
   TeacherPhotoPresignViewQuery,
   TeacherPhotoQueueQuery,
@@ -84,8 +86,30 @@ export class PhotoTaskService {
     return this.photoTaskReadService.presignViewForTeacher(teacherId, studentId, taskId, query);
   }
 
-  async accept(teacherId: string, studentId: string, taskId: string, submissionId: string) {
-    return this.photoTaskReviewWriteService.accept(teacherId, studentId, taskId, submissionId);
+  async presignFeedbackBoardUploadForTeacher(
+    teacherId: string,
+    studentId: string,
+    taskId: string,
+    submissionId: string,
+    body: TeacherPhotoFeedbackBoardPresignUploadRequest,
+  ) {
+    return this.photoTaskReviewWriteService.presignFeedbackBoardUpload(
+      teacherId,
+      studentId,
+      taskId,
+      submissionId,
+      body,
+    );
+  }
+
+  async accept(
+    teacherId: string,
+    studentId: string,
+    taskId: string,
+    submissionId: string,
+    body: TeacherPhotoAcceptRequest,
+  ) {
+    return this.photoTaskReviewWriteService.accept(teacherId, studentId, taskId, submissionId, body);
   }
 
   async reject(

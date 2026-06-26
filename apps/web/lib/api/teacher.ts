@@ -15,6 +15,7 @@ import {
   TeacherOverrideOpenUnitResponseSchema,
   TeacherPhotoPresignViewResponseSchema,
   TeacherPhotoReviewResponseSchema,
+  TeacherPhotoFeedbackBoardPresignUploadResponseSchema,
   TeacherResetStudentPasswordResponseSchema,
   TeacherReviewInboxResponseSchema,
   TeacherReviewSubmissionDetailResponseSchema,
@@ -39,6 +40,9 @@ import {
   type TeacherGraphEdge as SharedTeacherGraphEdge,
   type TeacherGraphNode as SharedTeacherGraphNode,
   type TeacherPhotoInboxQuery as SharedTeacherPhotoInboxQuery,
+  type TeacherPhotoAcceptRequest as SharedTeacherPhotoAcceptRequest,
+  type TeacherPhotoFeedbackBoardPresignUploadRequest as SharedTeacherPhotoFeedbackBoardPresignUploadRequest,
+  type TeacherPhotoFeedbackBoardPresignUploadResponse as SharedTeacherPhotoFeedbackBoardPresignUploadResponse,
   type TeacherPhotoPresignViewQuery as SharedTeacherPhotoPresignViewQuery,
   type TeacherPhotoPresignViewResponse as SharedTeacherPhotoPresignViewResponse,
   type TeacherPhotoQueueQuery as SharedTeacherPhotoQueueQuery,
@@ -355,6 +359,8 @@ export type TeacherTaskPhotoSubmissionsResponse = {
 export type TeacherStudentPhotoQueueResponse = SharedTeacherStudentPhotoQueueResponse;
 export type TeacherStudentPhotoQueueItem = TeacherStudentPhotoQueueResponse["items"][number];
 export type TeacherPhotoPresignViewResponse = SharedTeacherPhotoPresignViewResponse;
+export type TeacherPhotoFeedbackBoardPresignUploadRequest = SharedTeacherPhotoFeedbackBoardPresignUploadRequest;
+export type TeacherPhotoFeedbackBoardPresignUploadResponse = SharedTeacherPhotoFeedbackBoardPresignUploadResponse;
 export type TeacherPhotoReviewResponse = SharedTeacherPhotoReviewResponse;
 export type TeacherReviewInboxResponse = SharedTeacherReviewInboxResponse;
 export type TeacherReviewSubmissionDetailResponse = SharedTeacherReviewSubmissionDetailResponse;
@@ -932,11 +938,32 @@ export const teacherApi = {
     );
   },
 
-  acceptStudentTaskPhotoSubmission(studentId: string, taskId: string, submissionId: string) {
+  presignTeacherFeedbackBoardUpload(
+    studentId: string,
+    taskId: string,
+    submissionId: string,
+    body: TeacherPhotoFeedbackBoardPresignUploadRequest,
+  ) {
+    return apiRequestParsed(
+      `/teacher/students/${studentId}/tasks/${taskId}/photo-submissions/${submissionId}/feedback-board/presign-upload`,
+      TeacherPhotoFeedbackBoardPresignUploadResponseSchema,
+      {
+        method: "POST",
+        body,
+      },
+    );
+  },
+
+  acceptStudentTaskPhotoSubmission(
+    studentId: string,
+    taskId: string,
+    submissionId: string,
+    body: SharedTeacherPhotoAcceptRequest = {},
+  ) {
     return apiRequestParsed(
       `/teacher/students/${studentId}/tasks/${taskId}/photo-submissions/${submissionId}/accept`,
       TeacherPhotoReviewResponseSchema,
-      { method: "POST" },
+      { method: "POST", body },
     );
   },
 
@@ -944,14 +971,18 @@ export const teacherApi = {
     studentId: string,
     taskId: string,
     submissionId: string,
-    reason?: SharedTeacherPhotoRejectRequest["reason"],
+    input?: SharedTeacherPhotoRejectRequest,
   ) {
+    const reason = input?.reason?.trim();
     return apiRequestParsed(
       `/teacher/students/${studentId}/tasks/${taskId}/photo-submissions/${submissionId}/reject`,
       TeacherPhotoReviewResponseSchema,
       {
         method: "POST",
-        body: reason?.trim() ? { reason: reason.trim() } : {},
+        body: {
+          ...input,
+          ...(reason ? { reason } : { reason: undefined }),
+        },
       },
     );
   },

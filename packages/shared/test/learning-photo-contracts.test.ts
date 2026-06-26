@@ -10,6 +10,9 @@ import {
   StudentPhotoBoardPresignUploadResponseSchema,
   StudentPhotoBoardSubmitRequestSchema,
   StudentPhotoSubmitRequestSchema,
+  TeacherPhotoAcceptRequestSchema,
+  TeacherPhotoFeedbackBoardPresignUploadRequestSchema,
+  TeacherPhotoFeedbackBoardPresignUploadResponseSchema,
   TeacherPhotoInboxQuerySchema,
   TeacherPhotoQueueQuerySchema,
   TeacherReviewInboxResponseSchema,
@@ -93,6 +96,39 @@ describe("learning-photo contracts", () => {
     ).toBe(false);
   });
 
+  it("validates teacher feedback board upload and review payloads", () => {
+    expect(
+      TeacherPhotoFeedbackBoardPresignUploadRequestSchema.parse({
+        jsonSizeBytes: 1024,
+        previewSizeBytes: 2048,
+        ttlSec: "300",
+      }),
+    ).toEqual({
+      jsonSizeBytes: 1024,
+      previewSizeBytes: 2048,
+      ttlSec: 300,
+    });
+
+    expect(
+      TeacherPhotoAcceptRequestSchema.parse({
+        teacherFeedbackBoardAssetKey:
+          "tasks/task-1/photo/student-1/rev-1/teacher-feedback/1700000000000-deadbeef-1.json",
+        teacherFeedbackPreviewAssetKey:
+          "tasks/task-1/photo/student-1/rev-1/teacher-feedback/1700000000000-deadbeef-2.png",
+      }),
+    ).toMatchObject({
+      teacherFeedbackBoardAssetKey: expect.stringContaining(".json"),
+      teacherFeedbackPreviewAssetKey: expect.stringContaining(".png"),
+    });
+
+    expect(
+      TeacherPhotoAcceptRequestSchema.safeParse({
+        teacherFeedbackBoardAssetKey:
+          "tasks/task-1/photo/student-1/rev-1/teacher-feedback/1700000000000-deadbeef-1.json",
+      }).success,
+    ).toBe(false);
+  });
+
   it("parses board presign and teacher review responses", () => {
     expect(
       StudentPhotoBoardPresignUploadResponseSchema.parse({
@@ -104,6 +140,24 @@ describe("learning-photo contracts", () => {
         preview: {
           assetKey: "tasks/task-1/photo/student-1/rev-1/board/1700000000000-deadbeef-2.png",
           url: "https://storage.test/preview.png",
+          contentType: "image/png",
+        },
+        expiresInSec: 300,
+      }),
+    ).toMatchObject({
+      board: { contentType: "application/json" },
+      preview: { contentType: "image/png" },
+    });
+    expect(
+      TeacherPhotoFeedbackBoardPresignUploadResponseSchema.parse({
+        board: {
+          assetKey: "tasks/task-1/photo/student-1/rev-1/teacher-feedback/1700000000000-deadbeef-1.json",
+          url: "https://storage.test/feedback.json",
+          contentType: "application/json",
+        },
+        preview: {
+          assetKey: "tasks/task-1/photo/student-1/rev-1/teacher-feedback/1700000000000-deadbeef-2.png",
+          url: "https://storage.test/feedback.png",
           contentType: "image/png",
         },
         expiresInSec: 300,
@@ -124,6 +178,8 @@ describe("learning-photo contracts", () => {
         assetKeys: [],
         boardAssetKey: "board.json",
         boardPreviewAssetKey: "preview.png",
+        teacherFeedbackBoardAssetKey: "feedback.json",
+        teacherFeedbackPreviewAssetKey: "feedback.png",
         student: { id: "student-1", login: "student1", firstName: null, lastName: null },
         course: { id: "course-1", title: "Course" },
         section: { id: "section-1", title: "Section" },
@@ -136,6 +192,7 @@ describe("learning-photo contracts", () => {
 
     expect(parsed.submission.answerKind).toBe("board");
     expect(parsed.submission.boardPreviewAssetKey).toBe("preview.png");
+    expect(parsed.submission.teacherFeedbackPreviewAssetKey).toBe("feedback.png");
   });
 
   it("applies queue/inbox query defaults and transforms", () => {

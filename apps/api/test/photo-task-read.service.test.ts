@@ -281,6 +281,18 @@ describe('PhotoTaskReadService', () => {
             { assetKeysJson: { array_contains: ['assets/photo-1.jpg'] } },
             { boardAssetKey: 'assets/photo-1.jpg' },
             { boardPreviewAssetKey: 'assets/photo-1.jpg' },
+            {
+              AND: [
+                { teacherFeedbackBoardAssetKey: 'assets/photo-1.jpg' },
+                { status: { in: ['accepted', 'rejected'] } },
+              ],
+            },
+            {
+              AND: [
+                { teacherFeedbackPreviewAssetKey: 'assets/photo-1.jpg' },
+                { status: { in: ['accepted', 'rejected'] } },
+              ],
+            },
           ],
         }),
       }),

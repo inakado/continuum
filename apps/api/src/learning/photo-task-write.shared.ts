@@ -8,6 +8,12 @@ export const buildPhotoTaskAssetPrefix = (taskId: string, studentId: string, tas
 export const buildPhotoTaskBoardAssetPrefix = (taskId: string, studentId: string, taskRevisionId: string) =>
   `${buildPhotoTaskAssetPrefix(taskId, studentId, taskRevisionId)}board/`;
 
+export const buildPhotoTaskTeacherFeedbackAssetPrefix = (
+  taskId: string,
+  studentId: string,
+  taskRevisionId: string,
+) => `${buildPhotoTaskAssetPrefix(taskId, studentId, taskRevisionId)}teacher-feedback/`;
+
 export const buildGeneratedAssetKey = ({
   contentTypeExtension,
   index,

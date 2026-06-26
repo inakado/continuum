@@ -4,6 +4,8 @@ import type {
   StudentPhotoBoardSubmitRequest,
   StudentPhotoPresignUploadRequest,
   StudentPhotoSubmitRequest,
+  TeacherPhotoAcceptRequest,
+  TeacherPhotoFeedbackBoardPresignUploadRequest,
   TeacherPhotoRejectRequest,
 } from '@continuum/shared';
 import { ObjectStorageService } from '../infra/storage/object-storage.service';
@@ -18,7 +20,11 @@ import {
   submitStudentPhotoBoardTask,
   submitStudentPhotoTask,
 } from './photo-task-student-write';
-import { acceptTeacherPhotoSubmission, rejectTeacherPhotoSubmission } from './photo-task-teacher-review-write';
+import {
+  acceptTeacherPhotoSubmission,
+  presignTeacherFeedbackBoardUpload,
+  rejectTeacherPhotoSubmission,
+} from './photo-task-teacher-review-write';
 
 @Injectable()
 export class PhotoTaskReviewWriteService {
@@ -85,10 +91,38 @@ export class PhotoTaskReviewWriteService {
     });
   }
 
-  async accept(teacherId: string, studentId: string, taskId: string, submissionId: string) {
+  async presignFeedbackBoardUpload(
+    teacherId: string,
+    studentId: string,
+    taskId: string,
+    submissionId: string,
+    body: TeacherPhotoFeedbackBoardPresignUploadRequest,
+  ) {
+    return presignTeacherFeedbackBoardUpload({
+      body,
+      objectStorageService: this.objectStorageService,
+      photoTaskPolicyService: this.photoTaskPolicyService,
+      prisma: this.prisma,
+      studentId,
+      studentsService: this.studentsService,
+      submissionId,
+      taskId,
+      teacherId,
+    });
+  }
+
+  async accept(
+    teacherId: string,
+    studentId: string,
+    taskId: string,
+    submissionId: string,
+    body: TeacherPhotoAcceptRequest,
+  ) {
     return acceptTeacherPhotoSubmission({
+      body,
       learningAuditLogService: this.learningAuditLogService,
       learningAvailabilityService: this.learningAvailabilityService,
+      photoTaskPolicyService: this.photoTaskPolicyService,
       prisma: this.prisma,
       studentId,
       studentsService: this.studentsService,
@@ -109,6 +143,7 @@ export class PhotoTaskReviewWriteService {
       body,
       learningAuditLogService: this.learningAuditLogService,
       learningAvailabilityService: this.learningAvailabilityService,
+      photoTaskPolicyService: this.photoTaskPolicyService,
       prisma: this.prisma,
       studentId,
       studentsService: this.studentsService,

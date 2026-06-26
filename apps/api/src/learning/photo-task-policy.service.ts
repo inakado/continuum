@@ -46,6 +46,15 @@ export class PhotoTaskPolicyService {
     this.assertAssetKeyGeneratedPattern(input.boardPreviewAssetKey, input.prefix, ['png']);
   }
 
+  assertTeacherFeedbackBoardAssetKeysMatchGeneratedPattern(input: {
+    teacherFeedbackBoardAssetKey: string;
+    teacherFeedbackPreviewAssetKey: string;
+    prefix: string;
+  }) {
+    this.assertAssetKeyGeneratedPattern(input.teacherFeedbackBoardAssetKey, input.prefix, ['json']);
+    this.assertAssetKeyGeneratedPattern(input.teacherFeedbackPreviewAssetKey, input.prefix, ['png']);
+  }
+
   assertAssetKeyPrefix(assetKey: string, prefix: string) {
     this.assertAssetKeyFormat(assetKey);
     if (!assetKey.startsWith(prefix)) {

@@ -489,21 +489,23 @@ model Attempt {
 }
 
 model PhotoTaskSubmission {
-  id                      String                    @id @default(uuid()) @db.Uuid
-  studentUserId           String                    @map("student_user_id") @db.Uuid
-  taskId                  String                    @map("task_id") @db.Uuid
-  taskRevisionId          String                    @map("task_revision_id") @db.Uuid
-  unitId                  String                    @map("unit_id") @db.Uuid
-  attemptId               String                    @unique @map("attempt_id") @db.Uuid
-  answerKind              PhotoTaskSubmissionAnswerKind @default(photo) @map("answer_kind")
-  assetKeysJson           Json                      @map("asset_keys_json")
-  boardAssetKey           String?                   @map("board_asset_key")
-  boardPreviewAssetKey    String?                   @map("board_preview_asset_key")
-  status                  PhotoTaskSubmissionStatus @default(submitted)
-  rejectedReason          String?                   @map("rejected_reason")
-  reviewedByTeacherUserId String?                   @map("reviewed_by_teacher_user_id") @db.Uuid
-  submittedAt             DateTime                  @default(now()) @map("submitted_at")
-  reviewedAt              DateTime?                 @map("reviewed_at")
+  id                             String                        @id @default(uuid()) @db.Uuid
+  studentUserId                  String                        @map("student_user_id") @db.Uuid
+  taskId                         String                        @map("task_id") @db.Uuid
+  taskRevisionId                 String                        @map("task_revision_id") @db.Uuid
+  unitId                         String                        @map("unit_id") @db.Uuid
+  attemptId                      String                        @unique @map("attempt_id") @db.Uuid
+  answerKind                     PhotoTaskSubmissionAnswerKind @default(photo) @map("answer_kind")
+  assetKeysJson                  Json                          @map("asset_keys_json")
+  boardAssetKey                  String?                       @map("board_asset_key")
+  boardPreviewAssetKey           String?                       @map("board_preview_asset_key")
+  teacherFeedbackBoardAssetKey   String?                       @map("teacher_feedback_board_asset_key")
+  teacherFeedbackPreviewAssetKey String?                       @map("teacher_feedback_preview_asset_key")
+  status                         PhotoTaskSubmissionStatus     @default(submitted)
+  rejectedReason                 String?                       @map("rejected_reason")
+  reviewedByTeacherUserId        String?                       @map("reviewed_by_teacher_user_id") @db.Uuid
+  submittedAt                    DateTime                      @default(now()) @map("submitted_at")
+  reviewedAt                     DateTime?                     @map("reviewed_at")
 
   student           User         @relation("PhotoTaskSubmissionStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
   task              Task         @relation(fields: [taskId], references: [id], onDelete: Cascade)

@@ -36,6 +36,12 @@ const coerceOptionalNonNegativeInt = z.preprocess(
 
 const nonEmptyString = z.string().trim().min(1);
 const optionalIdString = z.preprocess(trimToUndefined, nonEmptyString.optional());
+const assetKeyString = z
+  .string()
+  .trim()
+  .min(1)
+  .max(500)
+  .regex(/^[a-zA-Z0-9\-_/\.]+$/);
 
 export const StudentAttemptRequestSchema = z
   .preprocess(
@@ -101,14 +107,7 @@ export const StudentPhotoPresignUploadRequestSchema = z
 export const StudentPhotoSubmitRequestSchema = z
   .object({
     assetKeys: z
-      .array(
-        z
-          .string()
-          .trim()
-          .min(1)
-          .max(500)
-          .regex(/^[a-zA-Z0-9\-_/\.]+$/),
-      )
+      .array(assetKeyString)
       .min(PHOTO_FILES_MIN)
       .max(PHOTO_FILES_MAX)
       .refine((values) => new Set(values).size === values.length, {
@@ -130,24 +129,32 @@ export const StudentPhotoBoardPresignUploadRequestSchema = z
 
 export const StudentPhotoBoardSubmitRequestSchema = z
   .object({
-    boardAssetKey: z
-      .string()
-      .trim()
-      .min(1)
-      .max(500)
-      .regex(/^[a-zA-Z0-9\-_/\.]+$/),
-    boardPreviewAssetKey: z
-      .string()
-      .trim()
-      .min(1)
-      .max(500)
-      .regex(/^[a-zA-Z0-9\-_/\.]+$/),
+    boardAssetKey: assetKeyString,
+    boardPreviewAssetKey: assetKeyString,
   })
   .passthrough();
 
+export const TeacherPhotoFeedbackBoardPresignUploadRequestSchema = StudentPhotoBoardPresignUploadRequestSchema;
+
+const TeacherPhotoFeedbackBoardKeysSchema = z
+  .object({
+    teacherFeedbackBoardAssetKey: assetKeyString.optional(),
+    teacherFeedbackPreviewAssetKey: assetKeyString.optional(),
+  })
+  .refine(
+    (value) =>
+      (value.teacherFeedbackBoardAssetKey === undefined &&
+        value.teacherFeedbackPreviewAssetKey === undefined) ||
+      (value.teacherFeedbackBoardAssetKey !== undefined &&
+        value.teacherFeedbackPreviewAssetKey !== undefined),
+    {
+      message: "teacher feedback board and preview keys must be provided together",
+    },
+  );
+
 export const StudentPhotoPresignViewQuerySchema = z
   .object({
-    assetKey: nonEmptyString.max(500).regex(/^[a-zA-Z0-9\-_/\.]+$/),
+    assetKey: assetKeyString,
     ttlSec: coerceOptionalPositiveInt.refine(
       (value) => value === undefined || value <= PHOTO_TTL_MAX_SEC,
       `ttlSec must be <= ${PHOTO_TTL_MAX_SEC}`,
@@ -211,14 +218,17 @@ export const TeacherPhotoSubmissionDetailQuerySchema = TeacherPhotoInboxBaseQuer
 export const TeacherPhotoRejectRequestSchema = z
   .preprocess(
     (value) => (value && typeof value === "object" ? value : {}),
-    z
-      .object({
-        reason: z.preprocess(
-          (value) => (typeof value === "string" ? trimToUndefined(value) : undefined),
-          z.string().optional(),
-        ),
-      })
-      .passthrough(),
+    TeacherPhotoFeedbackBoardKeysSchema.extend({
+      reason: z.preprocess(
+        (value) => (typeof value === "string" ? trimToUndefined(value) : undefined),
+        z.string().optional(),
+      ),
+    }).passthrough(),
+  );
+
+export const TeacherPhotoAcceptRequestSchema = z.preprocess(
+  (value) => (value && typeof value === "object" ? value : {}),
+  TeacherPhotoFeedbackBoardKeysSchema.passthrough(),
   );
 
 const StudentTaskStatusSchema = z.enum([
@@ -293,6 +303,8 @@ export const StudentPhotoBoardPresignUploadResponseSchema = z
   })
   .passthrough();
 
+export const TeacherPhotoFeedbackBoardPresignUploadResponseSchema = StudentPhotoBoardPresignUploadResponseSchema;
+
 export const StudentPhotoSubmitResponseSchema = z
   .object({
     ok: z.literal(true),
@@ -361,6 +373,8 @@ export const TeacherReviewSubmissionDetailResponseSchema = z
         assetKeys: z.array(z.string()),
         boardAssetKey: z.string().nullable().optional(),
         boardPreviewAssetKey: z.string().nullable().optional(),
+        teacherFeedbackBoardAssetKey: z.string().nullable().optional(),
+        teacherFeedbackPreviewAssetKey: z.string().nullable().optional(),
         student: z.object({
           id: z.string(),
           login: z.string(),
@@ -414,6 +428,8 @@ export const TeacherPhotoReviewResponseSchema = z
         assetKeys: z.array(z.string()),
         boardAssetKey: z.string().nullable().optional(),
         boardPreviewAssetKey: z.string().nullable().optional(),
+        teacherFeedbackBoardAssetKey: z.string().nullable().optional(),
+        teacherFeedbackPreviewAssetKey: z.string().nullable().optional(),
         rejectedReason: z.string().nullable(),
         submittedAt: z.string(),
         reviewedAt: z.string().nullable(),
@@ -459,16 +475,23 @@ export type StudentPhotoSubmitRequest = z.infer<typeof StudentPhotoSubmitRequest
 export type StudentPhotoBoardPresignUploadRequest = z.infer<typeof StudentPhotoBoardPresignUploadRequestSchema>;
 export type StudentPhotoBoardSubmitRequest = z.infer<typeof StudentPhotoBoardSubmitRequestSchema>;
 export type StudentPhotoPresignViewQuery = z.infer<typeof StudentPhotoPresignViewQuerySchema>;
+export type TeacherPhotoFeedbackBoardPresignUploadRequest = z.infer<
+  typeof TeacherPhotoFeedbackBoardPresignUploadRequestSchema
+>;
 
 export type TeacherPhotoQueueQuery = z.infer<typeof TeacherPhotoQueueQuerySchema>;
 export type TeacherPhotoInboxQuery = z.infer<typeof TeacherPhotoInboxQuerySchema>;
 export type TeacherPhotoSubmissionDetailQuery = z.infer<typeof TeacherPhotoSubmissionDetailQuerySchema>;
 export type TeacherPhotoPresignViewQuery = z.infer<typeof TeacherPhotoPresignViewQuerySchema>;
+export type TeacherPhotoAcceptRequest = z.infer<typeof TeacherPhotoAcceptRequestSchema>;
 export type TeacherPhotoRejectRequest = z.infer<typeof TeacherPhotoRejectRequestSchema>;
 
 export type StudentAttemptResponse = z.infer<typeof StudentAttemptResponseSchema>;
 export type StudentPhotoPresignUploadResponse = z.infer<typeof StudentPhotoPresignUploadResponseSchema>;
 export type StudentPhotoBoardPresignUploadResponse = z.infer<typeof StudentPhotoBoardPresignUploadResponseSchema>;
+export type TeacherPhotoFeedbackBoardPresignUploadResponse = z.infer<
+  typeof TeacherPhotoFeedbackBoardPresignUploadResponseSchema
+>;
 export type StudentPhotoSubmitResponse = z.infer<typeof StudentPhotoSubmitResponseSchema>;
 export type StudentPhotoPresignViewResponse = z.infer<typeof StudentPhotoPresignViewResponseSchema>;
 

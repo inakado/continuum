@@ -13,6 +13,9 @@ vi.mock('@prisma/client', () => ({
     photo: 'photo',
     board: 'board',
   },
+  NotificationType: {
+    photo_reviewed: 'photo_reviewed',
+  },
   ContentStatus: {
     published: 'published',
   },
@@ -75,6 +78,8 @@ const createSubmission = (overrides: Partial<Record<string, unknown>> = {}) => (
   assetKeysJson: ['assets/photo-1.jpg'],
   boardAssetKey: null,
   boardPreviewAssetKey: null,
+  teacherFeedbackBoardAssetKey: null,
+  teacherFeedbackPreviewAssetKey: null,
   rejectedReason: null,
   submittedAt: new Date('2026-03-01T10:00:00.000Z'),
   reviewedAt: null,
@@ -112,12 +117,18 @@ const createTxMock = () => ({
     findFirst: vi.fn(),
     update: vi.fn(),
   },
+  notification: {
+    create: vi.fn(),
+  },
 });
 
 describe('PhotoTaskReviewWriteService', () => {
   const tx = createTxMock();
   const prisma = {
     task: {
+      findFirst: vi.fn(),
+    },
+    photoTaskSubmission: {
       findFirst: vi.fn(),
     },
     $transaction: vi.fn(),
@@ -140,6 +151,7 @@ describe('PhotoTaskReviewWriteService', () => {
     extensionForContentType: vi.fn(),
     assertAssetKeysMatchGeneratedPattern: vi.fn(),
     assertBoardAssetKeysMatchGeneratedPattern: vi.fn(),
+    assertTeacherFeedbackBoardAssetKeysMatchGeneratedPattern: vi.fn(),
     boardJsonContentType: vi.fn(),
     boardPreviewContentType: vi.fn(),
   };
@@ -157,6 +169,7 @@ describe('PhotoTaskReviewWriteService', () => {
     vi.useRealTimers();
 
     prisma.task.findFirst.mockReset();
+    prisma.photoTaskSubmission.findFirst.mockReset();
     prisma.$transaction.mockReset();
     prisma.$transaction.mockImplementation(async (callback: (input: typeof tx) => Promise<unknown>) => callback(tx));
 
@@ -171,6 +184,7 @@ describe('PhotoTaskReviewWriteService', () => {
     tx.photoTaskSubmission.create.mockReset();
     tx.photoTaskSubmission.findFirst.mockReset();
     tx.photoTaskSubmission.update.mockReset();
+    tx.notification.create.mockReset();
 
     studentsService.assertTeacherOwnsStudent.mockReset();
     learningAvailabilityService.recomputeSectionAvailability.mockReset();
@@ -181,6 +195,7 @@ describe('PhotoTaskReviewWriteService', () => {
     photoTaskPolicyService.extensionForContentType.mockReset();
     photoTaskPolicyService.assertAssetKeysMatchGeneratedPattern.mockReset();
     photoTaskPolicyService.assertBoardAssetKeysMatchGeneratedPattern.mockReset();
+    photoTaskPolicyService.assertTeacherFeedbackBoardAssetKeysMatchGeneratedPattern.mockReset();
     photoTaskPolicyService.boardJsonContentType.mockReset();
     photoTaskPolicyService.boardPreviewContentType.mockReset();
   });
@@ -265,6 +280,48 @@ describe('PhotoTaskReviewWriteService', () => {
       expect.stringMatching(/\/board\/1710000000000-.+-2\.png$/),
       'image/png',
       300,
+    );
+  });
+
+  it('presigns teacher feedback board upload with JSON and PNG asset keys', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1710000000000);
+    studentsService.assertTeacherOwnsStudent.mockResolvedValue(undefined);
+    prisma.photoTaskSubmission.findFirst.mockResolvedValue({ taskRevisionId: 'revision-1' });
+    photoTaskPolicyService.resolveUploadTtl.mockReturnValue(300);
+    photoTaskPolicyService.boardJsonContentType.mockReturnValue('application/json');
+    photoTaskPolicyService.boardPreviewContentType.mockReturnValue('image/png');
+    objectStorageService.presignPutObject.mockResolvedValue({
+      url: 'https://storage.example/upload',
+      headers: { 'x-test': '1' },
+    });
+
+    const response = await service.presignFeedbackBoardUpload(
+      'teacher-1',
+      'student-1',
+      'task-1',
+      'submission-1',
+      {
+        jsonSizeBytes: 1024,
+        previewSizeBytes: 2048,
+        ttlSec: 300,
+      },
+    );
+
+    expect(response.board).toEqual(
+      expect.objectContaining({
+        assetKey: expect.stringMatching(
+          /^tasks\/task-1\/photo\/student-1\/revision-1\/teacher-feedback\/1710000000000-.+-1\.json$/,
+        ),
+        contentType: 'application/json',
+      }),
+    );
+    expect(response.preview).toEqual(
+      expect.objectContaining({
+        assetKey: expect.stringMatching(
+          /^tasks\/task-1\/photo\/student-1\/revision-1\/teacher-feedback\/1710000000000-.+-2\.png$/,
+        ),
+        contentType: 'image/png',
+      }),
     );
   });
 
@@ -428,7 +485,7 @@ describe('PhotoTaskReviewWriteService', () => {
       new Map([['unit-1', createUnitSnapshot()]]),
     );
 
-    const response = await service.accept('teacher-1', 'student-1', 'task-1', 'submission-1');
+    const response = await service.accept('teacher-1', 'student-1', 'task-1', 'submission-1', {});
 
     expect(tx.attempt.update).toHaveBeenCalledWith({
       where: { id: 'attempt-1' },
@@ -443,6 +500,18 @@ describe('PhotoTaskReviewWriteService', () => {
         payload: expect.objectContaining({
           answer_kind: PhotoTaskSubmissionAnswerKind.photo,
           asset_keys: ['assets/photo-1.jpg'],
+        }),
+      }),
+    );
+    expect(tx.notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          recipientUserId: 'student-1',
+          type: 'photo_reviewed',
+          payload: expect.objectContaining({
+            status: 'accepted',
+            submissionId: 'submission-1',
+          }),
         }),
       }),
     );
@@ -482,6 +551,10 @@ describe('PhotoTaskReviewWriteService', () => {
         assetKeysJson: [],
         boardAssetKey: 'tasks/task-1/photo/student-1/revision-1/board/1710000000000-deadbeef-1.json',
         boardPreviewAssetKey: 'tasks/task-1/photo/student-1/revision-1/board/1710000000000-deadbeef-2.png',
+        teacherFeedbackBoardAssetKey:
+          'tasks/task-1/photo/student-1/revision-1/teacher-feedback/1710000000000-deadbeef-1.json',
+        teacherFeedbackPreviewAssetKey:
+          'tasks/task-1/photo/student-1/revision-1/teacher-feedback/1710000000000-deadbeef-2.png',
         rejectedReason: 'Нужна более чёткая фотография',
         reviewedByTeacherUserId: 'teacher-1',
         reviewedAt: new Date('2026-03-01T11:00:00.000Z'),
@@ -499,6 +572,10 @@ describe('PhotoTaskReviewWriteService', () => {
 
     const response = await service.reject('teacher-1', 'student-1', 'task-1', 'submission-1', {
       reason: 'Нужна более чёткая фотография',
+      teacherFeedbackBoardAssetKey:
+        'tasks/task-1/photo/student-1/revision-1/teacher-feedback/1710000000000-deadbeef-1.json',
+      teacherFeedbackPreviewAssetKey:
+        'tasks/task-1/photo/student-1/revision-1/teacher-feedback/1710000000000-deadbeef-2.png',
     });
 
     expect(tx.attempt.update).toHaveBeenCalledWith({
@@ -515,7 +592,33 @@ describe('PhotoTaskReviewWriteService', () => {
           answer_kind: PhotoTaskSubmissionAnswerKind.board,
           board_asset_key: 'tasks/task-1/photo/student-1/revision-1/board/1710000000000-deadbeef-1.json',
           board_preview_asset_key: 'tasks/task-1/photo/student-1/revision-1/board/1710000000000-deadbeef-2.png',
+          teacher_feedback_board_asset_key:
+            'tasks/task-1/photo/student-1/revision-1/teacher-feedback/1710000000000-deadbeef-1.json',
+          teacher_feedback_preview_asset_key:
+            'tasks/task-1/photo/student-1/revision-1/teacher-feedback/1710000000000-deadbeef-2.png',
           reason: 'Нужна более чёткая фотография',
+        }),
+      }),
+    );
+    expect(photoTaskPolicyService.assertTeacherFeedbackBoardAssetKeysMatchGeneratedPattern).toHaveBeenCalledWith({
+      teacherFeedbackBoardAssetKey:
+        'tasks/task-1/photo/student-1/revision-1/teacher-feedback/1710000000000-deadbeef-1.json',
+      teacherFeedbackPreviewAssetKey:
+        'tasks/task-1/photo/student-1/revision-1/teacher-feedback/1710000000000-deadbeef-2.png',
+      prefix: 'tasks/task-1/photo/student-1/revision-1/teacher-feedback/',
+    });
+    expect(tx.notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          recipientUserId: 'student-1',
+          type: 'photo_reviewed',
+          payload: expect.objectContaining({
+            status: 'rejected',
+            teacherFeedbackBoardAssetKey:
+              'tasks/task-1/photo/student-1/revision-1/teacher-feedback/1710000000000-deadbeef-1.json',
+            teacherFeedbackPreviewAssetKey:
+              'tasks/task-1/photo/student-1/revision-1/teacher-feedback/1710000000000-deadbeef-2.png',
+          }),
         }),
       }),
     );

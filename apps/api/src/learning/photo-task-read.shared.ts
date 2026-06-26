@@ -134,6 +134,8 @@ export const mapSubmission = (submission: {
   assetKeysJson: Prisma.JsonValue;
   boardAssetKey: string | null;
   boardPreviewAssetKey: string | null;
+  teacherFeedbackBoardAssetKey: string | null;
+  teacherFeedbackPreviewAssetKey: string | null;
   rejectedReason: string | null;
   submittedAt: Date;
   reviewedAt: Date | null;
@@ -150,6 +152,8 @@ export const mapSubmission = (submission: {
   assetKeys: parseAssetKeysJson(submission.assetKeysJson),
   boardAssetKey: submission.boardAssetKey,
   boardPreviewAssetKey: submission.boardPreviewAssetKey,
+  teacherFeedbackBoardAssetKey: submission.teacherFeedbackBoardAssetKey,
+  teacherFeedbackPreviewAssetKey: submission.teacherFeedbackPreviewAssetKey,
   rejectedReason: submission.rejectedReason,
   submittedAt: submission.submittedAt,
   reviewedAt: submission.reviewedAt,

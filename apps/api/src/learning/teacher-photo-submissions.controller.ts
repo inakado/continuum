@@ -1,8 +1,12 @@
 import { Body, Controller, Get, HttpCode, Inject, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import {
+  TeacherPhotoAcceptRequestSchema,
+  TeacherPhotoFeedbackBoardPresignUploadRequestSchema,
   TeacherPhotoPresignViewQuerySchema,
   TeacherPhotoQueueQuerySchema,
   TeacherPhotoRejectRequestSchema,
+  type TeacherPhotoAcceptRequest,
+  type TeacherPhotoFeedbackBoardPresignUploadRequest,
   type TeacherPhotoPresignViewQuery,
   type TeacherPhotoQueueQuery,
   type TeacherPhotoRejectRequest,
@@ -15,6 +19,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import {
   photoPresignViewExceptionFactory,
+  photoBoardPresignUploadExceptionFactory,
   teacherQueueQueryExceptionFactory,
 } from '../common/validation/zod-exception-factories';
 import { PhotoTaskService } from './photo-task.service';
@@ -55,6 +60,30 @@ export class TeacherPhotoSubmissionsController {
     return this.photoTaskService.presignViewForTeacher(req.user.id, studentId, taskId, query);
   }
 
+  @Post(':studentId/tasks/:taskId/photo-submissions/:submissionId/feedback-board/presign-upload')
+  @HttpCode(200)
+  presignFeedbackBoardUpload(
+    @Param('studentId') studentId: string,
+    @Param('taskId') taskId: string,
+    @Param('submissionId') submissionId: string,
+    @Req() req: AuthRequest,
+    @Body(
+      new ZodValidationPipe(
+        TeacherPhotoFeedbackBoardPresignUploadRequestSchema,
+        photoBoardPresignUploadExceptionFactory,
+      ),
+    )
+    body: TeacherPhotoFeedbackBoardPresignUploadRequest,
+  ) {
+    return this.photoTaskService.presignFeedbackBoardUploadForTeacher(
+      req.user.id,
+      studentId,
+      taskId,
+      submissionId,
+      body,
+    );
+  }
+
   @Post(':studentId/tasks/:taskId/photo-submissions/:submissionId/accept')
   @HttpCode(200)
   accept(
@@ -62,8 +91,9 @@ export class TeacherPhotoSubmissionsController {
     @Param('taskId') taskId: string,
     @Param('submissionId') submissionId: string,
     @Req() req: AuthRequest,
+    @Body(new ZodValidationPipe(TeacherPhotoAcceptRequestSchema)) body: TeacherPhotoAcceptRequest,
   ) {
-    return this.photoTaskService.accept(req.user.id, studentId, taskId, submissionId);
+    return this.photoTaskService.accept(req.user.id, studentId, taskId, submissionId, body);
   }
 
   @Post(':studentId/tasks/:taskId/photo-submissions/:submissionId/reject')
