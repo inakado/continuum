@@ -1,9 +1,12 @@
 "use client";
 
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Suspense, useCallback, useMemo, useState } from "react";
+import { Suspense, useCallback, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
+import type { AppState, BinaryFiles, ExcalidrawImperativeAPI, ExcalidrawInitialDataState } from "@excalidraw/excalidraw/types";
+import type { ExcalidrawElement, NonDeletedExcalidrawElement } from "@excalidraw/excalidraw/element/types";
 import LiteTex from "@/components/LiteTex";
 import Button from "@/components/ui/Button";
 import { teacherApi, type TeacherReviewSubmissionDetailResponse } from "@/lib/api/teacher";
@@ -20,6 +23,22 @@ type Props = {
 type ReviewSubmission = TeacherReviewSubmissionDetailResponse["submission"];
 
 type ReviewNavigation = TeacherReviewSubmissionDetailResponse["navigation"];
+type TeacherFeedbackBoardKeys = {
+  teacherFeedbackBoardAssetKey: string;
+  teacherFeedbackPreviewAssetKey: string;
+};
+
+const TeacherExcalidrawReviewBoard = dynamic(
+  () =>
+    import("./components/TeacherExcalidrawReviewBoard").then((mod) => mod.TeacherExcalidrawReviewBoard),
+  {
+    ssr: false,
+    loading: () => <div className={styles.viewerPlaceholder}>Доска загружается…</div>,
+  },
+);
+
+const BOARD_JSON_CONTENT_TYPE = "application/json";
+const BOARD_PREVIEW_CONTENT_TYPE = "image/png";
 
 const statusClassName = {
   pending_review: "statusPending",
@@ -43,11 +62,11 @@ const getStudentName = (student: { firstName: string | null; lastName: string | 
 
 const getTaskNumberLabel = (task: { sortOrder: number }) => `№ ${task.sortOrder + 1}`;
 
+const isVisibleBoardElement = (element: ExcalidrawElement): element is NonDeletedExcalidrawElement =>
+  !element.isDeleted;
+
 const getSubmissionDisplayAssetKeys = (submission: ReviewSubmission) => {
-  if (submission.answerKind === "board") {
-    return submission.boardPreviewAssetKey ? [submission.boardPreviewAssetKey] : [];
-  }
-  return submission.assetKeys;
+  return submission.answerKind === "photo" ? submission.assetKeys : [];
 };
 
 const usePhotoPreviewState = (
@@ -119,6 +138,7 @@ const usePhotoPreviewState = (
 
 const useReviewSubmissionAction = ({
   actionBusy,
+  createFeedbackBoard,
   detail,
   goToInbox,
   goToSubmission,
@@ -127,6 +147,7 @@ const useReviewSubmissionAction = ({
   setActionError,
 }: {
   actionBusy: "accept" | "reject" | null;
+  createFeedbackBoard: (submission: ReviewSubmission) => Promise<TeacherFeedbackBoardKeys | null>;
   detail: TeacherReviewSubmissionDetailResponse | null;
   goToInbox: () => void;
   goToSubmission: (nextSubmissionId: string) => void;
@@ -137,15 +158,23 @@ const useReviewSubmissionAction = ({
   const reviewActionMutation = useMutation({
     mutationFn: async (input: {
       action: "accept" | "reject";
+      feedbackBoardKeys: TeacherFeedbackBoardKeys | null;
       studentId: string;
       taskId: string;
       submissionId: string;
     }) => {
+      const reviewBody = input.feedbackBoardKeys
+        ? {
+            teacherFeedbackBoardAssetKey: input.feedbackBoardKeys.teacherFeedbackBoardAssetKey,
+            teacherFeedbackPreviewAssetKey: input.feedbackBoardKeys.teacherFeedbackPreviewAssetKey,
+          }
+        : {};
       if (input.action === "accept") {
         await teacherApi.acceptStudentTaskPhotoSubmission(
           input.studentId,
           input.taskId,
           input.submissionId,
+          reviewBody,
         );
         return;
       }
@@ -153,6 +182,7 @@ const useReviewSubmissionAction = ({
         input.studentId,
         input.taskId,
         input.submissionId,
+        reviewBody,
       );
     },
   });
@@ -166,8 +196,10 @@ const useReviewSubmissionAction = ({
 
       const nextSubmissionId = detail.navigation.nextSubmissionId ?? detail.navigation.prevSubmissionId;
       try {
+        const feedbackBoardKeys = await createFeedbackBoard(submission);
         await reviewActionMutation.mutateAsync({
           action,
+          feedbackBoardKeys,
           studentId: submission.student.id,
           taskId: submission.task.id,
           submissionId: submission.submissionId,
@@ -187,8 +219,68 @@ const useReviewSubmissionAction = ({
         setActionBusy(null);
       }
     },
-    [actionBusy, detail, goToInbox, goToSubmission, queryClient, reviewActionMutation, setActionBusy, setActionError],
+    [
+      actionBusy,
+      createFeedbackBoard,
+      detail,
+      goToInbox,
+      goToSubmission,
+      queryClient,
+      reviewActionMutation,
+      setActionBusy,
+      setActionError,
+    ],
   );
+};
+
+const putPresignedObject = async ({
+  body,
+  contentType,
+  headers,
+  url,
+}: {
+  body: Blob;
+  contentType: string;
+  headers?: Record<string, string>;
+  url: string;
+}) => {
+  const requestHeaders = new Headers(headers ?? {});
+  if (!requestHeaders.has("Content-Type")) {
+    requestHeaders.set("Content-Type", contentType);
+  }
+
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: requestHeaders,
+    body,
+  });
+
+  if (!response.ok) {
+    throw new Error("Не удалось загрузить доску разбора.");
+  }
+};
+
+const parseExcalidrawScene = (value: unknown): ExcalidrawInitialDataState => {
+  if (!value || typeof value !== "object") {
+    throw new Error("Некорректный формат доски.");
+  }
+  const data = value as ExcalidrawInitialDataState;
+  return {
+    elements: data.elements ?? [],
+    appState: {
+      viewBackgroundColor: "#ffffff",
+      ...data.appState,
+    },
+    files: data.files ?? {},
+  };
+};
+
+const fetchBoardScene = async (url: string) => {
+  const response = await fetch(url, { credentials: "omit" });
+  if (!response.ok) {
+    throw new Error("Не удалось загрузить доску ученика.");
+  }
+  return parseExcalidrawScene(await response.json());
 };
 
 const SubmissionViewer = ({
@@ -280,7 +372,53 @@ const SubmissionViewer = ({
           </button>
         ))}
       </div>
-    ) : null}
+  ) : null}
+  </section>
+);
+
+const BoardSubmissionViewer = ({
+  boardLoadError,
+  boardLoading,
+  boardScene,
+  onBoardChange,
+  onBoardReady,
+  onRetry,
+  onUserInteraction,
+  viewModeEnabled,
+}: {
+  boardLoadError: boolean;
+  boardLoading: boolean;
+  boardScene: ExcalidrawInitialDataState | null;
+  onBoardChange: (elements: readonly ExcalidrawElement[]) => void;
+  onBoardReady: (api: ExcalidrawImperativeAPI) => void;
+  onRetry: () => void;
+  onUserInteraction: () => void;
+  viewModeEnabled: boolean;
+}) => (
+  <section className={styles.viewer}>
+    <div className={styles.viewerTop}>
+      <span className={styles.zoomBadge}>Доска</span>
+    </div>
+    <div className={styles.boardReviewFrame}>
+      {boardScene ? (
+        <TeacherExcalidrawReviewBoard
+          initialData={boardScene}
+          onChange={onBoardChange}
+          onReady={onBoardReady}
+          onUserInteraction={onUserInteraction}
+          viewModeEnabled={viewModeEnabled}
+        />
+      ) : boardLoadError ? (
+        <div className={styles.viewerPlaceholderError}>
+          <span>Не удалось открыть доску ученика.</span>
+          <Button variant="secondary" className={styles.viewerRetryButton} onClick={onRetry}>
+            Повторить
+          </Button>
+        </div>
+      ) : (
+        <div className={styles.viewerPlaceholder}>{boardLoading ? "Доска загружается…" : "Доска недоступна."}</div>
+      )}
+    </div>
   </section>
 );
 
@@ -414,11 +552,39 @@ function TeacherReviewSubmissionDetailPanelContent({
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState<"accept" | "reject" | null>(null);
   const [activeAssetIndex, setActiveAssetIndex] = useState(0);
+  const [boardInteractionDirty, setBoardInteractionDirty] = useState(false);
+  const boardApiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const detail = detailQuery.data ?? null;
   const loading = detailQuery.isPending;
   const error = actionError ?? (detailQuery.isError ? formatApiErrorPayload(detailQuery.error) : null);
   const submission = detail?.submission ?? null;
   const assetKeys = useMemo(() => (submission ? getSubmissionDisplayAssetKeys(submission) : []), [submission]);
+  const boardAssetKey = submission?.answerKind === "board" ? (submission.boardAssetKey ?? null) : null;
+
+  const boardSceneQuery = useQuery({
+    queryKey: [
+      "learning-photo",
+      "teacher",
+      "review",
+      "board-scene",
+      submission?.submissionId ?? null,
+      boardAssetKey,
+    ],
+    enabled: Boolean(submission && boardAssetKey),
+    queryFn: async () => {
+      if (!submission || !boardAssetKey) {
+        throw new Error("Доска недоступна.");
+      }
+      const response = await teacherApi.presignStudentTaskPhotoView(
+        submission.student.id,
+        submission.task.id,
+        boardAssetKey,
+        300,
+      );
+      return fetchBoardScene(response.url);
+    },
+    retry: 1,
+  });
 
   const {
     photoPreviewErrorByAssetKey,
@@ -439,8 +605,90 @@ function TeacherReviewSubmissionDetailPanelContent({
     [queryString, router],
   );
 
+  const handleBoardReady = useCallback((api: ExcalidrawImperativeAPI) => {
+    boardApiRef.current = api;
+  }, []);
+
+  const handleBoardChange = useCallback((_elements: readonly ExcalidrawElement[]) => {
+    // The board API owns scene state; review submit exports from the API.
+  }, []);
+
+  const handleBoardUserInteraction = useCallback(() => {
+    if (submission?.status === "pending_review") {
+      setBoardInteractionDirty(true);
+    }
+  }, [submission?.status]);
+
+  const createFeedbackBoard = useCallback(
+    async (reviewSubmission: ReviewSubmission): Promise<TeacherFeedbackBoardKeys | null> => {
+      const api = boardApiRef.current;
+      if (reviewSubmission.answerKind !== "board" || !boardInteractionDirty || !api) return null;
+
+      const elements = api.getSceneElements();
+      const appState = api.getAppState();
+      const files = api.getFiles();
+      const [{ serializeAsJSON, exportToBlob }] = await Promise.all([
+        import("@excalidraw/excalidraw"),
+        document.fonts?.ready ?? Promise.resolve(),
+      ]);
+
+      const boardJson = serializeAsJSON(
+        elements,
+        {
+          viewBackgroundColor: appState.viewBackgroundColor,
+        } satisfies Partial<AppState>,
+        files as BinaryFiles,
+        "database",
+      );
+      const boardBlob = new Blob([boardJson], { type: BOARD_JSON_CONTENT_TYPE });
+      const previewBlob = await exportToBlob({
+        elements: elements.filter(isVisibleBoardElement),
+        appState: {
+          exportBackground: true,
+          viewBackgroundColor: appState.viewBackgroundColor,
+        },
+        files,
+        mimeType: BOARD_PREVIEW_CONTENT_TYPE,
+        exportPadding: 16,
+        maxWidthOrHeight: 2400,
+      });
+
+      const presigned = await teacherApi.presignTeacherFeedbackBoardUpload(
+        reviewSubmission.student.id,
+        reviewSubmission.task.id,
+        reviewSubmission.submissionId,
+        {
+          jsonSizeBytes: boardBlob.size,
+          previewSizeBytes: previewBlob.size,
+        },
+      );
+
+      await Promise.all([
+        putPresignedObject({
+          body: boardBlob,
+          contentType: presigned.board.contentType,
+          headers: presigned.board.headers,
+          url: presigned.board.url,
+        }),
+        putPresignedObject({
+          body: previewBlob,
+          contentType: presigned.preview.contentType,
+          headers: presigned.preview.headers,
+          url: presigned.preview.url,
+        }),
+      ]);
+
+      return {
+        teacherFeedbackBoardAssetKey: presigned.board.assetKey,
+        teacherFeedbackPreviewAssetKey: presigned.preview.assetKey,
+      };
+    },
+    [boardInteractionDirty],
+  );
+
   const handleAction = useReviewSubmissionAction({
     actionBusy,
+    createFeedbackBoard,
     detail,
     goToInbox,
     goToSubmission,
@@ -486,15 +734,28 @@ function TeacherReviewSubmissionDetailPanelContent({
 
       {!loading && submission ? (
         <div className={styles.content}>
-          <SubmissionViewer
-            activeAssetIndex={activeAssetIndex}
-            activeAssetLoadFailed={activeAssetLoadFailed}
-            activeAssetUrl={activeAssetUrl}
-            assetKeys={assetKeys}
-            onAssetSelect={setActiveAssetIndex}
-            onRetryActivePreview={retryActivePreview}
-            photoPreviewUrlByAssetKey={photoPreviewUrlByAssetKey}
-          />
+          {submission.answerKind === "board" ? (
+            <BoardSubmissionViewer
+              boardLoadError={boardSceneQuery.isError}
+              boardLoading={boardSceneQuery.isPending}
+              boardScene={boardSceneQuery.data ?? null}
+              onBoardChange={handleBoardChange}
+              onBoardReady={handleBoardReady}
+              onRetry={() => void boardSceneQuery.refetch()}
+              onUserInteraction={handleBoardUserInteraction}
+              viewModeEnabled={submission.status !== "pending_review"}
+            />
+          ) : (
+            <SubmissionViewer
+              activeAssetIndex={activeAssetIndex}
+              activeAssetLoadFailed={activeAssetLoadFailed}
+              activeAssetUrl={activeAssetUrl}
+              assetKeys={assetKeys}
+              onAssetSelect={setActiveAssetIndex}
+              onRetryActivePreview={retryActivePreview}
+              photoPreviewUrlByAssetKey={photoPreviewUrlByAssetKey}
+            />
+          )}
           <SubmissionSidebar
             actionBusy={actionBusy}
             navigation={navigation}

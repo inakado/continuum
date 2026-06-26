@@ -7,6 +7,14 @@ import type * as TeacherApiModule from "@/lib/api/teacher";
 import { renderWithQueryClient } from "@/test/render-with-query-client";
 import TeacherReviewSubmissionDetailPanel from "./TeacherReviewSubmissionDetailPanel";
 
+const teacherBoardTestState = vi.hoisted(() => ({
+  api: {
+    getSceneElements: vi.fn(),
+    getAppState: vi.fn(),
+    getFiles: vi.fn(),
+  },
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: vi.fn(),
   useSearchParams: vi.fn(),
@@ -20,6 +28,29 @@ vi.mock("@/components/LiteTex", () => ({
   default: ({ value }: { value: string }) => <div>{value}</div>,
 }));
 
+vi.mock("@excalidraw/excalidraw", () => ({
+  Excalidraw: () => <div>Excalidraw</div>,
+  exportToBlob: vi.fn(async () => new Blob(["png"], { type: "image/png" })),
+  serializeAsJSON: vi.fn(() => JSON.stringify({ type: "excalidraw" })),
+}));
+
+vi.mock("./components/TeacherExcalidrawReviewBoard", () => ({
+  TeacherExcalidrawReviewBoard: ({
+    onReady,
+    onUserInteraction,
+  }: {
+    onReady: (api: typeof teacherBoardTestState.api) => void;
+    onUserInteraction: () => void;
+  }) => {
+    onReady(teacherBoardTestState.api);
+    return (
+      <button type="button" onClick={onUserInteraction}>
+        Доска ученика
+      </button>
+    );
+  },
+}));
+
 vi.mock("@/lib/api/teacher", async () => {
   const actual = await vi.importActual<typeof TeacherApiModule>("@/lib/api/teacher");
   return {
@@ -28,6 +59,7 @@ vi.mock("@/lib/api/teacher", async () => {
       ...actual.teacherApi,
       getTeacherPhotoSubmissionDetail: vi.fn(),
       presignStudentTaskPhotoView: vi.fn(),
+      presignTeacherFeedbackBoardUpload: vi.fn(),
       acceptStudentTaskPhotoSubmission: vi.fn(),
       rejectStudentTaskPhotoSubmission: vi.fn(),
     },
@@ -53,6 +85,8 @@ const submissionDetail = {
     assetKeys: ["asset-1", "asset-2"],
     boardAssetKey: null,
     boardPreviewAssetKey: null,
+    teacherFeedbackBoardAssetKey: null,
+    teacherFeedbackPreviewAssetKey: null,
     student: {
       id: "student-1",
       login: "student1",
@@ -99,14 +133,47 @@ describe("TeacherReviewSubmissionDetailPanel", () => {
     );
     vi.mocked(teacherApi.getTeacherPhotoSubmissionDetail).mockReset();
     vi.mocked(teacherApi.presignStudentTaskPhotoView).mockReset();
+    vi.mocked(teacherApi.presignTeacherFeedbackBoardUpload).mockReset();
     vi.mocked(teacherApi.acceptStudentTaskPhotoSubmission).mockReset();
     vi.mocked(teacherApi.rejectStudentTaskPhotoSubmission).mockReset();
+    teacherBoardTestState.api.getSceneElements.mockReset();
+    teacherBoardTestState.api.getAppState.mockReset();
+    teacherBoardTestState.api.getFiles.mockReset();
+    teacherBoardTestState.api.getSceneElements.mockReturnValue([{ id: "el-1", isDeleted: false }]);
+    teacherBoardTestState.api.getAppState.mockReturnValue({ viewBackgroundColor: "#ffffff" });
+    teacherBoardTestState.api.getFiles.mockReturnValue({});
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(JSON.stringify({ elements: [], appState: { viewBackgroundColor: "#ffffff" }, files: {} }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
     vi.mocked(teacherApi.getTeacherPhotoSubmissionDetail).mockResolvedValue(submissionDetail as never);
     vi.mocked(teacherApi.presignStudentTaskPhotoView).mockResolvedValue({
       ok: true,
       assetKey: "asset-1",
       expiresInSec: 300,
       url: "https://cdn.test/asset-1.jpg",
+    } as never);
+    vi.mocked(teacherApi.presignTeacherFeedbackBoardUpload).mockResolvedValue({
+      ok: true,
+      board: {
+        assetKey: "teacher-feedback/board.json",
+        contentType: "application/json",
+        expiresInSec: 300,
+        headers: { "x-upload": "board" },
+        url: "https://upload.test/feedback-board.json",
+      },
+      preview: {
+        assetKey: "teacher-feedback/preview.png",
+        contentType: "image/png",
+        expiresInSec: 300,
+        headers: { "x-upload": "preview" },
+        url: "https://upload.test/feedback-preview.png",
+      },
     } as never);
   });
 
@@ -136,7 +203,7 @@ describe("TeacherReviewSubmissionDetailPanel", () => {
     });
   });
 
-  it("loads board preview when submission answer kind is board", async () => {
+  it("opens board editor when submission answer kind is board", async () => {
     vi.mocked(teacherApi.getTeacherPhotoSubmissionDetail).mockResolvedValue({
       ...submissionDetail,
       submission: {
@@ -150,22 +217,19 @@ describe("TeacherReviewSubmissionDetailPanel", () => {
     } as never);
     vi.mocked(teacherApi.presignStudentTaskPhotoView).mockResolvedValue({
       ok: true,
-      assetKey: "board-preview.png",
+      assetKey: "board-scene.json",
       expiresInSec: 300,
-      url: "https://cdn.test/board-preview.png",
+      url: "https://cdn.test/board-scene.json",
     } as never);
 
     renderWithQueryClient(<TeacherReviewSubmissionDetailPanel submissionId="submission-board" />);
 
-    expect(await screen.findByAltText("Фото-ответ ученика")).toHaveAttribute(
-      "src",
-      "https://cdn.test/board-preview.png",
-    );
+    expect(await screen.findByRole("button", { name: "Доска ученика" })).toBeInTheDocument();
     await waitFor(() => {
       expect(teacherApi.presignStudentTaskPhotoView).toHaveBeenCalledWith(
         "student-1",
         "task-1",
-        "board-preview.png",
+        "board-scene.json",
         300,
       );
     });
@@ -191,6 +255,7 @@ describe("TeacherReviewSubmissionDetailPanel", () => {
         "student-1",
         "task-1",
         "submission-1",
+        {},
       );
     });
     await waitFor(() => {
@@ -227,9 +292,71 @@ describe("TeacherReviewSubmissionDetailPanel", () => {
         "student-1",
         "task-1",
         "submission-1",
+        {},
       );
     });
     expect(pushMock).toHaveBeenCalledWith("/teacher/review?status=pending_review&sort=oldest&studentId=student-1");
+  });
+
+  it("uploads teacher feedback board before accepting edited board submission", async () => {
+    vi.mocked(teacherApi.getTeacherPhotoSubmissionDetail).mockResolvedValue({
+      ...submissionDetail,
+      submission: {
+        ...submissionDetail.submission,
+        submissionId: "submission-board",
+        answerKind: "board",
+        assetKeys: [],
+        boardAssetKey: "board-scene.json",
+        boardPreviewAssetKey: "board-preview.png",
+      },
+    } as never);
+    vi.mocked(teacherApi.presignStudentTaskPhotoView).mockResolvedValue({
+      ok: true,
+      assetKey: "board-scene.json",
+      expiresInSec: 300,
+      url: "https://cdn.test/board-scene.json",
+    } as never);
+    vi.mocked(teacherApi.acceptStudentTaskPhotoSubmission).mockResolvedValue({
+      ok: true,
+      status: "accepted",
+    } as never);
+
+    renderWithQueryClient(<TeacherReviewSubmissionDetailPanel submissionId="submission-board" />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "Доска ученика" }));
+    await user.click(screen.getByRole("button", { name: "Принять" }));
+
+    await waitFor(() => {
+      expect(teacherApi.presignTeacherFeedbackBoardUpload).toHaveBeenCalledWith(
+        "student-1",
+        "task-1",
+        "submission-board",
+        {
+          jsonSizeBytes: expect.any(Number),
+          previewSizeBytes: expect.any(Number),
+        },
+      );
+    });
+    await waitFor(() => {
+      expect(teacherApi.acceptStudentTaskPhotoSubmission).toHaveBeenCalledWith(
+        "student-1",
+        "task-1",
+        "submission-board",
+        {
+          teacherFeedbackBoardAssetKey: "teacher-feedback/board.json",
+          teacherFeedbackPreviewAssetKey: "teacher-feedback/preview.png",
+        },
+      );
+    });
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "https://upload.test/feedback-board.json",
+      expect.objectContaining({ method: "PUT" }),
+    );
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "https://upload.test/feedback-preview.png",
+      expect.objectContaining({ method: "PUT" }),
+    );
   });
 
   it("opens student profile with current review focus", async () => {
