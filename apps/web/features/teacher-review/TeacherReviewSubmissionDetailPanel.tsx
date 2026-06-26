@@ -43,8 +43,16 @@ const getStudentName = (student: { firstName: string | null; lastName: string | 
 
 const getTaskNumberLabel = (task: { sortOrder: number }) => `№ ${task.sortOrder + 1}`;
 
+const getSubmissionDisplayAssetKeys = (submission: ReviewSubmission) => {
+  if (submission.answerKind === "board") {
+    return submission.boardPreviewAssetKey ? [submission.boardPreviewAssetKey] : [];
+  }
+  return submission.assetKeys;
+};
+
 const usePhotoPreviewState = (
   submission: ReviewSubmission | null,
+  displayAssetKeys: string[],
   activeAssetIndex: number,
   queryClient: ReturnType<typeof useQueryClient>,
 ) => {
@@ -52,7 +60,7 @@ const usePhotoPreviewState = (
     if (!submission) return [];
     const studentId = submission.student.id;
     const taskId = submission.task.id;
-    return submission.assetKeys.map((assetKey) => ({
+    return displayAssetKeys.map((assetKey) => ({
       queryKey: learningPhotoQueryKeys.teacherPhotoAssetPreview(studentId, taskId, assetKey),
       queryFn: async () => {
         const response = await teacherApi.presignStudentTaskPhotoView(
@@ -65,7 +73,7 @@ const usePhotoPreviewState = (
       },
       retry: 1,
     }));
-  }, [submission]);
+  }, [displayAssetKeys, submission]);
 
   const photoPreviewQueries = useQueries({
     queries: photoPreviewQueryConfigs,
@@ -73,24 +81,24 @@ const usePhotoPreviewState = (
 
   const photoPreviewUrlByAssetKey = useMemo(() => {
     if (!submission) return {};
-    return submission.assetKeys.reduce<Record<string, string>>((acc, assetKey, index) => {
+    return displayAssetKeys.reduce<Record<string, string>>((acc, assetKey, index) => {
       const url = photoPreviewQueries[index]?.data;
       if (url) acc[assetKey] = url;
       return acc;
     }, {});
-  }, [photoPreviewQueries, submission]);
+  }, [displayAssetKeys, photoPreviewQueries, submission]);
 
   const photoPreviewErrorByAssetKey = useMemo(() => {
     if (!submission) return {};
-    return submission.assetKeys.reduce<Record<string, true>>((acc, assetKey, index) => {
+    return displayAssetKeys.reduce<Record<string, true>>((acc, assetKey, index) => {
       if (photoPreviewQueries[index]?.isError) acc[assetKey] = true;
       return acc;
     }, {});
-  }, [photoPreviewQueries, submission]);
+  }, [displayAssetKeys, photoPreviewQueries, submission]);
 
   const retryActivePreview = useCallback(() => {
     if (!submission) return;
-    const activeAssetKey = submission.assetKeys[activeAssetIndex];
+    const activeAssetKey = displayAssetKeys[activeAssetIndex];
     if (!activeAssetKey) return;
     void queryClient.invalidateQueries({
       queryKey: learningPhotoQueryKeys.teacherPhotoAssetPreview(
@@ -100,7 +108,7 @@ const usePhotoPreviewState = (
       ),
       exact: true,
     });
-  }, [activeAssetIndex, queryClient, submission]);
+  }, [activeAssetIndex, displayAssetKeys, queryClient, submission]);
 
   return {
     photoPreviewErrorByAssetKey,
@@ -228,7 +236,9 @@ const SubmissionViewer = ({
       </a>
     ) : (
       <div className={styles.viewerFrame}>
-        {activeAssetLoadFailed ? (
+        {assetKeys.length === 0 ? (
+          <div className={styles.viewerPlaceholderError}>Нет превью для этой отправки.</div>
+        ) : activeAssetLoadFailed ? (
           <div className={styles.viewerPlaceholderError}>
             <span>Не удалось загрузить превью.</span>
             <Button
@@ -408,12 +418,13 @@ function TeacherReviewSubmissionDetailPanelContent({
   const loading = detailQuery.isPending;
   const error = actionError ?? (detailQuery.isError ? formatApiErrorPayload(detailQuery.error) : null);
   const submission = detail?.submission ?? null;
+  const assetKeys = useMemo(() => (submission ? getSubmissionDisplayAssetKeys(submission) : []), [submission]);
 
   const {
     photoPreviewErrorByAssetKey,
     photoPreviewUrlByAssetKey,
     retryActivePreview,
-  } = usePhotoPreviewState(submission, activeAssetIndex, queryClient);
+  } = usePhotoPreviewState(submission, assetKeys, activeAssetIndex, queryClient);
 
   const queryString = useMemo(() => buildReviewSearch(filters), [filters]);
 
@@ -439,7 +450,6 @@ function TeacherReviewSubmissionDetailPanelContent({
   });
 
   const navigation = detail?.navigation ?? null;
-  const assetKeys = submission?.assetKeys ?? [];
   const activeAssetKey = assetKeys[activeAssetIndex] ?? null;
   const activeAssetUrl = activeAssetKey ? photoPreviewUrlByAssetKey[activeAssetKey] : null;
   const activeAssetLoadFailed = activeAssetKey ? Boolean(photoPreviewErrorByAssetKey[activeAssetKey]) : false;

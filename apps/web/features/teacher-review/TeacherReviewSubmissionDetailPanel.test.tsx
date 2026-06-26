@@ -49,7 +49,10 @@ const submissionDetail = {
     submittedAt: "2026-03-01T09:15:00.000Z",
     reviewedAt: null,
     rejectedReason: null,
+    answerKind: "photo",
     assetKeys: ["asset-1", "asset-2"],
+    boardAssetKey: null,
+    boardPreviewAssetKey: null,
     student: {
       id: "student-1",
       login: "student1",
@@ -128,6 +131,41 @@ describe("TeacherReviewSubmissionDetailPanel", () => {
         "student-1",
         "task-1",
         "asset-1",
+        300,
+      );
+    });
+  });
+
+  it("loads board preview when submission answer kind is board", async () => {
+    vi.mocked(teacherApi.getTeacherPhotoSubmissionDetail).mockResolvedValue({
+      ...submissionDetail,
+      submission: {
+        ...submissionDetail.submission,
+        submissionId: "submission-board",
+        answerKind: "board",
+        assetKeys: [],
+        boardAssetKey: "board-scene.json",
+        boardPreviewAssetKey: "board-preview.png",
+      },
+    } as never);
+    vi.mocked(teacherApi.presignStudentTaskPhotoView).mockResolvedValue({
+      ok: true,
+      assetKey: "board-preview.png",
+      expiresInSec: 300,
+      url: "https://cdn.test/board-preview.png",
+    } as never);
+
+    renderWithQueryClient(<TeacherReviewSubmissionDetailPanel submissionId="submission-board" />);
+
+    expect(await screen.findByAltText("Фото-ответ ученика")).toHaveAttribute(
+      "src",
+      "https://cdn.test/board-preview.png",
+    );
+    await waitFor(() => {
+      expect(teacherApi.presignStudentTaskPhotoView).toHaveBeenCalledWith(
+        "student-1",
+        "task-1",
+        "board-preview.png",
         300,
       );
     });
