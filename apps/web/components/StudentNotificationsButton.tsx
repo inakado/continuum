@@ -14,6 +14,8 @@ type PopoverPosition = {
   top: number;
 };
 
+const POPOVER_CLOSE_DELAY_MS = 160;
+
 const getPayloadString = (payload: Record<string, unknown>, key: string) => {
   const value = payload[key];
   return typeof value === "string" ? value : null;
@@ -77,6 +79,7 @@ export default function StudentNotificationsButton() {
   const [popoverPosition, setPopoverPosition] = useState<PopoverPosition | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
+  const closeTimerRef = useRef<number | null>(null);
   const popoverId = useId();
   const queryClient = useQueryClient();
 
@@ -113,19 +116,38 @@ export default function StudentNotificationsButton() {
     setPopoverPosition({ left, top });
   }, []);
 
-  const handleToggle = useCallback(() => {
-    setOpen((value) => !value);
+  const clearCloseTimer = useCallback(() => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
   }, []);
+
+  const scheduleClose = useCallback(() => {
+    clearCloseTimer();
+    closeTimerRef.current = window.setTimeout(() => {
+      setOpen(false);
+      closeTimerRef.current = null;
+    }, POPOVER_CLOSE_DELAY_MS);
+  }, [clearCloseTimer]);
+
+  const handleToggle = useCallback(() => {
+    clearCloseTimer();
+    setOpen((value) => !value);
+  }, [clearCloseTimer]);
 
   const handleNotificationClick = useCallback(
     (notification: StudentNotification) => {
+      clearCloseTimer();
       setOpen(false);
       if (!notification.readAt) {
         markReadMutation.mutate(notification.id);
       }
     },
-    [markReadMutation],
+    [clearCloseTimer, markReadMutation],
   );
+
+  useEffect(() => () => clearCloseTimer(), [clearCloseTimer]);
 
   useEffect(() => {
     if (!open) return;
@@ -212,6 +234,8 @@ export default function StudentNotificationsButton() {
             style={{ left: popoverPosition.left, top: popoverPosition.top }}
             role="dialog"
             aria-label="События"
+            onPointerEnter={clearCloseTimer}
+            onPointerLeave={scheduleClose}
           >
             <div className={styles.notificationsHeader}>
               <span>События</span>
@@ -224,7 +248,12 @@ export default function StudentNotificationsButton() {
       : null;
 
   return (
-    <div ref={rootRef} className={styles.notificationRoot}>
+    <div
+      ref={rootRef}
+      className={styles.notificationRoot}
+      onPointerEnter={clearCloseTimer}
+      onPointerLeave={scheduleClose}
+    >
       <button
         type="button"
         className={`${styles.sidebarIconAction} ${styles.notificationButton}`}

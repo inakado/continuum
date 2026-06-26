@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { studentApi } from "@/lib/api/student";
@@ -69,6 +69,21 @@ describe("StudentNotificationsButton", () => {
 
     await waitFor(() => {
       expect(studentApi.markNotificationRead).toHaveBeenCalledWith("notification-1");
+    });
+  });
+
+  it("closes events popover after pointer leaves it", async () => {
+    renderWithQueryClient(<StudentNotificationsButton />);
+    const user = userEvent.setup();
+
+    const button = await screen.findByRole("button", { name: "События, непрочитанных: 1" });
+    await user.click(button);
+
+    const popover = await screen.findByRole("dialog", { name: "События" });
+    fireEvent.pointerLeave(popover);
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "События" })).not.toBeInTheDocument();
     });
   });
 });

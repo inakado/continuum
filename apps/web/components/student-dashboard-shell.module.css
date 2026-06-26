@@ -301,14 +301,17 @@
   grid-template-columns: 28px minmax(0, 1fr);
   gap: 10px;
   padding: 10px;
+  border: var(--border-width-thin) solid transparent;
   border-radius: var(--control-radius);
   color: var(--text-primary);
   text-decoration: none;
-  transition: background 0.16s ease, color 0.16s ease;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
 }
 
 .notificationItem:hover {
-  background: var(--nav-hover-bg);
+  border-color: color-mix(in srgb, var(--border-primary) 34%, transparent);
+  background: color-mix(in srgb, var(--panel-bg) 92%, var(--text-primary) 8%);
+  color: var(--text-primary);
 }
 
 .notificationItem:focus-visible {
@@ -318,6 +321,10 @@
 
 .notificationItemUnread {
   background: color-mix(in srgb, var(--border-primary) 9%, transparent);
+}
+
+.notificationItemUnread:hover {
+  background: color-mix(in srgb, var(--panel-bg) 88%, var(--text-primary) 10%);
 }
 
 .notificationItemIcon {
@@ -365,6 +372,11 @@
   font-size: 11px;
   line-height: 1.2;
   color: var(--text-muted);
+}
+
+.notificationItem:hover .notificationItemText,
+.notificationItem:hover .notificationItemTime {
+  color: color-mix(in srgb, var(--text-primary) 74%, var(--text-muted));
 }
 
 .kicker {
