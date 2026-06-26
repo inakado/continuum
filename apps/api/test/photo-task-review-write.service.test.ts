@@ -440,6 +440,10 @@ describe('PhotoTaskReviewWriteService', () => {
       expect.objectContaining({
         eventType: 'PhotoAttemptAccepted',
         entityId: 'submission-1',
+        payload: expect.objectContaining({
+          answer_kind: PhotoTaskSubmissionAnswerKind.photo,
+          asset_keys: ['assets/photo-1.jpg'],
+        }),
       }),
     );
     expect(response).toMatchObject({
@@ -457,7 +461,12 @@ describe('PhotoTaskReviewWriteService', () => {
   it('rejects reviewed submission with reason and writes teacher audit event', async () => {
     studentsService.assertTeacherOwnsStudent.mockResolvedValue(undefined);
     tx.photoTaskSubmission.findFirst.mockResolvedValue({
-      ...createSubmission(),
+      ...createSubmission({
+        answerKind: PhotoTaskSubmissionAnswerKind.board,
+        assetKeysJson: [],
+        boardAssetKey: 'tasks/task-1/photo/student-1/revision-1/board/1710000000000-deadbeef-1.json',
+        boardPreviewAssetKey: 'tasks/task-1/photo/student-1/revision-1/board/1710000000000-deadbeef-2.png',
+      }),
       task: {
         id: 'task-1',
         unit: {
@@ -469,6 +478,10 @@ describe('PhotoTaskReviewWriteService', () => {
     tx.photoTaskSubmission.update.mockResolvedValue(
       createSubmission({
         status: 'rejected',
+        answerKind: PhotoTaskSubmissionAnswerKind.board,
+        assetKeysJson: [],
+        boardAssetKey: 'tasks/task-1/photo/student-1/revision-1/board/1710000000000-deadbeef-1.json',
+        boardPreviewAssetKey: 'tasks/task-1/photo/student-1/revision-1/board/1710000000000-deadbeef-2.png',
         rejectedReason: 'Нужна более чёткая фотография',
         reviewedByTeacherUserId: 'teacher-1',
         reviewedAt: new Date('2026-03-01T11:00:00.000Z'),
@@ -499,6 +512,9 @@ describe('PhotoTaskReviewWriteService', () => {
         eventType: 'PhotoAttemptRejected',
         entityId: 'submission-1',
         payload: expect.objectContaining({
+          answer_kind: PhotoTaskSubmissionAnswerKind.board,
+          board_asset_key: 'tasks/task-1/photo/student-1/revision-1/board/1710000000000-deadbeef-1.json',
+          board_preview_asset_key: 'tasks/task-1/photo/student-1/revision-1/board/1710000000000-deadbeef-2.png',
           reason: 'Нужна более чёткая фотография',
         }),
       }),

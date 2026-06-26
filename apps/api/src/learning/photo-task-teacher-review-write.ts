@@ -1,12 +1,29 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { AttemptResult, StudentTaskStatus } from '@prisma/client';
+import { AttemptResult, PhotoTaskSubmissionAnswerKind, type Prisma, StudentTaskStatus } from '@prisma/client';
 import type { TeacherPhotoRejectRequest } from '@continuum/shared';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { StudentsService } from '../students/students.service';
 import type { LearningAuditLogService } from './learning-audit-log.service';
 import type { LearningAvailabilityService } from './learning-availability.service';
-import { mapSubmission } from './photo-task-read.shared';
+import { mapSubmission, parseAssetKeysJson } from './photo-task-read.shared';
 import { mapPhotoTaskState, mapPhotoUnitSnapshot } from './photo-task-write.shared';
+
+const buildTeacherReviewAuditAnswerPayload = (submission: {
+  answerKind: PhotoTaskSubmissionAnswerKind;
+  assetKeysJson: Prisma.JsonValue;
+  boardAssetKey: string | null;
+  boardPreviewAssetKey: string | null;
+}) => ({
+  answer_kind: submission.answerKind,
+  ...(submission.answerKind === PhotoTaskSubmissionAnswerKind.board
+    ? {
+        board_asset_key: submission.boardAssetKey,
+        board_preview_asset_key: submission.boardPreviewAssetKey,
+      }
+    : {
+        asset_keys: parseAssetKeysJson(submission.assetKeysJson),
+      }),
+});
 
 export const acceptTeacherPhotoSubmission = async ({
   learningAuditLogService,
@@ -126,6 +143,7 @@ export const acceptTeacherPhotoSubmission = async ({
       unit_id: txResult.submission.unitId,
       task_revision_id: txResult.submission.taskRevisionId,
       attempt_id: txResult.submission.attemptId,
+      ...buildTeacherReviewAuditAnswerPayload(txResult.submission),
     },
   });
 
@@ -258,6 +276,7 @@ export const rejectTeacherPhotoSubmission = async ({
       unit_id: txResult.submission.unitId,
       task_revision_id: txResult.submission.taskRevisionId,
       attempt_id: txResult.submission.attemptId,
+      ...buildTeacherReviewAuditAnswerPayload(txResult.submission),
       ...(txResult.submission.rejectedReason ? { reason: txResult.submission.rejectedReason } : null),
     },
   });
