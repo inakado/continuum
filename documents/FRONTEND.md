@@ -83,7 +83,7 @@
   - popover фиксируется относительно sidebar и не рендерится внутри clipping-контейнера;
   - клик по событию `photo_reviewed` ведёт на `/student/units/:unitId?taskId=:taskId` и отмечает уведомление прочитанным.
 - Student unit route принимает `taskId` в query string и передаёт его как initial focus в task navigation.
-- Для проверенных `photo` задач student unit screen показывает “Разбор учителя”, если latest reviewed submission содержит `teacherFeedbackBoardAssetKey`.
+- Для проверенных задач типа `photo` (user-facing `Развернутый ответ`) student unit screen показывает “Разбор учителя”, если latest reviewed submission содержит `teacherFeedbackBoardAssetKey`.
 - Teacher feedback board открывается student-side как read-only Excalidraw scene через student `presign-view`; при ошибке JSON используется PNG preview fallback.
 
 ## Routes Map
@@ -97,7 +97,7 @@
 - `/teacher/sections/[id]` — section + graph view.
 - `/teacher/units/[id]` — unit editor/view.
 - `/teacher/students` и `/teacher/students/[studentId]` — управление учениками.
-- `/teacher/review` и `/teacher/review/[submissionId]` — фото-проверка.
+- `/teacher/review` и `/teacher/review/[submissionId]` — проверка развернутых ответов.
 - `/teacher/events` — audit/event log.
 - `/teacher/analytics` — analytics route, если включена в текущем UI.
 - `/teacher/settings` — teacher settings.

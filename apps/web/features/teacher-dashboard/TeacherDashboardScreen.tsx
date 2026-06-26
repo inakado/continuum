@@ -56,7 +56,7 @@ const CONTENT_BY_SECTION: Record<ActiveSection, ContentConfig> = {
     subtitle: "",
   },
   review: {
-    title: "Проверка фото",
+    title: "Проверка",
     subtitle: "",
   },
   analytics: {
@@ -87,7 +87,7 @@ const getNavItems = (active: ActiveSection) => [
     active: active === "students",
   },
   {
-    label: "Проверка фото",
+    label: "Проверка",
     href: "/teacher/review",
     active: active === "review",
   },

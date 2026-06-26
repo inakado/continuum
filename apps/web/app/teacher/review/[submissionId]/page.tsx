@@ -5,7 +5,7 @@ type PageProps = {
   params: Promise<{ submissionId: string }>;
 };
 
-export const metadata = buildPageMetadata("Проверка отправки", "Детальный просмотр фото-отправки ученика.");
+export const metadata = buildPageMetadata("Проверка отправки", "Детальный просмотр развернутого ответа ученика.");
 
 export default async function TeacherReviewDetailPage({ params }: PageProps) {
   const { submissionId } = await params;

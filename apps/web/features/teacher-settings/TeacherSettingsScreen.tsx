@@ -64,7 +64,7 @@ const getAsyncStatusText = (asyncState: AsyncState, messages: AsyncStatusMessage
 const teacherNavItems = [
   { label: "Курсы", href: "/teacher" },
   { label: "Ученики", href: "/teacher/students" },
-  { label: "Проверка фото", href: "/teacher/review" },
+  { label: "Проверка", href: "/teacher/review" },
   { label: "Аналитика", href: "/teacher/analytics" },
 ];
 

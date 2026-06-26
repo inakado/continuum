@@ -21,7 +21,7 @@
 - `documents/QUALITY_SCORE.md` — методика оценки зрелости системы.
 - `documents/PLANS.md` — lifecycle execution plans, deferred roadmap и tech debt.
 - `documents/CONTENT.md` — content/publishing/graph/LaTeX pipeline.
-- `documents/LEARNING.md` — attempts/progress/availability/photo review.
+- `documents/LEARNING.md` — attempts/progress/availability/manual review.
 - `documents/DESIGN.md` — высокоуровневые продуктовые и UX-инварианты.
 - `documents/FRONTEND.md` — frontend-архитектура и UI-конвенции.
 - `documents/DESIGN-SYSTEM.md` — дизайн-система UI (tokens/components/patterns).
@@ -47,7 +47,7 @@
 - `documents/product-specs/index.md` — индекс продуктовых спецификаций.
 - `documents/product-specs/gamification-proposal.md` — proposal по будущей продуктовой и технической модели геймификации; не SoR.
 - `documents/exec-plans/active/` — активные execution plans.
-- `documents/exec-plans/active/2026-06-26-excalidraw-board-photo-submissions.md` — active plan внедрения Excalidraw-доски как варианта отправки ответа для `photo`-задачи.
+- `documents/exec-plans/active/2026-06-26-excalidraw-board-photo-submissions.md` — active plan внедрения Excalidraw-доски как варианта отправки развернутого ответа (`photo` technical type).
 - `documents/exec-plans/completed/` — завершённые execution plans.
 - `documents/exec-plans/completed/index.md` — индекс завершённых планов.
 - `documents/exec-plans/deferred-roadmap.md` — отложенные future items, которые не являются техдолгом.

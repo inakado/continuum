@@ -9,19 +9,21 @@
 - Unit availability + progress snapshots
 - Overrides (open section / open unit)
 - Notifications (teacher)
-- Photo tasks (manual review)
+- Manual-review tasks (`photo` technical type, user-facing `Развернутый ответ`)
 
 ## UI Terminology Mapping (`Implemented`)
 
 - В доменной модели и API сохраняется `required`-нейминг (`isRequired`, `required_skipped`, `required_task_skipped`).
 - Во фронтовом user-facing тексте required-задача отображается как `Ключевая задача`; это терминологический mapping без изменения бизнес-логики.
+- В доменной модели и API сохраняется `photo`-нейминг для manual-review pipeline (`TaskAnswerType.photo`, `PhotoTaskSubmission`, `photo_reviewed`).
+- Во фронтовом user-facing тексте тип `photo` отображается как `Развернутый ответ`; `Фото` используется только как конкретный способ отправки файла/изображения.
 
 ## Core Invariants (`Implemented`)
 
 ### Auto-check task types
 
 - Auto-check submit endpoint принимает только `numeric | single_choice | multi_choice`.
-- `photo` задачи обрабатываются отдельным manual review pipeline.
+- `photo` задачи обрабатываются отдельным manual review pipeline и в UI называются развернутыми ответами.
 
 ### 3+3 policy (lock + auto-credit)
 
@@ -112,7 +114,7 @@
   - `POST /student/notifications/:notificationId/read` отмечает только собственное уведомление ученика как прочитанное.
 - `photo_reviewed.payload` содержит `unitId`, `taskId`, `submissionId`, `status`, `answerKind` и optional `teacherFeedbackBoardAssetKey`/`teacherFeedbackPreviewAssetKey`.
 
-## Photo Tasks (`Implemented` частично)
+## Manual-review Tasks (`photo`, `Implemented` частично)
 
 - Student:
   - presign upload + submit photo попытки;

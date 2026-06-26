@@ -79,7 +79,7 @@ const apiErrorCodeLabels: Record<ApiErrorCode, string> = {
   TASK_ALREADY_CREDITED: "Задача уже зачтена.",
   OVERRIDE_ALREADY_EXISTS: "Этот юнит уже открыт для ученика.",
   TASK_NOT_BLOCKED: "Задача сейчас не заблокирована.",
-  PHOTO_SUBMISSION_NOT_FOUND: "Фото-отправка не найдена.",
+  PHOTO_SUBMISSION_NOT_FOUND: "Отправка не найдена.",
   INVALID_ASSET_KEY: "Файл не найден для выбранной отправки.",
   INVALID_CURRENT_PASSWORD: "Текущий пароль указан неверно.",
   WEAK_PASSWORD: "Пароль слишком слабый: минимум 8 символов, буквы и цифры.",

@@ -33,7 +33,7 @@ const answerTypeLabels: Record<TaskFormData["answerType"], string> = {
   numeric: "Числовая",
   single_choice: "Один вариант",
   multi_choice: "Несколько вариантов",
-  photo: "Фото-ответ",
+  photo: "Развернутый ответ",
 };
 
 type SortableTaskCardProps = {

@@ -602,7 +602,7 @@ describe("StudentUnitDetailScreen", () => {
   it("renders photo task actions instead of answer submission flow", async () => {
     const task = buildTask({
       id: "photo-task",
-      title: "Фото-задача",
+      title: "Развернутая задача",
       answerType: "photo",
       state: {
         status: "in_progress",
@@ -676,7 +676,7 @@ describe("StudentUnitDetailScreen", () => {
   it("opens teacher feedback board for reviewed photo task", async () => {
     const task = buildTask({
       id: "photo-task",
-      title: "Фото-задача",
+      title: "Развернутая задача",
       answerType: "photo",
       state: {
         status: "rejected",
@@ -738,7 +738,7 @@ describe("StudentUnitDetailScreen", () => {
   it("renders board mode for photo tasks and submits board answer", async () => {
     const task = buildTask({
       id: "photo-task",
-      title: "Фото-задача",
+      title: "Развернутая задача",
       answerType: "photo",
       state: {
         status: "in_progress",

@@ -319,7 +319,7 @@ const SubmissionViewer = ({
       >
         <Image
           src={activeAssetUrl}
-          alt="Фото-ответ ученика"
+          alt="Изображение ответа ученика"
           className={styles.viewerImage}
           fill
           sizes="(max-width: 1180px) 100vw, 60vw"

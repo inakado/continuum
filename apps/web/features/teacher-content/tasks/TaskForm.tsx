@@ -250,7 +250,7 @@ function BaseSettingsSection({
               { value: "numeric", label: "Числовая" },
               { value: "single_choice", label: "Один вариант" },
               { value: "multi_choice", label: "Несколько вариантов" },
-              { value: "photo", label: "Фото-ответ" },
+              { value: "photo", label: "Развернутый ответ" },
             ]}
             placeholder="Тип задачи"
           />

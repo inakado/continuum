@@ -1,4 +1,4 @@
-# Excalidraw board answers for photo tasks
+# Excalidraw board answers for expanded-answer tasks
 
 Статус: `Active`
 
@@ -14,12 +14,13 @@
 
 ## 1. Цель и контекст
 
-Добавить Excalidraw-доску как второй способ отправки ответа для существующей `photo`-задачи.
+Добавить Excalidraw-доску как второй способ отправки развернутого ответа для существующего technical type `photo`.
 
 Ключевой доменный выбор:
 
 - не добавлять `TaskAnswerType.board`;
-- `TaskAnswerType.photo` остаётся manual-review задачей;
+- `TaskAnswerType.photo` остаётся technical type для manual-review задачи;
+- user-facing термин для `TaskAnswerType.photo` — `Развернутый ответ`;
 - способ отправки хранится внутри `PhotoTaskSubmission.answerKind`;
 - teacher `accept/reject` и progress/unlock semantics остаются текущими.
 
@@ -37,7 +38,7 @@ Manual Review invariants сохраняются:
 - DB/model: `PhotoTaskSubmission.answerKind = photo | board`.
 - Board JSON snapshot + PNG preview как отдельные asset keys.
 - Student API: board presign upload + board submit.
-- Student UI: выбор `Фото` / `Доска` для `photo`-задачи.
+- Student UI: выбор `Фото` / `Доска` для развернутого ответа.
 - Teacher review UI: board preview в существующем inbox/detail flow.
 - Shared zod contracts и runtime parsing.
 - Asset policy/ACL для JSON/PNG.

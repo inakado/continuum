@@ -180,7 +180,7 @@ const ReviewFiltersRow = ({
 const ReviewEmptyState = ({ onReset }: { onReset: () => void }) => (
   <EmptyState
     title="Нет задач на проверке"
-    description="Измените фильтры или дождитесь новых фото-отправок."
+    description="Измените фильтры или дождитесь новых развернутых ответов."
     actions={
       <Button variant="secondary" onClick={onReset}>
         Сбросить фильтры

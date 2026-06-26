@@ -564,7 +564,7 @@ export default function TeacherUnitDetailScreen({ unitId }: Props) {
     () => [
       { label: "Курсы", href: "/teacher", active: true },
       { label: "Ученики", href: "/teacher/students" },
-      { label: "Проверка фото", href: "/teacher/review" },
+      { label: "Проверка", href: "/teacher/review" },
       { label: "Аналитика", href: "/teacher/analytics" },
     ],
     [],

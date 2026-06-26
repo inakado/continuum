@@ -108,7 +108,7 @@ const submissionDetail = {
     task: {
       id: "task-1",
       sortOrder: 2,
-      title: "Фото-ответ",
+      title: "Развернутый ответ",
       statementLite: "x^2 + y^2",
     },
   },
@@ -182,9 +182,9 @@ describe("TeacherReviewSubmissionDetailPanel", () => {
 
     expect(await screen.findByText("Иванов Иван")).toBeInTheDocument();
     expect(screen.getByText("Алгебра / Линейные уравнения / Юнит 1")).toBeInTheDocument();
-    expect(screen.getByText("Фото-ответ")).toBeInTheDocument();
+    expect(screen.getByText("Развернутый ответ")).toBeInTheDocument();
     expect(screen.getByText("x^2 + y^2")).toBeInTheDocument();
-    expect(screen.getByAltText("Фото-ответ ученика")).toHaveAttribute("src", "https://cdn.test/asset-1.jpg");
+    expect(screen.getByAltText("Изображение ответа ученика")).toHaveAttribute("src", "https://cdn.test/asset-1.jpg");
 
     await waitFor(() => {
       expect(teacherApi.getTeacherPhotoSubmissionDetail).toHaveBeenCalledWith("submission-1", {

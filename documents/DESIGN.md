@@ -24,7 +24,7 @@
 ### Два режима проверки задач
 
 - Auto-check (`numeric`, `single_choice`, `multi_choice`).
-- Manual review (`photo`) — решение принимает lead teacher студента.
+- Manual review (`photo`, user-facing `Развернутый ответ`) — решение принимает lead teacher студента.
 
 ### Прогресс: две метрики
 
