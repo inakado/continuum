@@ -36,7 +36,8 @@
   },
   "pnpm": {
     "overrides": {
-      "fast-xml-parser": "5.3.6"
+      "fast-xml-parser": "5.3.6",
+      "ioredis": "5.10.1"
     },
     "onlyBuiltDependencies": [
       "@nestjs/core",

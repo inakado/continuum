@@ -18,7 +18,7 @@
     "@continuum/shared": "workspace:*",
     "@smithy/node-http-handler": "^4.7.8",
     "bullmq": "^5.78.0",
-    "ioredis": "^5.11.1"
+    "ioredis": "5.10.1"
   },
   "devDependencies": {
     "@types/node": "^25.9.3",
