@@ -4,9 +4,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { Bell, CheckCircle2, Clock3, XCircle } from "lucide-react";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { studentApi, type StudentNotification } from "@/lib/api/student";
 import { contentQueryKeys } from "@/lib/query/keys";
 import styles from "./student-dashboard-shell.module.css";
+
+type PopoverPosition = {
+  left: number;
+  top: number;
+};
 
 const getPayloadString = (payload: Record<string, unknown>, key: string) => {
   const value = payload[key];
@@ -68,7 +74,9 @@ const formatNotificationTime = (value: string) =>
 
 export default function StudentNotificationsButton() {
   const [open, setOpen] = useState(false);
+  const [popoverPosition, setPopoverPosition] = useState<PopoverPosition | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
   const popoverId = useId();
   const queryClient = useQueryClient();
 
@@ -93,6 +101,18 @@ export default function StudentNotificationsButton() {
   const activeCount = notificationsQuery.data?.activeCount ?? 0;
   const badgeLabel = activeCount > 9 ? "9+" : String(activeCount);
 
+  const updatePopoverPosition = useCallback(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const rect = root.getBoundingClientRect();
+    const gap = 12;
+    const width = Math.min(360, Math.max(280, window.innerWidth - 24));
+    const opensRight = rect.right + gap + width <= window.innerWidth;
+    const left = opensRight ? rect.right + gap : Math.max(12, window.innerWidth - width - 12);
+    const top = Math.min(Math.max(12, rect.top), Math.max(12, window.innerHeight - 520 - 12));
+    setPopoverPosition({ left, top });
+  }, []);
+
   const handleToggle = useCallback(() => {
     setOpen((value) => !value);
   }, []);
@@ -109,10 +129,12 @@ export default function StudentNotificationsButton() {
 
   useEffect(() => {
     if (!open) return;
+    updatePopoverPosition();
 
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as Node | null;
       if (target && rootRef.current?.contains(target)) return;
+      if (target && popoverRef.current?.contains(target)) return;
       setOpen(false);
     };
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -123,11 +145,15 @@ export default function StudentNotificationsButton() {
 
     document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("resize", updatePopoverPosition);
+    window.addEventListener("scroll", updatePopoverPosition, true);
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", updatePopoverPosition);
+      window.removeEventListener("scroll", updatePopoverPosition, true);
     };
-  }, [open]);
+  }, [open, updatePopoverPosition]);
 
   const content = useMemo(() => {
     if (notificationsQuery.isError) {
@@ -176,6 +202,27 @@ export default function StudentNotificationsButton() {
     });
   }, [handleNotificationClick, notifications, notificationsQuery]);
 
+  const popover =
+    open && popoverPosition
+      ? createPortal(
+          <div
+            ref={popoverRef}
+            id={popoverId}
+            className={styles.notificationsPopover}
+            style={{ left: popoverPosition.left, top: popoverPosition.top }}
+            role="dialog"
+            aria-label="События"
+          >
+            <div className={styles.notificationsHeader}>
+              <span>События</span>
+              {activeCount > 0 ? <span>{activeCount} новых</span> : <span>Все прочитано</span>}
+            </div>
+            <div className={styles.notificationsList}>{content}</div>
+          </div>,
+          document.body,
+        )
+      : null;
+
   return (
     <div ref={rootRef} className={styles.notificationRoot}>
       <button
@@ -190,16 +237,7 @@ export default function StudentNotificationsButton() {
         <Bell className={styles.navIcon} aria-hidden="true" strokeWidth={1.8} />
         {activeCount > 0 ? <span className={styles.notificationBadge}>{badgeLabel}</span> : null}
       </button>
-
-      {open ? (
-        <div id={popoverId} className={styles.notificationsPopover} role="dialog" aria-label="События">
-          <div className={styles.notificationsHeader}>
-            <span>События</span>
-            {activeCount > 0 ? <span>{activeCount} новых</span> : <span>Все прочитано</span>}
-          </div>
-          <div className={styles.notificationsList}>{content}</div>
-        </div>
-      ) : null}
+      {popover}
     </div>
   );
 }
