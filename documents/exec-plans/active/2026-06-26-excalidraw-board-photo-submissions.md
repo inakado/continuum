@@ -449,3 +449,153 @@ Existing photo submissions должны работать из-за default `answ
 - 2026-06-26: Устранён backend typecheck blocker: BullMQ queues в `latex-compile-queue.service.ts` и `debug.controller.ts` переведены с прямого `IORedis` instance на plain connection options, чтобы не смешивать типы разных версий `ioredis`. Проверки: `pnpm --filter @continuum/api typecheck` в Docker OK, `/debug/enqueue-ping` вернул `queued=true`, API unit tests 10/10.
 - 2026-06-26: Завершён frontend student board stage: добавлен client-only Excalidraw wrapper, self-hosted assets sync, `Фото/Доска` mode switch, JSON+PNG export/upload/submit flow и focused unit coverage. После ручной проверки исправлен contrast active-state в dark theme через role accent tokens. Проверки: `pnpm --filter web typecheck`, `pnpm lint:boundaries`; ранее для этого stage пройдены `pnpm --filter web test -- StudentUnitDetailScreen.test.tsx` и `pnpm --filter web build`.
 - 2026-06-26: Исправлен teacher review board preview: detail-view теперь использует `boardPreviewAssetKey` как display asset для `answerKind=board`, а не ждёт пустой `assetKeys`. Проверки: live presigned board PNG `200 image/png`, `pnpm --filter web test -- TeacherReviewSubmissionDetailPanel.test.tsx`, `pnpm --filter web typecheck`, `pnpm lint:boundaries`.
+- 2026-06-26: Scope расширен: вместо static PNG preview нужен teacher editable Excalidraw review board и student-facing feedback board после `accepted/rejected`. Старые ограничения `teacher-side Excalidraw viewer не делать` и `teacher review uses PNG preview` считаются промежуточным состоянием, не финальным UX.
+
+## 14. Scope expansion: teacher feedback board
+
+### 14.1 Product contract
+
+1. Оригинальный ответ ученика immutable:
+   - `PhotoTaskSubmission.boardAssetKey` и `boardPreviewAssetKey` остаются snapshot ответа ученика;
+   - teacher edits никогда не перезаписывают student asset keys.
+2. Учитель в review detail для `answerKind=board` открывает Excalidraw scene из student `boardAssetKey`.
+3. Учитель может писать/помечать поверх сцены и затем:
+   - `Принять`;
+   - `Отклонить`.
+4. Если teacher board содержит разбор, он сохраняется как отдельный feedback artifact:
+   - feedback JSON;
+   - feedback PNG preview.
+5. Ученик после review получает уведомление и может открыть teacher feedback board.
+6. Первая реализация ограничена `answerKind=board`; annotation поверх обычных photo submissions не входит в этот этап.
+
+### 14.2 Data model
+
+1. В `PhotoTaskSubmission` добавить nullable поля:
+   - `teacherFeedbackBoardAssetKey String? @map("teacher_feedback_board_asset_key")`;
+   - `teacherFeedbackPreviewAssetKey String? @map("teacher_feedback_preview_asset_key")`.
+2. Не добавлять новую таблицу feedback в первой итерации:
+   - у submission максимум один итоговый teacher feedback board;
+   - repeated edit после review не входит в этап.
+3. Существующий `NotificationType.photo_reviewed` использовать как student-facing notification type, если он ещё не используется для другого контракта.
+4. Payload notification:
+   - `studentId`;
+   - `teacherId`;
+   - `submissionId`;
+   - `taskId`;
+   - `taskRevisionId`;
+   - `unitId`;
+   - `status: accepted | rejected`;
+   - `answerKind`;
+   - `teacherFeedbackBoardAssetKey?`;
+   - `teacherFeedbackPreviewAssetKey?`.
+
+### 14.3 Storage policy
+
+1. Feedback keys живут под отдельным prefix:
+   - `tasks/{taskId}/photo/{studentId}/{taskRevisionId}/teacher-feedback/`.
+2. Allowed content:
+   - JSON: `application/json`, same board JSON max size;
+   - preview: `image/png`, same preview max size.
+3. Policy service расширить без ad hoc regex в controllers:
+   - generate/validate teacher feedback JSON key;
+   - generate/validate teacher feedback PNG key;
+   - infer response content type для этих keys.
+4. ACL:
+   - teacher can GET student board JSON/preview and feedback board JSON/preview only for lead-teacher submissions;
+   - student can GET own submitted board and teacher feedback board after review;
+   - other students/teachers cannot presign these keys.
+
+### 14.4 API contracts
+
+1. Shared contracts добавить:
+   - `TeacherPhotoFeedbackBoardPresignUploadRequestSchema`;
+   - `TeacherPhotoFeedbackBoardPresignUploadResponseSchema`;
+   - `TeacherPhotoReviewWithFeedbackRequestSchema` или расширить existing accept/reject bodies optional feedback keys.
+2. Teacher endpoints:
+   - `POST /teacher/students/:studentId/tasks/:taskId/photo-submissions/:submissionId/feedback-board/presign-upload`;
+   - `POST /teacher/students/:studentId/tasks/:taskId/photo-submissions/:submissionId/accept`;
+   - `POST /teacher/students/:studentId/tasks/:taskId/photo-submissions/:submissionId/reject`.
+3. Accept/reject body optional fields:
+   - `teacherFeedbackBoardAssetKey`;
+   - `teacherFeedbackPreviewAssetKey`.
+4. Accept/reject service:
+   - validates feedback keys if present;
+   - stores feedback fields on `PhotoTaskSubmission`;
+   - keeps current progress semantics unchanged;
+   - creates student notification `photo_reviewed`;
+   - audit payload includes feedback keys.
+5. Student endpoints:
+   - extend `GET /student/tasks/:taskId/photo/submissions` response with feedback keys;
+   - extend student `presign-view` ownership check for feedback keys;
+   - add `GET /student/notifications` and mark-read endpoint only if no existing student notification surface can be reused.
+
+### 14.5 Teacher frontend
+
+1. Reuse installed `@excalidraw/excalidraw`; no new drawing dependency.
+2. Split current student wrapper into reusable local board primitives only where it reduces duplication:
+   - client-only Excalidraw shell;
+   - scene fetch/restore helpers;
+   - export JSON+PNG helper.
+3. In `TeacherReviewSubmissionDetailPanel`:
+   - `answerKind=photo`: keep existing image viewer;
+   - `answerKind=board`: load student `boardAssetKey` JSON through teacher presign-view;
+   - render editable Excalidraw board in main review area;
+   - keep student board as initial state; teacher annotations happen in current scene.
+4. Review actions:
+   - if board changed, export feedback JSON+PNG;
+   - presign feedback upload;
+   - `PUT` feedback JSON+PNG;
+   - call accept/reject with feedback keys;
+   - if no board change, allow accept/reject without feedback keys.
+5. UX:
+   - action buttons show upload/review busy state;
+   - failed export/upload blocks accept/reject and shows recoverable error;
+   - no autosave in first iteration;
+   - no collaborative editing.
+
+### 14.6 Student frontend
+
+1. Add student-facing reviewed feedback surface:
+   - notification item links to `/student/units/:unitId?taskId=...` or existing unit route with focus;
+   - unit task card shows reviewed board feedback when `teacherFeedbackBoardAssetKey` exists.
+2. Student opens teacher feedback as read-only Excalidraw board:
+   - load `teacherFeedbackBoardAssetKey` via student presign-view;
+   - no edit controls;
+   - fallback PNG preview if JSON load fails but preview key exists.
+3. For rejected status:
+   - show rejection reason if present;
+   - show “Посмотреть разбор” action.
+4. For accepted status:
+   - show “Посмотреть разбор” when teacher feedback exists.
+
+### 14.7 Tests
+
+1. Shared:
+   - feedback presign schemas accept valid JSON/PNG sizes;
+   - reject invalid/oversize payloads;
+   - review response schemas include feedback keys.
+2. API unit:
+   - teacher feedback presign returns keys under `teacher-feedback/`;
+   - accept with feedback stores feedback keys and creates notification;
+   - reject with feedback stores feedback keys, reason, and creates notification;
+   - feedback key prefix mismatch rejected;
+   - student presign-view allows own feedback keys only after review.
+3. API integration:
+   - non-lead teacher cannot presign feedback upload;
+   - non-owner student cannot view feedback board;
+   - reviewed board submission appears in student submissions with feedback keys.
+4. Web:
+   - teacher board detail loads Excalidraw from student JSON;
+   - accept/reject exports and uploads feedback board before mutation;
+   - upload failure prevents review mutation;
+   - student reviewed submission renders “Посмотреть разбор” and read-only board.
+
+### 14.8 Documentation
+
+After code:
+
+- `documents/LEARNING.md`: teacher feedback board lifecycle.
+- `documents/FRONTEND.md`: teacher editable review board and student read-only feedback board.
+- `documents/SECURITY.md`: feedback board presign ACL.
+- `documents/DOMAIN-EVENTS.md`: `PhotoAttemptAccepted/Rejected` payload feedback keys and student `photo_reviewed` notification payload.
+- generated docs after `pnpm docs:generate`.
