@@ -1427,11 +1427,8 @@
 
 .feedbackBoardPanel {
   display: grid;
-  gap: 10px;
-  border: var(--border-width-thin) solid var(--glass-border);
-  border-radius: var(--control-radius);
-  background: var(--surface-1);
-  padding: 10px;
+  gap: 12px;
+  margin-top: 2px;
 }
 
 .feedbackBoardHeader {
@@ -1491,7 +1488,7 @@
 }
 
 .feedbackBoardFrame {
-  border: var(--border-width-thin) solid var(--student-unit-task-input-border);
+  border: var(--border-width-thin) solid color-mix(in srgb, var(--student-unit-task-input-border) 86%, transparent);
 }
 
 .feedbackBoardCanvasShell {
