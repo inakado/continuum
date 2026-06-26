@@ -9,6 +9,10 @@ vi.mock('@prisma/client', () => ({
     accepted: 'accepted',
     rejected: 'rejected',
   },
+  PhotoTaskSubmissionAnswerKind: {
+    photo: 'photo',
+    board: 'board',
+  },
   PrismaClient: class PrismaClient {},
   Role: {
     teacher: 'teacher',
@@ -37,7 +41,7 @@ vi.mock('@prisma/client', () => ({
 }));
 
 import { ConflictException } from '@nestjs/common';
-import { Role, StudentUnitStatus } from '@prisma/client';
+import { PhotoTaskSubmissionAnswerKind, Role, StudentUnitStatus } from '@prisma/client';
 import { PhotoTaskReadService } from '../src/learning/photo-task-read.service';
 
 const createPrismaMock = () => ({
@@ -97,7 +101,10 @@ describe('PhotoTaskReadService', () => {
         id: 'submission-1',
         status: 'submitted',
         submittedAt: new Date('2026-03-01T10:00:00.000Z'),
+        answerKind: PhotoTaskSubmissionAnswerKind.photo,
         assetKeysJson: ['assets/photo-1.jpg', 'assets/photo-2.jpg'],
+        boardAssetKey: null,
+        boardPreviewAssetKey: null,
         studentUserId: 'student-1',
         taskId: 'task-1',
         unitId: 'unit-1',
@@ -148,6 +155,7 @@ describe('PhotoTaskReadService', () => {
           submissionId: 'submission-1',
           status: 'pending_review',
           submittedAt: new Date('2026-03-01T10:00:00.000Z'),
+          answerKind: PhotoTaskSubmissionAnswerKind.photo,
           assetKeysCount: 2,
           student: {
             id: 'student-1',
@@ -188,9 +196,12 @@ describe('PhotoTaskReadService', () => {
         taskId: 'task-1',
         unitId: 'unit-1',
         status: 'accepted',
+        answerKind: PhotoTaskSubmissionAnswerKind.photo,
         submittedAt: new Date('2026-03-01T11:00:00.000Z'),
         rejectedReason: null,
         assetKeysJson: ['assets/photo-1.jpg'],
+        boardAssetKey: null,
+        boardPreviewAssetKey: null,
         task: {
           title: 'Фото-задача',
           unit: {
@@ -217,6 +228,7 @@ describe('PhotoTaskReadService', () => {
           unitId: 'unit-1',
           unitTitle: 'Юнит 1',
           status: 'accepted',
+          answerKind: PhotoTaskSubmissionAnswerKind.photo,
           submittedAt: new Date('2026-03-01T11:00:00.000Z'),
           rejectedReason: null,
           assetKeysCount: 1,
@@ -262,6 +274,17 @@ describe('PhotoTaskReadService', () => {
       url: 'https://storage.example/photo-1.jpg',
     });
     expect(photoTaskPolicyService.resolveViewTtl).toHaveBeenCalledWith(Role.student, 180);
+    expect(prisma.photoTaskSubmission.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            { assetKeysJson: { array_contains: ['assets/photo-1.jpg'] } },
+            { boardAssetKey: 'assets/photo-1.jpg' },
+            { boardPreviewAssetKey: 'assets/photo-1.jpg' },
+          ],
+        }),
+      }),
+    );
     expect(objectStorageService.presignGetObject).toHaveBeenCalledWith(
       'assets/photo-1.jpg',
       180,

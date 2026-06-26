@@ -1,5 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type {
+  StudentPhotoBoardPresignUploadRequest,
+  StudentPhotoBoardSubmitRequest,
   StudentPhotoPresignUploadRequest,
   StudentPhotoPresignViewQuery,
   StudentPhotoSubmitRequest,
@@ -27,6 +29,14 @@ export class PhotoTaskService {
 
   async submit(studentId: string, taskId: string, body: StudentPhotoSubmitRequest) {
     return this.photoTaskReviewWriteService.submit(studentId, taskId, body);
+  }
+
+  async presignBoardUpload(studentId: string, taskId: string, body: StudentPhotoBoardPresignUploadRequest) {
+    return this.photoTaskReviewWriteService.presignBoardUpload(studentId, taskId, body);
+  }
+
+  async submitBoard(studentId: string, taskId: string, body: StudentPhotoBoardSubmitRequest) {
+    return this.photoTaskReviewWriteService.submitBoard(studentId, taskId, body);
   }
 
   async listForTeacher(teacherId: string, studentId: string, taskId: string) {

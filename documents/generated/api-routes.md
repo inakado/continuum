@@ -28,10 +28,12 @@
 | `GET` | `/sections/:id/graph` | `getGraph` | `apps/api/src/learning/student-section-graph.controller.ts:15` |
 | `GET` | `/student/dashboard` | `getOverview` | `apps/api/src/learning/student-dashboard.controller.ts:31` |
 | `POST` | `/student/tasks/:taskId/attempts` | `submit` | `apps/api/src/learning/student-attempts.controller.ts:17` |
-| `POST` | `/student/tasks/:taskId/photo/presign-upload` | `presignUpload` | `apps/api/src/learning/student-photo-tasks.controller.ts:29` |
-| `GET` | `/student/tasks/:taskId/photo/presign-view` | `presignView` | `apps/api/src/learning/student-photo-tasks.controller.ts:56` |
-| `GET` | `/student/tasks/:taskId/photo/submissions` | `listSubmissions` | `apps/api/src/learning/student-photo-tasks.controller.ts:51` |
-| `POST` | `/student/tasks/:taskId/photo/submit` | `submit` | `apps/api/src/learning/student-photo-tasks.controller.ts:40` |
+| `POST` | `/student/tasks/:taskId/photo/board/presign-upload` | `presignBoardUpload` | `apps/api/src/learning/student-photo-tasks.controller.ts:56` |
+| `POST` | `/student/tasks/:taskId/photo/board/submit` | `submitBoard` | `apps/api/src/learning/student-photo-tasks.controller.ts:67` |
+| `POST` | `/student/tasks/:taskId/photo/presign-upload` | `presignUpload` | `apps/api/src/learning/student-photo-tasks.controller.ts:34` |
+| `GET` | `/student/tasks/:taskId/photo/presign-view` | `presignView` | `apps/api/src/learning/student-photo-tasks.controller.ts:83` |
+| `GET` | `/student/tasks/:taskId/photo/submissions` | `listSubmissions` | `apps/api/src/learning/student-photo-tasks.controller.ts:78` |
+| `POST` | `/student/tasks/:taskId/photo/submit` | `submit` | `apps/api/src/learning/student-photo-tasks.controller.ts:45` |
 | `GET` | `/student/tasks/:taskId/solution/rendered-content` | `getTaskSolutionRenderedContent` | `apps/api/src/learning/student-task-solutions.controller.ts:25` |
 | `GET` | `/student/tasks/:taskId/statement-image/presign-view` | `presignView` | `apps/api/src/learning/student-task-statement-image.controller.ts:24` |
 | `GET` | `/teacher/courses` | `list` | `apps/api/src/content/teacher-courses.controller.ts:57` |

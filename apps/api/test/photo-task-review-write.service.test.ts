@@ -9,6 +9,10 @@ vi.mock('@prisma/client', () => ({
     accepted: 'accepted',
     rejected: 'rejected',
   },
+  PhotoTaskSubmissionAnswerKind: {
+    photo: 'photo',
+    board: 'board',
+  },
   ContentStatus: {
     published: 'published',
   },
@@ -34,7 +38,15 @@ vi.mock('@prisma/client', () => ({
   },
 }));
 
-import { AttemptResult, AttemptKind, Prisma, StudentTaskStatus, StudentUnitStatus, TaskAnswerType } from '@prisma/client';
+import {
+  AttemptResult,
+  AttemptKind,
+  PhotoTaskSubmissionAnswerKind,
+  Prisma,
+  StudentTaskStatus,
+  StudentUnitStatus,
+  TaskAnswerType,
+} from '@prisma/client';
 import { PhotoTaskReviewWriteService } from '../src/learning/photo-task-review-write.service';
 
 const createPublishedTask = () => ({
@@ -59,7 +71,10 @@ const createSubmission = (overrides: Partial<Record<string, unknown>> = {}) => (
   unitId: 'unit-1',
   attemptId: 'attempt-1',
   status: 'submitted',
+  answerKind: PhotoTaskSubmissionAnswerKind.photo,
   assetKeysJson: ['assets/photo-1.jpg'],
+  boardAssetKey: null,
+  boardPreviewAssetKey: null,
   rejectedReason: null,
   submittedAt: new Date('2026-03-01T10:00:00.000Z'),
   reviewedAt: null,
@@ -124,6 +139,9 @@ describe('PhotoTaskReviewWriteService', () => {
     resolveUploadTtl: vi.fn(),
     extensionForContentType: vi.fn(),
     assertAssetKeysMatchGeneratedPattern: vi.fn(),
+    assertBoardAssetKeysMatchGeneratedPattern: vi.fn(),
+    boardJsonContentType: vi.fn(),
+    boardPreviewContentType: vi.fn(),
   };
 
   const service = new PhotoTaskReviewWriteService(
@@ -162,6 +180,9 @@ describe('PhotoTaskReviewWriteService', () => {
     photoTaskPolicyService.resolveUploadTtl.mockReset();
     photoTaskPolicyService.extensionForContentType.mockReset();
     photoTaskPolicyService.assertAssetKeysMatchGeneratedPattern.mockReset();
+    photoTaskPolicyService.assertBoardAssetKeysMatchGeneratedPattern.mockReset();
+    photoTaskPolicyService.boardJsonContentType.mockReset();
+    photoTaskPolicyService.boardPreviewContentType.mockReset();
   });
 
   it('presigns student upload files with generated asset keys and resolved ttl', async () => {
@@ -194,6 +215,55 @@ describe('PhotoTaskReviewWriteService', () => {
     expect(objectStorageService.presignPutObject).toHaveBeenCalledWith(
       expect.stringMatching(/^tasks\/task-1\/photo\/student-1\/revision-1\/1710000000000-.+\.jpg$/),
       'image/jpeg',
+      300,
+    );
+  });
+
+  it('presigns student board upload with JSON and PNG asset keys', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1710000000000);
+    prisma.task.findFirst.mockResolvedValue(createPublishedTask());
+    learningAvailabilityService.recomputeSectionAvailability.mockResolvedValue(
+      new Map([['unit-1', { status: StudentUnitStatus.available }]]),
+    );
+    photoTaskPolicyService.resolveUploadTtl.mockReturnValue(300);
+    photoTaskPolicyService.boardJsonContentType.mockReturnValue('application/json');
+    photoTaskPolicyService.boardPreviewContentType.mockReturnValue('image/png');
+    objectStorageService.presignPutObject.mockResolvedValue({
+      url: 'https://storage.example/upload',
+      headers: { 'x-test': '1' },
+    });
+
+    const response = await service.presignBoardUpload('student-1', 'task-1', {
+      jsonSizeBytes: 1024,
+      previewSizeBytes: 2048,
+      ttlSec: 300,
+    });
+
+    expect(response.expiresInSec).toBe(300);
+    expect(response.board).toEqual(
+      expect.objectContaining({
+        assetKey: expect.stringMatching(
+          /^tasks\/task-1\/photo\/student-1\/revision-1\/board\/1710000000000-.+-1\.json$/,
+        ),
+        contentType: 'application/json',
+      }),
+    );
+    expect(response.preview).toEqual(
+      expect.objectContaining({
+        assetKey: expect.stringMatching(
+          /^tasks\/task-1\/photo\/student-1\/revision-1\/board\/1710000000000-.+-2\.png$/,
+        ),
+        contentType: 'image/png',
+      }),
+    );
+    expect(objectStorageService.presignPutObject).toHaveBeenCalledWith(
+      expect.stringMatching(/\/board\/1710000000000-.+-1\.json$/),
+      'application/json',
+      300,
+    );
+    expect(objectStorageService.presignPutObject).toHaveBeenCalledWith(
+      expect.stringMatching(/\/board\/1710000000000-.+-2\.png$/),
+      'image/png',
       300,
     );
   });
@@ -255,6 +325,76 @@ describe('PhotoTaskReviewWriteService', () => {
       },
       unitSnapshot: {
         unitId: 'unit-1',
+      },
+    });
+  });
+
+  it('submits student board attempt and writes board audit payload', async () => {
+    tx.task.findFirst.mockResolvedValue(createPublishedTask());
+    learningAvailabilityService.recomputeSectionAvailability.mockResolvedValue(
+      new Map([['unit-1', createUnitSnapshot()]]),
+    );
+    tx.studentTaskState.findUnique.mockResolvedValue(null);
+    tx.studentTaskState.create.mockResolvedValue({
+      studentId: 'student-1',
+      taskId: 'task-1',
+      status: StudentTaskStatus.not_started,
+      activeRevisionId: 'revision-1',
+    });
+    tx.attempt.findFirst.mockResolvedValue(null);
+    tx.attempt.create.mockResolvedValue({
+      id: 'attempt-1',
+      attemptNo: 1,
+    });
+    tx.photoTaskSubmission.create.mockResolvedValue(
+      createSubmission({
+        answerKind: PhotoTaskSubmissionAnswerKind.board,
+        assetKeysJson: [],
+        boardAssetKey: 'tasks/task-1/photo/student-1/revision-1/board/1710000000000-deadbeef-1.json',
+        boardPreviewAssetKey: 'tasks/task-1/photo/student-1/revision-1/board/1710000000000-deadbeef-2.png',
+      }),
+    );
+    tx.studentTaskState.update.mockResolvedValue({
+      status: StudentTaskStatus.pending_review,
+      wrongAttempts: 0,
+      lockedUntil: null,
+      requiredSkipped: false,
+    });
+
+    const response = await service.submitBoard('student-1', 'task-1', {
+      boardAssetKey: 'tasks/task-1/photo/student-1/revision-1/board/1710000000000-deadbeef-1.json',
+      boardPreviewAssetKey: 'tasks/task-1/photo/student-1/revision-1/board/1710000000000-deadbeef-2.png',
+    });
+
+    expect(photoTaskPolicyService.assertBoardAssetKeysMatchGeneratedPattern).toHaveBeenCalledWith({
+      boardAssetKey: 'tasks/task-1/photo/student-1/revision-1/board/1710000000000-deadbeef-1.json',
+      boardPreviewAssetKey: 'tasks/task-1/photo/student-1/revision-1/board/1710000000000-deadbeef-2.png',
+      prefix: 'tasks/task-1/photo/student-1/revision-1/board/',
+    });
+    expect(tx.photoTaskSubmission.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          answerKind: PhotoTaskSubmissionAnswerKind.board,
+          assetKeysJson: [],
+          boardAssetKey: 'tasks/task-1/photo/student-1/revision-1/board/1710000000000-deadbeef-1.json',
+          boardPreviewAssetKey: 'tasks/task-1/photo/student-1/revision-1/board/1710000000000-deadbeef-2.png',
+        }),
+      }),
+    );
+    expect(learningAuditLogService.appendStudentLearningEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          answer_kind: PhotoTaskSubmissionAnswerKind.board,
+          board_asset_key: 'tasks/task-1/photo/student-1/revision-1/board/1710000000000-deadbeef-1.json',
+          board_preview_asset_key: 'tasks/task-1/photo/student-1/revision-1/board/1710000000000-deadbeef-2.png',
+        }),
+      }),
+    );
+    expect(response).toMatchObject({
+      ok: true,
+      submissionId: 'submission-1',
+      taskState: {
+        status: StudentTaskStatus.pending_review,
       },
     });
   });

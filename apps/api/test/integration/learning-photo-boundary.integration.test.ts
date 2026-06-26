@@ -13,6 +13,8 @@ describe('learning photo boundary integration', () => {
   const photoTaskService = {
     presignUpload: vi.fn(),
     submit: vi.fn(),
+    presignBoardUpload: vi.fn(),
+    submitBoard: vi.fn(),
     listForStudent: vi.fn(),
     presignViewForStudent: vi.fn(),
     listInboxForTeacher: vi.fn(),
@@ -36,6 +38,22 @@ describe('learning photo boundary integration', () => {
       expiresInSec: 180,
       url: 'http://view',
     });
+    photoTaskService.presignBoardUpload.mockResolvedValue({
+      board: {
+        assetKey: 'tasks/t1/photo/student/rev/board/1.json',
+        url: 'http://upload-json',
+        headers: { 'Content-Type': 'application/json' },
+        contentType: 'application/json',
+      },
+      preview: {
+        assetKey: 'tasks/t1/photo/student/rev/board/2.png',
+        url: 'http://upload-preview',
+        headers: { 'Content-Type': 'image/png' },
+        contentType: 'image/png',
+      },
+      expiresInSec: 300,
+    });
+    photoTaskService.submitBoard.mockResolvedValue({ ok: true, submissionId: 'submission-1' });
     photoTaskService.reject.mockResolvedValue({ ok: true });
 
     app = await createIntegrationApp({
@@ -83,6 +101,44 @@ describe('learning photo boundary integration', () => {
 
     expect(response.status).toBe(409);
     expect(response.body.code).toBe('INVALID_ASSET_KEY');
+  });
+
+  it('accepts valid board presign-upload payload and returns service response', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/student/tasks/task-1/photo/board/presign-upload')
+      .send({
+        jsonSizeBytes: 1024,
+        previewSizeBytes: 2048,
+        ttlSec: 300,
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.board.contentType).toBe('application/json');
+    expect(response.body.preview.contentType).toBe('image/png');
+    expect(photoTaskService.presignBoardUpload).toHaveBeenCalledWith(
+      'integration-user',
+      'task-1',
+      expect.objectContaining({ jsonSizeBytes: 1024, previewSizeBytes: 2048, ttlSec: 300 }),
+    );
+  });
+
+  it('accepts valid board submit payload and delegates to service', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/student/tasks/task-1/photo/board/submit')
+      .send({
+        boardAssetKey: 'tasks/task-1/photo/student-1/revision-1/board/1710000000000-deadbeef-1.json',
+        boardPreviewAssetKey: 'tasks/task-1/photo/student-1/revision-1/board/1710000000000-deadbeef-2.png',
+      });
+
+    expect(response.status).toBe(200);
+    expect(photoTaskService.submitBoard).toHaveBeenCalledWith(
+      'integration-user',
+      'task-1',
+      expect.objectContaining({
+        boardAssetKey: expect.stringContaining('.json'),
+        boardPreviewAssetKey: expect.stringContaining('.png'),
+      }),
+    );
   });
 
   it('returns legacy query validation codes for teacher queue/inbox', async () => {

@@ -1,5 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type {
+  StudentPhotoBoardPresignUploadRequest,
+  StudentPhotoBoardSubmitRequest,
   StudentPhotoPresignUploadRequest,
   StudentPhotoSubmitRequest,
   TeacherPhotoRejectRequest,
@@ -10,7 +12,12 @@ import { StudentsService } from '../students/students.service';
 import { LearningAuditLogService } from './learning-audit-log.service';
 import { LearningAvailabilityService } from './learning-availability.service';
 import { PhotoTaskPolicyService } from './photo-task-policy.service';
-import { presignStudentPhotoUpload, submitStudentPhotoTask } from './photo-task-student-write';
+import {
+  presignStudentPhotoBoardUpload,
+  presignStudentPhotoUpload,
+  submitStudentPhotoBoardTask,
+  submitStudentPhotoTask,
+} from './photo-task-student-write';
 import { acceptTeacherPhotoSubmission, rejectTeacherPhotoSubmission } from './photo-task-teacher-review-write';
 
 @Injectable()
@@ -44,6 +51,30 @@ export class PhotoTaskReviewWriteService {
 
   async submit(studentId: string, taskId: string, body: StudentPhotoSubmitRequest) {
     return submitStudentPhotoTask({
+      body,
+      learningAuditLogService: this.learningAuditLogService,
+      learningAvailabilityService: this.learningAvailabilityService,
+      photoTaskPolicyService: this.photoTaskPolicyService,
+      prisma: this.prisma,
+      studentId,
+      taskId,
+    });
+  }
+
+  async presignBoardUpload(studentId: string, taskId: string, body: StudentPhotoBoardPresignUploadRequest) {
+    return presignStudentPhotoBoardUpload({
+      body,
+      learningAvailabilityService: this.learningAvailabilityService,
+      objectStorageService: this.objectStorageService,
+      photoTaskPolicyService: this.photoTaskPolicyService,
+      prisma: this.prisma,
+      studentId,
+      taskId,
+    });
+  }
+
+  async submitBoard(studentId: string, taskId: string, body: StudentPhotoBoardSubmitRequest) {
+    return submitStudentPhotoBoardTask({
       body,
       learningAuditLogService: this.learningAuditLogService,
       learningAvailabilityService: this.learningAvailabilityService,

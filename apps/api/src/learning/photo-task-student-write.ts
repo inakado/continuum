@@ -1,6 +1,14 @@
 import { ConflictException } from '@nestjs/common';
-import { AttemptKind, AttemptResult, Prisma, StudentTaskStatus } from '@prisma/client';
+import {
+  AttemptKind,
+  AttemptResult,
+  PhotoTaskSubmissionAnswerKind,
+  Prisma,
+  StudentTaskStatus,
+} from '@prisma/client';
 import type {
+  StudentPhotoBoardPresignUploadRequest,
+  StudentPhotoBoardSubmitRequest,
   StudentPhotoPresignUploadRequest,
   StudentPhotoSubmitRequest,
 } from '@continuum/shared';
@@ -16,6 +24,7 @@ import {
 } from './photo-task-read.shared';
 import {
   buildGeneratedAssetKey,
+  buildPhotoTaskBoardAssetPrefix,
   buildPhotoTaskAssetPrefix,
   mapPhotoTaskState,
   mapPhotoUnitSnapshot,
@@ -80,8 +89,72 @@ export const presignStudentPhotoUpload = async ({
   };
 };
 
-export const submitStudentPhotoTask = async ({
+export const presignStudentPhotoBoardUpload = async ({
   body,
+  learningAvailabilityService,
+  objectStorageService,
+  photoTaskPolicyService,
+  prisma,
+  studentId,
+  taskId,
+}: {
+  body: StudentPhotoBoardPresignUploadRequest;
+  learningAvailabilityService: LearningAvailabilityService;
+  objectStorageService: ObjectStorageService;
+  photoTaskPolicyService: PhotoTaskPolicyService;
+  prisma: PrismaService;
+  studentId: string;
+  taskId: string;
+}) => {
+  const task = await requirePublishedPhotoTask(prisma, taskId);
+  await assertUnitAvailableForStudent({
+    learningAvailabilityService,
+    sectionId: task.unit.sectionId,
+    studentId,
+    unitId: task.unit.id,
+  });
+
+  const ttlSec = photoTaskPolicyService.resolveUploadTtl(body.ttlSec);
+  const prefix = buildPhotoTaskBoardAssetPrefix(task.id, studentId, task.activeRevisionId);
+  const boardAssetKey = buildGeneratedAssetKey({
+    contentTypeExtension: 'json',
+    index: 0,
+    prefix,
+  });
+  const boardPreviewAssetKey = buildGeneratedAssetKey({
+    contentTypeExtension: 'png',
+    index: 1,
+    prefix,
+  });
+
+  const [board, preview] = await Promise.all([
+    objectStorageService.presignPutObject(boardAssetKey, photoTaskPolicyService.boardJsonContentType(), ttlSec),
+    objectStorageService.presignPutObject(
+      boardPreviewAssetKey,
+      photoTaskPolicyService.boardPreviewContentType(),
+      ttlSec,
+    ),
+  ]);
+
+  return {
+    board: {
+      assetKey: boardAssetKey,
+      url: board.url,
+      headers: board.headers,
+      contentType: photoTaskPolicyService.boardJsonContentType(),
+    },
+    preview: {
+      assetKey: boardPreviewAssetKey,
+      url: preview.url,
+      headers: preview.headers,
+      contentType: photoTaskPolicyService.boardPreviewContentType(),
+    },
+    expiresInSec: ttlSec,
+  };
+};
+
+const submitStudentPhotoReviewTask = async ({
+  answer,
   learningAuditLogService,
   learningAvailabilityService,
   photoTaskPolicyService,
@@ -89,7 +162,16 @@ export const submitStudentPhotoTask = async ({
   studentId,
   taskId,
 }: {
-  body: StudentPhotoSubmitRequest;
+  answer:
+    | {
+        answerKind: typeof PhotoTaskSubmissionAnswerKind.photo;
+        assetKeys: string[];
+      }
+    | {
+        answerKind: typeof PhotoTaskSubmissionAnswerKind.board;
+        boardAssetKey: string;
+        boardPreviewAssetKey: string;
+      };
   learningAuditLogService: LearningAuditLogService;
   learningAvailabilityService: LearningAvailabilityService;
   photoTaskPolicyService: PhotoTaskPolicyService;
@@ -97,8 +179,6 @@ export const submitStudentPhotoTask = async ({
   studentId: string;
   taskId: string;
 }) => {
-  const assetKeys = body.assetKeys;
-
   const txResult = await prisma.$transaction(async (tx) => {
     const task = await requirePublishedPhotoTask(tx, taskId);
     await assertUnitAvailableForStudent({
@@ -109,8 +189,17 @@ export const submitStudentPhotoTask = async ({
       unitId: task.unit.id,
     });
 
-    const prefix = buildPhotoTaskAssetPrefix(task.id, studentId, task.activeRevisionId);
-    photoTaskPolicyService.assertAssetKeysMatchGeneratedPattern(assetKeys, prefix);
+    if (answer.answerKind === PhotoTaskSubmissionAnswerKind.photo) {
+      const prefix = buildPhotoTaskAssetPrefix(task.id, studentId, task.activeRevisionId);
+      photoTaskPolicyService.assertAssetKeysMatchGeneratedPattern(answer.assetKeys, prefix);
+    } else {
+      const prefix = buildPhotoTaskBoardAssetPrefix(task.id, studentId, task.activeRevisionId);
+      photoTaskPolicyService.assertBoardAssetKeysMatchGeneratedPattern({
+        boardAssetKey: answer.boardAssetKey,
+        boardPreviewAssetKey: answer.boardPreviewAssetKey,
+        prefix,
+      });
+    }
 
     const now = new Date();
     const state = await tx.studentTaskState.findUnique({
@@ -184,7 +273,14 @@ export const submitStudentPhotoTask = async ({
         taskRevisionId: task.activeRevisionId,
         unitId: task.unitId,
         attemptId: attempt.id,
-        assetKeysJson: assetKeys as unknown as Prisma.InputJsonValue,
+        answerKind: answer.answerKind,
+        assetKeysJson:
+          answer.answerKind === PhotoTaskSubmissionAnswerKind.photo
+            ? (answer.assetKeys as unknown as Prisma.InputJsonValue)
+            : ([] as Prisma.InputJsonArray),
+        boardAssetKey: answer.answerKind === PhotoTaskSubmissionAnswerKind.board ? answer.boardAssetKey : null,
+        boardPreviewAssetKey:
+          answer.answerKind === PhotoTaskSubmissionAnswerKind.board ? answer.boardPreviewAssetKey : null,
         status: 'submitted',
         submittedAt: now,
       },
@@ -226,7 +322,15 @@ export const submitStudentPhotoTask = async ({
       unit_id: txResult.task.unitId,
       task_revision_id: txResult.task.activeRevisionId,
       attempt_id: txResult.attempt.id,
-      asset_keys: parseAssetKeysJson(txResult.submission.assetKeysJson),
+      answer_kind: txResult.submission.answerKind,
+      ...(txResult.submission.answerKind === PhotoTaskSubmissionAnswerKind.board
+        ? {
+            board_asset_key: txResult.submission.boardAssetKey,
+            board_preview_asset_key: txResult.submission.boardPreviewAssetKey,
+          }
+        : {
+            asset_keys: parseAssetKeysJson(txResult.submission.assetKeysJson),
+          }),
     },
   });
 
@@ -237,3 +341,44 @@ export const submitStudentPhotoTask = async ({
     ...(txResult.unitSnapshot ? { unitSnapshot: mapPhotoUnitSnapshot(txResult.unitSnapshot) } : null),
   };
 };
+
+export const submitStudentPhotoTask = async ({
+  body,
+  ...deps
+}: {
+  body: StudentPhotoSubmitRequest;
+  learningAuditLogService: LearningAuditLogService;
+  learningAvailabilityService: LearningAvailabilityService;
+  photoTaskPolicyService: PhotoTaskPolicyService;
+  prisma: PrismaService;
+  studentId: string;
+  taskId: string;
+}) =>
+  submitStudentPhotoReviewTask({
+    ...deps,
+    answer: {
+      answerKind: PhotoTaskSubmissionAnswerKind.photo,
+      assetKeys: body.assetKeys,
+    },
+  });
+
+export const submitStudentPhotoBoardTask = async ({
+  body,
+  ...deps
+}: {
+  body: StudentPhotoBoardSubmitRequest;
+  learningAuditLogService: LearningAuditLogService;
+  learningAvailabilityService: LearningAvailabilityService;
+  photoTaskPolicyService: PhotoTaskPolicyService;
+  prisma: PrismaService;
+  studentId: string;
+  taskId: string;
+}) =>
+  submitStudentPhotoReviewTask({
+    ...deps,
+    answer: {
+      answerKind: PhotoTaskSubmissionAnswerKind.board,
+      boardAssetKey: body.boardAssetKey,
+      boardPreviewAssetKey: body.boardPreviewAssetKey,
+    },
+  });

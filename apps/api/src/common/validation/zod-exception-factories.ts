@@ -134,6 +134,43 @@ export const photoSubmitExceptionFactory: ZodExceptionFactory = (error) => {
   });
 };
 
+export const photoBoardPresignUploadExceptionFactory: ZodExceptionFactory = (error) => {
+  const issue = firstIssue(error);
+
+  if (issueAt(issue, 'ttlSec')) {
+    if (isTtlTooLarge(issue)) {
+      return createBadRequestException({
+        code: 'TTL_TOO_LARGE',
+        message: 'ttlSec must be <= 600',
+      });
+    }
+
+    return createBadRequestException({
+      code: 'INVALID_TTL',
+      message: 'ttlSec must be a positive integer',
+    });
+  }
+
+  if (issueAt(issue, 'jsonSizeBytes')) {
+    return createBadRequestException({
+      code: 'BOARD_JSON_TOO_LARGE',
+      message: 'max board JSON size is 5242880 bytes',
+    });
+  }
+
+  if (issueAt(issue, 'previewSizeBytes')) {
+    return createBadRequestException({
+      code: 'BOARD_PREVIEW_TOO_LARGE',
+      message: 'max board preview size is 10485760 bytes',
+    });
+  }
+
+  return createBadRequestException({
+    code: 'INVALID_BOARD_UPLOAD',
+    message: 'board upload payload is invalid',
+  });
+};
+
 export const photoPresignViewExceptionFactory: ZodExceptionFactory = (error) => {
   const issue = firstIssue(error);
 

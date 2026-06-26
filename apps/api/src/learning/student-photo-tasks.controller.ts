@@ -1,8 +1,12 @@
 import { Body, Controller, Get, HttpCode, Inject, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import {
+  StudentPhotoBoardPresignUploadRequestSchema,
+  StudentPhotoBoardSubmitRequestSchema,
   StudentPhotoPresignUploadRequestSchema,
   StudentPhotoPresignViewQuerySchema,
   StudentPhotoSubmitRequestSchema,
+  type StudentPhotoBoardPresignUploadRequest,
+  type StudentPhotoBoardSubmitRequest,
   type StudentPhotoPresignUploadRequest,
   type StudentPhotoPresignViewQuery,
   type StudentPhotoSubmitRequest,
@@ -14,6 +18,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import {
+  photoBoardPresignUploadExceptionFactory,
   photoPresignUploadExceptionFactory,
   photoPresignViewExceptionFactory,
   photoSubmitExceptionFactory,
@@ -46,6 +51,28 @@ export class StudentPhotoTasksController {
     body: StudentPhotoSubmitRequest,
   ) {
     return this.photoTaskService.submit(req.user.id, taskId, body);
+  }
+
+  @Post(':taskId/photo/board/presign-upload')
+  @HttpCode(200)
+  presignBoardUpload(
+    @Param('taskId') taskId: string,
+    @Req() req: AuthRequest,
+    @Body(new ZodValidationPipe(StudentPhotoBoardPresignUploadRequestSchema, photoBoardPresignUploadExceptionFactory))
+    body: StudentPhotoBoardPresignUploadRequest,
+  ) {
+    return this.photoTaskService.presignBoardUpload(req.user.id, taskId, body);
+  }
+
+  @Post(':taskId/photo/board/submit')
+  @HttpCode(200)
+  submitBoard(
+    @Param('taskId') taskId: string,
+    @Req() req: AuthRequest,
+    @Body(new ZodValidationPipe(StudentPhotoBoardSubmitRequestSchema, photoSubmitExceptionFactory))
+    body: StudentPhotoBoardSubmitRequest,
+  ) {
+    return this.photoTaskService.submitBoard(req.user.id, taskId, body);
   }
 
   @Get(':taskId/photo/submissions')
