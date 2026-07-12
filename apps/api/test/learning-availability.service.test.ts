@@ -195,6 +195,38 @@ describe('LearningAvailabilityService', () => {
     );
   });
 
+  it('skips persistence when the computed unit state is unchanged', async () => {
+    const becameAvailableAt = new Date('2026-02-20T08:00:00.000Z');
+
+    prisma.section.findFirst.mockResolvedValue({
+      units: [{ id: 'unit-a', sortOrder: 1, minOptionalCountedTasksToComplete: 0 }],
+    });
+    prisma.unitGraphEdge.findMany.mockResolvedValue([]);
+    prisma.task.findMany.mockResolvedValue([{ id: 'task-a-1', unitId: 'unit-a', isRequired: true }]);
+    prisma.studentUnitState.findMany.mockResolvedValue([
+      {
+        unitId: 'unit-a',
+        status: StudentUnitStatus.available,
+        overrideOpened: false,
+        countedTasks: 0,
+        solvedTasks: 0,
+        totalTasks: 1,
+        completionPercent: 0,
+        solvedPercent: 0,
+        becameAvailableAt,
+        startedAt: null,
+        completedAt: null,
+      },
+    ]);
+    prisma.unitUnlockOverride.findMany.mockResolvedValue([]);
+    prisma.studentTaskState.findMany.mockResolvedValue([]);
+    prisma.attempt.findMany.mockResolvedValue([]);
+
+    await service.recomputeSectionAvailability('student-1', 'section-1');
+
+    expect(prisma.studentUnitState.upsert).not.toHaveBeenCalled();
+  });
+
   it('builds graph snapshot without persisting student unit state', async () => {
     prisma.section.findFirst.mockResolvedValue({
       units: [

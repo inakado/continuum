@@ -15,7 +15,10 @@ import { ContentService } from '../content/content.service';
 import { type TaskWithActiveRevision } from '../content/task-revision-payload.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StudentsService } from '../students/students.service';
-import { LearningAvailabilityService } from './learning-availability.service';
+import {
+  LearningAvailabilityService,
+  type UnitProgressSnapshot,
+} from './learning-availability.service';
 import { LearningAttemptsWriteService } from './learning-attempts-write.service';
 import { LearningTeacherActionsService } from './learning-teacher-actions.service';
 import type { UnitHtmlAssetRef } from '../content/unit-pdf.constants';
@@ -60,7 +63,10 @@ type StudentSectionSequenceState = {
   completionPercent: number;
   accessStatus: StudentSectionAccessStatus;
   overrideOpened: boolean;
+  snapshots: Map<string, UnitProgressSnapshot>;
 };
+
+const DASHBOARD_RECOMPUTE_BATCH_SIZE = 4;
 
 @Injectable()
 export class LearningService {
@@ -115,29 +121,33 @@ export class LearningService {
       >
     >();
 
-    for (const course of publishedCourses) {
-      for (const section of course.sections) {
-        const snapshots = await this.learningAvailabilityService.recomputeSectionAvailability(
-          studentId,
-          section.id,
-        );
-        const normalized = new Map<
-          string,
-          {
-            status: StudentUnitStatus;
-            completionPercent: number;
-            solvedPercent: number;
-          }
-        >();
-        snapshots.forEach((snapshot, unitId) => {
-          normalized.set(unitId, {
-            status: snapshot.status,
-            completionPercent: snapshot.completionPercent,
-            solvedPercent: snapshot.solvedPercent,
+    const publishedSections = publishedCourses.flatMap((course) => course.sections);
+    for (let index = 0; index < publishedSections.length; index += DASHBOARD_RECOMPUTE_BATCH_SIZE) {
+      const batch = publishedSections.slice(index, index + DASHBOARD_RECOMPUTE_BATCH_SIZE);
+      await Promise.all(
+        batch.map(async (section) => {
+          const snapshots = await this.learningAvailabilityService.recomputeSectionAvailability(
+            studentId,
+            section.id,
+          );
+          const normalized = new Map<
+            string,
+            {
+              status: StudentUnitStatus;
+              completionPercent: number;
+              solvedPercent: number;
+            }
+          >();
+          snapshots.forEach((snapshot, unitId) => {
+            normalized.set(unitId, {
+              status: snapshot.status,
+              completionPercent: snapshot.completionPercent,
+              solvedPercent: snapshot.solvedPercent,
+            });
           });
-        });
-        snapshotsBySectionId.set(section.id, normalized);
-      }
+          snapshotsBySectionId.set(section.id, normalized);
+        }),
+      );
     }
 
     const allUnitEntries = publishedCourses.flatMap((course) =>
@@ -316,11 +326,7 @@ export class LearningService {
     const sectionState = await this.getPublishedSectionSequenceState(studentId, unitMeta.sectionId);
     this.assertStudentSectionUnlocked(sectionState.accessStatus);
 
-    const sectionSnapshots = await this.learningAvailabilityService.recomputeSectionAvailability(
-      studentId,
-      unitMeta.sectionId,
-    );
-    const unitSnapshot = sectionSnapshots.get(unitId);
+    const unitSnapshot = sectionState.snapshots.get(unitId);
     if (!unitSnapshot) {
       throw new NotFoundException({
         code: 'UNIT_NOT_FOUND',
@@ -477,6 +483,7 @@ export class LearningService {
     sections: PublishedSectionWithUnitIds[],
   ): Promise<StudentSectionSequenceState[]> {
     const sectionProgress = new Map<string, number>();
+    const snapshotsBySectionId = new Map<string, Map<string, UnitProgressSnapshot>>();
     const sectionOverrideIds = new Set(
       (
         await this.prisma.sectionUnlockOverride.findMany({
@@ -492,6 +499,7 @@ export class LearningService {
     await Promise.all(
       sections.map(async (section) => {
         const snapshots = await this.learningAvailabilityService.recomputeSectionAvailability(studentId, section.id);
+        snapshotsBySectionId.set(section.id, snapshots);
         const progressSum = section.units.reduce(
           (sum, unit) => sum + (snapshots.get(unit.id)?.completionPercent ?? 0),
           0,
@@ -523,6 +531,7 @@ export class LearningService {
         completionPercent,
         accessStatus,
         overrideOpened,
+        snapshots: snapshotsBySectionId.get(section.id) ?? new Map(),
       };
     });
   }

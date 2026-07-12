@@ -48,14 +48,13 @@ import { StudentTaskCardShell } from "./components/StudentTaskCardShell";
 import { StudentTaskAnswerForm } from "./components/StudentTaskAnswerForm";
 import { StudentTaskMediaPreview } from "./components/StudentTaskMediaPreview";
 import { StudentUnitContextPanel } from "./components/StudentUnitContextPanel";
+import { loadStudentExcalidrawBoard } from "./components/student-excalidraw-board-loader";
+import { useStudentBoardPrefetch } from "./hooks/use-student-board-prefetch";
 
-const StudentExcalidrawBoard = dynamic(
-  () => import("./components/StudentExcalidrawBoard").then((mod) => mod.StudentExcalidrawBoard),
-  {
+const StudentExcalidrawBoard = dynamic(loadStudentExcalidrawBoard, {
     ssr: false,
     loading: () => <div className={styles.boardLoading}>Загрузка доски...</div>,
-  },
-);
+});
 
 const StudentFeedbackExcalidrawBoard = dynamic(
   () =>
@@ -920,6 +919,7 @@ const useStudentUnitScreenState = (unitId: string, focusTaskId?: string | null) 
   const tabsState = useStudentUnitTabsState(queryState.unit);
   const unitRenderedContent = useStudentUnitRenderedContent({ unit: queryState.unit, unitId });
   const orderedTasks = useMemo(() => getOrderedTasks(queryState.unit), [queryState.unit]);
+  useStudentBoardPrefetch(orderedTasks.some((task) => task.answerType === "photo"));
   const progressMetrics = useMemo(() => getProgressMetrics(queryState.unit, orderedTasks), [orderedTasks, queryState.unit]);
   const completionMeter = normalizePercent(queryState.unit?.completionPercent ?? 0);
   const solvedMeter = normalizePercent(queryState.unit?.solvedPercent ?? 0);

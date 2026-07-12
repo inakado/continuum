@@ -1,4 +1,4 @@
-import { ConflictException } from '@nestjs/common';
+import type { ConflictException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { StudentUnitStatus } from '@prisma/client';
 import { LearningService } from '../src/learning/learning.service';
@@ -7,12 +7,16 @@ describe('LearningService', () => {
   const prisma = {
     course: {
       findFirst: vi.fn(),
+      findMany: vi.fn(),
     },
     section: {
       findFirst: vi.fn(),
     },
     sectionUnlockOverride: {
       findMany: vi.fn(),
+    },
+    unit: {
+      findFirst: vi.fn(),
     },
   };
   const contentService = {
@@ -37,12 +41,93 @@ describe('LearningService', () => {
 
   beforeEach(() => {
     prisma.course.findFirst.mockReset();
+    prisma.course.findMany.mockReset();
     prisma.section.findFirst.mockReset();
+    prisma.unit.findFirst.mockReset();
     prisma.sectionUnlockOverride.findMany.mockReset();
     contentService.getPublishedSectionGraph.mockReset();
     learningAvailabilityService.getSectionGraphAvailabilitySnapshot.mockReset();
     learningAvailabilityService.recomputeSectionAvailability.mockReset();
     prisma.sectionUnlockOverride.findMany.mockResolvedValue([]);
+  });
+
+  it('recomputes dashboard sections with bounded concurrency', async () => {
+    let activeRecomputes = 0;
+    let maxActiveRecomputes = 0;
+    const sections = Array.from({ length: 5 }, (_, index) => ({
+      id: `section-${index + 1}`,
+      title: `Раздел ${index + 1}`,
+      units: [],
+    }));
+
+    prisma.course.findMany.mockResolvedValue([
+      {
+        id: 'course-1',
+        title: 'Физика',
+        description: null,
+        coverImageAssetKey: null,
+        status: 'published',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+        sections,
+      },
+    ]);
+    learningAvailabilityService.recomputeSectionAvailability.mockImplementation(async () => {
+      activeRecomputes += 1;
+      maxActiveRecomputes = Math.max(maxActiveRecomputes, activeRecomputes);
+      await Promise.resolve();
+      activeRecomputes -= 1;
+      return new Map();
+    });
+
+    await service.getStudentDashboardOverview('student-1');
+
+    expect(learningAvailabilityService.recomputeSectionAvailability).toHaveBeenCalledTimes(5);
+    expect(maxActiveRecomputes).toBe(4);
+  });
+
+  it('reuses the target section snapshot when checking unit access', async () => {
+    prisma.unit.findFirst.mockResolvedValueOnce({ id: 'unit-1', sectionId: 'section-1' });
+    prisma.section.findFirst.mockResolvedValue({ id: 'section-1', courseId: 'course-1' });
+    prisma.course.findFirst.mockResolvedValue({
+      id: 'course-1',
+      title: 'Физика',
+      description: null,
+      coverImageAssetKey: null,
+      status: 'published',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+      sections: [
+        {
+          id: 'section-1',
+          courseId: 'course-1',
+          title: 'Механика',
+          description: null,
+          coverImageAssetKey: null,
+          status: 'published',
+          sortOrder: 1,
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+          units: [{ id: 'unit-1' }],
+        },
+      ],
+    });
+    learningAvailabilityService.recomputeSectionAvailability.mockResolvedValue(
+      new Map([
+        [
+          'unit-1',
+          {
+            status: StudentUnitStatus.locked,
+            completionPercent: 0,
+          },
+        ],
+      ]),
+    );
+
+    await expect(service.getPublishedUnitForStudent('student-1', 'unit-1')).rejects.toMatchObject({
+      response: { code: 'UNIT_LOCKED' },
+    });
+    expect(learningAvailabilityService.recomputeSectionAvailability).toHaveBeenCalledTimes(1);
   });
 
   it('maps student graph from graph-specific availability snapshot path', async () => {

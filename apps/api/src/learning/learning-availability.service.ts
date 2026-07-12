@@ -18,7 +18,13 @@ type PublishedTask = {
 
 type ExistingUnitState = {
   unitId: string;
+  status: StudentUnitStatus;
   overrideOpened: boolean;
+  countedTasks: number;
+  solvedTasks: number;
+  totalTasks: number;
+  completionPercent: number;
+  solvedPercent: number;
   becameAvailableAt: Date | null;
   startedAt: Date | null;
   completedAt: Date | null;
@@ -73,6 +79,28 @@ const SOLVED_STATUSES = new Set<StudentTaskStatus>([
   StudentTaskStatus.accepted,
   StudentTaskStatus.teacher_credited,
 ]);
+
+const isSamePersistedSnapshot = (
+  existing: ExistingUnitState | undefined,
+  snapshot: UnitProgressSnapshot,
+  overrideOpened: boolean,
+  becameAvailableAt: Date | null,
+  startedAt: Date | null,
+  completedAt: Date | null,
+) =>
+  Boolean(
+    existing &&
+      existing.status === snapshot.status &&
+      existing.overrideOpened === overrideOpened &&
+      existing.countedTasks === snapshot.countedTasks &&
+      existing.solvedTasks === snapshot.solvedTasks &&
+      existing.totalTasks === snapshot.totalTasks &&
+      existing.completionPercent === snapshot.completionPercent &&
+      existing.solvedPercent === snapshot.solvedPercent &&
+      existing.becameAvailableAt?.getTime() === becameAvailableAt?.getTime() &&
+      existing.startedAt?.getTime() === startedAt?.getTime() &&
+      existing.completedAt?.getTime() === completedAt?.getTime(),
+  );
 
 @Injectable()
 export class LearningAvailabilityService {
@@ -240,7 +268,13 @@ export class LearningAvailabilityService {
         where: { studentId, unitId: { in: unitIds } },
         select: {
           unitId: true,
+          status: true,
           overrideOpened: true,
+          countedTasks: true,
+          solvedTasks: true,
+          totalTasks: true,
+          completionPercent: true,
+          solvedPercent: true,
           becameAvailableAt: true,
           startedAt: true,
           completedAt: true,
@@ -490,6 +524,19 @@ export class LearningAvailabilityService {
       const startedAt = existing?.startedAt ?? (snapshot.hasAttempt ? now : null);
       const completedAt =
         snapshot.status === StudentUnitStatus.completed ? (existing?.completedAt ?? now) : null;
+
+      if (
+        isSamePersistedSnapshot(
+          existing,
+          snapshot,
+          overrideOpened,
+          becameAvailableAt,
+          startedAt,
+          completedAt,
+        )
+      ) {
+        continue;
+      }
 
       await db.studentUnitState.upsert({
         where: {

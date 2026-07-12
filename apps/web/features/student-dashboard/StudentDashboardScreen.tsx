@@ -1,11 +1,11 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence, LazyMotion, domAnimation, m, type Variants } from "framer-motion";
+import { LazyMotion, domAnimation, m, type Variants } from "framer-motion";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import {
   ArrowRight,
   ArrowLeft,
@@ -130,31 +130,6 @@ const compareSections = (left: Section, right: Section) => {
   }
   return new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
 };
-
-const ProgressBar = ({
-  value,
-  label,
-  showValue = true,
-}: {
-  value: number;
-  label: string;
-  showValue?: boolean;
-}) => (
-  <div className={styles.progressMetric}>
-    <div className={styles.progressMetricRow}>
-      <span>{label}</span>
-      {showValue ? <span>{value}%</span> : null}
-    </div>
-    <div className={styles.progressTrack} aria-hidden="true">
-      <m.div
-        className={styles.progressFill}
-        initial={{ width: 0 }}
-        animate={{ width: `${value}%` }}
-        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-      />
-    </div>
-  </div>
-);
 
 const StudentCoursesView = ({
   courses,
