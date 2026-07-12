@@ -3,6 +3,7 @@
 import { Excalidraw } from "@excalidraw/excalidraw";
 import type { ComponentProps } from "react";
 import type { ExcalidrawInitialDataState } from "@excalidraw/excalidraw/types";
+import { useExcalidrawTheme } from "@/components/useExcalidrawTheme";
 import styles from "../student-unit-detail.module.css";
 
 type Props = {
@@ -23,10 +24,17 @@ const uiOptions: ComponentProps<typeof Excalidraw>["UIOptions"] = {
 };
 
 export function StudentFeedbackExcalidrawBoard({ initialData }: Props) {
+  const { theme, viewBackgroundColor, handleReady } = useExcalidrawTheme();
+
   return (
-    <div className={styles.feedbackBoardCanvasShell}>
+    <div className={styles.feedbackBoardCanvasShell} style={{ backgroundColor: viewBackgroundColor }}>
       <Excalidraw
-        initialData={initialData}
+        excalidrawAPI={handleReady}
+        initialData={{
+          ...initialData,
+          appState: { ...initialData.appState, theme, viewBackgroundColor },
+        }}
+        theme={theme}
         UIOptions={uiOptions}
         viewModeEnabled
       />

@@ -2,6 +2,7 @@
 
 import { Excalidraw } from "@excalidraw/excalidraw";
 import type { ComponentProps } from "react";
+import { useExcalidrawTheme } from "@/components/useExcalidrawTheme";
 import styles from "../student-unit-detail.module.css";
 
 type ExcalidrawChangeHandler = NonNullable<ComponentProps<typeof Excalidraw>["onChange"]>;
@@ -26,15 +27,19 @@ const uiOptions: ComponentProps<typeof Excalidraw>["UIOptions"] = {
 };
 
 export function StudentExcalidrawBoard({ onReady, onChange }: Props) {
+  const { theme, viewBackgroundColor, handleReady } = useExcalidrawTheme(onReady);
+
   return (
-    <div className={styles.boardCanvasShell}>
+    <div className={styles.boardCanvasShell} style={{ backgroundColor: viewBackgroundColor }}>
       <Excalidraw
-        excalidrawAPI={onReady}
+        excalidrawAPI={handleReady}
         onChange={onChange}
+        theme={theme}
         UIOptions={uiOptions}
         initialData={{
           appState: {
-            viewBackgroundColor: "#ffffff",
+            theme,
+            viewBackgroundColor,
           },
         }}
       />

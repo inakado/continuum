@@ -91,6 +91,7 @@
 - Student unit route принимает `taskId` в query string и передаёт его как initial focus в task navigation.
 - Для проверенных задач типа `photo` (user-facing `Развернутый ответ`) student unit screen показывает “Разбор учителя”, если latest reviewed submission содержит `teacherFeedbackBoardAssetKey`.
 - Teacher feedback board открывается student-side как read-only Excalidraw scene через student `presign-view`; при ошибке JSON используется PNG preview fallback.
+- Все Excalidraw surfaces синхронизируют UI theme и `viewBackgroundColor` с фактическим `html[data-theme]`: light canvas `#f8fafc`, dark canvas `#1e293b`. Theme-only `updateScene` выполняется с `CaptureUpdateAction.NEVER`, поэтому переключение темы не попадает в undo history и не считается teacher interaction.
 
 ## Routes Map
 

@@ -4,6 +4,7 @@ import { Excalidraw } from "@excalidraw/excalidraw";
 import type { ComponentProps } from "react";
 import type { ExcalidrawInitialDataState, ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import type { ExcalidrawElement } from "@excalidraw/excalidraw/element/types";
+import { useExcalidrawTheme } from "@/components/useExcalidrawTheme";
 import styles from "../teacher-review-submission-detail-panel.module.css";
 
 type ExcalidrawChangeHandler = NonNullable<ComponentProps<typeof Excalidraw>["onChange"]>;
@@ -36,6 +37,8 @@ export function TeacherExcalidrawReviewBoard({
   onUserInteraction,
   viewModeEnabled,
 }: Props) {
+  const { theme, viewBackgroundColor, handleReady } = useExcalidrawTheme(onReady);
+
   const handleChange: ExcalidrawChangeHandler = (elements) => {
     onChange(elements);
   };
@@ -43,14 +46,19 @@ export function TeacherExcalidrawReviewBoard({
   return (
     <div
       className={styles.boardReviewCanvasShell}
+      style={{ backgroundColor: viewBackgroundColor }}
       onKeyDownCapture={onUserInteraction}
       onPointerDownCapture={onUserInteraction}
     >
       <Excalidraw
-        excalidrawAPI={onReady}
-        initialData={initialData}
+        excalidrawAPI={handleReady}
+        initialData={{
+          ...initialData,
+          appState: { ...initialData.appState, theme, viewBackgroundColor },
+        }}
         onChange={handleChange}
         UIOptions={uiOptions}
+        theme={theme}
         viewModeEnabled={viewModeEnabled}
       />
     </div>
