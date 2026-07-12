@@ -1511,6 +1511,45 @@
   isolation: isolate;
 }
 
+.boardCanvasShell.boardCanvasShellFocusMode,
+.boardCanvasShell:fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  width: 100vw;
+  height: 100dvh;
+  min-height: 100dvh;
+  border: 0;
+  border-radius: 0;
+}
+
+.boardFullscreenButton {
+  width: 36px;
+  height: 36px;
+  border: var(--border-width-thin) solid var(--color-surface-mid);
+  border-radius: 8px;
+  background: var(--color-surface-high);
+  color: var(--text-primary-color);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: none;
+  transition:
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
+}
+
+.boardFullscreenButton:hover {
+  background: var(--button-hover-bg);
+  border-color: var(--button-hover-border);
+}
+
+.boardFullscreenButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 .boardLoading {
   display: grid;
   place-items: center;

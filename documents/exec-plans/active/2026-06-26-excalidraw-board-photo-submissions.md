@@ -457,6 +457,7 @@ Existing photo submissions должны работать из-за default `answ
 - 2026-07-12: Исправлен production layering conflict между dashboard sidebar и Excalidraw: student/teacher sidebar переведены на общие semantic z-index tokens, все student/teacher board containers изолированы собственным stacking context. Добавлен CSS contract test. Проверки: `pnpm lint:boundaries`, `pnpm --filter web typecheck`, `pnpm --filter web test` (124/124), `pnpm --filter web build`; оптимизированные CSS chunks содержат оба sidebar layers и board isolation.
 - 2026-07-12: Student board, student feedback board и teacher review board синхронизированы с `html[data-theme]`: Excalidraw UI переключает light/dark theme, canvas использует palette-aligned `#f8fafc` / `#1e293b`, theme update исключён из undo history. Добавлен focused hook test.
 - 2026-07-12: Student unit header и progress summary объединены в управляемый `StudentUnitContextPanel`: компактное состояние освобождает вертикальное рабочее пространство, сохраняет название и ключевые метрики, preference хранится локально; mobile по умолчанию компактен. Fullscreen focus mode доски остаётся следующим отдельным этапом после коммита панели.
+- 2026-07-12: После отдельного коммита `StudentUnitContextPanel` editable student board получила fullscreen focus mode: native Fullscreen API, viewport fallback, body scroll lock и выход по `Escape`; native/fallback paths покрыты focused tests.
 
 ## 14. Scope expansion: teacher feedback board
 
