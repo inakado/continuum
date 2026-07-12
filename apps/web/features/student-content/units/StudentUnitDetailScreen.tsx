@@ -36,6 +36,7 @@ import { StudentTaskTabs } from "./components/StudentTaskTabs";
 import { StudentTaskCardShell } from "./components/StudentTaskCardShell";
 import { StudentTaskAnswerForm } from "./components/StudentTaskAnswerForm";
 import { StudentTaskMediaPreview } from "./components/StudentTaskMediaPreview";
+import { StudentUnitContextPanel } from "./components/StudentUnitContextPanel";
 
 const StudentExcalidrawBoard = dynamic(
   () => import("./components/StudentExcalidrawBoard").then((mod) => mod.StudentExcalidrawBoard),
@@ -87,15 +88,6 @@ const formatRemainingDuration = (remainingMs: number) => {
 };
 
 const normalizePercent = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
-
-const getProgressFillStyle = (percent: number) => {
-  const level = normalizePercent(percent);
-
-  return {
-    width: `${level}%`,
-    background: "var(--student-success)",
-  };
-};
 
 const parseExcalidrawScene = (value: unknown): ExcalidrawInitialDataState => {
   if (!value || typeof value !== "object") {
@@ -220,57 +212,6 @@ function StudentUnitLockedGate({
         <Button variant="ghost" onClick={onBack}>
           ← Назад
         </Button>
-      </div>
-    </section>
-  );
-}
-
-function StudentUnitProgressCard({
-  completionMeter,
-  solvedMeter,
-  requiredDone,
-  requiredTotal,
-  requiredMeter,
-  countedTasks,
-  solvedTasks,
-  totalTasks,
-}: {
-  completionMeter: number;
-  solvedMeter: number;
-  requiredDone: number;
-  requiredTotal: number;
-  requiredMeter: number;
-  countedTasks: number;
-  solvedTasks: number;
-  totalTasks: number;
-}) {
-  return (
-    <section className={styles.progressCard} aria-label="Прогресс юнита">
-      <div className={styles.progressLeadRow}>
-        <div className={styles.progressLead}>
-          <span className={styles.progressStatLabel}>Прогресс юнита</span>
-          <span className={styles.progressLeadValue}>{completionMeter}%</span>
-        </div>
-
-        <div className={styles.progressSummary} aria-label="Сводка метрик">
-          <article className={styles.progressSummaryItem}>
-            <span className={styles.progressSummaryLabel}>Решено</span>
-            <span className={styles.progressSummaryValue}>
-              {solvedTasks}/{totalTasks} задач
-            </span>
-          </article>
-          <div className={styles.progressSummaryDivider} aria-hidden="true" />
-          <article className={styles.progressSummaryItem}>
-            <span className={styles.progressSummaryLabel}>Ключевые</span>
-            <span className={styles.progressSummaryValue}>
-              {requiredDone}/{requiredTotal} задач
-            </span>
-          </article>
-        </div>
-      </div>
-
-      <div className={styles.progressTrack} aria-hidden="true">
-        <span className={styles.progressTrackFill} style={getProgressFillStyle(completionMeter)} />
       </div>
     </section>
   );
@@ -950,19 +891,6 @@ function StudentUnitBody({
 
   return (
     <>
-      {state.shouldShowProgressCard ? (
-        <StudentUnitProgressCard
-          completionMeter={state.completionMeter}
-          solvedMeter={state.solvedMeter}
-          requiredDone={state.progressMetrics.requiredDone}
-          requiredTotal={state.progressMetrics.requiredTotal}
-          requiredMeter={state.requiredMeter}
-          countedTasks={state.progressMetrics.countedTasks}
-          solvedTasks={state.progressMetrics.solvedTasks}
-          totalTasks={state.progressMetrics.totalTasks}
-        />
-      ) : null}
-
       <div className={styles.tabsRow}>
         <div className={styles.tabsRail}>
           <Tabs
@@ -1041,12 +969,16 @@ export default function StudentUnitDetailScreen({ unitId, focusTaskId = null }: 
       onLogout={handleLogout}
     >
       <div className={styles.content}>
-        <div className={styles.header}>
-          <div className={styles.headerLeft}>
-            <h1 className={styles.title}>{state.unit?.title ?? "Юнит"}</h1>
-            {state.unit?.description ? <p className={styles.subtitle}>{state.unit.description}</p> : null}
-          </div>
-        </div>
+        <StudentUnitContextPanel
+          title={state.unit?.title ?? "Юнит"}
+          description={state.unit?.description}
+          showProgress={state.shouldShowProgressCard}
+          completionMeter={state.completionMeter}
+          requiredDone={state.progressMetrics.requiredDone}
+          requiredTotal={state.progressMetrics.requiredTotal}
+          solvedTasks={state.progressMetrics.solvedTasks}
+          totalTasks={state.progressMetrics.totalTasks}
+        />
 
         {state.notFound ? <StudentNotFound /> : null}
         {state.error && !state.notFound ? (

@@ -52,15 +52,101 @@
   --student-unit-method-text: color-mix(in srgb, var(--foundation-text) 82%, var(--foundation-text-muted));
 }
 
-.header {
-  display: grid;
-  gap: 6px;
-}
-
 .headerLeft {
   display: grid;
   gap: 6px;
   max-width: min(100%, 56rem);
+}
+
+.unitContext {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.unitContextHeaderRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.unitContextCompactBar {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width-thin) solid var(--student-unit-outline);
+  border-radius: var(--control-radius);
+  background: var(--student-unit-surface-soft);
+}
+
+.unitContextCompactIdentity {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.unitContextCompactTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--text-title-card-family), sans-serif;
+  font-size: var(--text-title-card-size);
+  line-height: var(--text-title-card-line-height);
+  font-weight: var(--text-title-card-weight);
+  letter-spacing: var(--text-title-card-tracking);
+  color: var(--text-primary);
+}
+
+.unitContextCompactMetrics {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex: 0 0 auto;
+}
+
+.unitContextCompactMetric {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  color: var(--text-muted);
+  font-family: var(--text-caption-family), sans-serif;
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line-height);
+}
+
+.unitContextCompactMetric strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.unitContextToggle {
+  width: var(--action-control-height-sm);
+  height: var(--action-control-height-sm);
+  min-width: var(--action-control-height-sm);
+  border: var(--border-width-thin) solid var(--student-unit-outline);
+  border-radius: var(--control-radius);
+  background: var(--student-unit-surface-soft);
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) ease,
+    border-color var(--motion-fast) ease;
+}
+
+.unitContextToggle:hover {
+  background: var(--student-unit-surface-strong);
+  border-color: var(--student-unit-outline-strong);
+}
+
+.unitContextToggle:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .tabsRow {
@@ -298,6 +384,7 @@
   display: block;
   height: 100%;
   border-radius: 999px;
+  background: var(--student-success);
 }
 
 @media (max-width: 960px) {
@@ -2194,6 +2281,24 @@
 }
 
 @media (max-width: 720px) {
+  .unitContextCompactBar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-2);
+  }
+
+  .unitContextCompactMetrics {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: flex-start;
+    gap: var(--space-2);
+  }
+
+  .unitContextToggle {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
   .progressCard {
     padding: 12px;
     gap: 14px;

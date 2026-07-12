@@ -89,6 +89,7 @@
   - popover фиксируется относительно sidebar и не рендерится внутри clipping-контейнера;
   - клик по событию `photo_reviewed` ведёт на `/student/units/:unitId?taskId=:taskId` и отмечает уведомление прочитанным.
 - Student unit route принимает `taskId` в query string и передаёт его как initial focus в task navigation.
+- Верхний контекст student unit screen управляется `StudentUnitContextPanel`: expanded показывает название, описание и полную статистику, collapsed сохраняет компактную строку с названием и ключевыми метриками. Выбор хранится локально под `continuum-student-unit-context-collapsed`; без сохранённого выбора mobile `<=720px` стартует компактно.
 - Для проверенных задач типа `photo` (user-facing `Развернутый ответ`) student unit screen показывает “Разбор учителя”, если latest reviewed submission содержит `teacherFeedbackBoardAssetKey`.
 - Teacher feedback board открывается student-side как read-only Excalidraw scene через student `presign-view`; при ошибке JSON используется PNG preview fallback.
 - Все Excalidraw surfaces синхронизируют UI theme и `viewBackgroundColor` с фактическим `html[data-theme]`: light canvas `#f8fafc`, dark canvas `#1e293b`. Theme-only `updateScene` выполняется с `CaptureUpdateAction.NEVER`, поэтому переключение темы не попадает в undo history и не считается teacher interaction.
