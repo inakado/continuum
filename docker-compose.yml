@@ -5,6 +5,8 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+      args:
+        NODE_RUNTIME_IMAGE: ${NODE_RUNTIME_IMAGE:-node:24.18.0-bookworm-slim}
     container_name: continuum-api
     depends_on:
       postgres:
@@ -34,7 +36,7 @@ services:
       - .:/app
       - api_node_modules:/app/node_modules
       - api_app_node_modules:/app/apps/api/node_modules
-    command: sh -c "if [ ! -d /app/node_modules/.pnpm ] || [ ! -d /app/node_modules/helmet ] || [ ! -d /app/node_modules/@prisma/client ] || [ ! -d /app/node_modules/zod ]; then CI=true pnpm install --force --reporter=append-only --filter @continuum/api... --frozen-lockfile; fi; pnpm --filter @continuum/api exec tsc -p /app/packages/shared/tsconfig.json; if [ ! -d /app/node_modules/.prisma/client ]; then pnpm --filter @continuum/api exec prisma generate; fi; pnpm --filter @continuum/api dev"
+    command: sh -c "if [ ! -d /app/node_modules/.pnpm ] || [ ! -d /app/apps/api/node_modules/helmet ] || [ ! -d /app/apps/api/node_modules/@prisma/client ] || [ ! -d /app/apps/api/node_modules/zod ]; then CI=true pnpm install --force --reporter=append-only --filter @continuum/api... --frozen-lockfile; fi; pnpm --filter @continuum/api exec tsc -p /app/packages/shared/tsconfig.json; if [ ! -d /app/node_modules/.prisma/client ]; then pnpm --filter @continuum/api exec prisma generate; fi; pnpm --filter @continuum/api dev"
     working_dir: /app
 
   postgres:
@@ -71,6 +73,9 @@ services:
     build:
       context: .
       dockerfile: apps/worker/Dockerfile
+      args:
+        TEXLIVE_BASE_IMAGE: ${TEXLIVE_BASE_IMAGE:-continuum-texlive-base:texlive-2022-node20-bookworm}
+        NODE_RUNTIME_IMAGE: ${NODE_RUNTIME_IMAGE:-node:24.18.0-bookworm-slim}
     container_name: continuum-worker
     depends_on:
       redis:
@@ -97,7 +102,7 @@ services:
       - .:/app
       - worker_node_modules:/app/node_modules
       - worker_app_node_modules:/app/apps/worker/node_modules
-    command: sh -c "if [ ! -d /app/node_modules/.pnpm ] || [ ! -d /app/node_modules/zod ] || [ ! -d /app/node_modules/@continuum/latex-runtime ]; then CI=true pnpm install --force --reporter=append-only --filter @continuum/worker... --frozen-lockfile; fi; pnpm --filter @continuum/worker exec tsc -p /app/packages/shared/tsconfig.json; pnpm --filter @continuum/worker exec tsc -p /app/packages/latex-runtime/tsconfig.json; pnpm --filter @continuum/worker dev"
+    command: sh -c "if [ ! -d /app/node_modules/.pnpm ] || [ ! -d /app/packages/shared/node_modules/zod ] || [ ! -d /app/apps/worker/node_modules/@continuum/latex-runtime ]; then CI=true pnpm install --force --reporter=append-only --filter @continuum/worker... --frozen-lockfile; fi; pnpm --filter @continuum/worker exec tsc -p /app/packages/shared/tsconfig.json; pnpm --filter @continuum/worker exec tsc -p /app/packages/latex-runtime/tsconfig.json; pnpm --filter @continuum/worker dev"
     working_dir: /app
 
   minio:

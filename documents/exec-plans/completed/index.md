@@ -22,6 +22,7 @@ Legacy vertical slices — исторические specs и execution context. 
 
 ## Native exec-plans
 
+- `2026-07-11-node24-runtime-migration.md`
 - `2026-03-23-dark-theme-foundation.md`
 - `2026-03-23-task-method-guidance.md`
 - `2026-03-13-student-dashboard-dual-design-system.md`

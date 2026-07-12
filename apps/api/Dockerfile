@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:20-bookworm-slim AS base
+ARG NODE_RUNTIME_IMAGE=node:24.18.0-bookworm-slim
+
+FROM ${NODE_RUNTIME_IMAGE} AS base
 
 WORKDIR /app
 ENV BACKEND_BUILD_IN_DOCKER=1

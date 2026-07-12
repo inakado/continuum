@@ -58,7 +58,7 @@ needs_worker_base_rebuild() {
 
   while IFS= read -r file; do
     case "$file" in
-      apps/worker/Dockerfile.texlive-base|scripts/install-texlive-runtime.sh|pnpm-lock.yaml|package.json)
+      apps/worker/Dockerfile.texlive-base|scripts/install-texlive-runtime.sh)
         return 0
         ;;
     esac

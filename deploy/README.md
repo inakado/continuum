@@ -171,7 +171,8 @@ docker compose -f docker-compose.prod.yml up -d api
   - должен пересобираться редко и только при изменениях runtime-layer.
 - `apps/worker/Dockerfile`
   - больше не устанавливает `texlive-full`;
-  - собирает только application-слои `worker` поверх `TEXLIVE_BASE_IMAGE`;
+  - удаляет legacy Node runtime из `TEXLIVE_BASE_IMAGE` и накладывает pinned Node.js 24 из `NODE_RUNTIME_IMAGE`;
+  - собирает только Node/application-слои `worker` поверх `TEXLIVE_BASE_IMAGE`;
   - используется для обычных релизов и быстрых кодовых пересборок.
 - `docker-compose.prod.yml`
   - передаёт `TEXLIVE_BASE_IMAGE` в build args для `worker`.
@@ -179,6 +180,7 @@ docker compose -f docker-compose.prod.yml up -d api
 Практический смысл:
 - первый шаг `docker build -f apps/worker/Dockerfile.texlive-base ...` создаёт стабильную тяжёлую базу;
 - последующие `docker compose -f docker-compose.prod.yml build worker` больше не должны повторно выполнять `install-texlive-runtime.sh`.
+- обновление Node.js выполняется пересборкой `worker`; TeX Live base при этом не пересобирается.
 
 ### Stable TeX Live runtime base для `worker`
 
@@ -189,6 +191,7 @@ docker compose -f docker-compose.prod.yml up -d api
 
 ```bash
 export TEXLIVE_BASE_IMAGE=continuum-texlive-base:texlive-2022-node20-bookworm
+export NODE_RUNTIME_IMAGE=node:24.18.0-bookworm-slim
 ```
 
 Первичная сборка base image или явное обновление runtime-слоя:
@@ -199,6 +202,7 @@ docker build -f apps/worker/Dockerfile.texlive-base -t "$TEXLIVE_BASE_IMAGE" .
 ```
 
 Обычный `worker` build использует этот base image через `TEXLIVE_BASE_IMAGE` и не должен заново скачивать `texlive-full`.
+Legacy `node20` в имени tag временно сохраняется для совместимости с уже собранным тяжёлым image; фактический worker runtime использует Node.js 24 из `NODE_RUNTIME_IMAGE`.
 
 ### Cache-first policy для `worker`
 
@@ -211,6 +215,7 @@ docker compose -f docker-compose.prod.yml up -d api
 
 # worker пересобираем только если реально менялся worker/app слой
 TEXLIVE_BASE_IMAGE="${TEXLIVE_BASE_IMAGE:-continuum-texlive-base:texlive-2022-node20-bookworm}" \
+NODE_RUNTIME_IMAGE="${NODE_RUNTIME_IMAGE:-node:24.18.0-bookworm-slim}" \
   docker compose -f docker-compose.prod.yml build worker
 docker compose -f docker-compose.prod.yml up -d worker
 ```
@@ -227,7 +232,8 @@ docker compose -f docker-compose.prod.yml up -d worker
 Когда нужно пересобирать именно `continuum-texlive-base`:
 - изменения в `apps/worker/Dockerfile.texlive-base`;
 - изменения в `scripts/install-texlive-runtime.sh`;
-- изменения в `pnpm-lock.yaml` или `package.json`, если они влияют на runtime policy base image.
+
+Изменения `package.json`, `pnpm-lock.yaml`, Node.js или application-кода не требуют rebuild TeX Live base.
 
 Чтобы не терять кэш `texlive`-слоя:
 - не использовать `docker build --no-cache` для обычного релиза;
@@ -412,6 +418,7 @@ cd /srv/continuum
 git log --oneline -n 10
 git checkout <previous-commit-or-tag>
 export TEXLIVE_BASE_IMAGE="${TEXLIVE_BASE_IMAGE:-continuum-texlive-base:texlive-2022-node20-bookworm}"
+export NODE_RUNTIME_IMAGE="${NODE_RUNTIME_IMAGE:-node:24.18.0-bookworm-slim}"
 docker compose -f docker-compose.prod.yml build api
 docker compose -f docker-compose.prod.yml up -d api
 docker compose -f docker-compose.prod.yml build worker
@@ -441,7 +448,7 @@ curl -fsS http://127.0.0.1:3001/login >/dev/null
    - указать корректный `S3_PUBLIC_BASE_URL`.
 5. Подтверждение, что на VPS доступны:
    - Docker + Compose,
-   - Node 20 + pnpm,
+   - Node.js 24 + pnpm 10.11.1,
    - `systemd`, `nginx`, `certbot`.
 6. Ручной запуск миграций перед первым deploy:
    - `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'export COREPACK_ENABLE_DOWNLOAD_PROMPT=0 && pnpm --filter @continuum/api exec prisma migrate deploy'`

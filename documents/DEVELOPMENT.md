@@ -5,6 +5,8 @@
 
 ## Prerequisites / Env
 
+- Node.js `24.x` (для nvm: `nvm use`; версия зафиксирована в `.nvmrc`)
+- pnpm `10.11.1` через Corepack/root `packageManager`
 - `API_PORT` — default `3000`
 - `NEXT_PUBLIC_API_BASE_URL` — default `http://localhost:3000`
 - Для backend/Prisma-команд должны быть доступны `DATABASE_URL` или `POSTGRES_*`
@@ -44,6 +46,7 @@
 - Local worker runtime base image (one-time or after explicit cleanup):
   - `export TEXLIVE_BASE_IMAGE=continuum-texlive-base:texlive-2022-node20-bookworm`
   - `docker build -f apps/worker/Dockerfile.texlive-base -t "$TEXLIVE_BASE_IMAGE" .`
+  - legacy tag сохранён для reuse существующего тяжёлого TeX image; исполняемый Node.js 24 накладывается отдельно в `apps/worker/Dockerfile`
 - Web + shared:
   - `pnpm build:web`
 - Full workspace build:
@@ -122,12 +125,13 @@ Auth smoke проверяет:
 ### Worker Dockerfile model
 
 - `apps/worker/Dockerfile.texlive-base` — отдельный runtime Dockerfile для тяжёлой TeX Live базы.
-- `apps/worker/Dockerfile` — application Dockerfile для `worker`, который использует `ARG TEXLIVE_BASE_IMAGE` и не должен сам устанавливать `texlive-full`.
+- `apps/worker/Dockerfile` — application Dockerfile для `worker`, который использует `ARG TEXLIVE_BASE_IMAGE`, удаляет legacy Node из base и накладывает pinned `NODE_RUNTIME_IMAGE`; `texlive-full` не переустанавливается.
 - Обычный production/deploy цикл работает через:
   - редкий rebuild `Dockerfile.texlive-base` при изменении runtime-зависимостей;
   - частый rebuild `apps/worker/Dockerfile` при изменении worker/shared application-кода.
 - Если в логе `docker compose -f docker-compose.prod.yml build worker` снова появляется шаг `install-texlive-runtime.sh`, это признак, что используется старая схема или отсутствует нужный `TEXLIVE_BASE_IMAGE`.
 - Тот же invariant действует и локально: если `docker compose build worker` не находит `continuum-texlive-base:texlive-2022-node20-bookworm`, сначала нужно вручную собрать `apps/worker/Dockerfile.texlive-base`.
+- Смена `NODE_RUNTIME_IMAGE` не требует rebuild `Dockerfile.texlive-base`: пересобирается только worker application image.
 
 ### Lockfile discipline
 

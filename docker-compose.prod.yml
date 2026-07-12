@@ -6,6 +6,8 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
       target: runner
+      args:
+        NODE_RUNTIME_IMAGE: ${NODE_RUNTIME_IMAGE:-node:24.18.0-bookworm-slim}
     env_file:
       - ./deploy/env/api.env
     restart: unless-stopped
@@ -30,6 +32,7 @@ services:
       target: runner
       args:
         TEXLIVE_BASE_IMAGE: ${TEXLIVE_BASE_IMAGE:-continuum-texlive-base:texlive-2022-node20-bookworm}
+        NODE_RUNTIME_IMAGE: ${NODE_RUNTIME_IMAGE:-node:24.18.0-bookworm-slim}
     env_file:
       - ./deploy/env/worker.env
     environment:

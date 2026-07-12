@@ -1,13 +1,27 @@
 # syntax=docker/dockerfile:1.7
 
 ARG TEXLIVE_BASE_IMAGE=continuum-texlive-base:texlive-2022-node20-bookworm
+ARG NODE_RUNTIME_IMAGE=node:24.18.0-bookworm-slim
+
+FROM ${NODE_RUNTIME_IMAGE} AS node-runtime
 
 FROM ${TEXLIVE_BASE_IMAGE} AS base
 
 WORKDIR /app
 ENV BACKEND_BUILD_IN_DOCKER=1
+ENV NODE_ENV=development
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
+
+# Keep the expensive TeX layer stable while replacing its legacy Node runtime.
+RUN rm -rf /usr/local/bin/node \
+    /usr/local/bin/npm \
+    /usr/local/bin/npx \
+    /usr/local/bin/corepack \
+    /usr/local/lib/node_modules \
+    /app/*
+COPY --from=node-runtime /usr/local/ /usr/local/
+RUN corepack enable
 
 FROM base AS deps
 

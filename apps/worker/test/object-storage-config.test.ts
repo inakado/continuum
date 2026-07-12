@@ -33,6 +33,7 @@ describe("resolveWorkerObjectStorageConfig", () => {
     process.env.S3_PUBLIC_BASE_URL = "files.example.com/public";
     process.env.S3_CONNECTION_TIMEOUT_MS = "2200";
     process.env.S3_SOCKET_TIMEOUT_MS = "5200";
+    process.env.APP_ENV = "production";
     process.env.NODE_ENV = "production";
 
     const config = resolveWorkerObjectStorageConfig();
@@ -65,6 +66,7 @@ describe("resolveWorkerObjectStorageConfig", () => {
     process.env.MINIO_ROOT_USER = "root-user";
     process.env.MINIO_ROOT_PASSWORD = "root-pass";
     process.env.S3_FORCE_PATH_STYLE = "true";
+    process.env.APP_ENV = "development";
     process.env.NODE_ENV = "development";
 
     const config = resolveWorkerObjectStorageConfig();

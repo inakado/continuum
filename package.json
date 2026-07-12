@@ -2,6 +2,9 @@
   "name": "continuum",
   "private": true,
   "packageManager": "pnpm@10.11.1",
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
   "scripts": {
     "dev": "turbo dev",
     "build": "pnpm build:backend && pnpm build:web",

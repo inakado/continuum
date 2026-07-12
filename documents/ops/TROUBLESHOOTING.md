@@ -226,3 +226,13 @@ Production-first troubleshooting хранится отдельно в [deploy/RE
   - не удалять build cache; при недостатке места чистить host-level логи/кеши и при необходимости расширять диск;
   - если пересобирается runtime image, учитывать дополнительное место под `continuum-texlive-base`.
 - **Проверка:** после cleanup/runtime rebuild `docker build -f apps/worker/Dockerfile.texlive-base -t "$TEXLIVE_BASE_IMAGE" .` и `docker compose -f docker-compose.prod.yml build worker` завершаются успешно.
+
+- **Симптом:** API/worker логируют `NodeVersionSupportWarning` или dependency требует Node.js `>=22/24`.
+- **Причина:** контейнер или VPS всё ещё использует EOL Node.js 20.
+- **Фикс:** пересобрать `api`/`worker` с `NODE_RUNTIME_IMAGE=node:24.18.0-bookworm-slim`; TeX Live base не пересобирать.
+- **Проверка:** `docker compose exec -T api node -v` и `docker compose exec -T worker node -v` возвращают `v24.x`, `/health` и worker queue smoke проходят.
+
+- **Симптом:** каждый `docker compose up` повторно запускает долгий `pnpm install --force`, хотя dependency volumes уже заполнены.
+- **Причина:** startup guard проверяет workspace dependencies в root `/app/node_modules`, хотя filtered pnpm install создаёт package-specific links в `apps/*/node_modules` и `packages/*/node_modules`.
+- **Фикс:** проверять API dependencies в `/app/apps/api/node_modules`, worker link в `/app/apps/worker/node_modules` и shared `zod` в `/app/packages/shared/node_modules`.
+- **Проверка:** после первого успешного install повторный `docker compose up -d --force-recreate api worker` сразу переходит к сборке shared/startup и не выводит progress `pnpm install`.
