@@ -14,6 +14,8 @@
   --focus-ring-color: var(--border-primary);
   --focus-ring-border-color: color-mix(in srgb, var(--border-primary) 58%, transparent);
   --focus-ring-soft-color: color-mix(in srgb, var(--border-primary) 32%, transparent);
+  --control-invalid-border-color: color-mix(in srgb, #b42318 64%, var(--control-border));
+  --control-invalid-ring-color: color-mix(in srgb, #b42318 22%, transparent);
   --z-shell-sidebar: 20;
   --z-shell-popover: 30;
   --z-shell-skip-link: 40;

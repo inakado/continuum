@@ -1,4 +1,4 @@
-import type { FormEvent, ReactNode } from "react";
+import type { FormEvent, ReactNode, Ref } from "react";
 import styles from "./entity-editor-inline.module.css";
 import Button from "./ui/Button";
 
@@ -11,6 +11,7 @@ type EntityEditorInlineProps = {
   error?: string | null;
   secondaryAction?: { label: string; onClick: () => void };
   rightAction?: ReactNode;
+  formRef?: Ref<HTMLFormElement>;
   onSubmit: () => Promise<void> | void;
   children: ReactNode;
 };
@@ -24,6 +25,7 @@ export default function EntityEditorInline({
   error,
   secondaryAction,
   rightAction,
+  formRef,
   onSubmit,
   children,
 }: EntityEditorInlineProps) {
@@ -33,7 +35,7 @@ export default function EntityEditorInline({
   };
 
   return (
-    <form className={styles.form} onSubmit={handleSubmit}>
+    <form ref={formRef} className={styles.form} onSubmit={handleSubmit}>
       <div className={styles.header}>
         <h3 className={titleClassName ? `${styles.title} ${titleClassName}` : styles.title}>{title}</h3>
         {description ? <p className={styles.description}>{description}</p> : null}

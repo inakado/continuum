@@ -9,7 +9,7 @@ type Props = {
   editingTask: Task | null;
   inputRef: RefObject<HTMLInputElement | null>;
   state: TaskStatementImageState;
-  statusText: string;
+  statusText: string | null;
   onSelect: (event: ChangeEvent<HTMLInputElement>) => Promise<void>;
   onRemove: () => Promise<void>;
   onPreviewError: () => void;
@@ -65,9 +65,11 @@ export function TeacherTaskStatementImageSection({
               void onSelect(event);
             }}
           />
-          <div className={styles.taskStatementImageStatus} role="status" aria-live="polite">
-            {statusText}
-          </div>
+          {statusText ? (
+            <div className={styles.taskStatementImageStatus} role="status" aria-live="polite">
+              {statusText}
+            </div>
+          ) : null}
           {state.updatedAt ? (
             <div className={styles.taskStatementImageMeta}>
               Обновлено: {new Date(state.updatedAt).toLocaleString("ru-RU")}

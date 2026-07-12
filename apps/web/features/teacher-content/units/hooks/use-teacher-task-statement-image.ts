@@ -147,7 +147,7 @@ export const useTeacherTaskStatementImage = ({ editingTask, fetchUnit }: Params)
           ...prev,
           error: `Максимальный размер файла: ${Math.round(
             STATEMENT_IMAGE_MAX_SIZE_BYTES / (1024 * 1024),
-          )} MB.`,
+          )} МБ.`,
         }));
         return;
       }
@@ -227,9 +227,11 @@ export const useTeacherTaskStatementImage = ({ editingTask, fetchUnit }: Params)
     ? "Загрузка изображения…"
     : taskStatementImageState.error
       ? taskStatementImageState.error
-      : taskStatementImageState.key
-        ? "Изображение сохранено."
-        : "Изображение не прикреплено.";
+      : taskStatementImageState.updatedAt
+        ? taskStatementImageState.key
+          ? "Изображение сохранено."
+          : "Изображение удалено."
+        : null;
 
   const result = useMemo(
     () => ({

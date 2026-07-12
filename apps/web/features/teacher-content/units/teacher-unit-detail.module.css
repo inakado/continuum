@@ -1326,56 +1326,21 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 40px;
+  min-height: var(--action-control-height-sm);
 }
 
 .taskPublishSwitch > span:last-child {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.taskEditAction,
-.taskDeleteAction {
-  border: none;
-  background: transparent;
-  color: var(--text-primary);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 40px;
-  border-radius: var(--control-radius);
-  padding: 6px 10px;
-  font-size: 16px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  transition: background 0.2s ease, color 0.2s ease;
-}
-
-.taskEditAction svg,
-.taskDeleteAction svg {
-  width: 16px;
-  height: 16px;
-}
-
-.taskEditAction:hover,
-.taskDeleteAction:hover {
-  background: var(--surface-2);
-}
-
-.taskEditAction:focus-visible,
-.taskDeleteAction:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
+  font-size: var(--action-font-size-sm);
+  font-weight: var(--action-weight);
+  letter-spacing: var(--action-tracking);
+  line-height: var(--action-line-height);
 }
 
 .taskDeleteAction {
   margin-left: auto;
-  color: color-mix(in srgb, var(--text-primary) 82%, var(--text-muted));
-  gap: 0;
-  min-width: 36px;
-  justify-content: center;
-  padding-inline: 8px;
+  width: var(--action-control-height-sm);
+  min-width: var(--action-control-height-sm);
+  padding-inline: 0;
 }
 
 .taskSolutionSection {

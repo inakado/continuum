@@ -26,3 +26,8 @@
   border-color: var(--focus-ring-border-color);
   box-shadow: 0 0 0 1px var(--focus-ring-soft-color);
 }
+
+.textarea[aria-invalid="true"] {
+  border-color: var(--control-invalid-border-color);
+  box-shadow: 0 0 0 1px var(--control-invalid-ring-color);
+}

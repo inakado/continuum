@@ -17,7 +17,7 @@ describe("TaskForm", () => {
     const user = userEvent.setup();
 
     await user.type(screen.getByLabelText("Текст условия (KaTeX)"), "x+1=2");
-    await user.type(screen.getByLabelText("Подсказка для ученика"), "Сначала перенесите единицу вправо.");
+    await user.type(screen.getByLabelText("Методические указания"), "Сначала перенесите единицу вправо.");
     await user.type(screen.getByLabelText("Правильный ответ"), "1");
     await user.click(screen.getByRole("button", { name: "Сохранить" }));
 
@@ -36,10 +36,27 @@ describe("TaskForm", () => {
     render(<TaskForm title="Новая задача" submitLabel="Сохранить" onSubmit={vi.fn()} />);
 
     const answerInput = screen.getByLabelText("Правильный ответ");
-    const methodGuidanceInput = screen.getByLabelText("Подсказка для ученика");
+    const methodGuidanceInput = screen.getByLabelText("Методические указания");
     const position = answerInput.compareDocumentPosition(methodGuidanceInput);
 
     expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("shows validation errors and focuses the first invalid field on submit", async () => {
+    const onSubmit = vi.fn();
+    render(<TaskForm title="Новая задача" submitLabel="Сохранить" onSubmit={onSubmit} />);
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText("Текст условия (KaTeX)"), "x+1=2");
+    await user.click(screen.getByRole("button", { name: "Сохранить" }));
+
+    expect(screen.getByText("Укажите правильный ответ для всех частей")).toBeInTheDocument();
+    const correctAnswerInput = screen.getByLabelText("Правильный ответ");
+    expect(correctAnswerInput).toHaveFocus();
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    await user.type(correctAnswerInput, "1");
+    expect(screen.queryByText("Укажите правильный ответ для всех частей")).not.toBeInTheDocument();
   });
 
   it("autosaves before returning to tasks when the form has valid changes", async () => {

@@ -140,7 +140,7 @@ vi.mock("./hooks/use-teacher-task-statement-image", () => ({
       key: null,
       previewUrl: null,
     },
-    taskStatementImageStatusText: "Изображение не прикреплено.",
+    taskStatementImageStatusText: null,
     handleTaskStatementImageSelected: vi.fn(),
     handleTaskStatementImageRemove: vi.fn(),
     handleTaskStatementImagePreviewError: vi.fn(),

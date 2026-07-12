@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import EntityEditorInline from "@/components/EntityEditorInline";
 import FieldLabel from "@/components/ui/FieldLabel";
 import Input from "@/components/ui/Input";
@@ -61,6 +61,7 @@ type StatementSectionProps = {
   statementLite: string;
   onStatementChange: (value: string) => void;
   statementError?: string;
+  errorId: string;
 };
 
 type MethodGuidanceSectionProps = {
@@ -71,6 +72,7 @@ type MethodGuidanceSectionProps = {
 type NumericAnswerFieldsProps = {
   numericParts: NumericPart[];
   error?: string;
+  errorId: string;
   onAddPart: () => void;
   onUpdatePartLabel: (index: number, value: string) => void;
   onUpdatePartCorrectValue: (index: number, value: string) => void;
@@ -85,6 +87,10 @@ type ChoiceAnswerFieldsProps = {
   errors: {
     choices?: string;
     correctAnswer?: string;
+  };
+  errorIds: {
+    choices: string;
+    correctAnswer: string;
   };
   onAddChoice: () => void;
   onUpdateChoiceText: (index: number, value: string) => void;
@@ -205,7 +211,7 @@ const validateTaskForm = (
   if (next.answerType === "numeric") {
     if (next.numericParts.length === 0) errors.numericParts = "Добавьте хотя бы одну часть";
     next.numericParts.forEach((part) => {
-      if (!part.correctValue.trim()) errors.numericParts = "Укажите correct value для всех частей";
+      if (!part.correctValue.trim()) errors.numericParts = "Укажите правильный ответ для всех частей";
     });
   }
 
@@ -252,7 +258,6 @@ function BaseSettingsSection({
               { value: "multi_choice", label: "Несколько вариантов" },
               { value: "photo", label: "Развернутый ответ" },
             ]}
-            placeholder="Тип задачи"
           />
         </FieldLabel>
         <Checkbox
@@ -266,7 +271,12 @@ function BaseSettingsSection({
   );
 }
 
-function StatementSection({ statementLite, onStatementChange, statementError }: StatementSectionProps) {
+function StatementSection({
+  statementLite,
+  onStatementChange,
+  statementError,
+  errorId,
+}: StatementSectionProps) {
   return (
     <div className={styles.section}>
       <div className={styles.sectionTitle}>Условие</div>
@@ -275,6 +285,9 @@ function StatementSection({ statementLite, onStatementChange, statementError }: 
           <Textarea
             value={statementLite}
             className={styles.textarea}
+            data-validation-field="statementLite"
+            aria-invalid={Boolean(statementError)}
+            aria-describedby={statementError ? errorId : undefined}
             onChange={(event) => onStatementChange(event.target.value)}
           />
         </FieldLabel>
@@ -285,7 +298,11 @@ function StatementSection({ statementLite, onStatementChange, statementError }: 
           </div>
         </div>
       </div>
-      {statementError ? <div className={styles.fieldError}>{statementError}</div> : null}
+      {statementError ? (
+        <div id={errorId} className={styles.fieldError} role="alert">
+          {statementError}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -296,8 +313,7 @@ function MethodGuidanceSection({
 }: MethodGuidanceSectionProps) {
   return (
     <div className={styles.section}>
-      <div className={styles.sectionTitle}>Методические указания</div>
-      <FieldLabel className={styles.label} label="Подсказка для ученика">
+      <FieldLabel className={styles.label} label="Методические указания">
         <Textarea
           value={methodGuidance}
           className={styles.textarea}
@@ -312,6 +328,7 @@ function MethodGuidanceSection({
 function NumericAnswerFields({
   numericParts,
   error,
+  errorId,
   onAddPart,
   onUpdatePartLabel,
   onUpdatePartCorrectValue,
@@ -326,12 +343,17 @@ function NumericAnswerFields({
           className={styles.addIconButton}
           aria-label="Добавить часть"
           title="Добавить часть"
+          data-validation-field={numericParts.length === 0 ? "numericParts" : undefined}
           onClick={onAddPart}
         >
           <Plus size={16} aria-hidden="true" />
         </button>
       </div>
-      {error ? <div className={styles.fieldError}>{error}</div> : null}
+      {error ? (
+        <div id={errorId} className={styles.fieldError} role="alert">
+          {error}
+        </div>
+      ) : null}
       <div className={styles.partList}>
         {numericParts.map((part, index) => (
           <div key={part.key} className={styles.partRow}>
@@ -348,6 +370,9 @@ function NumericAnswerFields({
             <FieldLabel className={styles.label} label="Правильный ответ">
               <Input
                 value={part.correctValue}
+                data-validation-field={!part.correctValue.trim() ? "numericParts" : undefined}
+                aria-invalid={Boolean(error && !part.correctValue.trim())}
+                aria-describedby={error && !part.correctValue.trim() ? errorId : undefined}
                 onChange={(event) => onUpdatePartCorrectValue(index, event.target.value)}
               />
             </FieldLabel>
@@ -375,6 +400,7 @@ function ChoiceAnswerFields({
   correctSingleIndex,
   correctMultiIndices,
   errors,
+  errorIds,
   onAddChoice,
   onUpdateChoiceText,
   onToggleCorrectChoice,
@@ -389,12 +415,17 @@ function ChoiceAnswerFields({
           className={styles.addIconButton}
           aria-label="Добавить вариант"
           title="Добавить вариант"
+          data-validation-field={choices.length < 2 ? "choices" : undefined}
           onClick={onAddChoice}
         >
           <Plus size={16} aria-hidden="true" />
         </button>
       </div>
-      {errors.choices ? <div className={styles.fieldError}>{errors.choices}</div> : null}
+      {errors.choices ? (
+        <div id={errorIds.choices} className={styles.fieldError} role="alert">
+          {errors.choices}
+        </div>
+      ) : null}
       <div className={styles.choiceList}>
         {choices.map((choice, index) => {
           const isCorrect =
@@ -406,7 +437,13 @@ function ChoiceAnswerFields({
               <div className={styles.choiceMain}>
                 <div className={styles.choiceIndex}>Вариант {index + 1}</div>
                 <FieldLabel className={styles.label} label="Текст (KaTeX)">
-                  <Input value={choice.textLite} onChange={(event) => onUpdateChoiceText(index, event.target.value)} />
+                  <Input
+                    value={choice.textLite}
+                    data-validation-field={!choice.textLite.trim() ? "choices" : undefined}
+                    aria-invalid={Boolean(errors.choices && !choice.textLite.trim())}
+                    aria-describedby={errors.choices && !choice.textLite.trim() ? errorIds.choices : undefined}
+                    onChange={(event) => onUpdateChoiceText(index, event.target.value)}
+                  />
                 </FieldLabel>
                 <div className={styles.inlinePreview}>
                   <div className={styles.inlinePreviewLabel}>Предпросмотр</div>
@@ -418,6 +455,9 @@ function ChoiceAnswerFields({
                   <input
                     type={answerType === "single_choice" ? "radio" : "checkbox"}
                     checked={isCorrect}
+                    data-validation-field="correctAnswer"
+                    aria-invalid={Boolean(errors.correctAnswer)}
+                    aria-describedby={errors.correctAnswer ? errorIds.correctAnswer : undefined}
                     onChange={() => onToggleCorrectChoice(index)}
                   />
                   Правильный
@@ -438,7 +478,11 @@ function ChoiceAnswerFields({
           );
         })}
       </div>
-      {errors.correctAnswer ? <div className={styles.fieldError}>{errors.correctAnswer}</div> : null}
+      {errors.correctAnswer ? (
+        <div id={errorIds.correctAnswer} className={styles.fieldError} role="alert">
+          {errors.correctAnswer}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -456,10 +500,18 @@ export default function TaskForm({
   extraSection,
 }: TaskFormProps) {
   const [form, setForm] = useState<TaskFormData>(() => createDefaultState());
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [correctSingleIndex, setCorrectSingleIndex] = useState<number | null>(null);
   const [correctMultiIndices, setCorrectMultiIndices] = useState<number[]>([]);
   const initialComparableRef = useRef<string>("");
+  const formRef = useRef<HTMLFormElement>(null);
+  const validationId = useId();
+  const validationErrorIds = {
+    statementLite: `${validationId}-statement-error`,
+    numericParts: `${validationId}-numeric-error`,
+    choices: `${validationId}-choices-error`,
+    correctAnswer: `${validationId}-correct-answer-error`,
+  };
 
   const correctSingleKey = useMemo(() => {
     if (correctSingleIndex === null) return "";
@@ -519,7 +571,7 @@ export default function TaskForm({
       correctMultiIndices: initialCorrectMultiIndices,
     });
     initialComparableRef.current = JSON.stringify(nextComparable);
-    setFieldErrors({});
+    setHasAttemptedSubmit(false);
   }, [initial]);
 
   const handleTypeChange = (nextType: AnswerType) => {
@@ -559,6 +611,7 @@ export default function TaskForm({
     [nextForm, correctMultiKeys, correctSingleKey],
   );
   const canSubmit = Object.keys(validationErrors).length === 0;
+  const visibleValidationErrors = hasAttemptedSubmit ? validationErrors : {};
   const comparableState = useMemo(
     () =>
       buildComparableState({
@@ -651,7 +704,8 @@ export default function TaskForm({
     numeric: (
       <NumericAnswerFields
         numericParts={form.numericParts}
-        error={fieldErrors.numericParts}
+        error={visibleValidationErrors.numericParts}
+        errorId={validationErrorIds.numericParts}
         onAddPart={addNumericPart}
         onUpdatePartLabel={updateNumericPartLabel}
         onUpdatePartCorrectValue={updateNumericPartCorrectValue}
@@ -664,7 +718,14 @@ export default function TaskForm({
         choices={form.choices}
         correctSingleIndex={correctSingleIndex}
         correctMultiIndices={correctMultiIndices}
-        errors={{ choices: fieldErrors.choices, correctAnswer: fieldErrors.correctAnswer }}
+        errors={{
+          choices: visibleValidationErrors.choices,
+          correctAnswer: visibleValidationErrors.correctAnswer,
+        }}
+        errorIds={{
+          choices: validationErrorIds.choices,
+          correctAnswer: validationErrorIds.correctAnswer,
+        }}
         onAddChoice={addChoice}
         onUpdateChoiceText={updateChoiceText}
         onToggleCorrectChoice={toggleCorrectChoice}
@@ -677,7 +738,14 @@ export default function TaskForm({
         choices={form.choices}
         correctSingleIndex={correctSingleIndex}
         correctMultiIndices={correctMultiIndices}
-        errors={{ choices: fieldErrors.choices, correctAnswer: fieldErrors.correctAnswer }}
+        errors={{
+          choices: visibleValidationErrors.choices,
+          correctAnswer: visibleValidationErrors.correctAnswer,
+        }}
+        errorIds={{
+          choices: validationErrorIds.choices,
+          correctAnswer: validationErrorIds.correctAnswer,
+        }}
         onAddChoice={addChoice}
         onUpdateChoiceText={updateChoiceText}
         onToggleCorrectChoice={toggleCorrectChoice}
@@ -689,8 +757,18 @@ export default function TaskForm({
 
   const handleSubmit = async () => {
     const errors = validationErrors;
-    setFieldErrors(errors);
-    if (Object.keys(errors).length > 0) return;
+    setHasAttemptedSubmit(true);
+    if (Object.keys(errors).length > 0) {
+      const firstInvalidField = ["statementLite", "numericParts", "choices", "correctAnswer"].find(
+        (field) => Boolean(errors[field]),
+      );
+      if (firstInvalidField) {
+        formRef.current
+          ?.querySelector<HTMLElement>(`[data-validation-field="${firstInvalidField}"]`)
+          ?.focus();
+      }
+      return;
+    }
     await onSubmit(nextForm);
   };
 
@@ -708,12 +786,12 @@ export default function TaskForm({
     <EntityEditorInline
       title={title}
       titleClassName={styles.formTitle}
+      formRef={formRef}
       submitLabel={submitLabel}
       onSubmit={handleSubmit}
       secondaryAction={onCancel ? { label: cancelLabel, onClick: () => void handleBackToTasks() } : undefined}
       rightAction={rightAction}
       error={error}
-      disabled={!canSubmit}
     >
       <BaseSettingsSection
         answerType={form.answerType}
@@ -725,7 +803,8 @@ export default function TaskForm({
       <StatementSection
         statementLite={form.statementLite}
         onStatementChange={(value) => setForm((prev) => ({ ...prev, statementLite: value }))}
-        statementError={fieldErrors.statementLite}
+        statementError={visibleValidationErrors.statementLite}
+        errorId={validationErrorIds.statementLite}
       />
 
       {afterStatementSection}

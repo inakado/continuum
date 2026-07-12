@@ -96,7 +96,7 @@ describe("useTeacherTaskStatementImage", () => {
     });
 
     expect(teacherApi.presignTaskStatementImageView).toHaveBeenCalledWith("task-1", 600);
-    expect(result.current.taskStatementImageStatusText).toBe("Изображение сохранено.");
+    expect(result.current.taskStatementImageStatusText).toBeNull();
   });
 
   it("uploads image through mutation flow and refreshes unit", async () => {
@@ -146,6 +146,7 @@ describe("useTeacherTaskStatementImage", () => {
     expect(result.current.taskStatementImageState.key).toBe("statement-key-next");
     expect(result.current.taskStatementImageState.previewUrl).toBe("https://cdn.example.com/statement-next.webp");
     expect(result.current.taskStatementImageState.error).toBeNull();
+    expect(result.current.taskStatementImageStatusText).toBe("Изображение сохранено.");
   });
 
   it("deletes image through mutation flow and clears preview", async () => {
@@ -185,5 +186,6 @@ describe("useTeacherTaskStatementImage", () => {
     expect(fetchUnit).toHaveBeenCalledTimes(1);
     expect(result.current.taskStatementImageState.key).toBeNull();
     expect(result.current.taskStatementImageState.previewUrl).toBeNull();
+    expect(result.current.taskStatementImageStatusText).toBe("Изображение удалено.");
   });
 });

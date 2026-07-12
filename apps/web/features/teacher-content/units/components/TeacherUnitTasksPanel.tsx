@@ -89,18 +89,21 @@ const SortableTaskCard = memo(function SortableTaskCard({
           label="Опубликовано"
           aria-label={task.status === "published" ? "Снять задачу с публикации" : "Опубликовать задачу"}
         />
-        <button type="button" className={styles.taskEditAction} onClick={() => onEdit(task)}>
+        <Button type="button" variant="ghost" size="sm" onClick={() => onEdit(task)}>
           <Pencil size={16} aria-hidden="true" />
           <span>Редактировать</span>
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="danger"
+          size="sm"
           className={styles.taskDeleteAction}
           onClick={() => onDelete(task)}
           aria-label={`Удалить задачу №${index + 1}`}
+          title={`Удалить задачу №${index + 1}`}
         >
           <Trash2 size={16} aria-hidden="true" />
-        </button>
+        </Button>
       </div>
     </div>
   );
