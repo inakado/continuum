@@ -4,7 +4,18 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { ArrowLeft, BookOpenText } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpenText,
+  Camera,
+  CheckCircle2,
+  ChevronDown,
+  CircleX,
+  PenTool,
+  Send,
+  Upload,
+  X,
+} from "lucide-react";
 import type { ExcalidrawInitialDataState } from "@excalidraw/excalidraw/types";
 import {
   studentApi,
@@ -303,7 +314,7 @@ function StudentPhotoActions({
 
   return (
     <div className={styles.photoSubmissionPanel}>
-      <div className={styles.photoModeSwitch} aria-label="Способ ответа">
+      <div className={styles.photoModeSwitch} role="group" aria-label="Способ ответа">
         <button
           type="button"
           className={styles.photoModeButton}
@@ -311,6 +322,7 @@ function StudentPhotoActions({
           onClick={() => photo.setPhotoAnswerMode(taskId, "photo")}
           disabled={photo.isPhotoLoading}
         >
+          <Camera size={15} aria-hidden="true" />
           Фото
         </button>
         <button
@@ -320,24 +332,58 @@ function StudentPhotoActions({
           onClick={() => photo.setPhotoAnswerMode(taskId, "board")}
           disabled={photo.isPhotoLoading}
         >
+          <PenTool size={15} aria-hidden="true" />
           Доска
         </button>
       </div>
 
       {mode === "photo" ? (
-        <div className={styles.photoActions}>
-          <Button variant="ghost" onClick={() => photo.openPhotoFileDialog(taskId)} disabled={photo.isPhotoLoading}>
-            Загрузить фото
-          </Button>
-          <Button
-            onClick={() => photo.submitPhotoTask(taskId)}
-            disabled={photo.isPhotoLoading || photo.photoSelectedFiles.length === 0}
-          >
-            {photo.isPhotoLoading ? "Отправка..." : "Отправить"}
-          </Button>
+        <div className={styles.photoWorkspace}>
+          <div className={styles.photoUploadRow}>
+            <Button
+              variant="secondary"
+              onClick={() => photo.openPhotoFileDialog(taskId)}
+              disabled={photo.isPhotoLoading}
+            >
+              <Upload size={17} aria-hidden="true" />
+              Загрузить фото
+            </Button>
+            {photo.photoSelectedFiles.length === 0 ? (
+              <span className={styles.photoSelectionMeta} aria-live="polite">
+                Файлы не выбраны
+              </span>
+            ) : null}
+          </div>
           {photo.photoSelectedFiles.length > 0 ? (
-            <span className={styles.photoSelectionMeta}>Выбрано: {photo.photoSelectedFiles.length}</span>
+            <ul className={styles.photoFileList} aria-label="Выбранные фотографии" aria-live="polite">
+              {photo.photoSelectedFiles.map((file, index) => (
+                <li key={`${file.name}-${file.size}-${index}`} className={styles.photoFileItem}>
+                  <span className={styles.photoFileName} title={file.name}>
+                    {file.name}
+                  </span>
+                  <button
+                    type="button"
+                    className={styles.photoFileRemove}
+                    onClick={() => photo.removePhotoFile(taskId, index)}
+                    disabled={photo.isPhotoLoading}
+                    aria-label={`Убрать ${file.name}`}
+                    title={`Убрать ${file.name}`}
+                  >
+                    <X size={16} aria-hidden="true" />
+                  </button>
+                </li>
+              ))}
+            </ul>
           ) : null}
+          <div className={styles.photoSubmissionFooter}>
+            <Button
+              onClick={() => photo.submitPhotoTask(taskId)}
+              disabled={photo.isPhotoLoading || photo.photoSelectedFiles.length === 0}
+            >
+              <Send size={17} aria-hidden="true" />
+              {photo.isPhotoLoading ? "Отправка..." : "Отправить ответ"}
+            </Button>
+          </div>
         </div>
       ) : (
         <div className={styles.boardSubmissionArea}>
@@ -345,12 +391,13 @@ function StudentPhotoActions({
             onReady={photo.setBoardApi}
             onChange={(elements) => photo.handleBoardChange(taskId, elements)}
           />
-          <div className={styles.photoActions}>
+          <div className={styles.photoSubmissionFooter}>
             <Button
               onClick={() => photo.submitBoardTask(taskId)}
               disabled={photo.isPhotoLoading || !photo.boardHasElements}
             >
-              {photo.isPhotoLoading ? "Отправка..." : "Отправить доску"}
+              <Send size={17} aria-hidden="true" />
+              {photo.isPhotoLoading ? "Отправка..." : "Отправить ответ"}
             </Button>
           </div>
         </div>
@@ -413,31 +460,50 @@ function StudentPhotoFeedbackBoard({
     return null;
   }
 
-  const statusLabel = feedbackSubmission.status === "accepted" ? "Принято" : "Отклонено";
+  const isAccepted = feedbackSubmission.status === "accepted";
+  const statusLabel = isAccepted ? "Решение верное" : "Решение требует доработки";
 
   return (
-    <section className={styles.feedbackBoardPanel} aria-label="Разбор учителя">
-      <div className={styles.feedbackBoardHeader}>
-        <div>
-          <div className={styles.feedbackBoardTitle}>Разбор учителя</div>
-          <div className={styles.feedbackBoardMeta}>{statusLabel}</div>
-        </div>
-        <button
-          type="button"
-          className={styles.feedbackBoardToggle}
-          onClick={() => setOpen((value) => !value)}
-          aria-expanded={open}
-        >
-          {open ? "Скрыть разбор" : "Посмотреть разбор"}
-        </button>
-      </div>
+    <section className={styles.feedbackBoardPanel} aria-label="Разбор решения">
+      <button
+        type="button"
+        className={styles.feedbackBoardDisclosure}
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        aria-label={open ? "Скрыть разбор" : "Открыть разбор"}
+      >
+        <span className={styles.feedbackBoardHeading}>
+          {isAccepted ? (
+            <CheckCircle2
+              size={19}
+              className={`${styles.feedbackBoardStatusIcon} ${styles.feedbackBoardStatusIconAccepted}`}
+              aria-hidden="true"
+            />
+          ) : (
+            <CircleX
+              size={19}
+              className={`${styles.feedbackBoardStatusIcon} ${styles.feedbackBoardStatusIconRejected}`}
+              aria-hidden="true"
+            />
+          )}
+          <span className={styles.feedbackBoardTitle}>{statusLabel}</span>
+        </span>
+        <span className={styles.feedbackBoardDisclosureAction}>
+          {open ? "Скрыть разбор" : "Открыть разбор"}
+          <ChevronDown
+            size={18}
+            className={`${styles.feedbackBoardChevron} ${open ? styles.feedbackBoardChevronOpen : ""}`}
+            aria-hidden="true"
+          />
+        </span>
+      </button>
 
       {open ? (
         <div className={styles.feedbackBoardFrame}>
           {boardSceneQuery.data ? (
             <StudentFeedbackExcalidrawBoard initialData={boardSceneQuery.data} />
           ) : boardSceneQuery.isError && previewQuery.data ? (
-            <img className={styles.feedbackBoardPreview} src={previewQuery.data} alt="Превью разбора учителя" />
+            <img className={styles.feedbackBoardPreview} src={previewQuery.data} alt="Превью разбора решения" />
           ) : boardSceneQuery.isError && previewQuery.isError ? (
             <div className={styles.feedbackBoardPlaceholder}>Не удалось открыть разбор.</div>
           ) : (
@@ -632,8 +698,18 @@ function StudentUnitTasksPanel({
         />
 
         {!isPhotoTask && (attempt.showCorrectBadge || (!attempt.isTaskCredited && attempt.showIncorrectBadge)) ? (
-          <div className={attempt.showCorrectBadge ? styles.taskResultCorrect : styles.taskResultIncorrect}>
-            {attempt.showCorrectBadge ? "✓ Верно" : "✗ Неверно"}
+          <div
+            className={`${styles.taskResult} ${
+              attempt.showCorrectBadge ? styles.taskResultCorrect : styles.taskResultIncorrect
+            }`}
+            role="status"
+          >
+            {attempt.showCorrectBadge ? (
+              <CheckCircle2 size={19} aria-hidden="true" />
+            ) : (
+              <CircleX size={19} aria-hidden="true" />
+            )}
+            <span>{attempt.showCorrectBadge ? "Верно" : "Неверно"}</span>
           </div>
         ) : null}
 

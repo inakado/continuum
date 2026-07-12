@@ -282,6 +282,7 @@ describe("StudentUnitDetailScreen", () => {
   const openPhotoFileDialogMock = vi.fn();
   const submitPhotoTaskMock = vi.fn();
   const submitBoardTaskMock = vi.fn();
+  const removePhotoFileMock = vi.fn();
   const setPhotoAnswerModeMock = vi.fn();
   const toggleSolutionVisibilityMock = vi.fn();
 
@@ -293,6 +294,7 @@ describe("StudentUnitDetailScreen", () => {
     openPhotoFileDialogMock.mockReset();
     submitPhotoTaskMock.mockReset();
     submitBoardTaskMock.mockReset();
+    removePhotoFileMock.mockReset();
     setPhotoAnswerModeMock.mockReset();
     toggleSolutionVisibilityMock.mockReset();
 
@@ -369,6 +371,7 @@ describe("StudentUnitDetailScreen", () => {
       setBoardApi: vi.fn(),
       handleBoardChange: vi.fn(),
       openPhotoFileDialog: openPhotoFileDialogMock,
+      removePhotoFile: removePhotoFileMock,
       submitPhotoTask: submitPhotoTaskMock,
       submitBoardTask: submitBoardTaskMock,
     });
@@ -556,6 +559,7 @@ describe("StudentUnitDetailScreen", () => {
       setBoardApi: vi.fn(),
       handleBoardChange: vi.fn(),
       openPhotoFileDialog: openPhotoFileDialogMock,
+      removePhotoFile: removePhotoFileMock,
       submitPhotoTask: submitPhotoTaskMock,
       submitBoardTask: submitBoardTaskMock,
     });
@@ -564,7 +568,7 @@ describe("StudentUnitDetailScreen", () => {
     const user = userEvent.setup();
 
     expect(await screen.findByText("Следующая задача")).toBeInTheDocument();
-    expect(screen.getByText("✓ Верно")).toBeInTheDocument();
+    expect(screen.getByText("Верно")).toBeInTheDocument();
     expect(screen.getByText("Скрыть решение")).toBeInTheDocument();
     expect(screen.getByText("Осталось попыток: 2")).toBeInTheDocument();
 
@@ -631,6 +635,7 @@ describe("StudentUnitDetailScreen", () => {
       setBoardApi: vi.fn(),
       handleBoardChange: vi.fn(),
       openPhotoFileDialog: openPhotoFileDialogMock,
+      removePhotoFile: removePhotoFileMock,
       submitPhotoTask: submitPhotoTaskMock,
       submitBoardTask: submitBoardTaskMock,
     });
@@ -639,17 +644,21 @@ describe("StudentUnitDetailScreen", () => {
     const user = userEvent.setup();
 
     expect(await screen.findByRole("button", { name: "Загрузить фото" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Отправить" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Отправить ответ" })).toBeInTheDocument();
+    expect(screen.getByText("answer.jpg")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Проверить" })).not.toBeInTheDocument();
     expect(screen.queryByText(/Осталось попыток/)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Загрузить фото" }));
     expect(openPhotoFileDialogMock).toHaveBeenCalledWith("photo-task");
 
+    await user.click(screen.getByRole("button", { name: "Убрать answer.jpg" }));
+    expect(removePhotoFileMock).toHaveBeenCalledWith("photo-task", 0);
+
     await user.click(screen.getByRole("button", { name: "Доска" }));
     expect(setPhotoAnswerModeMock).toHaveBeenCalledWith("photo-task", "board");
 
-    await user.click(screen.getByRole("button", { name: "Отправить" }));
+    await user.click(screen.getByRole("button", { name: "Отправить ответ" }));
     await waitFor(() => {
       expect(submitPhotoTaskMock).toHaveBeenCalledWith("photo-task");
     });
@@ -729,7 +738,7 @@ describe("StudentUnitDetailScreen", () => {
     renderWithQueryClient(<StudentUnitDetailScreen unitId="unit-1" />);
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole("button", { name: "Посмотреть разбор" }));
+    await user.click(await screen.findByRole("button", { name: "Открыть разбор" }));
 
     expect(await screen.findByTestId("student-feedback-board")).toBeInTheDocument();
     expect(studentApi.presignPhotoView).toHaveBeenCalledWith("photo-task", "feedback.json", 300);
@@ -767,6 +776,7 @@ describe("StudentUnitDetailScreen", () => {
       setBoardApi: vi.fn(),
       handleBoardChange: vi.fn(),
       openPhotoFileDialog: openPhotoFileDialogMock,
+      removePhotoFile: removePhotoFileMock,
       submitPhotoTask: submitPhotoTaskMock,
       submitBoardTask: submitBoardTaskMock,
     });
@@ -775,9 +785,9 @@ describe("StudentUnitDetailScreen", () => {
     const user = userEvent.setup();
 
     expect(await screen.findByTestId("student-excalidraw-board")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Отправить доску" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Отправить ответ" })).toBeEnabled();
 
-    await user.click(screen.getByRole("button", { name: "Отправить доску" }));
+    await user.click(screen.getByRole("button", { name: "Отправить ответ" }));
     expect(submitBoardTaskMock).toHaveBeenCalledWith("photo-task");
   });
 });

@@ -1404,23 +1404,6 @@
   outline-offset: 2px;
 }
 
-.photoActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-
-.photoActions button {
-  --button-bg: var(--bg-field);
-  --button-border: var(--glass-border);
-  --button-text: var(--text-primary);
-  --button-hover-bg: color-mix(in srgb, var(--bg-field) 98%, var(--student-unit-paper-bg) 2%);
-  --button-hover-border: var(--border-primary);
-  --button-hover-text: var(--text-primary);
-  --button-hover-shadow: var(--nav-hover-shadow);
-}
-
 .photoStatusArea {
   min-height: 18px;
   display: flex;
@@ -1430,8 +1413,8 @@
 
 .photoSubmissionPanel {
   display: grid;
-  gap: 12px;
-  padding-top: 4px;
+  gap: 16px;
+  padding-top: 2px;
 }
 
 .photoModeSwitch {
@@ -1446,8 +1429,9 @@
 }
 
 .photoModeButton {
-  min-height: 34px;
-  padding: 0 12px;
+  min-width: 84px;
+  min-height: var(--action-control-height-sm);
+  padding: 0 11px;
   border: 0;
   border-radius: calc(var(--control-radius) - 4px);
   background: transparent;
@@ -1457,6 +1441,10 @@
   line-height: 1.2;
   font-weight: 600;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   transition:
     background-color var(--motion-fast) ease,
     color var(--motion-fast) ease;
@@ -1486,6 +1474,93 @@
   color: var(--text-muted);
   font-size: 0.8125rem;
   line-height: 1.35;
+}
+
+.photoWorkspace {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.photoUploadRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.photoFileList {
+  width: min(100%, 32rem);
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.photoFileItem {
+  min-width: 0;
+  min-height: var(--action-control-height-sm);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 6px 5px 12px;
+  border: var(--border-width-thin) solid var(--glass-border);
+  border-radius: var(--control-radius);
+  background: var(--student-unit-task-input-bg);
+}
+
+.photoFileName {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.photoFileRemove {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: calc(var(--control-radius) - 4px);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
+.photoFileRemove:hover:not(:disabled) {
+  background: var(--nav-hover-bg);
+  color: var(--text-primary);
+}
+
+.photoFileRemove:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: 1px;
+}
+
+.photoFileRemove:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.photoSubmissionFooter {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  min-width: 0;
+  padding-top: 12px;
+  border-top: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 72%, transparent);
 }
 
 .boardSubmissionArea {
@@ -1560,51 +1635,81 @@
 .feedbackBoardPanel {
   display: grid;
   gap: 12px;
-  margin-top: 2px;
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 72%, transparent);
 }
 
-.feedbackBoardHeader {
+.feedbackBoardDisclosure {
+  width: 100%;
+  min-height: var(--action-control-height-md);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 16px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--control-radius);
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-body), sans-serif;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color var(--motion-fast) ease;
+}
+
+.feedbackBoardDisclosure:hover {
+  background: var(--nav-hover-bg);
+}
+
+.feedbackBoardDisclosure:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: 2px;
+}
+
+.feedbackBoardHeading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
 .feedbackBoardTitle {
   font-size: 0.875rem;
   line-height: 1.25;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text-primary);
 }
 
-.feedbackBoardMeta {
-  margin-top: 2px;
-  font-size: 0.75rem;
-  line-height: 1.25;
-  color: var(--text-muted);
+.feedbackBoardStatusIcon {
+  flex: 0 0 auto;
 }
 
-.feedbackBoardToggle {
-  border: var(--border-width-thin) solid var(--glass-border);
-  border-radius: var(--control-radius);
-  background: var(--surface-2);
+.feedbackBoardStatusIconAccepted {
+  color: var(--student-success);
+}
+
+.feedbackBoardStatusIconRejected {
+  color: color-mix(in srgb, #dc2626 82%, var(--text-primary));
+}
+
+.feedbackBoardDisclosureAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
   color: var(--text-primary);
-  min-height: 34px;
-  padding: 0 10px;
-  font-family: var(--font-body), sans-serif;
   font-size: 0.8125rem;
-  font-weight: 800;
-  cursor: pointer;
+  line-height: 1.2;
+  font-weight: 700;
 }
 
-.feedbackBoardToggle:hover {
-  background: var(--nav-hover-bg);
+.feedbackBoardChevron {
+  transition: transform var(--motion-fast) ease;
 }
 
-.feedbackBoardToggle:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: 2px;
+.feedbackBoardChevronOpen {
+  transform: rotate(180deg);
 }
 
 .feedbackBoardFrame,
@@ -1993,34 +2098,25 @@
   border-radius: 6px;
 }
 
-.taskResultCorrect {
-  border: var(--border-width-thin) solid color-mix(in srgb, var(--student-success) 30%, var(--glass-border));
-  background: var(--student-success-surface);
-  color: var(--student-success);
-  padding: 8px 14px;
-  border-radius: var(--control-radius);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  display: inline-flex;
+.taskResult {
+  width: 100%;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  width: fit-content;
+  gap: 10px;
+  padding: 14px 10px 2px;
+  border-top: var(--border-width-thin) solid color-mix(in srgb, var(--glass-border) 72%, transparent);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  line-height: 1.25;
+  font-weight: 700;
 }
 
-.taskResultIncorrect {
-  border: var(--border-width-thin) solid color-mix(in srgb, #ef4444 30%, var(--glass-border));
-  background: color-mix(in srgb, #ef4444 8%, var(--surface-2));
+.taskResultCorrect svg {
+  color: var(--student-success);
+}
+
+.taskResultIncorrect svg {
   color: color-mix(in srgb, #dc2626 82%, var(--text-primary));
-  padding: 8px 14px;
-  border-radius: var(--control-radius);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  width: fit-content;
 }
 
 .taskDone {
@@ -2034,13 +2130,17 @@
 
 .answerList {
   display: grid;
-  gap: 14px;
+  grid-template-columns: max-content max-content minmax(180px, 280px);
+  column-gap: 10px;
+  row-gap: 14px;
+  align-items: center;
 }
 
 .answerRow {
-  display: flex;
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
   align-items: center;
-  gap: 14px;
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -2051,16 +2151,7 @@
   font-weight: 600;
   color: var(--text-muted);
   font-size: 0.9rem;
-  min-width: 20px;
   padding-top: 0;
-}
-
-.answerContent {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1 1 auto;
-  min-width: 0;
 }
 
 .answerInputRow {
@@ -2076,10 +2167,12 @@
   font-size: 0.98rem;
   font-weight: 500;
   line-height: 1.55;
-  flex: 0 1 auto;
+  white-space: nowrap;
 }
 
 .answerInputInline {
+  width: min(100%, 280px);
+  box-sizing: border-box;
   border: var(--border-width-thin) solid var(--student-unit-task-input-border);
   background: var(--student-unit-task-input-bg);
   color: var(--student-unit-task-input-text);
@@ -2133,6 +2226,7 @@
 }
 
 .optionItem {
+  position: relative;
   display: grid;
   grid-template-columns: 24px minmax(0, 20px) minmax(0, 1fr);
   gap: 12px;
@@ -2153,66 +2247,55 @@
 }
 
 .optionInput {
-  margin: 0;
-  appearance: none;
-  -webkit-appearance: none;
-  width: 18px;
-  height: 18px;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.optionControl {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: var(--border-width) solid color-mix(in srgb, var(--glass-border) 60%, var(--border-primary) 40%);
   background: var(--bg-field);
-  cursor: pointer;
+  color: var(--text-accent);
   transition:
     background var(--motion-fast) ease,
     border-color var(--motion-fast) ease,
     box-shadow var(--motion-fast) ease;
-  position: relative;
 }
 
-.optionInput[type="radio"] {
+.optionRadioControl {
   border-radius: 999px;
 }
 
-.optionInput[type="checkbox"] {
-  border-radius: 4px;
+.optionCheckboxControl {
+  border-radius: 5px;
 }
 
-.optionInput:checked {
+.optionInput:checked + .optionControl {
   background: var(--bg-accent);
   border-color: var(--bg-accent);
 }
 
-.optionInput:checked::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.optionInput[type="radio"]:checked::after {
+.optionRadioDot {
   width: 6px;
   height: 6px;
   border-radius: 999px;
   background: var(--text-accent);
 }
 
-.optionInput[type="checkbox"]:checked::after {
-  width: 10px;
-  height: 8px;
-  background: transparent;
-  border-left: 2px solid var(--text-accent);
-  border-bottom: 2px solid var(--text-accent);
-  transform: translate(-50%, -60%) rotate(-45deg);
-}
-
-.optionInput:focus-visible {
+.optionInput:focus-visible + .optionControl {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
 }
 
-.optionInput:disabled {
+.optionInput:disabled + .optionControl {
   opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .optionIndex {
@@ -2381,6 +2464,27 @@
     align-items: flex-start;
   }
 
+  .photoModeSwitch {
+    width: fit-content;
+  }
+
+  .photoUploadRow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .photoSubmissionFooter button {
+    width: 100%;
+  }
+
+  .feedbackBoardDisclosure {
+    align-items: flex-start;
+  }
+
+  .feedbackBoardDisclosureAction {
+    padding-top: 2px;
+  }
+
   .boardCanvasShell,
   .boardLoading,
   .feedbackBoardFrame,
@@ -2398,19 +2502,26 @@
   }
 
   .answerRow {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
+    grid-template-columns: 24px minmax(0, 1fr);
+    grid-column: 1;
+    align-items: start;
+    column-gap: 10px;
+    row-gap: 8px;
   }
 
-  .answerContent {
-    width: 100%;
-    flex-direction: column;
-    align-items: flex-start;
+  .answerList {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .answerInputRow {
+    grid-column: 2;
     width: 100%;
+  }
+
+  .answerLabelText {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .answerInputInline {
@@ -2424,5 +2535,11 @@
 
   .solutionHtmlViewport {
     min-height: 240px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feedbackBoardChevron {
+    transition: none;
   }
 }

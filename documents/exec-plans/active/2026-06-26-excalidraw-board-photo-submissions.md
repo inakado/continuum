@@ -458,6 +458,9 @@ Existing photo submissions должны работать из-за default `answ
 - 2026-07-12: Student board, student feedback board и teacher review board синхронизированы с `html[data-theme]`: Excalidraw UI переключает light/dark theme, canvas использует palette-aligned `#f8fafc` / `#1e293b`, theme update исключён из undo history. Добавлен focused hook test.
 - 2026-07-12: Student unit header и progress summary объединены в управляемый `StudentUnitContextPanel`: компактное состояние освобождает вертикальное рабочее пространство, сохраняет название и ключевые метрики, preference хранится локально; mobile по умолчанию компактен. Fullscreen focus mode доски остаётся следующим отдельным этапом после коммита панели.
 - 2026-07-12: После отдельного коммита `StudentUnitContextPanel` editable student board получила fullscreen focus mode: native Fullscreen API, viewport fallback, body scroll lock и выход по `Escape`; native/fallback paths покрыты focused tests.
+- 2026-07-12: Student controls для развернутого ответа приведены к единому action hierarchy: компактный выбор формата, workspace, пофайловое удаление фото и submission footer. Teacher feedback переведён в компактный disclosure с status indicator.
+- 2026-07-12: Multi-choice checkbox переведён с CSS-галочки на Lucide `Check` поверх нативного input; результат автопроверки унифицирован с feedback status row при сохранении кратких подписей `Верно` / `Неверно`.
+- 2026-07-12: Numeric multipart answer rows переведены на стабильную label/input grid, чтобы inputs начинались по одной вертикали при разной длине подписей; mobile layout остался stacked.
 
 ## 14. Scope expansion: teacher feedback board
 

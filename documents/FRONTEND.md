@@ -94,6 +94,9 @@
 - Teacher feedback board открывается student-side как read-only Excalidraw scene через student `presign-view`; при ошибке JSON используется PNG preview fallback.
 - Все Excalidraw surfaces синхронизируют UI theme и `viewBackgroundColor` с фактическим `html[data-theme]`: light canvas `#f8fafc`, dark canvas `#1e293b`. Theme-only `updateScene` выполняется с `CaptureUpdateAction.NEVER`, поэтому переключение темы не попадает в undo history и не считается teacher interaction.
 - Editable student Excalidraw board предоставляет fullscreen focus action через штатный `renderTopRightUI`: основной путь использует browser Fullscreen API, fallback разворачивает canvas на viewport и блокирует body scroll; выход доступен той же кнопкой и через `Escape` в fallback-режиме.
+- Student-форма развернутого ответа использует единую композицию: компактный сегментированный выбор `Фото` / `Доска`, рабочая область и общий submission footer. Выбранные фотографии можно удалять пофайлово до отправки. Feedback board показывается как нейтральная disclosure-строка с итогом проверки `Решение верное` / `Решение требует доработки`.
+- Multi-choice controls используют Lucide `Check` в 20px custom visual поверх нативного checkbox input. Итог автопроверки показывается как нейтральная status row `Верно` / `Неверно`, без badge-капсулы.
+- Numeric multipart answers используют общую grid-колонку для подписей, поэтому поля ввода выровнены по одной вертикали независимо от длины label.
 
 ## Routes Map
 

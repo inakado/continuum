@@ -221,6 +221,13 @@ export const useStudentPhotoSubmit = ({ activeTask, activeState, unitId }: Param
     [photoFileDialogTaskId, validatePhotoFiles],
   );
 
+  const removePhotoFile = useCallback((taskId: string, fileIndex: number) => {
+    setPhotoSelectedFilesByTask((prev) => ({
+      ...prev,
+      [taskId]: (prev[taskId] ?? []).filter((_, index) => index !== fileIndex),
+    }));
+  }, []);
+
   const submitPhotoTask = useCallback(
     async (taskId: string, filesOverride?: File[]) => {
       const files = filesOverride ?? photoSelectedFilesByTask[taskId] ?? [];
@@ -309,6 +316,7 @@ export const useStudentPhotoSubmit = ({ activeTask, activeState, unitId }: Param
     setBoardApi,
     handleBoardChange,
     openPhotoFileDialog,
+    removePhotoFile,
     submitPhotoTask,
     submitBoardTask,
   };
