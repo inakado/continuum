@@ -36,7 +36,7 @@
   pointer-events: none;
   transform: translateY(calc(-100% - 24px));
   transition: transform 0.15s ease, opacity 0.15s ease;
-  z-index: 10;
+  z-index: var(--z-shell-skip-link);
 }
 
 .skipLink:focus {
@@ -95,7 +95,7 @@
   top: 0;
   left: 0;
   bottom: 0;
-  z-index: 4;
+  z-index: var(--z-shell-sidebar);
   width: var(--sidebar-width);
   align-self: start;
   display: flex;
@@ -229,7 +229,7 @@
 
 .notificationsPopover {
   position: fixed;
-  z-index: 9;
+  z-index: var(--z-shell-popover);
   top: 18px;
   left: calc(var(--sidebar-width) + 12px);
   width: min(360px, calc(100vw - var(--sidebar-width) - 24px));

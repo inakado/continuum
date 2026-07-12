@@ -68,6 +68,12 @@
 - До `components/ui/*` и `globals.css` доходим только если изменение осознанно общее для teacher и student.
 - В role-specific CSS запрещены raw neutral literals (`#fff`, `#ffffff`, `white`, `#f8fafc`, `#f1f5f9`, `#1e293b`, `#334155` и аналоги) вне foundation/theme layers; новые элементы собираются из semantic tokens.
 
+### Layering contract
+
+- Shell-слои обеих ролей используют общие semantic tokens `--z-shell-sidebar`, `--z-shell-popover`, `--z-shell-skip-link` из `globals.css`.
+- Встроенные инструменты со своей системой `z-index` (например, Excalidraw) изолируются на границе feature-контейнера через собственный stacking context; внутренние popup/modal значения библиотеки не должны перекрывать dashboard shell.
+- Dialog/alert/select/dropdown primitives остаются выше shell-слоёв согласно собственным semantic уровням.
+
 ### Конвенция статусов в UI
 
 - В экранах и компонентах запрещено рендерить сырой enum напрямую (`locked`, `available`, `draft`, `published` и т.п.).

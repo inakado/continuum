@@ -1418,6 +1418,12 @@
   overflow: hidden;
 }
 
+.boardCanvasShell {
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+}
+
 .boardLoading {
   display: grid;
   place-items: center;
@@ -1492,6 +1498,9 @@
 }
 
 .feedbackBoardCanvasShell {
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
   border-radius: 0;
 }
 
