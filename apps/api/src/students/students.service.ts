@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { TeacherAccountsService } from './teacher-accounts.service';
 import { TeacherStudentsService } from './teacher-students.service';
@@ -13,8 +14,12 @@ export class StudentsService {
     this.teacherStudentsService = new TeacherStudentsService(prisma);
   }
 
-  assertTeacherOwnsStudent(teacherId: string, studentId: string) {
-    return this.teacherStudentsService.assertTeacherOwnsStudent(teacherId, studentId);
+  assertTeacherOwnsStudent(
+    teacherId: string,
+    studentId: string,
+    client?: Prisma.TransactionClient,
+  ) {
+    return this.teacherStudentsService.assertTeacherOwnsStudent(teacherId, studentId, client);
   }
 
   listTeachers() {

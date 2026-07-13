@@ -70,3 +70,4 @@
 - 2026-07-13: завершён repository audit AuthN/AuthZ, Prisma identity links, frontend session flow, deploy proxy и test contour.
 - 2026-07-13: продуктовые решения зафиксированы: отдельная роль/admin UI, CLI bootstrap, fixed 14-day sessions, immutable lowercase login.
 - 2026-07-13: завершён первый hardening slice: роль `admin`, admin-only teacher writes и отдельный `/admin/teachers` UI, teacher read-only directory, production debug exclusion, Nginx internal deny, fail-fast internal token и session revocation при student password reset. Проверки: API 70/70, web 136/136, web typecheck, boundaries.
+- 2026-07-13: ownership checks для review accept/reject, unit/section override, credit и unblock перенесены внутрь соответствующих Prisma transactions, устраняя окно между pre-check и write.

@@ -247,10 +247,10 @@ export const acceptTeacherPhotoSubmission = async ({
   taskId: string;
   teacherId: string;
 }) => {
-  await studentsService.assertTeacherOwnsStudent(teacherId, studentId);
   const feedbackKeys = getTeacherFeedbackBoardKeys(body);
 
   const txResult = await prisma.$transaction(async (tx) => {
+    await studentsService.assertTeacherOwnsStudent(teacherId, studentId, tx);
     const submission = await tx.photoTaskSubmission.findFirst({
       where: {
         id: submissionId,
@@ -399,11 +399,11 @@ export const rejectTeacherPhotoSubmission = async ({
   taskId: string;
   teacherId: string;
 }) => {
-  await studentsService.assertTeacherOwnsStudent(teacherId, studentId);
   const reason = body.reason?.trim() ?? '';
   const feedbackKeys = getTeacherFeedbackBoardKeys(body);
 
   const txResult = await prisma.$transaction(async (tx) => {
+    await studentsService.assertTeacherOwnsStudent(teacherId, studentId, tx);
     const submission = await tx.photoTaskSubmission.findFirst({
       where: {
         id: submissionId,

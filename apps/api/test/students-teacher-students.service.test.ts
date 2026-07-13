@@ -142,6 +142,28 @@ describe('StudentsService teacher students slice', () => {
     );
   });
 
+  it('checks ownership through the provided transaction client', async () => {
+    const transactionClient = {
+      studentProfile: {
+        findUnique: vi.fn().mockResolvedValue({
+          userId: 'student-1',
+          leadTeacherId: 'teacher-1',
+          user: { id: 'student-1', login: 'student1', role: 'student' },
+          leadTeacher: {
+            id: 'teacher-1',
+            login: 'teacher1',
+            teacherProfile: null,
+          },
+        }),
+      },
+    };
+
+    await service.assertTeacherOwnsStudent('teacher-1', 'student-1', transactionClient as never);
+
+    expect(transactionClient.studentProfile.findUnique).toHaveBeenCalledOnce();
+    expect(prisma.studentProfile.findUnique).not.toHaveBeenCalled();
+  });
+
   it('listStudents aggregates unread notifications and pending photo review counts', async () => {
     prisma.studentProfile.findMany.mockResolvedValue([
       {

@@ -3,6 +3,7 @@ import {
   AttemptKind,
   ContentStatus,
   PhotoTaskSubmissionStatus,
+  Prisma,
   Role,
   StudentTaskStatus,
   StudentUnitStatus,
@@ -26,8 +27,12 @@ export class TeacherStudentsService {
     return typeof value === 'string' && value ? value : null;
   }
 
-  async assertTeacherOwnsStudent(teacherId: string, studentId: string) {
-    const profile = await this.prisma.studentProfile.findUnique({
+  async assertTeacherOwnsStudent(
+    teacherId: string,
+    studentId: string,
+    client: Prisma.TransactionClient | PrismaService = this.prisma,
+  ) {
+    const profile = await client.studentProfile.findUnique({
       where: { userId: studentId },
       include: {
         user: { select: { id: true, login: true, role: true } },

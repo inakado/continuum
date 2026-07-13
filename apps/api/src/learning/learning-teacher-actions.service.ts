@@ -52,8 +52,6 @@ export class LearningTeacherActionsService {
     unitId: string,
     reasonRaw?: string | null,
   ) {
-    await this.studentsService.assertTeacherOwnsStudent(teacherId, studentId);
-
     const unit = await this.prisma.unit.findFirst({
       where: {
         id: unitId,
@@ -86,6 +84,7 @@ export class LearningTeacherActionsService {
 
     try {
       await this.prisma.$transaction(async (tx) => {
+        await this.studentsService.assertTeacherOwnsStudent(teacherId, studentId, tx);
         const existingOverride = await tx.unitUnlockOverride.findUnique({
           where: {
             studentId_unitId: {
@@ -157,8 +156,6 @@ export class LearningTeacherActionsService {
     sectionId: string,
     reasonRaw?: string | null,
   ) {
-    await this.studentsService.assertTeacherOwnsStudent(teacherId, studentId);
-
     const section = await this.prisma.section.findFirst({
       where: {
         id: sectionId,
@@ -183,6 +180,7 @@ export class LearningTeacherActionsService {
 
     try {
       await this.prisma.$transaction(async (tx) => {
+        await this.studentsService.assertTeacherOwnsStudent(teacherId, studentId, tx);
         const existingOverride = await tx.sectionUnlockOverride.findUnique({
           where: {
             studentId_sectionId: {
@@ -252,12 +250,12 @@ export class LearningTeacherActionsService {
     taskId: string,
     reasonRaw?: string | null,
   ) {
-    await this.studentsService.assertTeacherOwnsStudent(teacherId, studentId);
     const now = new Date();
     const normalizedReason =
       typeof reasonRaw === 'string' && reasonRaw.trim().length > 0 ? reasonRaw.trim() : null;
 
     const result = await this.prisma.$transaction(async (tx) => {
+      await this.studentsService.assertTeacherOwnsStudent(teacherId, studentId, tx);
       const task = await tx.task.findFirst({
         where: {
           id: taskId,
@@ -399,12 +397,12 @@ export class LearningTeacherActionsService {
     taskId: string,
     reasonRaw?: string | null,
   ) {
-    await this.studentsService.assertTeacherOwnsStudent(teacherId, studentId);
     const now = new Date();
     const normalizedReason =
       typeof reasonRaw === 'string' && reasonRaw.trim().length > 0 ? reasonRaw.trim() : null;
 
     const result = await this.prisma.$transaction(async (tx) => {
+      await this.studentsService.assertTeacherOwnsStudent(teacherId, studentId, tx);
       const task = await tx.task.findFirst({
         where: {
           id: taskId,
