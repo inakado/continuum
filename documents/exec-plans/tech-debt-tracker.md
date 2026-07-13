@@ -67,3 +67,12 @@
 - Приоритет: medium
 - Статус: open
 - План устранения: при появлении реального performance pressure вынести тяжёлые пересчёты в отдельный batch/worker contour с явными retry/idempotency правилами.
+
+### TD-007 — Dependency audit vulnerabilities
+
+- Область: Platform / Dependencies
+- Описание: `pnpm audit` от 2026-07-13 обнаруживает 1 critical и 24 high advisory. Production-relevant цепочки включают Next.js `<16.2.5`, `fast-xml-parser <5.5.6` через AWS SDK и `multer <2.2.0`; часть остальных advisory находится в dev tooling (`handlebars`, Vite, jsdom/undici) или Excalidraw transitive dependencies.
+- Влияние: известные security defects остаются в runtime и dev toolchain; массовое обновление в auth-миграции повышает риск несвязанных регрессий.
+- Приоритет: critical
+- Статус: open
+- План устранения: отдельной инициативой обновить сначала production runtime chains, затем dev/transitive chains; после каждого слоя выполнить build, browser smoke и повторный `pnpm audit`.

@@ -36,7 +36,6 @@ import {
   type StudentUnitRenderedContentResponse as SharedStudentUnitRenderedContentResponse,
 } from "@continuum/shared";
 import { apiRequest, apiRequestParsed } from "./client";
-import type { MeResponse } from "./auth";
 
 export type ContentStatus = "draft" | "published";
 export type StudentUnitStatus = "locked" | "available" | "in_progress" | "completed";
@@ -128,8 +127,9 @@ export type GraphNode = SharedStudentGraphNode;
 
 export type GraphEdge = SharedStudentGraphEdge;
 
-type LoginResponse = {
-  user: { id: string; login: string; role: string };
+export type StudentMeResponse = {
+  user: { id: string; login: string; role: "student" };
+  profile: { firstName: string | null; lastName: string | null } | null;
 };
 
 type UnitPdfPresignedResponse = {
@@ -161,19 +161,8 @@ type StudentTaskStatementImagePresignViewResponse = {
 };
 
 export const studentApi = {
-  login(login: string, password: string) {
-    return apiRequest<LoginResponse>("/auth/login", {
-      method: "POST",
-      body: { login, password },
-    });
-  },
-
-  logout() {
-    return apiRequest<{ ok: boolean }>("/auth/logout", { method: "POST" });
-  },
-
   me() {
-    return apiRequest<MeResponse>("/auth/me");
+    return apiRequest<StudentMeResponse>("/student/me");
   },
 
   listCourses() {

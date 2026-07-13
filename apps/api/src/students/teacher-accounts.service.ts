@@ -1,7 +1,6 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { Role } from '@prisma/client';
-import argon2 from 'argon2';
-import { IdentityProvisioningService } from '../auth/identity-provisioning.service';
+import type { IdentityProvisioningService } from '../auth/identity-provisioning.service';
 import { normalizeLogin } from '../auth/identity-policy';
 import type { PrismaService } from '../prisma/prisma.service';
 import {
@@ -163,7 +162,7 @@ export class TeacherAccountsService {
 
     const teacher = await this.prisma.user.findFirst({
       where: { id: teacherId, role: Role.teacher, isActive: true },
-      select: { id: true, login: true, passwordHash: true },
+      select: { id: true, login: true },
     });
     if (!teacher) {
       throw new NotFoundException({
@@ -172,7 +171,7 @@ export class TeacherAccountsService {
       });
     }
 
-    const isCurrentValid = await argon2.verify(teacher.passwordHash, current);
+    const isCurrentValid = await this.identityProvisioning.verifyPassword(teacher.id, current);
     if (!isCurrentValid) {
       throw new BadRequestException({
         code: 'INVALID_CURRENT_PASSWORD',
@@ -184,12 +183,7 @@ export class TeacherAccountsService {
     const nextPasswordHash = await this.identityProvisioning.hashPassword(next);
 
     await this.prisma.$transaction(async (tx) => {
-      await this.identityProvisioning.replacePasswordInTransaction(
-        tx,
-        teacher.id,
-        nextPasswordHash,
-        'PASSWORD_CHANGED',
-      );
+      await this.identityProvisioning.replacePasswordInTransaction(tx, teacher.id, nextPasswordHash);
     });
 
     return {

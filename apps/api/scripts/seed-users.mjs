@@ -69,7 +69,6 @@ const ensureUser = async ({ login, password, role }) => {
         displayLogin: canonicalLogin,
         email: `${canonicalLogin}@users.continuum.invalid`,
         name: canonicalLogin,
-        passwordHash,
         role,
         isActive: true,
       },

@@ -2,14 +2,13 @@ import { Controller, Get, Inject, Param, Query, Req, UseGuards } from '@nestjs/c
 import { Role } from '@prisma/client';
 import { type AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { TaskStatementImagePolicyService } from '../content/task-statement-image-policy.service';
 import { ObjectStorageService } from '../infra/storage/object-storage.service';
 import { LearningService } from './learning.service';
 
 @Controller('student/tasks')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 @Roles(Role.student)
 export class StudentTaskStatementImageController {
   constructor(

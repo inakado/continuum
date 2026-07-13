@@ -2,13 +2,12 @@ import { Body, Controller, HttpCode, Inject, Param, Post, Req, UseGuards } from 
 import { Role } from '@prisma/client';
 import { type AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { type OverrideOpenUnitDto } from './dto/override-open-unit.dto';
 import { LearningService } from './learning.service';
 
 @Controller('teacher/students')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 @Roles(Role.teacher)
 export class TeacherUnitOverrideOpenController {
   constructor(@Inject(LearningService) private readonly learningService: LearningService) {}

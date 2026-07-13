@@ -47,7 +47,6 @@ import { StudentsService } from '../src/students/students.service';
 const createTransactionMock = () => ({
   user: {
     create: vi.fn(),
-    update: vi.fn(),
   },
   studentProfile: {
     create: vi.fn(),
@@ -59,12 +58,6 @@ const createTransactionMock = () => ({
   },
   session: {
     deleteMany: vi.fn(),
-  },
-  authSession: {
-    updateMany: vi.fn(),
-  },
-  authRefreshToken: {
-    updateMany: vi.fn(),
   },
 });
 
@@ -119,14 +112,11 @@ describe('StudentsService teacher students slice', () => {
     prisma.$transaction.mockImplementation(async (callback: (input: typeof tx) => Promise<unknown>) => callback(tx));
 
     tx.user.create.mockReset();
-    tx.user.update.mockReset();
     tx.studentProfile.create.mockReset();
     tx.studentProfile.findUnique.mockReset();
     tx.account.create.mockReset();
     tx.account.upsert.mockReset();
     tx.session.deleteMany.mockReset();
-    tx.authSession.updateMany.mockReset();
-    tx.authRefreshToken.updateMany.mockReset();
 
     argon2Mock.hash.mockReset();
   });
@@ -152,6 +142,20 @@ describe('StudentsService teacher students slice', () => {
     await expect(service.assertTeacherOwnsStudent('teacher-1', 'student-1')).rejects.toBeInstanceOf(
       ForbiddenException,
     );
+  });
+
+  it('returns the current student identity and profile', async () => {
+    prisma.user.findFirst.mockResolvedValue({
+      id: 'student-1',
+      login: 'student1',
+      role: 'student',
+      studentProfile: { firstName: 'Анна', lastName: 'Иванова' },
+    });
+
+    await expect(service.getStudentMe('student-1')).resolves.toEqual({
+      user: { id: 'student-1', login: 'student1', role: 'student' },
+      profile: { firstName: 'Анна', lastName: 'Иванова' },
+    });
   });
 
   it('checks ownership through the provided transaction client', async () => {
@@ -338,10 +342,6 @@ describe('StudentsService teacher students slice', () => {
     const result = await service.resetPassword('student-1', 'teacher-1');
 
     expect(result).toMatchObject({ id: 'student-1', login: 'student1' });
-    expect(tx.user.update).toHaveBeenCalledWith({
-      where: { id: 'student-1' },
-      data: { passwordHash: 'new-hash' },
-    });
     expect(tx.account.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         update: { password: 'new-hash' },
@@ -350,17 +350,6 @@ describe('StudentsService teacher students slice', () => {
     expect(tx.session.deleteMany).toHaveBeenCalledWith({
       where: { userId: 'student-1' },
     });
-    expect(tx.authSession.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { userId: 'student-1', revokedAt: null },
-        data: expect.objectContaining({ revokeReason: 'PASSWORD_RESET' }),
-      }),
-    );
-    expect(tx.authRefreshToken.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { revokedAt: null, session: { userId: 'student-1' } },
-      }),
-    );
   });
 
   it('transferStudent rejects noop transfer and supports valid reassignment', async () => {

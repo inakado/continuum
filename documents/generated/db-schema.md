@@ -39,7 +39,6 @@
 | `name` | `String` |  |
 | `emailVerified` | `Boolean` | `@default(false) @map("email_verified")` |
 | `image` | `String?` |  |
-| `passwordHash` | `String` | `@map("password_hash")` |
 | `isActive` | `Boolean` | `@default(true) @map("is_active")` |
 | `createdAt` | `DateTime` | `@default(now()) @map("created_at")` |
 | `updatedAt` | `DateTime` | `@updatedAt @map("updated_at")` |
@@ -57,7 +56,6 @@
 | `unitUnlockOverridesAsTeacher` | `UnitUnlockOverride[]` | `@relation("UnitUnlockOverrideTeacher")` |
 | `photoTaskSubmissionsAsStudent` | `PhotoTaskSubmission[]` | `@relation("PhotoTaskSubmissionStudent")` |
 | `photoTaskSubmissionsReviewed` | `PhotoTaskSubmission[]` | `@relation("PhotoTaskSubmissionReviewer")` |
-| `authSessions` | `AuthSession[]` |  |
 | `sessions` | `Session[]` |  |
 | `accounts` | `Account[]` |  |
 
@@ -113,46 +111,6 @@
 | `expiresAt` | `DateTime` | `@map("expires_at")` |
 | `createdAt` | `DateTime` | `@default(now()) @map("created_at")` |
 | `updatedAt` | `DateTime` | `@updatedAt @map("updated_at")` |
-
-### AuthSession
-
-- Таблица: `auth_sessions`
-- Model attributes: `@@index([userId])`, `@@index([expiresAt])`, `@@index([revokedAt])`, `@@map("auth_sessions")`
-
-| Field | Type | Attributes |
-| --- | --- | --- |
-| `id` | `String` | `@id @default(uuid()) @db.Uuid` |
-| `userId` | `String` | `@map("user_id") @db.Uuid` |
-| `expiresAt` | `DateTime` | `@map("expires_at")` |
-| `revokedAt` | `DateTime?` | `@map("revoked_at")` |
-| `revokeReason` | `String?` | `@map("revoke_reason")` |
-| `lastUsedAt` | `DateTime?` | `@map("last_used_at")` |
-| `userAgent` | `String?` | `@map("user_agent")` |
-| `ipCreated` | `String?` | `@map("ip_created")` |
-| `ipLastUsed` | `String?` | `@map("ip_last_used")` |
-| `createdAt` | `DateTime` | `@default(now()) @map("created_at")` |
-| `updatedAt` | `DateTime` | `@updatedAt @map("updated_at")` |
-| `user` | `User` | `@relation(fields: [userId], references: [id], onDelete: Cascade)` |
-| `refreshTokens` | `AuthRefreshToken[]` |  |
-
-### AuthRefreshToken
-
-- Таблица: `auth_refresh_tokens`
-- Model attributes: `@@index([sessionId])`, `@@index([expiresAt])`, `@@index([revokedAt])`, `@@map("auth_refresh_tokens")`
-
-| Field | Type | Attributes |
-| --- | --- | --- |
-| `id` | `String` | `@id @default(uuid()) @db.Uuid` |
-| `sessionId` | `String` | `@map("session_id") @db.Uuid` |
-| `tokenHash` | `String` | `@unique @map("token_hash")` |
-| `expiresAt` | `DateTime` | `@map("expires_at")` |
-| `usedAt` | `DateTime?` | `@map("used_at")` |
-| `revokedAt` | `DateTime?` | `@map("revoked_at")` |
-| `replacedByTokenId` | `String?` | `@map("replaced_by_token_id") @db.Uuid` |
-| `createdAt` | `DateTime` | `@default(now()) @map("created_at")` |
-| `session` | `AuthSession` | `@relation(fields: [sessionId], references: [id], onDelete: Cascade)` |
-| `replacedByToken` | `AuthRefreshToken?` | `@relation("AuthRefreshTokenReplacement", fields: [replacedByTokenId], references: [id], onDelete: SetNull)` |
-| `replacesToken` | `AuthRefreshToken[]` | `@relation("AuthRefreshTokenReplacement")` |
 
 ### StudentProfile
 

@@ -1,16 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { studentApi } from "@/lib/api/student";
+import { useAuthLogout } from "@/features/auth/useAuthLogout";
 
-export const useStudentLogout = () => {
-  const router = useRouter();
-
-  return async () => {
-    try {
-      await studentApi.logout();
-    } finally {
-      router.push("/login");
-    }
-  };
-};
+export const useStudentLogout = useAuthLogout;

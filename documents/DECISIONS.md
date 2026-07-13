@@ -309,7 +309,7 @@ Rich LaTeX компилируется на сервере, потенциаль�
 ---
 
 ## DEC-AUTH-01 — JWT в httpOnly cookie (без localStorage)
-**Статус:** Accepted  
+**Статус:** Superseded by DEC-AUTH-03
 **Контекст:** Нужно убрать хранение JWT в localStorage и защитить токен от XSS; при этом оставаться на JWT без refresh.  
 **Решение:**  
 - access token хранится в **httpOnly cookie** (`access_token`).  
@@ -323,7 +323,7 @@ Rich LaTeX компилируется на сервере, потенциаль�
 ---
 
 ## DEC-AUTH-02 — Access + Refresh с server-side сессиями и ротацией refresh токена
-**Статус:** Accepted  
+**Статус:** Superseded by DEC-AUTH-03
 **Контекст:** Access токен с коротким TTL без refresh приводил к частым перелогинам. Нужно сохранить безопасный cookie-based подход и убрать ручной re-login при истечении access.  
 **Решение:**  
 - `access_token` (httpOnly cookie) живёт коротко: **15 минут**.  
@@ -336,5 +336,21 @@ Rich LaTeX компилируется на сервере, потенциаль�
 **Последствия:**  
 - Существенно лучше UX (тихое продление сессии), при этом сохраняется контроль revocation и защита от replay/reuse, а race между вкладками меньше приводит к forced logout.  
 - Появляется состояние сессии в БД и дополнительная auth-логика на backend/frontend.  
+
+---
+
+## DEC-AUTH-03 — Better Auth с DB-backed sessions
+**Статус:** Accepted
+**Контекст:** Custom JWT/refresh contour требовал собственной реализации rotation, replay handling и frontend refresh orchestration. До запуска продукта выбран стандартный session contour.
+**Решение:**
+- username/password authentication и sessions обслуживает Better Auth;
+- opaque session хранится в БД 14 дней без sliding refresh и cookie cache;
+- доменные роли и ownership остаются в приложении;
+- API защищён глобально, public routes объявляются явно;
+- credential hash хранится только в `Account`, смена/сброс пароля удаляет все sessions.
+**Последствия:**
+- JWT/refresh endpoints, таблицы, env и клиентский refresh orchestration удалены;
+- logout и password reset отзывают доступ немедленно;
+- production deploy обязан проходить внешний HTTPS auth smoke.
 
 ---

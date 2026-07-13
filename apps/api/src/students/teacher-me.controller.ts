@@ -2,7 +2,6 @@ import { Body, Controller, Get, HttpCode, Inject, Patch, Post, Req, UseGuards } 
 import { EventCategory, Role } from '@prisma/client';
 import { type AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { EventsLogService } from '../events/events-log.service';
 import {
@@ -12,7 +11,7 @@ import {
 import { StudentsService } from './students.service';
 
 @Controller('teacher/me')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 @Roles(Role.teacher)
 export class TeacherMeController {
   constructor(

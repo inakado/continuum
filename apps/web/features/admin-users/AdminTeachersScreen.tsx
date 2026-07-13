@@ -13,9 +13,8 @@ import PageHeader from "@/components/ui/PageHeader";
 import { SectionCard } from "@/components/ui/SurfaceCard";
 import { adminApi, type AdminTeacherSummary } from "@/lib/api/admin";
 import { getApiErrorPayloadByAudience } from "@/lib/api/error-catalog";
-import { teacherApi } from "@/lib/api/teacher";
+import { useAuthLogout } from "@/features/auth/useAuthLogout";
 import { contentQueryKeys } from "@/lib/query/keys";
-import { useRouter } from "next/navigation";
 import styles from "./admin-teachers.module.css";
 
 const adminNavItems = [{ label: "Преподаватели", href: "/admin/teachers" }];
@@ -24,8 +23,8 @@ const displayName = (teacher: AdminTeacherSummary) =>
   [teacher.lastName?.trim(), teacher.firstName?.trim()].filter(Boolean).join(" ") || teacher.login;
 
 export default function AdminTeachersScreen() {
-  const router = useRouter();
   const queryClient = useQueryClient();
+  const logout = useAuthLogout();
   const [form, setForm] = useState({
     login: "",
     firstName: "",
@@ -44,14 +43,6 @@ export default function AdminTeachersScreen() {
     queryFn: adminApi.listTeachers,
   });
   const teachers = teachersQuery.data ?? [];
-
-  const logout = async () => {
-    try {
-      await teacherApi.logout();
-    } finally {
-      router.replace("/login");
-    }
-  };
 
   const createTeacher = async () => {
     setSaving(true);

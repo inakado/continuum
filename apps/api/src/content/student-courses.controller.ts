@@ -2,13 +2,12 @@ import { Controller, Get, Inject, Param, Req, UseGuards } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { type AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ContentService } from './content.service';
 import { LearningService } from '../learning/learning.service';
 
 @Controller('courses')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 @Roles(Role.student)
 export class StudentCoursesController {
   constructor(

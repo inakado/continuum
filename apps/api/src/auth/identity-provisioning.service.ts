@@ -30,7 +30,6 @@ export class IdentityProvisioningService {
 
   private buildUserData(input: {
     login: string;
-    passwordHash: string;
     role: Role;
     firstName?: string | null;
     lastName?: string | null;
@@ -45,7 +44,6 @@ export class IdentityProvisioningService {
         lastName: input.lastName,
         login,
       }),
-      passwordHash: input.passwordHash,
       role: input.role,
       isActive: true,
     };
@@ -73,7 +71,6 @@ export class IdentityProvisioningService {
       const user = await tx.user.create({
         data: this.buildUserData({
           ...input,
-          passwordHash,
           role: Role.teacher,
         }),
         select: { id: true, login: true, role: true },
@@ -102,7 +99,6 @@ export class IdentityProvisioningService {
       const user = await tx.user.create({
         data: this.buildUserData({
           ...input,
-          passwordHash,
           role: Role.student,
         }),
         select: { id: true, login: true, role: true },
@@ -125,13 +121,7 @@ export class IdentityProvisioningService {
     tx: Prisma.TransactionClient,
     userId: string,
     passwordHash: string,
-    revokeReason: 'PASSWORD_CHANGED' | 'PASSWORD_RESET',
   ) {
-    const now = new Date();
-    await tx.user.update({
-      where: { id: userId },
-      data: { passwordHash },
-    });
     await tx.account.upsert({
       where: {
         providerId_accountId: {
@@ -148,20 +138,18 @@ export class IdentityProvisioningService {
       update: { password: passwordHash },
     });
     await tx.session.deleteMany({ where: { userId } });
-    await tx.authSession.updateMany({
-      where: { userId, revokedAt: null },
-      data: {
-        revokedAt: now,
-        revokeReason,
-        lastUsedAt: now,
-      },
-    });
-    await tx.authRefreshToken.updateMany({
+  }
+
+  async verifyPassword(userId: string, password: string) {
+    const account = await this.prisma.account.findUnique({
       where: {
-        revokedAt: null,
-        session: { userId },
+        providerId_accountId: {
+          providerId: 'credential',
+          accountId: userId,
+        },
       },
-      data: { revokedAt: now },
+      select: { password: true },
     });
+    return account?.password ? argon2.verify(account.password, password).catch(() => false) : false;
   }
 }

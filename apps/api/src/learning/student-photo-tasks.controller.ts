@@ -14,7 +14,6 @@ import {
 import { Role } from '@prisma/client';
 import { type AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import {
@@ -26,7 +25,7 @@ import {
 import { PhotoTaskService } from './photo-task.service';
 
 @Controller('student/tasks')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 @Roles(Role.student)
 export class StudentPhotoTasksController {
   constructor(@Inject(PhotoTaskService) private readonly photoTaskService: PhotoTaskService) {}

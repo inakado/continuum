@@ -3,16 +3,16 @@ import userEvent from "@testing-library/user-event";
 import { useRouter } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/api/client";
-import { teacherApi } from "@/lib/api/teacher";
+import { authApi } from "@/lib/auth/client";
 import UnifiedLoginScreen from "./UnifiedLoginScreen";
 
 vi.mock("next/navigation", () => ({
   useRouter: vi.fn(),
 }));
 
-vi.mock("@/lib/api/teacher", () => ({
-  teacherApi: {
-    login: vi.fn(),
+vi.mock("@/lib/auth/client", () => ({
+  authApi: {
+    signIn: vi.fn(),
   },
 }));
 
@@ -28,16 +28,16 @@ vi.mock("@/components/Grainient", () => ({
 }));
 
 describe("UnifiedLoginScreen", () => {
-  const pushMock = vi.fn();
+  const replaceMock = vi.fn();
 
   beforeEach(() => {
-    pushMock.mockReset();
-    vi.mocked(useRouter).mockReturnValue({ push: pushMock } as never);
-    vi.mocked(teacherApi.login).mockReset();
+    replaceMock.mockReset();
+    vi.mocked(useRouter).mockReturnValue({ replace: replaceMock } as never);
+    vi.mocked(authApi.signIn).mockReset();
   });
 
   it("redirects teacher to /teacher after successful login", async () => {
-    vi.mocked(teacherApi.login).mockResolvedValueOnce({
+    vi.mocked(authApi.signIn).mockResolvedValueOnce({
       user: { role: "teacher" },
     } as never);
 
@@ -49,15 +49,15 @@ describe("UnifiedLoginScreen", () => {
     await user.click(screen.getByRole("button", { name: "Войти" }));
 
     await waitFor(() => {
-      expect(teacherApi.login).toHaveBeenCalledWith("teacher1", "Pass123!");
+      expect(authApi.signIn).toHaveBeenCalledWith("teacher1", "Pass123!");
     });
     await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith("/teacher");
+      expect(replaceMock).toHaveBeenCalledWith("/teacher");
     });
   });
 
   it("redirects student to /student after successful login", async () => {
-    vi.mocked(teacherApi.login).mockResolvedValueOnce({
+    vi.mocked(authApi.signIn).mockResolvedValueOnce({
       user: { role: "student" },
     } as never);
 
@@ -69,12 +69,12 @@ describe("UnifiedLoginScreen", () => {
     await user.click(screen.getByRole("button", { name: "Войти" }));
 
     await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith("/student");
+      expect(replaceMock).toHaveBeenCalledWith("/student");
     });
   });
 
   it("shows auth error message on 401 response", async () => {
-    vi.mocked(teacherApi.login).mockRejectedValueOnce(
+    vi.mocked(authApi.signIn).mockRejectedValueOnce(
       new ApiError(401, "Unauthorized"),
     );
 

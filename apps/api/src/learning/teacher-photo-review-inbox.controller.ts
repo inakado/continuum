@@ -8,14 +8,13 @@ import {
 import { Role } from '@prisma/client';
 import { type AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { teacherInboxQueryExceptionFactory } from '../common/validation/zod-exception-factories';
 import { PhotoTaskService } from './photo-task.service';
 
 @Controller('teacher/photo-submissions')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 @Roles(Role.teacher)
 export class TeacherPhotoReviewInboxController {
   constructor(@Inject(PhotoTaskService) private readonly photoTaskService: PhotoTaskService) {}

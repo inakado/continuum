@@ -3,12 +3,12 @@ import {
   AttemptKind,
   ContentStatus,
   PhotoTaskSubmissionStatus,
-  Prisma,
   Role,
   StudentTaskStatus,
   StudentUnitStatus,
 } from '@prisma/client';
-import { IdentityProvisioningService } from '../auth/identity-provisioning.service';
+import type { Prisma } from '@prisma/client';
+import type { IdentityProvisioningService } from '../auth/identity-provisioning.service';
 import { normalizeLogin } from '../auth/identity-policy';
 import type { PrismaService } from '../prisma/prisma.service';
 import {
@@ -558,7 +558,6 @@ export class TeacherStudentsService {
         tx,
         ownedProfile.userId,
         passwordHash,
-        'PASSWORD_RESET',
       );
       return ownedProfile;
     });

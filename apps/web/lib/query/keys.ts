@@ -1,5 +1,9 @@
 import type { TeacherReviewInboxFilters } from "@/lib/api/teacher";
 
+export const authQueryKeys = {
+  session: () => ["identity", "session"] as const,
+} as const;
+
 export const learningPhotoQueryKeys = {
   studentUnit: (unitId: string) =>
     ["learning-photo", "student", "unit", unitId] as const,
@@ -66,6 +70,7 @@ export const contentQueryKeys = {
   teacherStudentReviewPendingTotal: (studentId: string) =>
     ["content", "teacher", "student-review-pending-total", studentId] as const,
   studentDashboardOverview: () => ["content", "student", "dashboard-overview"] as const,
+  studentMe: () => ["content", "student", "me"] as const,
   studentNotifications: () => ["content", "student", "notifications"] as const,
   studentCourses: () => ["content", "student", "courses"] as const,
   studentCourse: (courseId: string) => ["content", "student", "course", courseId] as const,

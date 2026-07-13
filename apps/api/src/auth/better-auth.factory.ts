@@ -1,5 +1,6 @@
 import argon2 from 'argon2';
 import { betterAuth } from 'better-auth';
+import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { username } from 'better-auth/plugins/username';
 import type { PrismaService } from '../prisma/prisma.service';
@@ -56,6 +57,41 @@ export const createBetterAuth = (prisma: PrismaService) =>
       disableSessionRefresh: true,
       cookieCache: { enabled: false },
     },
+    hooks: {
+      before: createAuthMiddleware(async (context) => {
+        if (context.path !== '/sign-in/username') return;
+        const username = context.body?.username;
+        const password = context.body?.password;
+        if (typeof username !== 'string' || typeof password !== 'string') return;
+
+        let login: string;
+        try {
+          login = normalizeLogin(username);
+        } catch {
+          return;
+        }
+
+        const user = await prisma.user.findUnique({
+          where: { login },
+          select: {
+            isActive: true,
+            accounts: {
+              where: { providerId: 'credential' },
+              select: { password: true },
+              take: 1,
+            },
+          },
+        });
+        if (user && !user.isActive) {
+          const passwordHash = user.accounts[0]?.password;
+          if (passwordHash) await argon2.verify(passwordHash, password).catch(() => false);
+          throw new APIError('UNAUTHORIZED', {
+            code: 'INVALID_USERNAME_OR_PASSWORD',
+            message: 'Invalid username or password.',
+          });
+        }
+      }),
+    },
     user: {
       changeEmail: { enabled: false },
       deleteUser: { enabled: false },
@@ -87,6 +123,9 @@ export const createBetterAuth = (prisma: PrismaService) =>
       enabled: true,
       window: 60,
       max: 100,
+      customRules: {
+        '/sign-in/username': { window: 60, max: 5 },
+      },
     },
     advanced: {
       useSecureCookies: isProductionEnvironment(),

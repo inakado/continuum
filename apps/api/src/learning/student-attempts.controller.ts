@@ -3,13 +3,12 @@ import { StudentAttemptRequestSchema, type StudentAttemptRequest } from '@contin
 import { Role } from '@prisma/client';
 import { type AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { LearningService } from './learning.service';
 
 @Controller('student')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 @Roles(Role.student)
 export class StudentAttemptsController {
   constructor(@Inject(LearningService) private readonly learningService: LearningService) {}

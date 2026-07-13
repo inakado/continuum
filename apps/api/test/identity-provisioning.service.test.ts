@@ -8,26 +8,26 @@ vi.mock('@prisma/client', () => ({
   },
 }));
 
-const argon2Mock = vi.hoisted(() => ({ hash: vi.fn() }));
+const argon2Mock = vi.hoisted(() => ({ hash: vi.fn(), verify: vi.fn() }));
 
 vi.mock('argon2', () => ({
   default: argon2Mock,
   hash: argon2Mock.hash,
+  verify: argon2Mock.verify,
 }));
 
 import { IdentityProvisioningService } from '../src/auth/identity-provisioning.service';
 
 describe('IdentityProvisioningService', () => {
   const tx = {
-    user: { create: vi.fn(), update: vi.fn() },
+    user: { create: vi.fn() },
     account: { create: vi.fn(), upsert: vi.fn() },
     teacherProfile: { create: vi.fn() },
     studentProfile: { create: vi.fn() },
     session: { deleteMany: vi.fn() },
-    authSession: { updateMany: vi.fn() },
-    authRefreshToken: { updateMany: vi.fn() },
   };
   const prisma = {
+    account: { findUnique: vi.fn() },
     $transaction: vi.fn(async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx)),
   };
   const service = new IdentityProvisioningService(prisma as never);
@@ -60,7 +60,6 @@ describe('IdentityProvisioningService', () => {
           login: 'teacher.one',
           email: 'teacher.one@users.continuum.invalid',
           name: 'Анна Петрова',
-          passwordHash: 'password-hash',
         }),
       }),
     );
@@ -76,23 +75,21 @@ describe('IdentityProvisioningService', () => {
     expect(tx.teacherProfile.create).toHaveBeenCalledOnce();
   });
 
-  it('updates both password stores and revokes both session models', async () => {
-    await service.replacePasswordInTransaction(
-      tx as never,
-      'student-1',
-      'next-hash',
-      'PASSWORD_RESET',
-    );
+  it('updates the credential password and revokes all sessions', async () => {
+    await service.replacePasswordInTransaction(tx as never, 'student-1', 'next-hash');
 
-    expect(tx.user.update).toHaveBeenCalledWith({
-      where: { id: 'student-1' },
-      data: { passwordHash: 'next-hash' },
-    });
     expect(tx.account.upsert).toHaveBeenCalledWith(
       expect.objectContaining({ update: { password: 'next-hash' } }),
     );
     expect(tx.session.deleteMany).toHaveBeenCalledWith({ where: { userId: 'student-1' } });
-    expect(tx.authSession.updateMany).toHaveBeenCalledOnce();
-    expect(tx.authRefreshToken.updateMany).toHaveBeenCalledOnce();
+  });
+
+  it('verifies the password from the credential account', async () => {
+    prisma.account.findUnique.mockResolvedValue({ password: 'stored-hash' });
+    argon2Mock.verify.mockResolvedValue(true);
+
+    await expect(service.verifyPassword('teacher-1', 'Pass1234')).resolves.toBe(true);
+
+    expect(argon2Mock.verify).toHaveBeenCalledWith('stored-hash', 'Pass1234');
   });
 });

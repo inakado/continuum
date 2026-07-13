@@ -16,10 +16,11 @@
 
 ## 1) Auth (BC1-ish) (`Implemented`)
 
-- `POST /auth/login` → `AuthService.login()` → cookies (access+refresh).
-- `POST /auth/refresh` → `AuthService.refresh()` → refresh rotation + session family revoke на reuse.
-- `POST /auth/logout` → `AuthService.logoutByRefreshToken()` → revoke session family.
-- `GET /auth/me` → читает профили teacher/student.
+- `POST /auth/sign-in/username` → Better Auth username plugin → credential `Account` → DB-backed `Session` + HttpOnly cookie.
+- `GET /auth/get-session` → Better Auth session lookup → frontend auth principal.
+- `POST /auth/sign-out` → Better Auth → немедленное удаление текущей `Session`.
+- Global `SessionAuthGuard` отображает Better Auth session в `AuthPrincipal`; `RolesGuard` применяет доменные роли.
+- `GET /teacher/me` и `GET /student/me` читают role-specific profile.
 
 Источник: `apps/api/src/auth/*`.
 

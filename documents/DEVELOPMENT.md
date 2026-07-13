@@ -73,7 +73,7 @@
 
 ### API auth smoke (Docker only)
 
-- Полный auth smoke для cookie-first login/refresh/role routing:
+- Полный Better Auth smoke для username sign-in/session/sign-out:
   - `docker compose exec -T api sh -lc "cd /app/apps/api && pnpm smoke:auth"`
 
 Smoke проверяет:
@@ -83,12 +83,11 @@ Smoke проверяет:
 4. `GET /login`
 
 Auth smoke проверяет:
-1. `POST /auth/login`
-2. `GET /auth/me`
-3. `GET /teacher/me`
-4. refresh rotation + stale replay handling
-5. teacher-only / student-only guards
-6. `GET /courses = 403` для teacher-session
+1. `POST /auth/sign-in/username`
+2. `GET /auth/get-session`
+3. блокировку auth mutation с чужим `Origin`
+4. `POST /auth/sign-out`
+5. `401` на protected route после logout
 
 ### API integration tests (Docker only)
 

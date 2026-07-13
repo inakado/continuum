@@ -18,7 +18,6 @@ import { StudentTaskSolutionRenderedContentResponseSchema } from '@continuum/sha
 import type { Job } from 'bullmq';
 import { type AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import {
@@ -56,7 +55,7 @@ import {
 import { UnitPdfPolicyService } from './unit-pdf-policy.service';
 
 @Controller('teacher')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 @Roles(Role.teacher)
 export class TeacherLatexController {
   constructor(

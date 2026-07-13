@@ -4,7 +4,7 @@
 
 ## Scope
 
-- AuthN/AuthZ (cookies + refresh rotation)
+- AuthN/AuthZ (Better Auth DB-backed sessions)
 - CORS/origin constraints для auth-операций
 - RBAC на API endpoints
 - Internal auth между worker ↔ api
@@ -19,35 +19,31 @@
 
 ## Current Invariants (`Implemented`, verified in code)
 
-### Auth: cookies + refresh rotation
+### Auth: Better Auth sessions
 
-- Access token хранится в httpOnly cookie (по умолчанию `AUTH_COOKIE_NAME=access_token`).
-- Refresh token хранится в httpOnly cookie (по умолчанию `AUTH_REFRESH_COOKIE_NAME=refresh_token`) и ротируется на каждый refresh.
-- Refresh reuse detection: повторное использование refresh token обычно ведёт к revoke всей session family; для конкурентного benign-replay есть grace-ветка (`REFRESH_TOKEN_STALE`) без немедленной ревокации.
-- Server-side sessions: refresh tokens привязаны к `auth_sessions`/`auth_refresh_tokens` в БД; доступ валидируется по `sid` в JWT payload.
-- При выдаче/очистке auth-cookie backend дополнительно чистит legacy refresh-cookie paths.
-- Refresh-ошибки пишутся в structured warn logs (`code`, `ip`, `origin`, `user-agent`) на уровне API.
-
-Operational pitfall (`Implemented`):
-- **Симптом:** через время жизни access token UI уходит в `401`, а refresh не восстанавливает сессию.
-- **Причина:** несовпадение `AUTH_REFRESH_COOKIE_PATH` и API-префикса и/или legacy cookie-path дубли с тем же именем.
-- **Фикс:** выставить совместимый path (`AUTH_REFRESH_COOKIE_PATH=/api/auth`) или использовать дефолтный `path=/`; дополнительно задать `AUTH_REFRESH_COOKIE_LEGACY_PATHS` для очистки старых path.
-- **Проверка:** после истечения access-cookie `POST /api/auth/refresh` возвращает `200`.
+- Username/password authentication обслуживает Better Auth; public signup и email-вход отключены.
+- Сессия хранится в таблице `sessions`, идентификатор передаётся только в `HttpOnly` cookie.
+- Срок сессии фиксирован: 14 дней без sliding refresh; cookie cache и Redis session storage отключены.
+- Logout, смена и сброс пароля немедленно удаляют активные сессии пользователя.
+- `login` канонизируется в lowercase и связан с техническим email `<login>@users.continuum.invalid`.
+- `BETTER_AUTH_SECRET` и `BETTER_AUTH_URL` обязательны в production.
+- Auth endpoints ограничены общим rate limit; username sign-in — 5 попыток в минуту на client key.
 
 ### CORS + origin checks
 
 - CORS включает `credentials: true`; разрешённые origins берутся из `CORS_ORIGIN`/`WEB_ORIGIN`.
 - В production запрещён `CORS_ORIGIN="*"` при credentials.
-- На `/auth/refresh` и `/auth/logout` дополнительно проверяется origin/referer на allowlist.
+- Better Auth проверяет Origin/Fetch Metadata для auth mutations по `trustedOrigins`.
 
 ### RBAC и доступы
 
 - `admin/*` endpoints доступны только роли `admin`; создание/удаление преподавателей вынесено из teacher contour.
-- Защита большинства `teacher/*` endpoints через `JwtAuthGuard` + `RolesGuard` + `@Roles(Role.teacher)`.
+- Глобальный `SessionAuthGuard` защищает все routes по умолчанию; public routes помечаются `@AllowAnonymous()` явно.
+- `RolesGuard` + `@Roles(...)` ограничивают role-specific routes.
 - `GET /teacher/teachers` является read-only directory для transfer ученика; write-операций в этом contour нет.
 - Student endpoints ограничены ролью `student` и используют `req.user.id` как studentId.
 - Проверка “lead teacher owns student” для teacher-review сценариев делается на уровне сервисов.
-- Сброс пароля ученика отзывает все активные sessions и refresh tokens.
+- Сброс пароля ученика отзывает все активные sessions.
 
 ### Debug и internal routes
 

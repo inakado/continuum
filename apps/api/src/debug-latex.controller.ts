@@ -11,7 +11,6 @@ import {
 import { Role } from '@prisma/client';
 import { type AuthRequest } from './auth/auth.request';
 import { Roles } from './auth/decorators/roles.decorator';
-import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { LatexCompileQueueService } from './content/latex-compile-queue.service';
 import { DEBUG_PDF_TARGET } from './content/unit-pdf.constants';
@@ -25,7 +24,7 @@ type CompileAndUploadRequest = {
 type LatexTarget = 'theory' | 'method';
 
 @Controller('teacher/debug/latex')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 @Roles(Role.teacher)
 export class DebugLatexController {
   constructor(

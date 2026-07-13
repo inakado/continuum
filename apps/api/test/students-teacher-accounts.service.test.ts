@@ -46,7 +46,6 @@ import { StudentsService } from '../src/students/students.service';
 const createTransactionMock = () => ({
   user: {
     create: vi.fn(),
-    update: vi.fn(),
   },
   teacherProfile: {
     create: vi.fn(),
@@ -58,12 +57,6 @@ const createTransactionMock = () => ({
   session: {
     deleteMany: vi.fn(),
   },
-  authSession: {
-    updateMany: vi.fn(),
-  },
-  authRefreshToken: {
-    updateMany: vi.fn(),
-  },
 });
 
 describe('StudentsService teacher accounts slice', () => {
@@ -72,6 +65,9 @@ describe('StudentsService teacher accounts slice', () => {
     user: {
       findFirst: vi.fn(),
       delete: vi.fn(),
+    },
+    account: {
+      findUnique: vi.fn(),
     },
     teacherProfile: {
       upsert: vi.fn(),
@@ -84,18 +80,16 @@ describe('StudentsService teacher accounts slice', () => {
   beforeEach(() => {
     prisma.user.findFirst.mockReset();
     prisma.user.delete.mockReset();
+    prisma.account.findUnique.mockReset();
     prisma.teacherProfile.upsert.mockReset();
     prisma.$transaction.mockReset();
     prisma.$transaction.mockImplementation(async (callback: (input: typeof tx) => Promise<unknown>) => callback(tx));
 
     tx.user.create.mockReset();
-    tx.user.update.mockReset();
     tx.teacherProfile.create.mockReset();
     tx.account.create.mockReset();
     tx.account.upsert.mockReset();
     tx.session.deleteMany.mockReset();
-    tx.authSession.updateMany.mockReset();
-    tx.authRefreshToken.updateMany.mockReset();
 
     argon2Mock.hash.mockReset();
     argon2Mock.verify.mockReset();
@@ -157,22 +151,18 @@ describe('StudentsService teacher accounts slice', () => {
     );
   });
 
-  it('changes teacher password and revokes sessions + refresh tokens', async () => {
+  it('changes teacher password and revokes all sessions', async () => {
     prisma.user.findFirst.mockResolvedValue({
       id: 'teacher-1',
       login: 'teacher1',
-      passwordHash: 'old-hash',
     });
+    prisma.account.findUnique.mockResolvedValue({ password: 'old-hash' });
     argon2Mock.verify.mockResolvedValue(true);
     argon2Mock.hash.mockResolvedValue('new-hash');
 
     const result = await service.changeTeacherPassword('teacher-1', 'Pass123!', 'Next1234');
 
     expect(result).toEqual({ id: 'teacher-1', login: 'teacher1' });
-    expect(tx.user.update).toHaveBeenCalledWith({
-      where: { id: 'teacher-1' },
-      data: { passwordHash: 'new-hash' },
-    });
     expect(tx.account.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         update: { password: 'new-hash' },
@@ -181,20 +171,6 @@ describe('StudentsService teacher accounts slice', () => {
     expect(tx.session.deleteMany).toHaveBeenCalledWith({
       where: { userId: 'teacher-1' },
     });
-    expect(tx.authSession.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ userId: 'teacher-1', revokedAt: null }),
-        data: expect.objectContaining({ revokeReason: 'PASSWORD_CHANGED' }),
-      }),
-    );
-    expect(tx.authRefreshToken.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          revokedAt: null,
-          session: { userId: 'teacher-1' },
-        }),
-      }),
-    );
   });
 
   it('creates teacher and maps duplicate login to LOGIN_ALREADY_EXISTS', async () => {

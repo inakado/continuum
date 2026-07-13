@@ -16,7 +16,6 @@ import { EventCategory, Role } from '@prisma/client';
 import { StudentUnitRenderedContentResponseSchema } from '@continuum/shared';
 import { type AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { EventsLogService } from '../events/events-log.service';
 import { ObjectStorageService } from '../infra/storage/object-storage.service';
@@ -26,7 +25,7 @@ import { type CreateUnitDto, type UpdateUnitDto } from './dto/unit.dto';
 import { UnitPdfPolicyService } from './unit-pdf-policy.service';
 
 @Controller('teacher/units')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 @Roles(Role.teacher)
 export class TeacherUnitsController {
   constructor(

@@ -75,3 +75,17 @@
 - 2026-07-13: добавлена additive identity schema (`Account`, `Session`, `Verification` и Better Auth поля `User`) с backfill canonical login, technical email и credential accounts. Миграция успешно применена к пустой локальной БД.
 - 2026-07-13: введён атомарный `IdentityProvisioningService`: teacher/student создаются вместе с credential account и profile; password change/reset синхронизирует оба password store и отзывает legacy + Better Auth sessions. Ownership student password reset повторно проверяется внутри write-транзакции.
 - 2026-07-13: runtime smoke прошёл: mixed-case username нормализуется, session хранится в БД с fixed 14-day expiry, mutation без `Origin` отклоняется, trusted-origin sign-out немедленно удаляет session. Production runner дополнен workspace manifests, документированная `pnpm --filter ... prisma migrate deploy` команда снова работает.
+- 2026-07-13: включён global fail-closed `SessionAuthGuard`; health/ready/internal исключения объявлены явно, inactive identity блокируется с немедленным удалением sessions. API route matrix проверена для teacher/student/admin.
+- 2026-07-13: frontend полностью переведён на Better Auth client и React Query session state; удалены refresh/replay orchestration, добавлено раздельное поведение для `401`, `403` и network/5xx. Browser smoke пройден для трёх ролей.
+- 2026-07-13: добавлены idempotent `bootstrap:admin` и новый Better Auth smoke. После зелёного cutover удалены Passport/JWT, legacy auth services/controllers, `password_hash`, `auth_sessions` и `auth_refresh_tokens`; credential hash остаётся только в `Account`.
+- 2026-07-13: cleanup migration применена локально; Better Auth sign-in/session/foreign-origin rejection/sign-out/revocation прошли на production API image. API unit 84/84, web 141/141, web production build, boundaries и docs checks зелёные.
+- 2026-07-13: dependency audit выполнен; несвязанные production/dev advisories вынесены в `TD-007`, чтобы не смешивать массовые dependency upgrades с auth cutover.
+- 2026-07-13: regression gate завершён: workspace tests (API 84, web 141, worker 46, shared 26, latex-runtime 6), Docker integration 33/33, production builds API/web, workspace lint, docs и boundaries зелёные. На финальном образе teacher/student/admin проходят sign-in → session → role route → sign-out → 401; frontend browser smoke трёх ролей и post-logout guard прошёл без console errors.
+- 2026-07-13: legacy audit подтверждает отсутствие JWT/Passport dependencies, old auth endpoints/symbols/env и frontend refresh orchestration. В локальной БД отсутствуют `auth_sessions`, `auth_refresh_tokens`, `users.password_hash`; исторические create/drop migrations и superseded decision cards сохранены намеренно.
+
+## 9. Осталось до закрытия плана
+
+- Применить expand + cleanup migrations на staging/production после обязательного DB dump.
+- Настроить production `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, trusted origins и deploy secrets для auth smoke.
+- Выполнить `bootstrap:admin` и внешний HTTPS/Nginx auth smoke на целевом окружении.
+- После успешного production rollout переместить план в `completed` и обновить индексы.

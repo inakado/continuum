@@ -7,10 +7,12 @@ import { TeacherMeController } from './teacher-me.controller';
 import { TeacherStudentsController } from './teacher-students.controller';
 import { TeacherTeachersController } from './teacher-teachers.controller';
 import { TeacherDirectoryController } from './teacher-directory.controller';
+import { StudentMeController } from './student-me.controller';
 
 @Module({
   imports: [AuthModule, EventsLogModule],
   controllers: [
+    StudentMeController,
     TeacherStudentsController,
     TeacherDirectoryController,
     TeacherTeachersController,

@@ -7,7 +7,6 @@ import {
 import { Role } from '@prisma/client';
 import { type AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { contentCoverImageViewExceptionFactory } from '../common/validation/zod-exception-factories';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
@@ -16,7 +15,7 @@ import { ObjectStorageService } from '../infra/storage/object-storage.service';
 import { LearningService } from './learning.service';
 
 @Controller('student/dashboard')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 @Roles(Role.student)
 export class StudentDashboardController {
   constructor(

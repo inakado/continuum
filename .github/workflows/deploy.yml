@@ -37,7 +37,8 @@ jobs:
         if: ${{ github.event.inputs.migrations_confirmed != 'yes' }}
         run: |
           echo "Manual DB migration is required before deploy."
-          echo "Run on VPS: DATABASE_URL=... pnpm --filter @continuum/api exec prisma migrate deploy"
+          echo "Run on VPS through the production API image:"
+          echo "docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'"
           exit 1
 
       - name: Deploy to VPS via SSH
@@ -46,17 +47,23 @@ jobs:
           DEPLOY_REF: ${{ github.event.inputs.deploy_ref }}
           APP_DIR: ${{ secrets.APP_DIR }}
           APP_DOMAIN: ${{ secrets.APP_DOMAIN }}
+          AUTH_SMOKE_LOGIN: ${{ secrets.AUTH_SMOKE_LOGIN }}
+          AUTH_SMOKE_PASSWORD: ${{ secrets.AUTH_SMOKE_PASSWORD }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          envs: DEPLOY_REF,APP_DIR,APP_DOMAIN
+          envs: DEPLOY_REF,APP_DIR,APP_DOMAIN,AUTH_SMOKE_LOGIN,AUTH_SMOKE_PASSWORD
           script_stop: true
           script: |
             set -eu
 
             if [ -z "${APP_DIR:-}" ]; then
               echo "APP_DIR secret is required"
+              exit 1
+            fi
+            if [ -z "${APP_DOMAIN:-}" ] || [ -z "${AUTH_SMOKE_LOGIN:-}" ] || [ -z "${AUTH_SMOKE_PASSWORD:-}" ]; then
+              echo "APP_DOMAIN, AUTH_SMOKE_LOGIN and AUTH_SMOKE_PASSWORD secrets are required"
               exit 1
             fi
 
@@ -86,12 +93,13 @@ jobs:
 
             curl -fsS http://127.0.0.1:3000/health >/dev/null
             curl -fsS http://127.0.0.1:3000/ready >/dev/null
-            curl -fsS -X POST http://127.0.0.1:3000/debug/enqueue-ping \
-              -H 'Content-Type: application/json' \
-              -d '{"from":"github-actions-deploy"}' >/dev/null
             curl -fsS http://127.0.0.1:3001/login >/dev/null
 
-            if [ -n "${APP_DOMAIN:-}" ]; then
-              curl -fsS "https://${APP_DOMAIN}/api/health" >/dev/null
-              curl -fsS "https://${APP_DOMAIN}/login" >/dev/null
-            fi
+            curl -fsS "https://${APP_DOMAIN}/api/health" >/dev/null
+            curl -fsS "https://${APP_DOMAIN}/login" >/dev/null
+            docker compose -f docker-compose.prod.yml exec -T \
+              -e API_URL="https://${APP_DOMAIN}/api" \
+              -e AUTH_SMOKE_ORIGIN="https://${APP_DOMAIN}" \
+              -e AUTH_SMOKE_LOGIN="$AUTH_SMOKE_LOGIN" \
+              -e AUTH_SMOKE_PASSWORD="$AUTH_SMOKE_PASSWORD" \
+              api sh -lc 'cd /app/apps/api && pnpm smoke:auth'

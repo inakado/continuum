@@ -5,9 +5,3 @@ export type AuthUser = {
   login: string;
   role: Role;
 };
-
-export type JwtPayload = {
-  sub: string;
-  sid: string;
-  typ: 'access';
-};

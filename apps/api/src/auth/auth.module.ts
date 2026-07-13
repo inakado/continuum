@@ -1,38 +1,8 @@
 import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
-import type { JwtModuleOptions } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
-import { UsersModule } from '../users/users.module';
-import { AuthController } from './auth.controller';
-import { resolveJwtAccessExpiresIn, resolveJwtSecret } from './auth.config';
-import { AuthService } from './auth.service';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { LocalAuthGuard } from './guards/local-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
-import { JwtStrategy } from './strategies/jwt.strategy';
-import { LocalStrategy } from './strategies/local.strategy';
 
 @Module({
-  imports: [
-    UsersModule,
-    PassportModule,
-    JwtModule.register({
-      secret: resolveJwtSecret(),
-      signOptions: {
-        expiresIn:
-          resolveJwtAccessExpiresIn() as NonNullable<JwtModuleOptions['signOptions']>['expiresIn'],
-      },
-    }),
-  ],
-  controllers: [AuthController],
-  providers: [
-    AuthService,
-    LocalStrategy,
-    JwtStrategy,
-    LocalAuthGuard,
-    JwtAuthGuard,
-    RolesGuard,
-  ],
-  exports: [AuthService, JwtAuthGuard, RolesGuard],
+  providers: [RolesGuard],
+  exports: [RolesGuard],
 })
 export class AuthModule {}

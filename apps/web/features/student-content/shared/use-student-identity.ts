@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { studentApi } from "@/lib/api/student";
+import { contentQueryKeys } from "@/lib/query/keys";
 
 type IdentityState = {
   login: string | null;
@@ -8,33 +10,15 @@ type IdentityState = {
 };
 
 export const useStudentIdentity = () => {
-  const [state, setState] = useState<IdentityState>({
-    login: null,
-    firstName: null,
-    lastName: null,
+  const studentMeQuery = useQuery({
+    queryKey: contentQueryKeys.studentMe(),
+    queryFn: studentApi.me,
   });
-
-  useEffect(() => {
-    let mounted = true;
-    const load = async () => {
-      try {
-        const data = await studentApi.me();
-        if (!mounted) return;
-        setState({
-          login: data.user?.login ?? null,
-          firstName: data.profile?.firstName ?? null,
-          lastName: data.profile?.lastName ?? null,
-        });
-      } catch {
-        if (!mounted) return;
-        setState({ login: null, firstName: null, lastName: null });
-      }
-    };
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  const state = useMemo<IdentityState>(() => ({
+    login: studentMeQuery.data?.user.login ?? null,
+    firstName: studentMeQuery.data?.profile?.firstName ?? null,
+    lastName: studentMeQuery.data?.profile?.lastName ?? null,
+  }), [studentMeQuery.data]);
 
   const displayName = useMemo(() => {
     const parts = [state.lastName, state.firstName].filter(Boolean);

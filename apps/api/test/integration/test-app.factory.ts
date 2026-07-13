@@ -1,9 +1,9 @@
 import 'reflect-metadata';
 import type { INestApplication, Type } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { Role } from '@prisma/client';
 import { Test } from '@nestjs/testing';
 import type { AuthUser } from '../../src/auth/auth.types';
-import { JwtAuthGuard } from '../../src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../src/auth/guards/roles.guard';
 
 type IntegrationAppOptions = {
@@ -29,16 +29,20 @@ export async function createIntegrationApp(options: IntegrationAppOptions): Prom
 
   const testingModuleBuilder = Test.createTestingModule({
     controllers: options.controllers,
-    providers: [...options.providers],
+    providers: [
+      ...options.providers,
+      {
+        provide: APP_GUARD,
+        useValue: {
+          canActivate(context: any) {
+            context.switchToHttp().getRequest().user = user;
+            return true;
+          },
+        },
+      },
+    ],
   });
 
-  testingModuleBuilder.overrideGuard(JwtAuthGuard).useValue({
-    canActivate(context: any) {
-      const request = context.switchToHttp().getRequest();
-      request.user = user;
-      return true;
-    },
-  });
   testingModuleBuilder.overrideGuard(RolesGuard).useValue({
     canActivate() {
       return true;

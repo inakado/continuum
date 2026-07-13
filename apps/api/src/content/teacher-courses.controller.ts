@@ -31,7 +31,6 @@ import {
 } from '../common/validation/zod-exception-factories';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { EventsLogService } from '../events/events-log.service';
 import { ObjectStorageService } from '../infra/storage/object-storage.service';
@@ -40,7 +39,7 @@ import { ContentService } from './content.service';
 import { type CreateCourseDto, type UpdateCourseDto } from './dto/course.dto';
 
 @Controller('teacher/courses')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 @Roles(Role.teacher)
 export class TeacherCoursesController {
   constructor(

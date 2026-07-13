@@ -77,13 +77,12 @@ In `/srv/continuum/deploy/env/`, edit:
 - `redis.env`
 
 Mandatory:
-- strong `JWT_SECRET`
+- strong `BETTER_AUTH_SECRET` (не менее 32 случайных символов)
+- public `BETTER_AUTH_URL` с внешним API-префиксом, например `https://app.example.com/api`
 - secure `WORKER_INTERNAL_TOKEN`
 - consistent DB settings across all files
 - real production value for `WEB_ORIGIN` and `CORS_ORIGIN`
-- `AUTH_REFRESH_COOKIE_PATH` должен соответствовать API-префиксу (для `NEXT_PUBLIC_API_BASE_URL=/api` используйте `/api/auth`)
-- `AUTH_REFRESH_COOKIE_LEGACY_PATHS` должен включать path из старых релизов (например, `/,/auth`), чтобы backend мог чистить дубли refresh-cookie
-- при частых ложных reuse можно использовать `AUTH_REFRESH_REUSE_GRACE_SECONDS` (default `20`)
+- GitHub Environment secrets `AUTH_SMOKE_LOGIN` и `AUTH_SMOKE_PASSWORD` для отдельной active test identity
 - Beget S3 credentials and endpoint (`S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`)
 - externally reachable HTTPS for `S3_PUBLIC_BASE_URL`
 - Beget S3 bucket CORS policy for browser access from `https://app.example.com`:
@@ -453,7 +452,7 @@ curl -fsS http://127.0.0.1:3001/login >/dev/null
 6. Ручной запуск миграций перед первым deploy:
    - `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'export COREPACK_ENABLE_DOWNLOAD_PROMPT=0 && pnpm --filter @continuum/api exec prisma migrate deploy'`
 7. Настроенный GitHub Environment `production` c manual approval и secrets:
-   - `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `APP_DIR`, `APP_DOMAIN`.
+   - `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `APP_DIR`, `APP_DOMAIN`, `AUTH_SMOKE_LOGIN`, `AUTH_SMOKE_PASSWORD`.
 
 ## 14) Troubleshooting (production-first)
 
@@ -470,8 +469,8 @@ curl -fsS http://127.0.0.1:3001/login >/dev/null
     - `docker compose -f docker-compose.prod.yml ps`
     - `curl -fsS http://127.0.0.1:3000/health`
 
-- `JWT_SECRET must be set in production` при старте `api`:
-  - заполнить `JWT_SECRET` в `deploy/env/api.env`;
+- `BETTER_AUTH_SECRET must be set in production` при старте `api`:
+  - заполнить `BETTER_AUTH_SECRET` и `BETTER_AUTH_URL` в `deploy/env/api.env`;
   - `docker compose -f docker-compose.prod.yml up -d --build api`.
 
 - `Failed to restart continuum-web.service: Unit ... not found`:

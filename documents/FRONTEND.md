@@ -6,7 +6,7 @@
 
 - App Router структура (Next.js)
 - Feature boundaries (`features/components/lib`)
-- API client слой (cookie auth + refresh)
+- API client слой (Better Auth cookie session)
 - Server-state правила
 - UI primitives, motion и asset preview rules
 - rendered-content flow для student unit `theory/method`
@@ -117,8 +117,9 @@
 ## API Client Behavior
 
 - Все запросы к backend идут с `credentials: "include"`.
-- На `401` клиент пытается сделать `POST /auth/refresh` и повторить исходный запрос, кроме `/auth/login`, `/auth/refresh`, `/auth/logout`.
-- Если refresh вернул `REFRESH_TOKEN_STALE`, клиент делает короткую паузу и повторяет исходный запрос с текущими cookie.
+- Login/session/logout выполняются через Better Auth client и username plugin.
+- `401` означает отсутствие сессии, `403` — недостаточно прав; network/5xx отображаются как недоступность API без принудительного logout.
+- Единственный frontend source of truth для сессии — React Query `auth.session`.
 - Базовый URL — `NEXT_PUBLIC_API_BASE_URL` (default `http://localhost:3000`).
 - Для ключевых transport boundaries используется runtime parsing через shared contracts.
 

@@ -156,12 +156,12 @@ Production-first troubleshooting хранится отдельно в [deploy/RE
   - после правки дождаться успешного `Nest application successfully started` в логах.
 - **Проверка:**
   - `docker compose exec -T api sh -lc "wget -qO- http://localhost:3000/health || curl -s -i http://localhost:3000/health"`
-  - `docker compose exec -T api sh -lc "curl -s -i -X POST http://localhost:3000/auth/login -H 'Content-Type: application/json' -d '{\"login\":\"teacher1\",\"password\":\"Pass123!\"}'"`
+  - `docker compose exec -T api sh -lc "cd /app/apps/api && pnpm smoke:auth"`
 
 - **Симптом:** teacher login проходит, но `GET /courses` возвращает `403`, и это ошибочно воспринимается как поломка auth.
 - **Команда:** `docker compose exec -T api sh -lc "cd /app/apps/api && pnpm smoke:auth"`
-- **Причина:** `/courses` — student-only endpoint; для teacher корректные read-paths начинаются с `/teacher/*`, а базовая cookie-сессия проверяется через `/auth/me` и `/teacher/me`.
-- **Фикс:** не использовать `GET /courses` как teacher smoke; проверять `GET /auth/me`, `GET /teacher/me`, `GET /debug/teacher-only` и ожидать `GET /courses = 403`.
+- **Причина:** `/courses` — student-only endpoint; для teacher корректные read-paths начинаются с `/teacher/*`, а сессия проверяется через `/auth/get-session` и `/teacher/me`.
+- **Фикс:** не использовать `GET /courses` как teacher smoke; запускать `pnpm smoke:auth` и проверять role matrix отдельно.
 - **Проверка:** `pnpm smoke:auth` внутри контейнера `api` проходит целиком
 
 - **Симптом:** PDF compile из UI запускается, но результат долго не появляется, либо в `worker` логах есть `Cannot find module '@continuum/latex-runtime'`.

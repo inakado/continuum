@@ -1,5 +1,5 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import { Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { Role, type Prisma } from '@prisma/client';
 import { IdentityProvisioningService } from '../auth/identity-provisioning.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TeacherAccountsService } from './teacher-accounts.service';
@@ -11,7 +11,7 @@ export class StudentsService {
   private readonly teacherStudentsService: TeacherStudentsService;
 
   constructor(
-    @Inject(PrismaService) prisma: PrismaService,
+    @Inject(PrismaService) private readonly prisma: PrismaService,
     @Optional()
     @Inject(IdentityProvisioningService)
     identityProvisioning?: IdentityProvisioningService,
@@ -19,6 +19,30 @@ export class StudentsService {
     const identity = identityProvisioning ?? new IdentityProvisioningService(prisma);
     this.teacherAccountsService = new TeacherAccountsService(prisma, identity);
     this.teacherStudentsService = new TeacherStudentsService(prisma, identity);
+  }
+
+  async getStudentMe(studentId: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: studentId, role: Role.student, isActive: true },
+      select: {
+        id: true,
+        login: true,
+        role: true,
+        studentProfile: {
+          select: { firstName: true, lastName: true },
+        },
+      },
+    });
+    if (!user) {
+      throw new NotFoundException({
+        code: 'STUDENT_NOT_FOUND',
+        message: 'Student not found.',
+      });
+    }
+    return {
+      user: { id: user.id, login: user.login, role: user.role },
+      profile: user.studentProfile,
+    };
   }
 
   assertTeacherOwnsStudent(

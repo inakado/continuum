@@ -4,6 +4,9 @@ import { ROLES_KEY } from '../src/auth/decorators/roles.decorator';
 import { shouldRegisterDebugControllers } from '../src/runtime/environment';
 import { TeacherDirectoryController } from '../src/students/teacher-directory.controller';
 import { TeacherTeachersController } from '../src/students/teacher-teachers.controller';
+import { ALLOW_ANONYMOUS_KEY } from '../src/auth/decorators/allow-anonymous.decorator';
+import { HealthController } from '../src/health.controller';
+import { ReadyController } from '../src/ready.controller';
 
 const originalEnvironment = {
   APP_ENV: process.env.APP_ENV,
@@ -30,5 +33,10 @@ describe('authentication boundaries', () => {
     process.env.NODE_ENV = 'development';
     delete process.env.APP_ENV;
     expect(shouldRegisterDebugControllers()).toBe(true);
+  });
+
+  it('keeps health and readiness outside session auth', () => {
+    expect(Reflect.getMetadata(ALLOW_ANONYMOUS_KEY, HealthController)).toBe(true);
+    expect(Reflect.getMetadata(ALLOW_ANONYMOUS_KEY, ReadyController)).toBe(true);
   });
 });

@@ -13,7 +13,6 @@ import {
 import { Role } from '@prisma/client';
 import { type Response } from 'express';
 import { Roles } from './auth/decorators/roles.decorator';
-import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { ObjectStorageService } from './infra/storage/object-storage.service';
 
@@ -24,7 +23,7 @@ type DebugPutRequest = {
 };
 
 @Controller('teacher/debug/storage')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 @Roles(Role.teacher)
 export class DebugStorageController {
   constructor(

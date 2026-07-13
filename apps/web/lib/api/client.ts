@@ -14,24 +14,9 @@ export class ApiError extends Error {
 type RequestOptions = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
-  skipAuthRefresh?: boolean;
 };
 
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000";
-let refreshPromise: Promise<void> | null = null;
-const REFRESH_STALE_RETRY_DELAY_MS = 160;
-
-const NO_REFRESH_PATHS = new Set(["/auth/login", "/auth/refresh", "/auth/logout"]);
-
-const getPathname = (path: string) => {
-  const idx = path.indexOf("?");
-  return idx === -1 ? path : path.slice(0, idx);
-};
-
-const shouldTryRefresh = (path: string, options: RequestOptions) => {
-  if (options.skipAuthRefresh) return false;
-  return !NO_REFRESH_PATHS.has(getPathname(path));
-};
 
 const parseJsonSafe = (text: string) => {
   if (!text) return null;
@@ -97,58 +82,9 @@ const requestRaw = async (path: string, options: RequestOptions = {}) => {
   return { res, data };
 };
 
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-const refreshAccessToken = async () => {
-  if (!refreshPromise) {
-    refreshPromise = (async () => {
-      const { res, data } = await requestRaw("/auth/refresh", {
-        method: "POST",
-        skipAuthRefresh: true,
-      });
-      if (!res.ok) {
-        throw buildApiError(res, data);
-      }
-    })().finally(() => {
-      refreshPromise = null;
-    });
-  }
-
-  await refreshPromise;
-};
-
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const first = await requestRaw(path, options);
-  const { res, data } = first;
+  const { res, data } = await requestRaw(path, options);
   if (!res.ok) {
-    if (res.status === 401 && shouldTryRefresh(path, options)) {
-      let allowRetryWithCurrentCookies = false;
-      try {
-        await refreshAccessToken();
-      } catch (refreshError) {
-        if (refreshError instanceof ApiError && refreshError.code === "REFRESH_TOKEN_STALE") {
-          allowRetryWithCurrentCookies = true;
-          if (typeof window !== "undefined") {
-            // Another request/tab already rotated refresh token; wait for browser cookie store to settle.
-            console.warn("[auth-refresh] stale token replay detected, retrying original request");
-          }
-          await delay(REFRESH_STALE_RETRY_DELAY_MS);
-        } else {
-          throw refreshError;
-        }
-      }
-
-      const second = await requestRaw(path, { ...options, skipAuthRefresh: true });
-      if (second.res.ok) {
-        return second.data as T;
-      }
-
-      if (allowRetryWithCurrentCookies && second.res.status === 401) {
-        throw new ApiError(401, "Session refresh is out of sync. Retry again.", "REFRESH_RETRY_OUT_OF_SYNC");
-      }
-
-      throw buildApiError(second.res, second.data);
-    }
     throw buildApiError(res, data);
   }
 

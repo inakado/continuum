@@ -2,7 +2,6 @@ import { Body, Controller, Get, HttpCode, Inject, Param, Put, Req, UseGuards } f
 import { EventCategory, Role } from '@prisma/client';
 import { type AuthRequest } from '../auth/auth.request';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { EventsLogService } from '../events/events-log.service';
 import { LearningRecomputeService } from '../learning/learning-recompute.service';
@@ -10,7 +9,7 @@ import { ContentService } from './content.service';
 import { type UpdateSectionGraphDto } from './dto/graph.dto';
 
 @Controller('teacher/sections')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(RolesGuard)
 @Roles(Role.teacher)
 export class TeacherSectionGraphController {
   constructor(

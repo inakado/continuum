@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Input from "@/components/ui/Input";
 import Grainient from "@/components/Grainient";
 import { useTheme } from "@/components/useTheme";
-import { teacherApi } from "@/lib/api/teacher";
+import { authApi } from "@/lib/auth/client";
 import { ApiError } from "@/lib/api/client";
 import { Eye, EyeOff } from "lucide-react";
 import styles from "./unified-login.module.css";
@@ -96,16 +96,16 @@ export default function UnifiedLoginScreen() {
     dispatch({ type: "error", value: null });
     dispatch({ type: "loading", value: true });
     try {
-      const result = await teacherApi.login(state.login, state.password);
+      const result = await authApi.signIn(state.login, state.password);
       const role = result.user?.role;
       if (role === "admin") {
-        router.push("/admin/teachers");
+        router.replace("/admin/teachers");
       } else if (role === "teacher") {
-        router.push("/teacher");
+        router.replace("/teacher");
       } else if (role === "student") {
-        router.push("/student");
+        router.replace("/student");
       } else {
-        router.push("/");
+        router.replace("/");
       }
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {

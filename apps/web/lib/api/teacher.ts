@@ -76,7 +76,6 @@ import {
   type SectionCoverImagePresignViewResponse as SharedSectionCoverImagePresignViewResponse,
 } from "@continuum/shared";
 import { apiRequest, apiRequestParsed } from "./client";
-import type { MeResponse } from "./auth";
 
 export type ContentStatus = "draft" | "published";
 export type TeacherSummary = SharedTeacherSummary;
@@ -260,10 +259,6 @@ export type GraphEdge = SharedTeacherGraphEdge;
 export type SectionGraphResponse = SharedTeacherSectionGraphResponse;
 export type SectionGraphUpdateRequest = SharedTeacherSectionGraphUpdateRequest;
 
-export type LoginResponse = {
-  user: { id: string; login: string; role: string };
-};
-
 export type LatexCompileEnqueueResponse = {
   jobId: string;
 };
@@ -422,21 +417,6 @@ const buildLatexCompileJobPath = (jobId: string, ttlSec: number) => {
 };
 
 export const teacherApi = {
-  login(login: string, password: string) {
-    return apiRequest<LoginResponse>("/auth/login", {
-      method: "POST",
-      body: { login, password },
-    });
-  },
-
-  logout() {
-    return apiRequest<{ ok: boolean }>("/auth/logout", { method: "POST" });
-  },
-
-  me() {
-    return apiRequest<MeResponse>("/auth/me");
-  },
-
   getTeacherMe() {
     return apiRequest<TeacherMeResponse>("/teacher/me");
   },

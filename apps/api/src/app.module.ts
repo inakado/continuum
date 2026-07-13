@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { AuthModule as BetterAuthNestModule } from '@thallesp/nestjs-better-auth';
 import { AuthModule } from './auth/auth.module';
 import { createBetterAuth } from './auth/better-auth.factory';
+import { SessionAuthGuard } from './auth/guards/session-auth.guard';
 import { ContentModule } from './content/content.module';
 import { EventsLogModule } from './events/events.module';
 import { LearningModule } from './learning/learning.module';
@@ -49,6 +51,12 @@ export const resolveDebugControllers = () =>
     ReadyController,
     ...resolveDebugControllers(),
   ],
-  providers: [ReadyService],
+  providers: [
+    ReadyService,
+    {
+      provide: APP_GUARD,
+      useClass: SessionAuthGuard,
+    },
+  ],
 })
 export class AppModule {}

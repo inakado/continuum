@@ -13,6 +13,7 @@ import {
 import { EventCategory } from '@prisma/client';
 import type { Job } from 'bullmq';
 import { EventsLogService } from '../events/events-log.service';
+import { AllowAnonymous } from '../auth/decorators/allow-anonymous.decorator';
 import { resolveWorkerInternalToken } from '../auth/internal-auth.config';
 import { ContentService } from './content.service';
 import {
@@ -31,6 +32,7 @@ import {
 } from './unit-pdf.constants';
 
 @Controller('internal/latex/jobs')
+@AllowAnonymous()
 export class InternalLatexController {
   constructor(
     @Inject(ContentService)
