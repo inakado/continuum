@@ -1,6 +1,6 @@
 # Миграция Identity & Access на Better Auth
 
-Статус: `Active`
+Статус: `Completed`
 
 ## 1. Цель и контекст
 
@@ -88,10 +88,15 @@
 - 2026-07-13: выявлены и включены в rollout устаревший host Node 20, отсутствующие `BETTER_AUTH_SECRET`/`BETTER_AUTH_URL`, публичный production debug route и Nginx без deny для `/api/internal/*`. Reusable deploy не выполняет destructive reset и не пересобирает TeX Live base без отдельного явного разрешения.
 - 2026-07-13: production prebuild обнаружил несовместимость старого `NEXT_PUBLIC_API_BASE_URL=/api` с SSR-валидацией Better Auth client. Production web build переведён на абсолютный `https://<APP_DOMAIN>/api`; сбой произошёл до Docker build и остановки сервисов.
 - 2026-07-13: первый внешний auth smoke выявил второй proxy boundary: server `BETTER_AUTH_URL` должен содержать только public origin, поскольку `/api` снимается Nginx перед внутренним `/auth/*`. Origin-only конфигурация подтверждена direct/external `get-session=200` и закреплена fail-fast тестом.
+- 2026-07-13: production cutover завершён на Node.js `24.18.0` и pnpm `10.11.1`: PostgreSQL/Redis reset выполнен в согласованном pre-launch режиме, применены все Prisma migrations, созданы `admin`, `deploy-smoke-teacher` и `deploy-smoke-student`.
+- 2026-07-13: внешний HTTPS smoke прошёл для sign-in, session, `/student/me`, foreign-origin `403`, sign-out и post-logout `401`; `/api/debug/*` и `/api/internal/*` возвращают `404`, API healthy, worker без ошибок.
+- 2026-07-13: после зелёного smoke выполнена ограниченная Docker-очистка только stopped containers и dangling images. TeX Live base сохранил ID `07e6616549b9`; build cache и volumes не очищались.
+- 2026-07-13: принято финальное операционное решение оставить автоматический CI и ручной production deploy. GitHub не получает SSH-доступ к VPS; `deploy.yml` остаётся подготовленным, но неактивным до отдельного решения о dedicated `deploy` key.
+- 2026-07-13: post-cutover browser check обнаружил frontend URL regression: Better Auth client игнорировал `basePath`, когда `NEXT_PUBLIC_API_BASE_URL` уже содержал `/api`. Hotfix `9aa3733` формирует явный `/api/auth` URL, покрыт regression-тестом и подтверждён production browser login `deploy-smoke-student → /student`.
 
-## 9. Осталось до закрытия плана
+## 9. Итог
 
-- Применить expand + cleanup migrations на production; для текущего pre-launch cutover backup не требуется.
-- Настроить production `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, trusted origins и deploy secrets для auth smoke.
-- Выполнить `bootstrap:admin` и внешний HTTPS/Nginx auth smoke на целевом окружении.
-- После успешного production rollout переместить план в `completed` и обновить индексы.
+- Better Auth обслуживает production identity/session contour; legacy JWT/refresh код и таблицы удалены.
+- AuthZ работает fail-closed, роли `admin | teacher | student` и ownership проверены integration/browser/production smoke.
+- Production deploy документирован как ручная контролируемая операция с обязательным auth smoke.
+- Completion criteria выполнены; дальнейшая автоматизация CD является отдельной инициативой, а не незавершённой частью миграции.

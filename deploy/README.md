@@ -199,6 +199,10 @@ sudo -n systemctl restart continuum-web
 
 ## 7) Routine deploy after the cutover
 
+Текущая production-модель: автоматический CI и ручной deploy через `ssh continuum-vps`.
+GitHub Actions workflow `deploy.yml` подготовлен, но не является рабочим каналом доставки,
+пока в GitHub Environment намеренно отсутствует `DEPLOY_SSH_KEY`.
+
 ```bash
 cd /srv/continuum
 git status --short
@@ -207,10 +211,15 @@ git fetch --all --prune
 git checkout main
 git merge --ff-only origin/main
 
+read -rsp 'Smoke student password: ' AUTH_SMOKE_PASSWORD; echo
+export AUTH_SMOKE_PASSWORD
 PREVIOUS_HEAD="$previous_head" \
 MIGRATIONS_APPROVED=yes \
 APP_DOMAIN=vl-physics.ru \
+AUTH_SMOKE_LOGIN=deploy-smoke-student \
+AUTH_SMOKE_PROTECTED_PATH=/student/me \
   ./deploy/scripts/deploy-on-vps.sh
+unset AUTH_SMOKE_PASSWORD
 ```
 
 Скрипт собирает release до maintenance window, затем останавливает API/worker, запускает
@@ -376,7 +385,8 @@ application flows создайте:
 - `deploy-smoke-student` через созданного преподавателя.
 
 Для постоянного auth smoke используйте student identity и route `/student/me`. Пароль student
-хранится только в GitHub Environment secret `AUTH_SMOKE_PASSWORD`.
+храните в менеджере секретов владельца проекта. При ручном deploy вводите его через скрытый
+`read`, как показано в разделе 7; не сохраняйте пароль в Git, shell history или env-файлах.
 
 Для локального/dev seed без UI остаётся идемпотентный helper:
 
@@ -481,7 +491,16 @@ curl -I https://app.example.com/login
 curl -I https://app.example.com/api/health
 ```
 
-## 11) GitHub Actions secrets (Environment: production)
+## 11) GitHub Actions и production deploy
+
+CI (`.github/workflows/ci.yml`) автоматически запускается для pull request и push в `main`.
+Production deploy выполняется вручную по разделу 7: GitHub не имеет SSH-доступа к VPS.
+
+`deploy.yml` оставлен как подготовленный manual workflow. Его нельзя запускать, пока не принято
+отдельное решение об автоматизации CD и не добавлен dedicated SSH-ключ пользователя `deploy`.
+Root SSH-ключ в GitHub передавать запрещено.
+
+Для будущего включения автоматического CD GitHub Environment `production` должен содержать:
 
 - `DEPLOY_HOST`
 - `DEPLOY_USER`
@@ -527,7 +546,8 @@ curl -fsS http://127.0.0.1:3001/login >/dev/null
 
 1. GitHub repository URL (SSH) для привязки `origin`.
 2. Домен, который уже указывает на VPS (например, `app.example.com`).
-3. SSH-доступ к VPS (host, user, private key для GitHub Actions secret `DEPLOY_SSH_KEY`).
+3. Локальный SSH-доступ через `ssh continuum-vps`; Git и build выполняются после
+   `sudo -iu deploy`.
 4. Заполненные production env-файлы в `/srv/continuum/deploy/env/*.env`:
    - заменить все `CHANGE_ME_*`,
    - выставить корректные `WEB_ORIGIN`, `CORS_ORIGIN`,
@@ -537,8 +557,9 @@ curl -fsS http://127.0.0.1:3001/login >/dev/null
    - Node.js 24 + pnpm 10.11.1,
    - `systemd`, `nginx`, `certbot`.
 6. Первый Better Auth cutover выполнен по разделу 6; последующие миграции запускает deploy script после build и остановки API/worker.
-7. Настроенный GitHub Environment `production` c manual approval и secrets:
-   - `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `APP_DIR`, `APP_DOMAIN`, `AUTH_SMOKE_LOGIN`, `AUTH_SMOKE_PASSWORD`, `AUTH_SMOKE_PROTECTED_PATH`.
+7. Для текущего ручного deploy GitHub Environment не является каналом доступа к VPS.
+   Автоматический CD включается отдельным решением только с dedicated `deploy` key и manual
+   approval; root key не используется.
 
 ## 14) Troubleshooting (production-first)
 

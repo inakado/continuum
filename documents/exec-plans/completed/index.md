@@ -22,6 +22,7 @@ Legacy vertical slices — исторические specs и execution context. 
 
 ## Native exec-plans
 
+- `2026-07-13-better-auth-identity-access-migration.md`
 - `2026-06-26-excalidraw-board-photo-submissions.md`
 - `2026-07-12-runtime-performance-optimization.md`
 - `2026-07-11-node24-runtime-migration.md`
