@@ -61,7 +61,8 @@
   - `POST /teacher/students/:id/reset-password`
   - `PATCH /teacher/students/:id/transfer`
   - `GET|PATCH /teacher/me`, `POST /teacher/me/change-password`
-  - `GET|POST /teacher/teachers`, `DELETE /teacher/teachers/:id`
+  - `GET /teacher/teachers` — read-only directory для transfer ученика
+  - `GET|POST /admin/teachers`, `DELETE /admin/teachers/:id` — admin-only управление преподавателями
 
 Источник:
 - `apps/api/src/learning/learning.service.ts` (facade)
@@ -93,7 +94,7 @@
 
 - API queue:
   - `LatexCompileQueueService` добавляет jobs в BullMQ.
-  - `POST /teacher/debug/latex/compile-and-upload` не компилирует локально и только ставит debug job в `latex.compile`.
+  - `POST /teacher/debug/latex/compile-and-upload` регистрируется только вне production, не компилирует локально и ставит debug job в `latex.compile`.
 - Worker:
   - компилирует через `pdflatex`,
   - для TikZ HTML assets использует `pdflatex --output-format=dvi -> dvisvgm`,

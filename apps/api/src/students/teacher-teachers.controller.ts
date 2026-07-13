@@ -8,9 +8,9 @@ import { EventsLogService } from '../events/events-log.service';
 import { type CreateTeacherDto } from './dto/teacher-settings.dto';
 import { StudentsService } from './students.service';
 
-@Controller('teacher/teachers')
+@Controller('admin/teachers')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.teacher)
+@Roles(Role.admin)
 export class TeacherTeachersController {
   constructor(
     @Inject(StudentsService)

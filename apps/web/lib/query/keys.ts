@@ -30,6 +30,7 @@ export const learningPhotoQueryKeys = {
 } as const;
 
 export const contentQueryKeys = {
+  adminTeachers: () => ["identity", "admin", "teachers"] as const,
   teacherMe: () => ["content", "teacher", "me"] as const,
   teacherEvents: (params?: {
     category?: "admin" | "learning" | "system";

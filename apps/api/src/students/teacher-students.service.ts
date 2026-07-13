@@ -556,10 +556,28 @@ export class TeacherStudentsService {
 
     const password = generatePassword();
     const passwordHash = await argon2.hash(password);
+    const now = new Date();
 
-    await this.prisma.user.update({
-      where: { id: profile.userId },
-      data: { passwordHash },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: profile.userId },
+        data: { passwordHash },
+      });
+      await tx.authSession.updateMany({
+        where: { userId: profile.userId, revokedAt: null },
+        data: {
+          revokedAt: now,
+          revokeReason: 'PASSWORD_RESET',
+          lastUsedAt: now,
+        },
+      });
+      await tx.authRefreshToken.updateMany({
+        where: {
+          revokedAt: null,
+          session: { userId: profile.userId },
+        },
+        data: { revokedAt: now },
+      });
     });
 
     return { id: profile.userId, login: profile.user.login, password };

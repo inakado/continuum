@@ -58,6 +58,6 @@ export class UsersService {
   }
 
   isRole(role: Role): role is Role {
-    return role === 'teacher' || role === 'student';
+    return role === 'admin' || role === 'teacher' || role === 'student';
   }
 }

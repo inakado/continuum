@@ -60,10 +60,10 @@ import {
   type TeacherStudentProfileQuery as SharedTeacherStudentProfileQuery,
   type TeacherStudentProfileResponse as SharedTeacherStudentProfileResponse,
   type TeacherStudentSummary as SharedTeacherStudentSummary,
+  type TeacherSummary as SharedTeacherSummary,
   type TeacherStudentsListQuery as SharedTeacherStudentsListQuery,
   type StudentUnitRenderedContentResponse as SharedStudentUnitRenderedContentResponse,
   type StudentTaskSolutionRenderedContentResponse as SharedStudentTaskSolutionRenderedContentResponse,
-  type TeacherSummary as SharedTeacherSummary,
   type TeacherTransferStudentRequest as SharedTeacherTransferStudentRequest,
   type TeacherUnit as SharedTeacherUnit,
   type TeacherUpdateCourseRequest as SharedTeacherUpdateCourseRequest,
@@ -79,6 +79,7 @@ import { apiRequest, apiRequestParsed } from "./client";
 import type { MeResponse } from "./auth";
 
 export type ContentStatus = "draft" | "published";
+export type TeacherSummary = SharedTeacherSummary;
 
 export type Course = SharedTeacherCourse;
 
@@ -146,7 +147,6 @@ export type EventsResponse = {
 };
 
 export type StudentSummary = SharedTeacherStudentSummary;
-export type TeacherSummary = SharedTeacherSummary;
 
 export type TeacherMeResponse = {
   user: {
@@ -829,39 +829,6 @@ export const teacherApi = {
 
   listTeachers() {
     return apiRequestParsed("/teacher/teachers", TeacherTeachersListResponseSchema);
-  },
-
-  createTeacher(data: {
-    login: string;
-    firstName: string;
-    lastName: string;
-    middleName?: string | null;
-    password?: string | null;
-    generatePassword?: boolean;
-  }) {
-    return apiRequest<{
-      id: string;
-      login: string;
-      firstName: string;
-      lastName: string;
-      middleName?: string | null;
-      password?: string | null;
-    }>("/teacher/teachers", {
-      method: "POST",
-      body: data,
-    });
-  },
-
-  deleteTeacher(id: string) {
-    return apiRequest<{
-      id: string;
-      login: string;
-      firstName?: string | null;
-      lastName?: string | null;
-      middleName?: string | null;
-    }>(`/teacher/teachers/${id}`, {
-      method: "DELETE",
-    });
   },
 
   getStudentProfile(studentId: string, params?: SharedTeacherStudentProfileQuery) {

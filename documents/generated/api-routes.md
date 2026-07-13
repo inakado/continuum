@@ -12,6 +12,9 @@
 
 | Method | Path | Handler | Source |
 | --- | --- | --- | --- |
+| `GET` | `/admin/teachers` | `list` | `apps/api/src/students/teacher-teachers.controller.ts:22` |
+| `POST` | `/admin/teachers` | `create` | `apps/api/src/students/teacher-teachers.controller.ts:27` |
+| `DELETE` | `/admin/teachers/:id` | `delete` | `apps/api/src/students/teacher-teachers.controller.ts:56` |
 | `POST` | `/auth/login` | `login` | `apps/api/src/auth/auth.controller.ts:151` |
 | `POST` | `/auth/logout` | `logout` | `apps/api/src/auth/auth.controller.ts:192` |
 | `GET` | `/auth/me` | `me` | `apps/api/src/auth/auth.controller.ts:202` |
@@ -22,7 +25,7 @@
 | `GET` | `/debug/student-only` | `studentOnly` | `apps/api/src/debug.controller.ts:33` |
 | `GET` | `/debug/teacher-only` | `teacherOnly` | `apps/api/src/debug.controller.ts:26` |
 | `GET` | `/health` | `health` | `apps/api/src/health.controller.ts:6` |
-| `POST` | `/internal/latex/jobs/:jobId/apply` | `applyCompileJob` | `apps/api/src/content/internal-latex.controller.ts:43` |
+| `POST` | `/internal/latex/jobs/:jobId/apply` | `applyCompileJob` | `apps/api/src/content/internal-latex.controller.ts:44` |
 | `GET` | `/ready` | `ready` | `apps/api/src/ready.controller.ts:9` |
 | `GET` | `/sections/:id` | `get` | `apps/api/src/content/student-sections.controller.ts:15` |
 | `GET` | `/sections/:id/graph` | `getGraph` | `apps/api/src/learning/student-section-graph.controller.ts:15` |
@@ -105,9 +108,7 @@
 | `POST` | `/teacher/tasks/:taskId/statement-image/apply` | `applyStatementImage` | `apps/api/src/content/teacher-tasks.controller.ts:224` |
 | `POST` | `/teacher/tasks/:taskId/statement-image/presign-upload` | `presignStatementImageUpload` | `apps/api/src/content/teacher-tasks.controller.ts:194` |
 | `GET` | `/teacher/tasks/:taskId/statement-image/presign-view` | `presignStatementImageView` | `apps/api/src/content/teacher-tasks.controller.ts:279` |
-| `GET` | `/teacher/teachers` | `list` | `apps/api/src/students/teacher-teachers.controller.ts:22` |
-| `POST` | `/teacher/teachers` | `create` | `apps/api/src/students/teacher-teachers.controller.ts:27` |
-| `DELETE` | `/teacher/teachers/:id` | `delete` | `apps/api/src/students/teacher-teachers.controller.ts:56` |
+| `GET` | `/teacher/teachers` | `list` | `apps/api/src/students/teacher-directory.controller.ts:17` |
 | `POST` | `/teacher/units` | `create` | `apps/api/src/content/teacher-units.controller.ts:110` |
 | `DELETE` | `/teacher/units/:id` | `remove` | `apps/api/src/content/teacher-units.controller.ts:212` |
 | `GET` | `/teacher/units/:id` | `get` | `apps/api/src/content/teacher-units.controller.ts:45` |

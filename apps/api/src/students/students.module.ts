@@ -5,10 +5,16 @@ import { StudentsService } from './students.service';
 import { TeacherMeController } from './teacher-me.controller';
 import { TeacherStudentsController } from './teacher-students.controller';
 import { TeacherTeachersController } from './teacher-teachers.controller';
+import { TeacherDirectoryController } from './teacher-directory.controller';
 
 @Module({
   imports: [AuthModule, EventsLogModule],
-  controllers: [TeacherStudentsController, TeacherTeachersController, TeacherMeController],
+  controllers: [
+    TeacherStudentsController,
+    TeacherDirectoryController,
+    TeacherTeachersController,
+    TeacherMeController,
+  ],
   providers: [StudentsService],
   exports: [StudentsService],
 })

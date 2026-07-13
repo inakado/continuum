@@ -4,9 +4,11 @@ import { createLatexCompileProcessor } from './latex/latex-compile.worker';
 import { LATEX_COMPILE_QUEUE_NAME } from './latex/latex-queue.contract';
 import { resolveWorkerObjectStorageConfig } from './storage/object-storage-config';
 import { WorkerObjectStorageService } from './storage/object-storage';
+import { resolveWorkerInternalToken } from './internal-auth.config';
 
 const redisHost = process.env.REDIS_HOST || 'redis';
 const redisPort = Number(process.env.REDIS_PORT || 6379);
+resolveWorkerInternalToken();
 
 const connection = new IORedis({
   host: redisHost,

@@ -12,6 +12,7 @@ vi.mock('@prisma/client', () => ({
   },
   PrismaClient: class PrismaClient {},
   Role: {
+    admin: 'admin',
     teacher: 'teacher',
     student: 'student',
   },
@@ -46,9 +47,16 @@ import { StudentsService } from '../src/students/students.service';
 const createTransactionMock = () => ({
   user: {
     create: vi.fn(),
+    update: vi.fn(),
   },
   studentProfile: {
     create: vi.fn(),
+  },
+  authSession: {
+    updateMany: vi.fn(),
+  },
+  authRefreshToken: {
+    updateMany: vi.fn(),
   },
 });
 
@@ -103,7 +111,10 @@ describe('StudentsService teacher students slice', () => {
     prisma.$transaction.mockImplementation(async (callback: (input: typeof tx) => Promise<unknown>) => callback(tx));
 
     tx.user.create.mockReset();
+    tx.user.update.mockReset();
     tx.studentProfile.create.mockReset();
+    tx.authSession.updateMany.mockReset();
+    tx.authRefreshToken.updateMany.mockReset();
 
     argon2Mock.hash.mockReset();
   });
@@ -266,6 +277,39 @@ describe('StudentsService teacher students slice', () => {
     });
     expect(result.password).toEqual(expect.any(String));
     expect(result.password).toHaveLength(10);
+  });
+
+  it('resets student password and revokes all active sessions', async () => {
+    prisma.studentProfile.findUnique.mockResolvedValue({
+      userId: 'student-1',
+      leadTeacherId: 'teacher-1',
+      user: { id: 'student-1', login: 'student1', role: 'student' },
+      leadTeacher: {
+        id: 'teacher-1',
+        login: 'teacher1',
+        teacherProfile: null,
+      },
+    });
+    argon2Mock.hash.mockResolvedValue('new-hash');
+
+    const result = await service.resetPassword('student-1', 'teacher-1');
+
+    expect(result).toMatchObject({ id: 'student-1', login: 'student1' });
+    expect(tx.user.update).toHaveBeenCalledWith({
+      where: { id: 'student-1' },
+      data: { passwordHash: 'new-hash' },
+    });
+    expect(tx.authSession.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: 'student-1', revokedAt: null },
+        data: expect.objectContaining({ revokeReason: 'PASSWORD_RESET' }),
+      }),
+    );
+    expect(tx.authRefreshToken.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { revokedAt: null, session: { userId: 'student-1' } },
+      }),
+    );
   });
 
   it('transferStudent rejects noop transfer and supports valid reassignment', async () => {

@@ -12,6 +12,12 @@ import { ObjectStorageModule } from './infra/storage/object-storage.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ReadyController } from './ready.controller';
 import { ReadyService } from './ready.service';
+import { shouldRegisterDebugControllers } from './runtime/environment';
+
+export const resolveDebugControllers = () =>
+  shouldRegisterDebugControllers()
+    ? [DebugController, DebugStorageController, DebugLatexController]
+    : [];
 
 @Module({
   imports: [
@@ -26,9 +32,7 @@ import { ReadyService } from './ready.service';
   controllers: [
     HealthController,
     ReadyController,
-    DebugController,
-    DebugStorageController,
-    DebugLatexController,
+    ...resolveDebugControllers(),
   ],
   providers: [ReadyService],
 })

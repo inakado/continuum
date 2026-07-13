@@ -10,7 +10,7 @@
 
 ## Enums
 
-- `Role`: `teacher` | `student`
+- `Role`: `admin` | `teacher` | `student`
 - `ContentStatus`: `draft` | `published`
 - `EventCategory`: `admin` | `learning` | `system`
 - `TaskAnswerType`: `numeric` | `single_choice` | `multi_choice` | `photo`

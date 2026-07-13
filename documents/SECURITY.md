@@ -42,9 +42,18 @@ Operational pitfall (`Implemented`):
 
 ### RBAC и доступы
 
+- `admin/*` endpoints доступны только роли `admin`; создание/удаление преподавателей вынесено из teacher contour.
 - Защита большинства `teacher/*` endpoints через `JwtAuthGuard` + `RolesGuard` + `@Roles(Role.teacher)`.
+- `GET /teacher/teachers` является read-only directory для transfer ученика; write-операций в этом contour нет.
 - Student endpoints ограничены ролью `student` и используют `req.user.id` как studentId.
 - Проверка “lead teacher owns student” для teacher-review сценариев делается на уровне сервисов.
+- Сброс пароля ученика отзывает все активные sessions и refresh tokens.
+
+### Debug и internal routes
+
+- Debug controllers регистрируются только вне production.
+- Nginx не публикует `/api/internal/*`; worker обращается к internal endpoint внутри Docker network.
+- `WORKER_INTERNAL_TOKEN` обязателен в production для API и worker; development fallback не применяется в production.
 
 ### Worker ↔ API internal auth
 

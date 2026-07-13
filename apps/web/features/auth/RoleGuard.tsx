@@ -10,7 +10,7 @@ import { ApiError } from "@/lib/api/client";
 import styles from "./role-guard.module.css";
 
 type RoleGuardProps = {
-  requiredRole: "teacher" | "student";
+  requiredRole: "admin" | "teacher" | "student";
   children: ReactNode;
 };
 
@@ -61,7 +61,7 @@ export default function RoleGuard({ requiredRole, children }: RoleGuardProps) {
   }
 
   if (state === "unauthorized") {
-    return requiredRole === "teacher" ? <AuthRequired /> : <StudentAuthRequired />;
+    return requiredRole === "student" ? <StudentAuthRequired /> : <AuthRequired />;
   }
 
   if (state === "forbidden") {

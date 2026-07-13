@@ -98,7 +98,9 @@ export default function UnifiedLoginScreen() {
     try {
       const result = await teacherApi.login(state.login, state.password);
       const role = result.user?.role;
-      if (role === "teacher") {
+      if (role === "admin") {
+        router.push("/admin/teachers");
+      } else if (role === "teacher") {
         router.push("/teacher");
       } else if (role === "student") {
         router.push("/student");

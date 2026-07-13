@@ -1,3 +1,5 @@
+import { resolveWorkerInternalToken } from '../internal-auth.config';
+
 type ApplyCompileResultResponse = {
   ok: boolean;
   applied: boolean;
@@ -55,7 +57,7 @@ export const applyUnitPdfKeyViaApi = async (
   result: ApplyResultRequestBody,
 ): Promise<ApplyCompileResultResponse> => {
   const apiBaseUrl = normalizeBaseUrl(process.env.API_INTERNAL_URL || 'http://api:3000');
-  const internalToken = process.env.WORKER_INTERNAL_TOKEN || 'continuum-internal-dev';
+  const internalToken = resolveWorkerInternalToken();
 
   for (let attempt = 0; attempt <= APPLY_RETRY_COUNT; attempt += 1) {
     let response: Response;

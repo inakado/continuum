@@ -14,8 +14,12 @@
   -webkit-backdrop-filter: var(--glass-filter);
 }
 
-.cardTitle {
-  display: none;
+.sectionTitle {
+  margin: 0;
+  font-family: var(--text-title-section-family), sans-serif;
+  font-size: var(--text-title-section-size);
+  font-weight: var(--text-title-section-weight);
+  color: var(--text-primary);
 }
 
 .grid2,
@@ -49,15 +53,6 @@
   color: var(--text-primary);
 }
 
-.generatedPassword {
-  border: var(--border-width-thin) solid var(--glass-border);
-  border-radius: var(--control-radius);
-  background: color-mix(in srgb, var(--surface-1) 90%, transparent);
-  padding: 8px 10px;
-  font-size: 12px;
-  color: var(--text-primary);
-}
-
 .error {
   border: var(--border-width-thin) solid color-mix(in srgb, #ef4444 35%, var(--glass-border));
   border-radius: var(--control-radius);
@@ -74,45 +69,4 @@
   color: var(--text-muted);
   padding: 10px;
   font-size: 12px;
-}
-
-.teacherList {
-  display: grid;
-  gap: 8px;
-}
-
-.teacherRow {
-  border: var(--border-width-thin) solid var(--glass-border);
-  border-radius: var(--control-radius);
-  background: color-mix(in srgb, var(--surface-1) 92%, transparent);
-  padding: 10px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: center;
-}
-
-.teacherMain {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-}
-
-.teacherName {
-  font-family: var(--text-title-card-family), sans-serif;
-  font-weight: var(--text-title-card-weight);
-  font-size: var(--text-title-card-size);
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.teacherLogin {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.selfBadge {
-  white-space: nowrap;
 }

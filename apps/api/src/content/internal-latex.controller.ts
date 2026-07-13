@@ -13,6 +13,7 @@ import {
 import { EventCategory } from '@prisma/client';
 import type { Job } from 'bullmq';
 import { EventsLogService } from '../events/events-log.service';
+import { resolveWorkerInternalToken } from '../auth/internal-auth.config';
 import { ContentService } from './content.service';
 import {
   isTaskSolutionLatexCompileJobPayload,
@@ -194,7 +195,7 @@ export class InternalLatexController {
   }
 
   private assertInternalToken(token: string | undefined) {
-    const expected = process.env.WORKER_INTERNAL_TOKEN || 'continuum-internal-dev';
+    const expected = resolveWorkerInternalToken();
     if (!token || token !== expected) {
       throw new UnauthorizedException({
         code: 'INTERNAL_TOKEN_INVALID',
