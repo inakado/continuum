@@ -82,7 +82,7 @@ In `/srv/continuum/deploy/env/`, edit:
 
 Mandatory:
 - strong `BETTER_AUTH_SECRET` (не менее 32 случайных символов)
-- public `BETTER_AUTH_URL` с внешним API-префиксом, например `https://app.example.com/api`
+- public `BETTER_AUTH_URL` только с origin без path, например `https://app.example.com`
 - secure `WORKER_INTERNAL_TOKEN`
 - consistent DB settings across all files
 - real production value for `WEB_ORIGIN` and `CORS_ORIGIN`
@@ -194,7 +194,8 @@ docker compose -f docker-compose.prod.yml up -d api worker
 sudo -n systemctl restart continuum-web
 ```
 
-Пароль admin не передавайте через аргументы команд, Git или shell history.
+Пароль admin не передавайте через аргументы команд, Git или shell history. `BETTER_AUTH_URL`
+остаётся origin-only; `/api` добавляется только в `NEXT_PUBLIC_API_BASE_URL` frontend build.
 
 ## 7) Routine deploy after the cutover
 

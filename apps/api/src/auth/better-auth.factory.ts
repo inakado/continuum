@@ -19,9 +19,15 @@ const resolveSecret = () => {
   return 'continuum-development-secret-change-me';
 };
 
-const resolveBaseUrl = () => {
+export const resolveBetterAuthBaseUrl = () => {
   const configured = process.env.BETTER_AUTH_URL?.trim();
-  if (configured) return configured.replace(/\/+$/, '');
+  if (configured) {
+    const url = new URL(configured);
+    if (url.pathname !== '/' || url.search || url.hash) {
+      throw new Error('BETTER_AUTH_URL must contain only the public origin without a path.');
+    }
+    return url.origin;
+  }
   return `http://localhost:${Number(process.env.API_PORT || 3000)}`;
 };
 
@@ -37,7 +43,7 @@ export const createBetterAuth = (prisma: PrismaService) =>
   betterAuth({
     appName: 'Континуум',
     secret: resolveSecret(),
-    baseURL: resolveBaseUrl(),
+    baseURL: resolveBetterAuthBaseUrl(),
     basePath: '/auth',
     trustedOrigins: resolveTrustedOrigins(),
     database: prismaAdapter(prisma, { provider: 'postgresql' }),

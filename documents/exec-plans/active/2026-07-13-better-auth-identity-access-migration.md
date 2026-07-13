@@ -87,6 +87,7 @@
 - 2026-07-13: production preflight подтверждён: VPS находится на `439d271`, новые migrations не применены, текущие логины совместимы с canonicalization, TeX Live base `07e6616549b9` сохранён, свободно 15G. Для первого cutover выбран полный reset PostgreSQL/Redis, ручной SSH rollout и отдельная student identity для постоянного auth smoke.
 - 2026-07-13: выявлены и включены в rollout устаревший host Node 20, отсутствующие `BETTER_AUTH_SECRET`/`BETTER_AUTH_URL`, публичный production debug route и Nginx без deny для `/api/internal/*`. Reusable deploy не выполняет destructive reset и не пересобирает TeX Live base без отдельного явного разрешения.
 - 2026-07-13: production prebuild обнаружил несовместимость старого `NEXT_PUBLIC_API_BASE_URL=/api` с SSR-валидацией Better Auth client. Production web build переведён на абсолютный `https://<APP_DOMAIN>/api`; сбой произошёл до Docker build и остановки сервисов.
+- 2026-07-13: первый внешний auth smoke выявил второй proxy boundary: server `BETTER_AUTH_URL` должен содержать только public origin, поскольку `/api` снимается Nginx перед внутренним `/auth/*`. Origin-only конфигурация подтверждена direct/external `get-session=200` и закреплена fail-fast тестом.
 
 ## 9. Осталось до закрытия плана
 
