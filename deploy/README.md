@@ -159,7 +159,7 @@ git checkout main
 git merge --ff-only origin/main
 
 pnpm install --frozen-lockfile
-NEXT_PUBLIC_API_BASE_URL=/api pnpm --filter web build
+NEXT_PUBLIC_API_BASE_URL=https://vl-physics.ru/api pnpm --filter web build
 docker compose -f docker-compose.prod.yml build api
 docker compose -f docker-compose.prod.yml build worker
 ```
@@ -399,11 +399,11 @@ systemctl daemon-reload
 systemctl enable continuum-web
 ```
 
-Build and run frontend (под `deploy`):
+Build and run frontend (под `deploy`; Better Auth требует абсолютный production API URL):
 
 ```bash
 cd /srv/continuum
-NEXT_PUBLIC_API_BASE_URL=/api pnpm --filter web build
+NEXT_PUBLIC_API_BASE_URL=https://vl-physics.ru/api pnpm --filter web build
 sudo -n systemctl restart continuum-web
 ```
 
@@ -508,7 +508,7 @@ docker compose -f docker-compose.prod.yml build api
 docker compose -f docker-compose.prod.yml up -d api
 docker compose -f docker-compose.prod.yml build worker
 docker compose -f docker-compose.prod.yml up -d worker
-NEXT_PUBLIC_API_BASE_URL=/api pnpm --filter web build
+NEXT_PUBLIC_API_BASE_URL=https://vl-physics.ru/api pnpm --filter web build
 sudo systemctl restart continuum-web
 ```
 

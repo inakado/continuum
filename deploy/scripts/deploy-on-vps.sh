@@ -51,6 +51,11 @@ for name in BETTER_AUTH_SECRET BETTER_AUTH_URL WEB_ORIGIN CORS_ORIGIN WORKER_INT
   fi
 done
 
+if [ -z "${APP_DOMAIN:-}" ]; then
+  echo "APP_DOMAIN is required for the production web build"
+  exit 1
+fi
+
 if [ ${#BETTER_AUTH_SECRET} -lt 32 ]; then
   echo "BETTER_AUTH_SECRET must contain at least 32 characters"
   exit 1
@@ -130,7 +135,7 @@ else
   echo "Skipping worker application image rebuild"
 fi
 
-NEXT_PUBLIC_API_BASE_URL=/api pnpm --filter web build
+NEXT_PUBLIC_API_BASE_URL="https://${APP_DOMAIN}/api" pnpm --filter web build
 
 if [ "$MIGRATIONS_APPROVED" != "yes" ]; then
   echo "Set MIGRATIONS_APPROVED=yes to allow prisma migrate deploy."
@@ -147,10 +152,8 @@ curl -fsS http://127.0.0.1:3000/health >/dev/null
 curl -fsS http://127.0.0.1:3000/ready >/dev/null
 curl -fsS http://127.0.0.1:3001/login >/dev/null
 
-if [ -n "${APP_DOMAIN:-}" ]; then
-  curl -fsS "https://${APP_DOMAIN}/api/health" >/dev/null
-  curl -fsS "https://${APP_DOMAIN}/login" >/dev/null
-fi
+curl -fsS "https://${APP_DOMAIN}/api/health" >/dev/null
+curl -fsS "https://${APP_DOMAIN}/login" >/dev/null
 
 if [ -n "${AUTH_SMOKE_LOGIN:-}" ] || [ -n "${AUTH_SMOKE_PASSWORD:-}" ]; then
   if [ -z "${APP_DOMAIN:-}" ] || [ -z "${AUTH_SMOKE_LOGIN:-}" ] || [ -z "${AUTH_SMOKE_PASSWORD:-}" ]; then
