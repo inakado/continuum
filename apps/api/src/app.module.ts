@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
+import { AuthModule as BetterAuthNestModule } from '@thallesp/nestjs-better-auth';
 import { AuthModule } from './auth/auth.module';
+import { createBetterAuth } from './auth/better-auth.factory';
 import { ContentModule } from './content/content.module';
 import { EventsLogModule } from './events/events.module';
 import { LearningModule } from './learning/learning.module';
@@ -10,6 +12,7 @@ import { DebugStorageController } from './debug-storage.controller';
 import { HealthController } from './health.controller';
 import { ObjectStorageModule } from './infra/storage/object-storage.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { PrismaService } from './prisma/prisma.service';
 import { ReadyController } from './ready.controller';
 import { ReadyService } from './ready.service';
 import { shouldRegisterDebugControllers } from './runtime/environment';
@@ -22,6 +25,18 @@ export const resolveDebugControllers = () =>
 @Module({
   imports: [
     PrismaModule,
+    BetterAuthNestModule.forRootAsync({
+      imports: [PrismaModule],
+      inject: [PrismaService],
+      useFactory: (prisma: PrismaService) => ({
+        auth: createBetterAuth(prisma),
+        bodyParser: {
+          json: { limit: '2mb' },
+          urlencoded: { limit: '2mb', extended: true },
+        },
+      }),
+      disableGlobalAuthGuard: true,
+    }),
     AuthModule,
     ContentModule,
     EventsLogModule,

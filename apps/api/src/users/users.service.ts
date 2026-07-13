@@ -1,7 +1,7 @@
-import { ConflictException, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import type { Role, User } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { type CreateUserInput, type PublicUser } from './users.types';
+import { type PublicUser } from './users.types';
 
 const authSelect = {
   id: true,
@@ -27,30 +27,6 @@ export class UsersService {
       where: { id },
       select: authSelect,
     });
-  }
-
-  async createUser(input: CreateUserInput): Promise<PublicUser> {
-    try {
-      const user = await this.prisma.user.create({
-        data: {
-          login: input.login,
-          passwordHash: input.passwordHash,
-          role: input.role,
-          isActive: true,
-        },
-        select: {
-          id: true,
-          login: true,
-          role: true,
-        },
-      });
-      return user;
-    } catch (error) {
-      if (error instanceof Error && 'code' in error && (error as { code: string }).code === 'P2002') {
-        throw new ConflictException('Login already exists');
-      }
-      throw error;
-    }
   }
 
   toPublicUser(user: Pick<User, 'id' | 'login' | 'role'>): PublicUser {

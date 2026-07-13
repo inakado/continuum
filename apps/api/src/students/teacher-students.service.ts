@@ -8,7 +8,8 @@ import {
   StudentTaskStatus,
   StudentUnitStatus,
 } from '@prisma/client';
-import argon2 from 'argon2';
+import { IdentityProvisioningService } from '../auth/identity-provisioning.service';
+import { normalizeLogin } from '../auth/identity-policy';
 import type { PrismaService } from '../prisma/prisma.service';
 import {
   buildLeadTeacherDisplayName,
@@ -19,7 +20,10 @@ import {
 } from './students.shared';
 
 export class TeacherStudentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly identityProvisioning: IdentityProvisioningService,
+  ) {}
 
   private extractStudentIdFromPayload(payload: unknown) {
     if (!payload || typeof payload !== 'object') return null;
@@ -484,39 +488,23 @@ export class TeacherStudentsService {
     firstName?: string | null,
     lastName?: string | null,
   ) {
-    const trimmedLogin = login?.trim();
-    if (!trimmedLogin) {
+    const loginRaw = login?.trim();
+    if (!loginRaw) {
       throw new BadRequestException('Login is required');
     }
+    const normalizedLogin = normalizeLogin(loginRaw);
 
     const normalizedFirstName = normalizeName(firstName);
     const normalizedLastName = normalizeName(lastName);
     const password = generatePassword();
-    const passwordHash = await argon2.hash(password);
 
     try {
-      const result = await this.prisma.$transaction(async (tx) => {
-        const user = await tx.user.create({
-          data: {
-            login: trimmedLogin,
-            passwordHash,
-            role: Role.student,
-            isActive: true,
-          },
-          select: { id: true, login: true, role: true },
-        });
-
-        const profile = await tx.studentProfile.create({
-          data: {
-            userId: user.id,
-            leadTeacherId: leaderTeacherId,
-            displayName: null,
-            firstName: normalizedFirstName,
-            lastName: normalizedLastName,
-          },
-        });
-
-        return { user, profile };
+      const result = await this.identityProvisioning.createStudent({
+        login: normalizedLogin,
+        password,
+        leadTeacherId: leaderTeacherId,
+        firstName: normalizedFirstName,
+        lastName: normalizedLastName,
       });
 
       return { ...result, password };
@@ -557,32 +545,22 @@ export class TeacherStudentsService {
   }
 
   async resetPassword(studentId: string, leaderTeacherId: string) {
-    const profile = await this.assertTeacherOwnsStudent(leaderTeacherId, studentId);
-
     const password = generatePassword();
-    const passwordHash = await argon2.hash(password);
-    const now = new Date();
+    const passwordHash = await this.identityProvisioning.hashPassword(password);
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.user.update({
-        where: { id: profile.userId },
-        data: { passwordHash },
-      });
-      await tx.authSession.updateMany({
-        where: { userId: profile.userId, revokedAt: null },
-        data: {
-          revokedAt: now,
-          revokeReason: 'PASSWORD_RESET',
-          lastUsedAt: now,
-        },
-      });
-      await tx.authRefreshToken.updateMany({
-        where: {
-          revokedAt: null,
-          session: { userId: profile.userId },
-        },
-        data: { revokedAt: now },
-      });
+    const profile = await this.prisma.$transaction(async (tx) => {
+      const ownedProfile = await this.assertTeacherOwnsStudent(
+        leaderTeacherId,
+        studentId,
+        tx,
+      );
+      await this.identityProvisioning.replacePasswordInTransaction(
+        tx,
+        ownedProfile.userId,
+        passwordHash,
+        'PASSWORD_RESET',
+      );
+      return ownedProfile;
     });
 
     return { id: profile.userId, login: profile.user.login, password };

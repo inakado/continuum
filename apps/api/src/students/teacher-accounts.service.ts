@@ -1,6 +1,8 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import argon2 from 'argon2';
+import { IdentityProvisioningService } from '../auth/identity-provisioning.service';
+import { normalizeLogin } from '../auth/identity-policy';
 import type { PrismaService } from '../prisma/prisma.service';
 import {
   assertPasswordStrength,
@@ -10,7 +12,10 @@ import {
 } from './students.shared';
 
 export class TeacherAccountsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly identityProvisioning: IdentityProvisioningService,
+  ) {}
 
   async listTeachers() {
     const teachers = await this.prisma.user.findMany({
@@ -176,36 +181,15 @@ export class TeacherAccountsService {
     }
 
     assertPasswordStrength(next);
-    const nextPasswordHash = await argon2.hash(next);
-    const now = new Date();
+    const nextPasswordHash = await this.identityProvisioning.hashPassword(next);
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.user.update({
-        where: { id: teacher.id },
-        data: { passwordHash: nextPasswordHash },
-      });
-
-      await tx.authSession.updateMany({
-        where: {
-          userId: teacher.id,
-          revokedAt: null,
-        },
-        data: {
-          revokedAt: now,
-          revokeReason: 'PASSWORD_CHANGED',
-          lastUsedAt: now,
-        },
-      });
-
-      await tx.authRefreshToken.updateMany({
-        where: {
-          revokedAt: null,
-          session: {
-            userId: teacher.id,
-          },
-        },
-        data: { revokedAt: now },
-      });
+      await this.identityProvisioning.replacePasswordInTransaction(
+        tx,
+        teacher.id,
+        nextPasswordHash,
+        'PASSWORD_CHANGED',
+      );
     });
 
     return {
@@ -222,13 +206,14 @@ export class TeacherAccountsService {
     password?: string | null;
     generatePassword?: boolean;
   }) {
-    const login = input.login?.trim();
-    if (!login) {
+    const loginRaw = input.login?.trim();
+    if (!loginRaw) {
       throw new BadRequestException({
         code: 'LOGIN_REQUIRED',
         message: 'Login is required.',
       });
     }
+    const login = normalizeLogin(loginRaw);
 
     const firstName = normalizeRequiredName(
       input.firstName,
@@ -246,35 +231,13 @@ export class TeacherAccountsService {
     const shouldGeneratePassword = input.generatePassword === true || providedPassword.length === 0;
     const password = shouldGeneratePassword ? generatePassword() : providedPassword;
     assertPasswordStrength(password);
-    const passwordHash = await argon2.hash(password);
-
     try {
-      const created = await this.prisma.$transaction(async (tx) => {
-        const user = await tx.user.create({
-          data: {
-            login,
-            passwordHash,
-            role: Role.teacher,
-            isActive: true,
-          },
-          select: { id: true, login: true, role: true },
-        });
-
-        const profile = await tx.teacherProfile.create({
-          data: {
-            userId: user.id,
-            firstName,
-            lastName,
-            middleName,
-          },
-          select: {
-            firstName: true,
-            lastName: true,
-            middleName: true,
-          },
-        });
-
-        return { user, profile };
+      const created = await this.identityProvisioning.createTeacher({
+        login,
+        password,
+        firstName,
+        lastName,
+        middleName,
       });
 
       return {

@@ -1,5 +1,6 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
+import { IdentityProvisioningService } from '../auth/identity-provisioning.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TeacherAccountsService } from './teacher-accounts.service';
 import { TeacherStudentsService } from './teacher-students.service';
@@ -9,9 +10,15 @@ export class StudentsService {
   private readonly teacherAccountsService: TeacherAccountsService;
   private readonly teacherStudentsService: TeacherStudentsService;
 
-  constructor(@Inject(PrismaService) prisma: PrismaService) {
-    this.teacherAccountsService = new TeacherAccountsService(prisma);
-    this.teacherStudentsService = new TeacherStudentsService(prisma);
+  constructor(
+    @Inject(PrismaService) prisma: PrismaService,
+    @Optional()
+    @Inject(IdentityProvisioningService)
+    identityProvisioning?: IdentityProvisioningService,
+  ) {
+    const identity = identityProvisioning ?? new IdentityProvisioningService(prisma);
+    this.teacherAccountsService = new TeacherAccountsService(prisma, identity);
+    this.teacherStudentsService = new TeacherStudentsService(prisma, identity);
   }
 
   assertTeacherOwnsStudent(

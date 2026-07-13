@@ -34,6 +34,11 @@
 | `id` | `String` | `@id @default(uuid()) @db.Uuid` |
 | `role` | `Role` |  |
 | `login` | `String` | `@unique` |
+| `displayLogin` | `String?` | `@map("display_login")` |
+| `email` | `String` | `@unique` |
+| `name` | `String` |  |
+| `emailVerified` | `Boolean` | `@default(false) @map("email_verified")` |
+| `image` | `String?` |  |
 | `passwordHash` | `String` | `@map("password_hash")` |
 | `isActive` | `Boolean` | `@default(true) @map("is_active")` |
 | `createdAt` | `DateTime` | `@default(now()) @map("created_at")` |
@@ -53,6 +58,61 @@
 | `photoTaskSubmissionsAsStudent` | `PhotoTaskSubmission[]` | `@relation("PhotoTaskSubmissionStudent")` |
 | `photoTaskSubmissionsReviewed` | `PhotoTaskSubmission[]` | `@relation("PhotoTaskSubmissionReviewer")` |
 | `authSessions` | `AuthSession[]` |  |
+| `sessions` | `Session[]` |  |
+| `accounts` | `Account[]` |  |
+
+### Session
+
+- Таблица: `sessions`
+- Model attributes: `@@index([userId])`, `@@index([expiresAt])`, `@@map("sessions")`
+
+| Field | Type | Attributes |
+| --- | --- | --- |
+| `id` | `String` | `@id @default(uuid()) @db.Uuid` |
+| `token` | `String` | `@unique` |
+| `userId` | `String` | `@map("user_id") @db.Uuid` |
+| `expiresAt` | `DateTime` | `@map("expires_at")` |
+| `ipAddress` | `String?` | `@map("ip_address")` |
+| `userAgent` | `String?` | `@map("user_agent")` |
+| `createdAt` | `DateTime` | `@default(now()) @map("created_at")` |
+| `updatedAt` | `DateTime` | `@updatedAt @map("updated_at")` |
+| `user` | `User` | `@relation(fields: [userId], references: [id], onDelete: Cascade)` |
+
+### Account
+
+- Таблица: `accounts`
+- Model attributes: `@@unique([providerId, accountId])`, `@@index([userId])`, `@@map("accounts")`
+
+| Field | Type | Attributes |
+| --- | --- | --- |
+| `id` | `String` | `@id @default(uuid()) @db.Uuid` |
+| `accountId` | `String` | `@map("account_id")` |
+| `providerId` | `String` | `@map("provider_id")` |
+| `userId` | `String` | `@map("user_id") @db.Uuid` |
+| `accessToken` | `String?` | `@map("access_token")` |
+| `refreshToken` | `String?` | `@map("refresh_token")` |
+| `idToken` | `String?` | `@map("id_token")` |
+| `accessTokenExpiresAt` | `DateTime?` | `@map("access_token_expires_at")` |
+| `refreshTokenExpiresAt` | `DateTime?` | `@map("refresh_token_expires_at")` |
+| `scope` | `String?` |  |
+| `password` | `String?` |  |
+| `createdAt` | `DateTime` | `@default(now()) @map("created_at")` |
+| `updatedAt` | `DateTime` | `@updatedAt @map("updated_at")` |
+| `user` | `User` | `@relation(fields: [userId], references: [id], onDelete: Cascade)` |
+
+### Verification
+
+- Таблица: `verifications`
+- Model attributes: `@@index([identifier])`, `@@index([expiresAt])`, `@@map("verifications")`
+
+| Field | Type | Attributes |
+| --- | --- | --- |
+| `id` | `String` | `@id @default(uuid()) @db.Uuid` |
+| `identifier` | `String` |  |
+| `value` | `String` |  |
+| `expiresAt` | `DateTime` | `@map("expires_at")` |
+| `createdAt` | `DateTime` | `@default(now()) @map("created_at")` |
+| `updatedAt` | `DateTime` | `@updatedAt @map("updated_at")` |
 
 ### AuthSession
 

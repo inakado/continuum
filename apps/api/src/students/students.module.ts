@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { IdentityProvisioningService } from '../auth/identity-provisioning.service';
 import { EventsLogModule } from '../events/events.module';
 import { StudentsService } from './students.service';
 import { TeacherMeController } from './teacher-me.controller';
@@ -15,7 +16,7 @@ import { TeacherDirectoryController } from './teacher-directory.controller';
     TeacherTeachersController,
     TeacherMeController,
   ],
-  providers: [StudentsService],
+  providers: [IdentityProvisioningService, StudentsService],
   exports: [StudentsService],
 })
 export class StudentsModule {}

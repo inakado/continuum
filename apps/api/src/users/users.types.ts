@@ -5,9 +5,3 @@ export type PublicUser = {
   login: string;
   role: Role;
 };
-
-export type CreateUserInput = {
-  login: string;
-  passwordHash: string;
-  role: Role;
-};

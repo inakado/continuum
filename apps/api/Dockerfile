@@ -42,6 +42,7 @@ FROM base AS runner
 
 ENV NODE_ENV=production
 
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=builder /app/packages/shared/node_modules ./packages/shared/node_modules

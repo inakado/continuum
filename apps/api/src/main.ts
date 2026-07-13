@@ -12,7 +12,10 @@ const isProd = () => {
 
 async function bootstrap() {
   resolveWorkerInternalToken();
-  const app = await NestFactory.create(AppModule, { logger: ['log', 'error', 'warn'] });
+  const app = await NestFactory.create(AppModule, {
+    bodyParser: false,
+    logger: ['log', 'error', 'warn'],
+  });
   app.getHttpAdapter().getInstance().disable('x-powered-by');
   app.use(
     helmet({

@@ -52,22 +52,39 @@ if (!databaseUrl) {
 const adapter = new PrismaPg({ connectionString: databaseUrl });
 const prisma = new PrismaClient({ adapter });
 
+const normalizeLogin = (value) => value.trim().toLowerCase();
+
 const ensureUser = async ({ login, password, role }) => {
-  const existing = await prisma.user.findUnique({ where: { login } });
+  const canonicalLogin = normalizeLogin(login);
+  const existing = await prisma.user.findUnique({ where: { login: canonicalLogin } });
   if (existing) {
-    console.log(`User ${login} already exists, skipping.`);
+    console.log(`User ${canonicalLogin} already exists, skipping.`);
     return existing;
   }
   const passwordHash = await argon2.hash(password);
-  const user = await prisma.user.create({
-    data: {
-      login,
-      passwordHash,
-      role,
-      isActive: true,
-    },
+  const user = await prisma.$transaction(async (tx) => {
+    const created = await tx.user.create({
+      data: {
+        login: canonicalLogin,
+        displayLogin: canonicalLogin,
+        email: `${canonicalLogin}@users.continuum.invalid`,
+        name: canonicalLogin,
+        passwordHash,
+        role,
+        isActive: true,
+      },
+    });
+    await tx.account.create({
+      data: {
+        accountId: created.id,
+        providerId: 'credential',
+        userId: created.id,
+        password: passwordHash,
+      },
+    });
+    return created;
   });
-  console.log(`Created ${role} ${login}`);
+  console.log(`Created ${role} ${canonicalLogin}`);
   return user;
 };
 

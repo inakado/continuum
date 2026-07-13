@@ -51,6 +51,14 @@ const createTransactionMock = () => ({
   },
   studentProfile: {
     create: vi.fn(),
+    findUnique: vi.fn(),
+  },
+  account: {
+    create: vi.fn(),
+    upsert: vi.fn(),
+  },
+  session: {
+    deleteMany: vi.fn(),
   },
   authSession: {
     updateMany: vi.fn(),
@@ -113,6 +121,10 @@ describe('StudentsService teacher students slice', () => {
     tx.user.create.mockReset();
     tx.user.update.mockReset();
     tx.studentProfile.create.mockReset();
+    tx.studentProfile.findUnique.mockReset();
+    tx.account.create.mockReset();
+    tx.account.upsert.mockReset();
+    tx.session.deleteMany.mockReset();
     tx.authSession.updateMany.mockReset();
     tx.authRefreshToken.updateMany.mockReset();
 
@@ -299,10 +311,19 @@ describe('StudentsService teacher students slice', () => {
     });
     expect(result.password).toEqual(expect.any(String));
     expect(result.password).toHaveLength(10);
+    expect(tx.account.create).toHaveBeenCalledWith({
+      data: {
+        accountId: 'student-1',
+        providerId: 'credential',
+        userId: 'student-1',
+        password: 'hashed-password',
+      },
+      select: { id: true },
+    });
   });
 
   it('resets student password and revokes all active sessions', async () => {
-    prisma.studentProfile.findUnique.mockResolvedValue({
+    tx.studentProfile.findUnique.mockResolvedValue({
       userId: 'student-1',
       leadTeacherId: 'teacher-1',
       user: { id: 'student-1', login: 'student1', role: 'student' },
@@ -320,6 +341,14 @@ describe('StudentsService teacher students slice', () => {
     expect(tx.user.update).toHaveBeenCalledWith({
       where: { id: 'student-1' },
       data: { passwordHash: 'new-hash' },
+    });
+    expect(tx.account.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: { password: 'new-hash' },
+      }),
+    );
+    expect(tx.session.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 'student-1' },
     });
     expect(tx.authSession.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({

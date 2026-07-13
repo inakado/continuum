@@ -51,6 +51,13 @@ const createTransactionMock = () => ({
   teacherProfile: {
     create: vi.fn(),
   },
+  account: {
+    create: vi.fn(),
+    upsert: vi.fn(),
+  },
+  session: {
+    deleteMany: vi.fn(),
+  },
   authSession: {
     updateMany: vi.fn(),
   },
@@ -84,6 +91,9 @@ describe('StudentsService teacher accounts slice', () => {
     tx.user.create.mockReset();
     tx.user.update.mockReset();
     tx.teacherProfile.create.mockReset();
+    tx.account.create.mockReset();
+    tx.account.upsert.mockReset();
+    tx.session.deleteMany.mockReset();
     tx.authSession.updateMany.mockReset();
     tx.authRefreshToken.updateMany.mockReset();
 
@@ -162,6 +172,14 @@ describe('StudentsService teacher accounts slice', () => {
     expect(tx.user.update).toHaveBeenCalledWith({
       where: { id: 'teacher-1' },
       data: { passwordHash: 'new-hash' },
+    });
+    expect(tx.account.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: { password: 'new-hash' },
+      }),
+    );
+    expect(tx.session.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 'teacher-1' },
     });
     expect(tx.authSession.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
