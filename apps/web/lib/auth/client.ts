@@ -2,12 +2,12 @@ import { createAuthClient } from 'better-auth/react';
 import { usernameClient } from 'better-auth/client/plugins';
 import { z } from 'zod';
 import { ApiError } from '@/lib/api/client';
+import { resolveAuthBaseUrl } from './base-url';
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
 
 const client = createAuthClient({
-  baseURL: apiBaseUrl,
-  basePath: '/auth',
+  baseURL: resolveAuthBaseUrl(apiBaseUrl),
   plugins: [usernameClient()],
   fetchOptions: { credentials: 'include' },
 });
