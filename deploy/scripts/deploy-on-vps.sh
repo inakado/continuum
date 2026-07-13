@@ -2,13 +2,38 @@
 set -euo pipefail
 export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
-: "${DEPLOY_REF:=main}"
 : "${APP_DIR:=/srv/continuum}"
+: "${PREVIOUS_HEAD:=}"
+: "${MIGRATIONS_APPROVED:=no}"
 : "${TEXLIVE_BASE_IMAGE:=continuum-texlive-base:texlive-2022-node20-bookworm}"
 : "${REBUILD_WORKER:=auto}"
-: "${REBUILD_WORKER_BASE:=auto}"
+: "${REBUILD_WORKER_BASE:=never}"
+: "${AUTH_SMOKE_PROTECTED_PATH:=/student/me}"
+
+export TEXLIVE_BASE_IMAGE
+
+if [ "$(id -u)" -eq 0 ]; then
+  echo "Run deploy as the deploy user, not root."
+  exit 1
+fi
 
 cd "$APP_DIR"
+
+if [ -n "$(git status --short)" ]; then
+  echo "Working tree must be clean before deploy."
+  exit 1
+fi
+
+node_major="$(node -p 'process.versions.node.split(".")[0]')"
+if [ "$node_major" != "24" ]; then
+  echo "Node.js 24 is required on the VPS host; current: $(node -v)"
+  exit 1
+fi
+
+if [ "$(pnpm --version)" != "10.11.1" ]; then
+  echo "pnpm 10.11.1 is required; current: $(pnpm --version)"
+  exit 1
+fi
 
 if [ ! -f "deploy/env/api.env" ]; then
   echo "deploy/env/api.env is required"
@@ -19,13 +44,25 @@ set -a
 . ./deploy/env/api.env
 set +a
 
-previous_head="$(git rev-parse HEAD)"
-git fetch --all --prune
-git checkout "$DEPLOY_REF"
-git pull --ff-only origin "$DEPLOY_REF"
-current_head="$(git rev-parse HEAD)"
+for name in BETTER_AUTH_SECRET BETTER_AUTH_URL WEB_ORIGIN CORS_ORIGIN WORKER_INTERNAL_TOKEN; do
+  if [ -z "${!name:-}" ]; then
+    echo "$name is required in deploy/env/api.env"
+    exit 1
+  fi
+done
 
-changed_files="$(git diff --name-only "$previous_head" "$current_head" || true)"
+if [ ${#BETTER_AUTH_SECRET} -lt 32 ]; then
+  echo "BETTER_AUTH_SECRET must contain at least 32 characters"
+  exit 1
+fi
+
+current_head="$(git rev-parse HEAD)"
+if [ -n "$PREVIOUS_HEAD" ] && git cat-file -e "$PREVIOUS_HEAD^{commit}" 2>/dev/null; then
+  changed_files="$(git diff --name-only "$PREVIOUS_HEAD" "$current_head")"
+else
+  changed_files=""
+  REBUILD_WORKER=always
+fi
 
 needs_worker_rebuild() {
   case "$REBUILD_WORKER" in
@@ -47,11 +84,6 @@ EOF
 }
 
 needs_worker_base_rebuild() {
-  case "$REBUILD_WORKER_BASE" in
-    always) return 0 ;;
-    never) return 1 ;;
-  esac
-
   if ! docker image inspect "$TEXLIVE_BASE_IMAGE" >/dev/null 2>&1; then
     return 0
   fi
@@ -69,61 +101,70 @@ EOF
   return 1
 }
 
-export TEXLIVE_BASE_IMAGE
-
-if needs_worker_base_rebuild; then
-  worker_base_rebuild_required=1
-else
-  worker_base_rebuild_required=0
-fi
-
-if needs_worker_rebuild; then
-  worker_rebuild_required=1
-else
-  worker_rebuild_required=0
-fi
-
+echo "Deploying commit: $current_head"
 echo "Changed files since previous deploy:"
 if [ -n "$changed_files" ]; then
   printf '%s\n' "$changed_files"
 else
-  echo "(none)"
+  echo "(unknown; worker rebuild forced)"
 fi
 
-echo "Worker base rebuild required: $worker_base_rebuild_required"
-echo "Worker rebuild required: $worker_rebuild_required"
-
-echo "Run DB migration manually before continuing if schema changed:"
-echo "docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'export COREPACK_ENABLE_DOWNLOAD_PROMPT=0 && pnpm --filter @continuum/api exec prisma migrate deploy'"
-
-docker compose -f docker-compose.prod.yml up -d postgres redis
-docker compose -f docker-compose.prod.yml build api
-docker compose -f docker-compose.prod.yml up -d api
-
-if [ "$worker_base_rebuild_required" -eq 1 ]; then
-  echo "Rebuilding worker runtime base image: $TEXLIVE_BASE_IMAGE"
+if needs_worker_base_rebuild; then
+  if [ "$REBUILD_WORKER_BASE" != "always" ]; then
+    echo "TeX Live base rebuild is required but not approved."
+    echo "Build it manually, or rerun with REBUILD_WORKER_BASE=always."
+    exit 1
+  fi
   docker build -f apps/worker/Dockerfile.texlive-base -t "$TEXLIVE_BASE_IMAGE" .
 else
-  echo "Skipping worker runtime base rebuild"
+  echo "Skipping TeX Live base rebuild: $TEXLIVE_BASE_IMAGE"
 fi
 
-if [ "$worker_rebuild_required" -eq 1 ] || [ "$worker_base_rebuild_required" -eq 1 ]; then
-  echo "Rebuilding worker image"
+pnpm install --frozen-lockfile
+docker compose -f docker-compose.prod.yml up -d postgres redis
+docker compose -f docker-compose.prod.yml build api
+
+if needs_worker_rebuild || [ "$REBUILD_WORKER_BASE" = "always" ]; then
   docker compose -f docker-compose.prod.yml build worker
 else
-  echo "Skipping worker image rebuild"
+  echo "Skipping worker application image rebuild"
 fi
 
-docker compose -f docker-compose.prod.yml up -d worker
-
 NEXT_PUBLIC_API_BASE_URL=/api pnpm --filter web build
-sudo systemctl restart continuum-web
+
+if [ "$MIGRATIONS_APPROVED" != "yes" ]; then
+  echo "Set MIGRATIONS_APPROVED=yes to allow prisma migrate deploy."
+  exit 1
+fi
+
+docker compose -f docker-compose.prod.yml stop api worker || true
+docker compose -f docker-compose.prod.yml run --rm --no-deps api \
+  sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'
+docker compose -f docker-compose.prod.yml up -d api worker
+sudo -n systemctl restart continuum-web
 
 curl -fsS http://127.0.0.1:3000/health >/dev/null
 curl -fsS http://127.0.0.1:3000/ready >/dev/null
 curl -fsS http://127.0.0.1:3001/login >/dev/null
-curl -fsS -X POST http://127.0.0.1:3000/debug/enqueue-ping \
-  -H 'Content-Type: application/json' \
-  -d '{"from":"manual-deploy"}' >/dev/null
+
+if [ -n "${APP_DOMAIN:-}" ]; then
+  curl -fsS "https://${APP_DOMAIN}/api/health" >/dev/null
+  curl -fsS "https://${APP_DOMAIN}/login" >/dev/null
+fi
+
+if [ -n "${AUTH_SMOKE_LOGIN:-}" ] || [ -n "${AUTH_SMOKE_PASSWORD:-}" ]; then
+  if [ -z "${APP_DOMAIN:-}" ] || [ -z "${AUTH_SMOKE_LOGIN:-}" ] || [ -z "${AUTH_SMOKE_PASSWORD:-}" ]; then
+    echo "APP_DOMAIN, AUTH_SMOKE_LOGIN and AUTH_SMOKE_PASSWORD are all required for auth smoke."
+    exit 1
+  fi
+
+  docker compose -f docker-compose.prod.yml exec -T \
+    -e API_URL="https://${APP_DOMAIN}/api" \
+    -e AUTH_SMOKE_ORIGIN="https://${APP_DOMAIN}" \
+    -e AUTH_SMOKE_LOGIN="$AUTH_SMOKE_LOGIN" \
+    -e AUTH_SMOKE_PASSWORD="$AUTH_SMOKE_PASSWORD" \
+    -e AUTH_SMOKE_PROTECTED_PATH="$AUTH_SMOKE_PROTECTED_PATH" \
+    api sh -lc 'cd /app/apps/api && pnpm smoke:auth'
+fi
 
 echo "Deploy checks passed"

@@ -84,6 +84,8 @@
 - 2026-07-13: legacy audit подтверждает отсутствие JWT/Passport dependencies, old auth endpoints/symbols/env и frontend refresh orchestration. В локальной БД отсутствуют `auth_sessions`, `auth_refresh_tokens`, `users.password_hash`; исторические create/drop migrations и superseded decision cards сохранены намеренно.
 - 2026-07-13: связанный `TD-007` закрыт отдельной dependency-only волной; `pnpm audit` не обнаруживает известных уязвимостей, полный regression gate и production runtime smoke зелёные.
 - 2026-07-13: production остаётся pre-launch без ценных пользовательских данных, поэтому DB dump перед текущим cutover осознанно исключён из rollout gate.
+- 2026-07-13: production preflight подтверждён: VPS находится на `439d271`, новые migrations не применены, текущие логины совместимы с canonicalization, TeX Live base `07e6616549b9` сохранён, свободно 15G. Для первого cutover выбран полный reset PostgreSQL/Redis, ручной SSH rollout и отдельная student identity для постоянного auth smoke.
+- 2026-07-13: выявлены и включены в rollout устаревший host Node 20, отсутствующие `BETTER_AUTH_SECRET`/`BETTER_AUTH_URL`, публичный production debug route и Nginx без deny для `/api/internal/*`. Reusable deploy не выполняет destructive reset и не пересобирает TeX Live base без отдельного явного разрешения.
 
 ## 9. Осталось до закрытия плана
 

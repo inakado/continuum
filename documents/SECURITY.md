@@ -90,10 +90,10 @@ Photo/board feedback ACL (`Implemented`):
 ## Source Links
 
 - Auth:
-  - `apps/api/src/auth/auth.controller.ts`
-  - `apps/api/src/auth/auth.service.ts`
-  - `apps/api/src/auth/auth.config.ts`
-  - `apps/api/src/auth/strategies/jwt.strategy.ts`
+  - `apps/api/src/auth/auth.module.ts`
+  - `apps/api/src/auth/better-auth.factory.ts`
+  - `apps/api/src/auth/guards/session-auth.guard.ts`
+  - `apps/api/src/auth/identity-provisioning.service.ts`
 - CORS:
   - `apps/api/src/main.ts`
 - Internal worker token:

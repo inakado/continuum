@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       deploy_ref:
-        description: Git ref (branch/tag/commit) to deploy
+        description: Branch to deploy
         required: true
         default: main
-      migrations_confirmed:
-        description: Confirm that manual DB migration was run on VPS
+      migrations_approved:
+        description: Allow prisma migrate deploy during the maintenance window
         required: true
         type: choice
         options:
@@ -28,78 +28,51 @@ jobs:
     environment: production
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.deploy_ref }}
-
-      - name: Ensure migrations are confirmed
-        if: ${{ github.event.inputs.migrations_confirmed != 'yes' }}
+      - name: Ensure migrations are approved
+        if: ${{ github.event.inputs.migrations_approved != 'yes' }}
         run: |
-          echo "Manual DB migration is required before deploy."
-          echo "Run on VPS through the production API image:"
-          echo "docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'"
+          echo "Production migrations require explicit approval."
           exit 1
 
       - name: Deploy to VPS via SSH
         uses: appleboy/ssh-action@v1.2.0
         env:
           DEPLOY_REF: ${{ github.event.inputs.deploy_ref }}
+          MIGRATIONS_APPROVED: ${{ github.event.inputs.migrations_approved }}
           APP_DIR: ${{ secrets.APP_DIR }}
           APP_DOMAIN: ${{ secrets.APP_DOMAIN }}
           AUTH_SMOKE_LOGIN: ${{ secrets.AUTH_SMOKE_LOGIN }}
           AUTH_SMOKE_PASSWORD: ${{ secrets.AUTH_SMOKE_PASSWORD }}
+          AUTH_SMOKE_PROTECTED_PATH: ${{ secrets.AUTH_SMOKE_PROTECTED_PATH }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          envs: DEPLOY_REF,APP_DIR,APP_DOMAIN,AUTH_SMOKE_LOGIN,AUTH_SMOKE_PASSWORD
+          envs: DEPLOY_REF,MIGRATIONS_APPROVED,APP_DIR,APP_DOMAIN,AUTH_SMOKE_LOGIN,AUTH_SMOKE_PASSWORD,AUTH_SMOKE_PROTECTED_PATH
           script_stop: true
           script: |
             set -eu
 
-            if [ -z "${APP_DIR:-}" ]; then
-              echo "APP_DIR secret is required"
-              exit 1
-            fi
-            if [ -z "${APP_DOMAIN:-}" ] || [ -z "${AUTH_SMOKE_LOGIN:-}" ] || [ -z "${AUTH_SMOKE_PASSWORD:-}" ]; then
-              echo "APP_DOMAIN, AUTH_SMOKE_LOGIN and AUTH_SMOKE_PASSWORD secrets are required"
+            if [ -z "${APP_DIR:-}" ] || [ -z "${APP_DOMAIN:-}" ]; then
+              echo "APP_DIR and APP_DOMAIN secrets are required"
               exit 1
             fi
 
             cd "$APP_DIR"
-            if [ ! -f "deploy/env/api.env" ]; then
-              echo "deploy/env/api.env is required on VPS"
+            if [ -n "$(git status --short)" ]; then
+              echo "Working tree must be clean before deploy"
               exit 1
             fi
 
-            set -a
-            . ./deploy/env/api.env
-            set +a
-
+            previous_head="$(git rev-parse HEAD)"
             git fetch --all --prune
             git checkout "$DEPLOY_REF"
-            git pull --ff-only origin "$DEPLOY_REF"
+            git merge --ff-only "origin/$DEPLOY_REF"
 
-            pnpm install --frozen-lockfile
-
-            docker compose -f docker-compose.prod.yml build api worker
-            docker compose -f docker-compose.prod.yml up -d postgres redis api worker
-
-            NEXT_PUBLIC_API_BASE_URL=/api pnpm --filter web build
-            sudo systemctl daemon-reload
-            sudo systemctl enable continuum-web
-            sudo systemctl restart continuum-web
-
-            curl -fsS http://127.0.0.1:3000/health >/dev/null
-            curl -fsS http://127.0.0.1:3000/ready >/dev/null
-            curl -fsS http://127.0.0.1:3001/login >/dev/null
-
-            curl -fsS "https://${APP_DOMAIN}/api/health" >/dev/null
-            curl -fsS "https://${APP_DOMAIN}/login" >/dev/null
-            docker compose -f docker-compose.prod.yml exec -T \
-              -e API_URL="https://${APP_DOMAIN}/api" \
-              -e AUTH_SMOKE_ORIGIN="https://${APP_DOMAIN}" \
-              -e AUTH_SMOKE_LOGIN="$AUTH_SMOKE_LOGIN" \
-              -e AUTH_SMOKE_PASSWORD="$AUTH_SMOKE_PASSWORD" \
-              api sh -lc 'cd /app/apps/api && pnpm smoke:auth'
+            PREVIOUS_HEAD="$previous_head" \
+            MIGRATIONS_APPROVED="$MIGRATIONS_APPROVED" \
+            APP_DOMAIN="$APP_DOMAIN" \
+            AUTH_SMOKE_LOGIN="$AUTH_SMOKE_LOGIN" \
+            AUTH_SMOKE_PASSWORD="$AUTH_SMOKE_PASSWORD" \
+            AUTH_SMOKE_PROTECTED_PATH="${AUTH_SMOKE_PROTECTED_PATH:-/student/me}" \
+              ./deploy/scripts/deploy-on-vps.sh

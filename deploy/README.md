@@ -11,8 +11,12 @@ ssh continuum-vps
 После входа рабочий каталог проекта:
 
 ```bash
+sudo -iu deploy
 cd /srv/continuum
 ```
+
+SSH alias входит как `root`, но Git, pnpm и application build выполняются от владельца
+репозитория `deploy`. Не добавляйте `/srv/continuum` в root `safe.directory`.
 
 ## 1) Link local repo to GitHub
 
@@ -139,26 +143,78 @@ docker compose -f docker-compose.prod.yml up -d postgres redis
 
 Policy: backend build выполняется только в Docker.
 
-## 6) Manual DB migration before deploy
+## 6) First Better Auth cutover (one-time, pre-launch)
 
-Важно: для production не запускаем миграции с хоста через `pnpm ... prisma migrate deploy`,
-потому что `DATABASE_URL` обычно указывает на `postgres:5432` (имя сервиса внутри docker network),
-а это имя не резолвится на хосте.
+Этот сценарий намеренно удаляет текущие PostgreSQL и Redis volumes. Он допустим только для
+зафиксированного pre-launch cutover без ценных данных. S3, Docker build cache и
+`continuum-texlive-base` не затрагиваются.
 
-```bash
-cd /srv/continuum
-docker compose -f docker-compose.prod.yml run --rm --build api \
-  sh -lc 'export COREPACK_ENABLE_DOWNLOAD_PROMPT=0 && pnpm --filter @continuum/api exec prisma migrate deploy'
-```
-
-## 7) Start API and Worker
+До остановки сервисов от пользователя `deploy` подтяните уже запушенный `main` и соберите релиз:
 
 ```bash
 cd /srv/continuum
-docker compose -f docker-compose.prod.yml up -d postgres redis
+git status --short
+git fetch --all --prune
+git checkout main
+git merge --ff-only origin/main
+
+pnpm install --frozen-lockfile
+NEXT_PUBLIC_API_BASE_URL=/api pnpm --filter web build
 docker compose -f docker-compose.prod.yml build api
-docker compose -f docker-compose.prod.yml up -d api
+docker compose -f docker-compose.prod.yml build worker
 ```
+
+Остановку и удаление runtime volumes выполните из root shell:
+
+```bash
+systemctl stop continuum-web
+cd /srv/continuum
+docker compose -f docker-compose.prod.yml down -v
+docker compose -f docker-compose.prod.yml up -d postgres redis
+```
+
+Вернитесь к пользователю `deploy`, примените миграции новым API image и создайте первого admin:
+
+```bash
+sudo -iu deploy
+cd /srv/continuum
+docker compose -f docker-compose.prod.yml run --rm --no-deps api \
+  sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'
+docker compose -f docker-compose.prod.yml run --rm --no-deps api \
+  sh -lc 'pnpm --filter @continuum/api exec prisma migrate status'
+
+read -rsp 'Admin password: ' ADMIN_PASSWORD; echo
+export ADMIN_PASSWORD
+docker compose -f docker-compose.prod.yml run --rm --no-deps \
+  -e ADMIN_LOGIN=admin -e ADMIN_NAME=Administrator -e ADMIN_PASSWORD \
+  api sh -lc 'pnpm --filter @continuum/api bootstrap:admin'
+unset ADMIN_PASSWORD
+
+docker compose -f docker-compose.prod.yml up -d api worker
+sudo -n systemctl restart continuum-web
+```
+
+Пароль admin не передавайте через аргументы команд, Git или shell history.
+
+## 7) Routine deploy after the cutover
+
+```bash
+cd /srv/continuum
+git status --short
+previous_head="$(git rev-parse HEAD)"
+git fetch --all --prune
+git checkout main
+git merge --ff-only origin/main
+
+PREVIOUS_HEAD="$previous_head" \
+MIGRATIONS_APPROVED=yes \
+APP_DOMAIN=vl-physics.ru \
+  ./deploy/scripts/deploy-on-vps.sh
+```
+
+Скрипт собирает release до maintenance window, затем останавливает API/worker, запускает
+`prisma migrate deploy`, поднимает новые сервисы и выполняет health checks. Destructive reset
+в reusable script отсутствует намеренно.
 
 ### Dockerfile split для `worker`
 
@@ -255,21 +311,32 @@ df -i
 docker system df
 ```
 
-Регулярный cleanup после успешного deploy (безопасный, fast):
+Cleanup выполняется только после зелёного smoke. Сначала зафиксируйте защищённый image:
 
 ```bash
+TEXLIVE_IMAGE=continuum-texlive-base:texlive-2022-node20-bookworm
+TEXLIVE_ID_BEFORE="$(docker image inspect --format '{{.Id}}' "$TEXLIVE_IMAGE")"
+
+docker compose -f docker-compose.prod.yml ps
+docker compose -f docker-compose.prod.yml images
+docker image ls --filter dangling=true
+docker container ls -a
+```
+
+Безопасный cleanup удаляет только остановленные containers и dangling images старых сборок:
+
+```bash
+docker container prune -f
 docker image prune -f
-docker container prune -f
+
+TEXLIVE_ID_AFTER="$(docker image inspect --format '{{.Id}}' "$TEXLIVE_IMAGE")"
+test "$TEXLIVE_ID_BEFORE" = "$TEXLIVE_ID_AFTER"
+docker image ls "$TEXLIVE_IMAGE"
 docker system df
 ```
 
-Периодический cleanup (например, раз в неделю, в тихое окно):
-
-```bash
-docker image prune -a -f --filter "until=168h"
-docker container prune -f
-docker system df
-```
+Оставшиеся tagged images удаляются только по конкретному image ID после проверки, что image не
+используется текущими containers, не равен `$TEXLIVE_ID_BEFORE` и не является PostgreSQL/Redis.
 
 Аварийный cleanup при `no space left on device`:
 
@@ -277,8 +344,8 @@ docker system df
 df -h
 df -i
 docker system df -v
-docker image prune -a -f
 docker container prune -f
+docker image prune -f
 ```
 
 Если после этого всё ещё мало места:
@@ -286,9 +353,11 @@ docker container prune -f
 - освободить место на хосте вне Docker cache (`journalctl --vacuum-time=7d`, `apt-get clean`, cleanup логов/артефактов);
 - при необходимости увеличить диск VPS перед следующей пересборкой `continuum-texlive-base`.
 
-Что делать запрещено (чтобы не сбрасывать TeX Live cache):
+Что делать запрещено (чтобы не удалить TeX Live base, build cache или runtime data):
+- `docker image prune -a`;
+- `docker system prune` и `docker system prune -a`;
+- `docker builder prune` и `docker builder prune -a`;
 - `docker volume prune` (может удалить данные runtime-сервисов);
-- `docker system prune -a` и `docker builder prune -a` (ломают TeX Live cache и провоцируют долгую пересборку).
 
 Validate backend:
 
@@ -297,9 +366,18 @@ curl -fsS http://127.0.0.1:3000/health
 curl -fsS http://127.0.0.1:3000/ready
 ```
 
-## 8) Seed teacher/student (optional, for first login)
+## 8) Bootstrap and smoke identities
 
-Если в базе ещё нет пользователей, создайте базовые аккаунты:
+Первый admin создаётся CLI-командой из раздела 6. После запуска production через реальные
+application flows создайте:
+
+- `deploy-smoke-teacher` в `/admin/teachers`;
+- `deploy-smoke-student` через созданного преподавателя.
+
+Для постоянного auth smoke используйте student identity и route `/student/me`. Пароль student
+хранится только в GitHub Environment secret `AUTH_SMOKE_PASSWORD`.
+
+Для локального/dev seed без UI остаётся идемпотентный helper:
 
 ```bash
 cd /srv/continuum
@@ -409,8 +487,16 @@ curl -I https://app.example.com/api/health
 - `DEPLOY_SSH_KEY`
 - `APP_DIR` (example: `/srv/continuum`)
 - `APP_DOMAIN` (example: `app.example.com`)
+- `AUTH_SMOKE_LOGIN` (production: `deploy-smoke-student`)
+- `AUTH_SMOKE_PASSWORD`
+- `AUTH_SMOKE_PROTECTED_PATH` (production: `/student/me`)
 
 ## 12) Rollback
+
+После первого Better Auth cutover и cleanup migration откат на старый JWT commit не
+поддерживается. До появления ценных production данных сбой после reset исправляется roll-forward
+или повторным чистым reset. Обычный checkout rollback ниже допустим только между post-cutover
+commit, совместимыми с текущей Prisma schema.
 
 ```bash
 cd /srv/continuum
@@ -449,10 +535,9 @@ curl -fsS http://127.0.0.1:3001/login >/dev/null
    - Docker + Compose,
    - Node.js 24 + pnpm 10.11.1,
    - `systemd`, `nginx`, `certbot`.
-6. Ручной запуск миграций перед первым deploy:
-   - `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'export COREPACK_ENABLE_DOWNLOAD_PROMPT=0 && pnpm --filter @continuum/api exec prisma migrate deploy'`
+6. Первый Better Auth cutover выполнен по разделу 6; последующие миграции запускает deploy script после build и остановки API/worker.
 7. Настроенный GitHub Environment `production` c manual approval и secrets:
-   - `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `APP_DIR`, `APP_DOMAIN`, `AUTH_SMOKE_LOGIN`, `AUTH_SMOKE_PASSWORD`.
+   - `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `APP_DIR`, `APP_DOMAIN`, `AUTH_SMOKE_LOGIN`, `AUTH_SMOKE_PASSWORD`, `AUTH_SMOKE_PROTECTED_PATH`.
 
 ## 14) Troubleshooting (production-first)
 
