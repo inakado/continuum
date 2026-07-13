@@ -236,3 +236,9 @@ Production-first troubleshooting хранится отдельно в [deploy/RE
 - **Причина:** startup guard проверяет workspace dependencies в root `/app/node_modules`, хотя filtered pnpm install создаёт package-specific links в `apps/*/node_modules` и `packages/*/node_modules`.
 - **Фикс:** проверять API dependencies в `/app/apps/api/node_modules`, worker link в `/app/apps/worker/node_modules` и shared `zod` в `/app/packages/shared/node_modules`.
 - **Проверка:** после первого успешного install повторный `docker compose up -d --force-recreate api worker` сразу переходит к сборке shared/startup и не выводит progress `pnpm install`.
+
+- **Симптом:** локальный multi-service build падает до чтения Dockerfile с `x-docker-expose-session-sharedkey contains value with non-printable ASCII characters`.
+- **Команда:** `docker compose -f docker-compose.prod.yml build api worker`
+- **Причина:** сбой общей BuildKit session в связке OrbStack и Docker Compose; отдельные service builds используют независимые sessions и проходят.
+- **Фикс:** выполнить последовательно `docker compose -f docker-compose.prod.yml build api` и `docker compose -f docker-compose.prod.yml build worker`; если падает и отдельная сборка, перезапустить OrbStack.
+- **Проверка:** оба отдельных image build завершаются успешно.

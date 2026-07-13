@@ -82,10 +82,12 @@
 - 2026-07-13: dependency audit выполнен; несвязанные production/dev advisories вынесены в `TD-007`, чтобы не смешивать массовые dependency upgrades с auth cutover.
 - 2026-07-13: regression gate завершён: workspace tests (API 84, web 141, worker 46, shared 26, latex-runtime 6), Docker integration 33/33, production builds API/web, workspace lint, docs и boundaries зелёные. На финальном образе teacher/student/admin проходят sign-in → session → role route → sign-out → 401; frontend browser smoke трёх ролей и post-logout guard прошёл без console errors.
 - 2026-07-13: legacy audit подтверждает отсутствие JWT/Passport dependencies, old auth endpoints/symbols/env и frontend refresh orchestration. В локальной БД отсутствуют `auth_sessions`, `auth_refresh_tokens`, `users.password_hash`; исторические create/drop migrations и superseded decision cards сохранены намеренно.
+- 2026-07-13: связанный `TD-007` закрыт отдельной dependency-only волной; `pnpm audit` не обнаруживает известных уязвимостей, полный regression gate и production runtime smoke зелёные.
+- 2026-07-13: production остаётся pre-launch без ценных пользовательских данных, поэтому DB dump перед текущим cutover осознанно исключён из rollout gate.
 
 ## 9. Осталось до закрытия плана
 
-- Применить expand + cleanup migrations на staging/production после обязательного DB dump.
+- Применить expand + cleanup migrations на production; для текущего pre-launch cutover backup не требуется.
 - Настроить production `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, trusted origins и deploy secrets для auth smoke.
 - Выполнить `bootstrap:admin` и внешний HTTPS/Nginx auth smoke на целевом окружении.
 - После успешного production rollout переместить план в `completed` и обновить индексы.

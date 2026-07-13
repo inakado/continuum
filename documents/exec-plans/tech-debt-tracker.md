@@ -71,8 +71,8 @@
 ### TD-007 — Dependency audit vulnerabilities
 
 - Область: Platform / Dependencies
-- Описание: `pnpm audit` от 2026-07-13 обнаруживает 1 critical и 24 high advisory. Production-relevant цепочки включают Next.js `<16.2.5`, `fast-xml-parser <5.5.6` через AWS SDK и `multer <2.2.0`; часть остальных advisory находится в dev tooling (`handlebars`, Vite, jsdom/undici) или Excalidraw transitive dependencies.
-- Влияние: известные security defects остаются в runtime и dev toolchain; массовое обновление в auth-миграции повышает риск несвязанных регрессий.
+- Описание: audit findings в runtime, tooling и transitive chains устранены отдельной dependency-only волной после Better Auth cutover.
+- Влияние: `pnpm audit` от 2026-07-13 завершается с `No known vulnerabilities found`.
 - Приоритет: critical
-- Статус: open
-- План устранения: отдельной инициативой обновить сначала production runtime chains, затем dev/transitive chains; после каждого слоя выполнить build, browser smoke и повторный `pnpm audit`.
+- Статус: closed
+- Результат: обновлены Next.js до `16.2.10`, Nest до `11.1.28`, Vitest до `4.1.10`, jsdom до `29.1.1`; patched transitive versions зафиксированы через минимальные pnpm overrides. Regression gate: workspace tests `303/303`, API integration `33/33`, web typecheck, boundaries, production API/worker/web builds, API health/readiness, Better Auth smoke и web runtime smoke.
