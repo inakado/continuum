@@ -47,7 +47,7 @@
 - `documents/product-specs/index.md` — индекс продуктовых спецификаций.
 - `documents/product-specs/gamification-proposal.md` — proposal по будущей продуктовой и технической модели геймификации; не SoR.
 - `documents/exec-plans/active/` — активные execution plans.
-- `documents/exec-plans/active/2026-06-26-excalidraw-board-photo-submissions.md` — active plan внедрения Excalidraw-доски как варианта отправки развернутого ответа (`photo` technical type).
+- `documents/exec-plans/active/2026-07-13-better-auth-identity-access-migration.md` — active plan миграции Identity & Access на Better Auth и усиления AuthZ.
 - `documents/exec-plans/completed/` — завершённые execution plans.
 - `documents/exec-plans/completed/index.md` — индекс завершённых планов.
 - `documents/exec-plans/deferred-roadmap.md` — отложенные future items, которые не являются техдолгом.

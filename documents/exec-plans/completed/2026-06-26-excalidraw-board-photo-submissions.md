@@ -1,6 +1,6 @@
 # Excalidraw board answers for expanded-answer tasks
 
-Статус: `Active`
+Статус: `Completed`
 
 ## 0. Текущее состояние и правило продолжения
 
