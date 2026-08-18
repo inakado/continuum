@@ -269,6 +269,11 @@ docker build -f apps/worker/Dockerfile.texlive-base -t "$TEXLIVE_BASE_IMAGE" .
 Обычный `worker` build использует этот base image через `TEXLIVE_BASE_IMAGE` и не должен заново скачивать `texlive-full`.
 Legacy `node20` в имени tag временно сохраняется для совместимости с уже собранным тяжёлым image; фактический worker runtime использует Node.js 24 из `NODE_RUNTIME_IMAGE`.
 
+В GitHub Actions worker image собирается с `TEXLIVE_BASE_IMAGE=node:20-bookworm-slim`.
+Это проверяет Docker-слои и TypeScript build без многогигабайтной установки TeX Live на
+одноразовом runner. Production deploy не задаёт этот override и использует только сохранённый
+`continuum-texlive-base:texlive-2022-node20-bookworm`.
+
 ### Cache-first policy для `worker`
 
 Для обычных релизов используем селективную пересборку:

@@ -41,7 +41,9 @@ jobs:
       - name: Dependency boundaries
         run: pnpm lint:boundaries
 
-      - name: Build backend images (Docker only)
+      - name: Build backend images (Docker only, lightweight CI worker base)
+        env:
+          TEXLIVE_BASE_IMAGE: node:20-bookworm-slim
         run: pnpm build:backend
 
       - name: Build web and shared
