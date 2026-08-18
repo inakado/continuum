@@ -12,6 +12,22 @@ export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
 export TEXLIVE_BASE_IMAGE
 
+wait_for_http() {
+  local url="$1"
+  local label="$2"
+  local attempt
+
+  for ((attempt = 1; attempt <= 30; attempt += 1)); do
+    if curl --connect-timeout 2 --max-time 5 -fsS "$url" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+
+  echo "$label did not become ready: $url"
+  curl --connect-timeout 2 --max-time 5 -fsS "$url" >/dev/null
+}
+
 if [ "$(id -u)" -eq 0 ]; then
   echo "Run deploy as the deploy user, not root."
   exit 1
@@ -148,12 +164,12 @@ docker compose -f docker-compose.prod.yml run --rm --no-deps api \
 docker compose -f docker-compose.prod.yml up -d api worker
 sudo -n systemctl restart continuum-web
 
-curl -fsS http://127.0.0.1:3000/health >/dev/null
-curl -fsS http://127.0.0.1:3000/ready >/dev/null
-curl -fsS http://127.0.0.1:3001/login >/dev/null
+wait_for_http http://127.0.0.1:3000/health "API health"
+wait_for_http http://127.0.0.1:3000/ready "API readiness"
+wait_for_http http://127.0.0.1:3001/login "Frontend"
 
-curl -fsS "https://${APP_DOMAIN}/api/health" >/dev/null
-curl -fsS "https://${APP_DOMAIN}/login" >/dev/null
+wait_for_http "https://${APP_DOMAIN}/api/health" "Public API"
+wait_for_http "https://${APP_DOMAIN}/login" "Public frontend"
 
 if [ -n "${AUTH_SMOKE_LOGIN:-}" ] || [ -n "${AUTH_SMOKE_PASSWORD:-}" ]; then
   if [ -z "${APP_DOMAIN:-}" ] || [ -z "${AUTH_SMOKE_LOGIN:-}" ] || [ -z "${AUTH_SMOKE_PASSWORD:-}" ]; then
