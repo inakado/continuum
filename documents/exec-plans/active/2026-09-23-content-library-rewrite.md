@@ -145,13 +145,13 @@ Excalidraw удалению не подлежит: он переводится �
 
 ### Волна 7 — production cutover
 
-- [ ] Перед cutover проверить чистый build и локальный end-to-end flow.
-- [ ] Зафиксировать rollback на предыдущий git/image revision.
-- [ ] По явной команде очистить production DB и storage.
-- [ ] Развернуть новую схему, bootstrap admin и выполнить smoke по ролям.
-- [ ] После успешного smoke удалить production worker/Redis/TeX images, containers и volumes; предыдущий app image держать до окончания rollback window.
+- [x] Перед cutover проверить чистый build и локальный end-to-end flow.
+- [x] Зафиксировать предыдущий Git revision `e9d5677`; из-за несовместимого destructive reset откат старого runtime не используется.
+- [x] По явной команде очистить production DB и storage.
+- [x] Развернуть новую схему, восстановить существующие auth identities без старых сессий и выполнить production auth smoke.
+- [x] После успешного smoke удалить production worker/Redis/TeX images, containers, volumes и старый BuildKit cache.
 
-Критерий выхода: production health/ready, login, access control, PDF и interactive lesson подтверждены; старые сервисы остановлены.
+Критерий выхода текущего cutover выполнен: production health/ready, login и access control подтверждены; старые сервисы удалены. Загрузка PDF и interactive artifacts остаётся следующей продуктовой волной, а не частью этого cutover.
 
 ## Decision log
 
@@ -236,6 +236,10 @@ TeX и интерактивный HTML собираются локально. П
 - Выполнена проверка формулировок и визуальная полировка по `impeccable`: активные тексты интерфейса, пустые состояния, загрузка, ошибки, подсказки и пользовательские ошибки API приведены к краткому русскому языку; сырые сообщения сервера больше не попадают на экран входа.
 - Удалена промежуточная страница учителя с техническим текстом: `/teacher` сразу открывает `/teacher/materials`; административная страница, страница «не найдено» и страницы ошибок приведены к белой дизайн-системе каталога.
 - После полировки прошли 16 веб-тестов, 34 теста API, проверка типов и сборка веб-приложения, проверка границ модулей, документации и `git diff --check`; просмотр в браузере на настольной и мобильной ширине прошёл с чистой консолью.
+- Переработка зафиксирована в `6c88b80`; после блокировки Trivy зависимости обновлены в `09315f6` до исправленных версий, повторный GitHub CI (quality + security) прошёл.
+- Production cutover выполнен на `09315f6`: чистая baseline migration применена, 5 существующих auth identities и профили сохранены, прежние сессии и учебные данные удалены, S3 подтверждён пустым.
+- Production auth smoke прошёл через временные teacher/student identities; временные записи после проверки удалены.
+- Worker, Redis, TeX Live, старые PostgreSQL/Redis volumes и около 9,9 ГБ старого BuildKit cache удалены; Orbit не затронут. После очистки на VPS свободно около 25 ГБ.
 
 ## Task-specific troubleshooting
 

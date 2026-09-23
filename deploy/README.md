@@ -58,7 +58,15 @@ MIGRATIONS_APPROVED=yes APP_DOMAIN=vl-physics.ru ./deploy/scripts/deploy-on-vps.
 
 ## Cutover новой версии
 
-Старые production-данные не мигрируются. Очистка БД и object storage выполняется отдельно перед первым deploy новой схемы. До явного cutover работающий production не изменяется.
+Cutover новой library baseline выполнен 2026-09-23 на commit `09315f6`:
+
+- старые учебные данные и сессии удалены;
+- существующие auth identities и профили сохранены;
+- object storage проверен и очищен;
+- worker, Redis и TeX Live удалены из runtime;
+- production auth smoke и публичные health/login checks прошли.
+
+Следующие deploy выполняются как обычные совместимые миграции через `deploy-on-vps.sh`. Новый destructive reset не является частью штатного deploy.
 
 Минимальный rollback:
 
