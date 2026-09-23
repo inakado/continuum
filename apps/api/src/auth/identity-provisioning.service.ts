@@ -108,7 +108,6 @@ export class IdentityProvisioningService {
         data: {
           userId: user.id,
           leadTeacherId: input.leadTeacherId,
-          displayName: null,
           firstName: input.firstName,
           lastName: input.lastName,
         },

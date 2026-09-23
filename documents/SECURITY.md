@@ -1,110 +1,66 @@
 # SECURITY
 
-Статус: `Draft` (источник истины — код).
+Статус: целевая security-модель активной переработки; фактические гарантии подтверждаются кодом и тестами.
 
 ## Scope
 
-- AuthN/AuthZ (Better Auth DB-backed sessions)
-- CORS/origin constraints для auth-операций
-- RBAC на API endpoints
-- Internal auth между worker ↔ api
-- Object storage (presigned URLs)
+- Better Auth sessions;
+- RBAC;
+- доступ ученика к возрастным группам;
+- object storage и presigned URLs;
+- безопасная публикация PDF, изображений, Excalidraw-сцен и интерактивных пакетов;
+- изоляция исполняемого HTML.
 
-## Source of Truth порядок
+## Инварианты
 
-1. Код и тесты
-2. Prisma schema / runtime-контракты / API handlers
-3. `documents/generated/*`
-4. Markdown-доки
+### Auth
 
-## Current Invariants (`Implemented`, verified in code)
+- Публичная регистрация и email-login отключены.
+- Session identifier хранится только в `HttpOnly` cookie.
+- Production требует `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` и точный trusted origin.
+- Logout и смена пароля отзывают активные сессии.
+- Глобальный auth guard защищает routes по умолчанию; public routes помечаются явно.
 
-### Auth: Better Auth sessions
+### Authorization
 
-- Username/password authentication обслуживает Better Auth; public signup и email-вход отключены.
-- Сессия хранится в таблице `sessions`, идентификатор передаётся только в `HttpOnly` cookie.
-- Срок сессии фиксирован: 14 дней без sliding refresh; cookie cache и Redis session storage отключены.
-- Logout, смена и сброс пароля немедленно удаляют активные сессии пользователя.
-- `login` канонизируется в lowercase и связан с техническим email `<login>@users.continuum.invalid`.
-- `BETTER_AUTH_SECRET` и `BETTER_AUTH_URL` обязательны в production.
-- Auth endpoints ограничены общим rate limit; username sign-in — 5 попыток в минуту на client key.
+- `admin` управляет преподавателями.
+- `teacher` управляет учениками, доступами и материалами.
+- `student` читает только опубликованные материалы выданных ему возрастных групп.
+- Проверка доступа выполняется в API для catalog, lesson, asset и direct-link flows.
 
-### CORS + origin checks
+### Assets
 
-- CORS включает `credentials: true`; разрешённые origins берутся из `CORS_ORIGIN`/`WEB_ORIGIN`.
-- В production запрещён `CORS_ORIGIN="*"` при credentials.
-- Better Auth проверяет Origin/Fetch Metadata для auth mutations по `trustedOrigins`.
+- Bucket не является публичным.
+- API проверяет роль, ownership и назначение до выдачи presigned URL.
+- Upload policy ограничивает key prefix, content type, размер и TTL.
+- PDF, изображения, Excalidraw JSON/preview и interactive packages имеют разные policies.
+- Asset key хранится в доменной модели; storage URL не сохраняется.
 
-### RBAC и доступы
+### Interactive packages
 
-- `admin/*` endpoints доступны только роли `admin`; создание/удаление преподавателей вынесено из teacher contour.
-- Глобальный `SessionAuthGuard` защищает все routes по умолчанию; public routes помечаются `@AllowAnonymous()` явно.
-- `RolesGuard` + `@Roles(...)` ограничивают role-specific routes.
-- `GET /teacher/teachers` является read-only directory для transfer ученика; write-операций в этом contour нет.
-- Student endpoints ограничены ролью `student` и используют `req.user.id` как studentId.
-- Проверка “lead teacher owns student” для teacher-review сценариев делается на уровне сервисов.
-- Сброс пароля ученика отзывает все активные sessions.
+- Интерактивный пакет не вставляется через `dangerouslySetInnerHTML`.
+- Player использует отдельный origin или изоляцию, эквивалентную opaque origin.
+- Iframe получает минимальный `sandbox`; `allow-same-origin` не добавляется без отдельного security review.
+- Пакет не получает cookie, auth headers или Better Auth session.
+- Package manifest, entry point, content hash, file count и общий размер проверяются до публикации.
+- Связь с платформой возможна только через версионированный allowlist `postMessage`-сообщений.
 
-### Debug и internal routes
+### Excalidraw
 
-- Debug controllers регистрируются только вне production.
-- Nginx не публикует `/api/internal/*`; worker обращается к internal endpoint внутри Docker network.
-- `WORKER_INTERNAL_TOKEN` обязателен в production для API и worker; development fallback не применяется в production.
+- Scene JSON считается пользовательским файлом и проверяется по size/content-type policy.
+- Student read-path использует статический preview.
+- Raw scene доступна только авторизованному teacher authoring flow.
 
-### Worker ↔ API internal auth
+## Cutover
 
-- Worker применяет результаты LaTeX compile через internal endpoint с заголовком `x-internal-token`.
-- Token сравнивается с `WORKER_INTERNAL_TOKEN`.
-
-### LaTeX runtime sandbox policy
-
-- Backend LaTeX runtime основан на `TeX Live`, но остаётся в no-shell-escape contour.
-- `pdflatex` source проходит fail-fast validation и отклоняется, если содержит:
-  - XeTeX/LuaTeX-only preamble (`fontspec`, `unicode-math`, `polyglossia`, `\setmainfont` и похожие команды);
-  - shell-escape/external-tooling markers (`minted`, `svg`, `\includesvg`, `\write18`, `\tikzexternalize`);
-  - bibliography/index toolchain вне текущего scope.
-- Worker и API не должны silently включать shell-escape как “compatibility fix”.
-
-### Object storage (presigned URLs)
-
-- Файлы в S3/MinIO доступны через presigned URLs, которые выдаёт backend.
-- Asset keys сейчас хранятся прямо в доменных сущностях.
-- Для student unit HTML backend не отдаёт raw storage HTML напрямую:
-  - читает HTML артефакт сам,
-  - подписывает связанные SVG asset URLs,
-  - возвращает уже санитизированный HTML fragment.
-- Teacher HTML preview идёт через отдельный backend endpoint с teacher RBAC; web не читает HTML asset напрямую из storage.
-- Worker должен fail-closed отклонять HTML/SVG с опасной разметкой (`script`, event handlers, executable external refs).
-
-Operational pitfall (`Implemented`):
-- **Симптом:** браузер блокирует PDF/изображения из S3 с `No 'Access-Control-Allow-Origin' header`.
-- **Причина:** на bucket не настроен CORS под origin frontend.
-- **Фикс:** добавить CORS policy на bucket (origin frontend, methods `GET/HEAD/PUT`, headers `*`).
-- **Проверка:** `curl -I -H "Origin: https://<frontend-domain>" "<presigned-url>"` возвращает `Access-Control-Allow-Origin`.
-
-Photo/board feedback ACL (`Implemented`):
-- Student `presign-view` разрешает читать только собственные photo/board submission assets.
-- `teacherFeedbackBoardAssetKey` и `teacherFeedbackPreviewAssetKey` доступны ученику только для собственной submission после review.
-- Teacher feedback upload keys валидируются по отдельному `teacher-feedback/` prefix и не перезаписывают оригинальные student board assets.
+- Старые production-данные не мигрируются.
+- Очистка БД и bucket выполняется только в явно подтверждённое окно деплоя.
+- После reset обязательно проверяются bootstrap admin, login, RBAC, direct-link denial и asset access.
 
 ## Source Links
 
-- Auth:
-  - `apps/api/src/auth/auth.module.ts`
-  - `apps/api/src/auth/better-auth.factory.ts`
-  - `apps/api/src/auth/guards/session-auth.guard.ts`
-  - `apps/api/src/auth/identity-provisioning.service.ts`
-- CORS:
-  - `apps/api/src/main.ts`
-- Internal worker token:
-  - `apps/api/src/content/internal-latex.controller.ts`
-  - `apps/worker/src/latex/latex-apply-client.ts`
-- LaTeX runtime:
-  - `packages/latex-runtime/src/*`
-- Storage:
-  - `apps/api/src/infra/storage/object-storage.service.ts`
-  - `apps/api/src/learning/photo-task-read.service.ts`
-  - `apps/api/src/learning/photo-task-review-write.service.ts`
-  - `apps/api/src/learning/photo-task-policy.service.ts`
-  - `apps/api/src/learning/student-units.controller.ts`
-  - `apps/api/src/learning/student-task-solutions.controller.ts`
+- `apps/api/src/auth/*`
+- `apps/api/src/infra/storage/*`
+- `apps/api/src/main.ts`
+- `documents/ARCHITECTURE.md`
+- `documents/exec-plans/active/2026-09-23-content-library-rewrite.md`

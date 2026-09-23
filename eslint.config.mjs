@@ -8,7 +8,6 @@ const boundariesSettings = {
   "boundaries/include": tsGlobs,
   "boundaries/elements": [
     { type: "api", pattern: "apps/api/src/**/*", mode: "full" },
-    { type: "worker", pattern: "apps/worker/src/**/*", mode: "full" },
     {
       type: "web-student-feature",
       pattern: "apps/web/features/student-*/**/*",
@@ -70,7 +69,6 @@ export default [
           default: "allow",
           rules: [
             { from: "api", allow: ["api", "shared"] },
-            { from: "worker", allow: ["worker", "shared"] },
             { from: "web-student-feature", disallow: ["web-teacher-feature"] },
             { from: "web-teacher-feature", disallow: ["web-student-feature"] },
             { from: "web", allow: ["web", "shared"] },

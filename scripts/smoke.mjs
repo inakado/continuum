@@ -14,11 +14,6 @@ const check = async (name, url, options = {}) => {
 
 await check("api:health", "http://localhost:3000/health");
 await check("api:ready", "http://localhost:3000/ready");
-await check("api:enqueue", "http://localhost:3000/debug/enqueue-ping", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ from: "smoke" }),
-});
 await check("web:login", "http://localhost:3001/login", {
   validate: (res) => {
     const contentType = res.headers.get("content-type") || "";

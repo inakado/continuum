@@ -99,7 +99,7 @@ export default function UnifiedLoginScreen() {
       const result = await authApi.signIn(state.login, state.password);
       const role = result.user?.role;
       if (role === "admin") {
-        router.replace("/admin/teachers");
+        router.replace("/admin");
       } else if (role === "teacher") {
         router.replace("/teacher");
       } else if (role === "student") {
@@ -110,10 +110,8 @@ export default function UnifiedLoginScreen() {
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         dispatch({ type: "error", value: "Неверный логин или пароль" });
-      } else if (err instanceof ApiError) {
-        dispatch({ type: "error", value: err.message || "Ошибка входа" });
       } else {
-        dispatch({ type: "error", value: "Ошибка входа" });
+        dispatch({ type: "error", value: "Не удалось войти. Попробуйте ещё раз." });
       }
     } finally {
       dispatch({ type: "loading", value: false });

@@ -89,4 +89,22 @@ describe("UnifiedLoginScreen", () => {
       "Неверный логин или пароль",
     );
   });
+
+  it("не показывает внутреннее сообщение сервера", async () => {
+    vi.mocked(authApi.signIn).mockRejectedValueOnce(
+      new ApiError(500, "Authentication request failed"),
+    );
+
+    render(<UnifiedLoginScreen />);
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText("Логин"), "teacher1");
+    await user.type(screen.getByLabelText("Пароль"), "Pass123!");
+    await user.click(screen.getByRole("button", { name: "Войти" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Не удалось войти. Попробуйте ещё раз.",
+    );
+    expect(screen.queryByText("Authentication request failed")).not.toBeInTheDocument();
+  });
 });

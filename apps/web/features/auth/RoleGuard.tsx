@@ -1,10 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useMemo } from "react";
-import { usePathname } from "next/navigation";
-import AuthRequired from "@/features/teacher-content/auth/AuthRequired";
-import StudentAuthRequired from "@/features/student-content/auth/StudentAuthRequired";
+import { useEffect, useMemo } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuthSession } from "./useAuthSession";
 import styles from "./role-guard.module.css";
 
@@ -15,12 +13,19 @@ type RoleGuardProps = {
 
 export default function RoleGuard({ requiredRole, children }: RoleGuardProps) {
   const pathname = usePathname();
+  const router = useRouter();
 
   const allowBypass = useMemo(() => {
     if (!pathname) return false;
     return pathname.endsWith("/login");
   }, [pathname]);
   const sessionQuery = useAuthSession(!allowBypass);
+
+  useEffect(() => {
+    if (!allowBypass && !sessionQuery.isPending && !sessionQuery.isError && !sessionQuery.data) {
+      router.replace("/login");
+    }
+  }, [allowBypass, router, sessionQuery.data, sessionQuery.isError, sessionQuery.isPending]);
 
   if (allowBypass) return <>{children}</>;
 
@@ -32,20 +37,20 @@ export default function RoleGuard({ requiredRole, children }: RoleGuardProps) {
     return (
       <div className={styles.state}>
         <div className={styles.title}>Сервис временно недоступен</div>
-        <div className={styles.subtitle}>Не удалось проверить доступ. Попробуйте ещё раз.</div>
+        <div className={styles.subtitle}>Попробуйте обновить страницу.</div>
       </div>
     );
   }
 
   if (!sessionQuery.data) {
-    return requiredRole === "student" ? <StudentAuthRequired /> : <AuthRequired />;
+    return <div className={styles.state}>Переход ко входу…</div>;
   }
 
   if (sessionQuery.data.user.role !== requiredRole) {
     return (
       <div className={styles.state}>
-        <div className={styles.title}>Доступ запрещён</div>
-        <div className={styles.subtitle}>Роль не соответствует разделу.</div>
+        <div className={styles.title}>Раздел недоступен</div>
+        <div className={styles.subtitle}>Он не входит в вашу учётную запись.</div>
       </div>
     );
   }

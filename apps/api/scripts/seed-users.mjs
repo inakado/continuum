@@ -97,7 +97,6 @@ const ensureStudentProfile = async ({ studentId, leadTeacherId }) => {
     data: {
       userId: studentId,
       leadTeacherId,
-      displayName: null,
       firstName: null,
       lastName: null,
     },

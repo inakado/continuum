@@ -14,8 +14,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
     ports:
       - "127.0.0.1:3000:3000"
     healthcheck:
@@ -24,25 +22,6 @@ services:
       timeout: 3s
       retries: 5
       start_period: 10s
-
-  worker:
-    build:
-      context: .
-      dockerfile: apps/worker/Dockerfile
-      target: runner
-      args:
-        TEXLIVE_BASE_IMAGE: ${TEXLIVE_BASE_IMAGE:-continuum-texlive-base:texlive-2022-node20-bookworm}
-        NODE_RUNTIME_IMAGE: ${NODE_RUNTIME_IMAGE:-node:24.18.0-bookworm-slim}
-    env_file:
-      - ./deploy/env/worker.env
-    environment:
-      LATEX_COMPILE_TIMEOUT_MS: ${LATEX_COMPILE_TIMEOUT_MS:-300000}
-    restart: unless-stopped
-    depends_on:
-      redis:
-        condition: service_healthy
-      api:
-        condition: service_healthy
 
   postgres:
     image: postgres:16-alpine
@@ -57,20 +36,5 @@ services:
       timeout: 3s
       retries: 10
 
-  redis:
-    image: redis:7.2.7-alpine
-    env_file:
-      - ./deploy/env/redis.env
-    restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
-    volumes:
-      - continuum_prod_redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
 volumes:
   continuum_prod_postgres_data:
-  continuum_prod_redis_data:

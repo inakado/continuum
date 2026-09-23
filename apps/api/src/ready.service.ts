@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { Client } from 'pg';
-import { createClient } from 'redis';
 
 type ReadyCheck = {
   ok: boolean;
@@ -43,22 +42,7 @@ export class ReadyService {
       details.postgres = error instanceof Error ? error.message : 'error';
     }
 
-    const redisUrl = `redis://${process.env.REDIS_HOST || 'redis'}:${process.env.REDIS_PORT || 6379}`;
-    const redis = createClient({ url: redisUrl });
-
-    try {
-      await withTimeout(redis.connect(), 2000, 'redis');
-      await withTimeout(redis.ping(), 2000, 'redis');
-      await withTimeout(redis.quit(), 2000, 'redis');
-      details.redis = 'ok';
-    } catch (error) {
-      try {
-        await redis.quit();
-      } catch {}
-      details.redis = error instanceof Error ? error.message : 'error';
-    }
-
-    const ok = details.postgres === 'ok' && details.redis === 'ok';
+    const ok = details.postgres === 'ok';
     return { ok, details };
   }
 }

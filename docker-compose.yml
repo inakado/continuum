@@ -11,8 +11,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
     environment:
       API_PORT: ${API_PORT:-3000}
       POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
@@ -20,8 +18,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-continuum}
       POSTGRES_USER: ${POSTGRES_USER:-continuum}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-continuum}
-      REDIS_HOST: ${REDIS_HOST:-redis}
-      REDIS_PORT: ${REDIS_PORT:-6379}
       S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
       S3_REGION: ${S3_REGION:-us-east-1}
       S3_BUCKET: ${S3_BUCKET:-continuum}
@@ -29,14 +25,13 @@ services:
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
       S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
       S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL:-http://localhost:9000}
-      WORKER_INTERNAL_TOKEN: ${WORKER_INTERNAL_TOKEN:-continuum-internal-dev}
     ports:
       - "${API_PORT:-3000}:3000"
     volumes:
       - .:/app
       - api_node_modules:/app/node_modules
       - api_app_node_modules:/app/apps/api/node_modules
-    command: sh -c "if [ ! -d /app/node_modules/.pnpm ] || [ ! -d /app/apps/api/node_modules/helmet ] || [ ! -d /app/apps/api/node_modules/@prisma/client ] || [ ! -d /app/apps/api/node_modules/zod ]; then CI=true pnpm install --force --reporter=append-only --filter @continuum/api... --frozen-lockfile; fi; pnpm --filter @continuum/api exec tsc -p /app/packages/shared/tsconfig.json; if [ ! -d /app/node_modules/.prisma/client ]; then pnpm --filter @continuum/api exec prisma generate; fi; pnpm --filter @continuum/api dev"
+    command: sh -c "if [ ! -d /app/node_modules/.pnpm ] || [ ! -d /app/apps/api/node_modules/helmet ] || [ ! -d /app/apps/api/node_modules/@prisma/client ] || [ ! -d /app/apps/api/node_modules/zod ] || [ ! -d /app/apps/api/node_modules/@thallesp/nestjs-better-auth ] || [ ! -d /app/apps/api/node_modules/better-auth ]; then CI=true pnpm install --force --reporter=append-only --filter @continuum/api... --frozen-lockfile; fi; pnpm --filter @continuum/api exec tsc -p /app/packages/shared/tsconfig.json; if [ ! -d /app/node_modules/.prisma/client ]; then pnpm --filter @continuum/api exec prisma generate; fi; pnpm --filter @continuum/api dev"
     working_dir: /app
 
   postgres:
@@ -56,55 +51,6 @@ services:
       timeout: 3s
       retries: 10
 
-  redis:
-    image: redis:7-alpine
-    container_name: continuum-redis
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
-  worker:
-    build:
-      context: .
-      dockerfile: apps/worker/Dockerfile
-      args:
-        TEXLIVE_BASE_IMAGE: ${TEXLIVE_BASE_IMAGE:-continuum-texlive-base:texlive-2022-node20-bookworm}
-        NODE_RUNTIME_IMAGE: ${NODE_RUNTIME_IMAGE:-node:24.18.0-bookworm-slim}
-    container_name: continuum-worker
-    depends_on:
-      redis:
-        condition: service_healthy
-      minio:
-        condition: service_started
-    environment:
-      REDIS_HOST: ${REDIS_HOST:-redis}
-      REDIS_PORT: ${REDIS_PORT:-6379}
-      APP_ENV: ${APP_ENV:-development}
-      S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
-      S3_REGION: ${S3_REGION:-us-east-1}
-      S3_BUCKET: ${S3_BUCKET:-continuum}
-      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
-      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
-      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
-      S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL:-http://localhost:9000}
-      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:3000}
-      WORKER_INTERNAL_TOKEN: ${WORKER_INTERNAL_TOKEN:-continuum-internal-dev}
-      LATEX_COMPILE_TIMEOUT_MS: ${LATEX_COMPILE_TIMEOUT_MS:-300000}
-      LATEX_COMPILE_LOG_TAIL_BYTES: ${LATEX_COMPILE_LOG_TAIL_BYTES:-256000}
-      LATEX_COMPILE_WORKER_CONCURRENCY: ${LATEX_COMPILE_WORKER_CONCURRENCY:-1}
-    volumes:
-      - .:/app
-      - worker_node_modules:/app/node_modules
-      - worker_app_node_modules:/app/apps/worker/node_modules
-    command: sh -c "if [ ! -d /app/node_modules/.pnpm ] || [ ! -d /app/packages/shared/node_modules/zod ] || [ ! -d /app/apps/worker/node_modules/@continuum/latex-runtime ]; then CI=true pnpm install --force --reporter=append-only --filter @continuum/worker... --frozen-lockfile; fi; pnpm --filter @continuum/worker exec tsc -p /app/packages/shared/tsconfig.json; pnpm --filter @continuum/worker exec tsc -p /app/packages/latex-runtime/tsconfig.json; pnpm --filter @continuum/worker dev"
-    working_dir: /app
-
   minio:
     image: minio/minio:latest
     container_name: continuum-minio
@@ -121,8 +67,5 @@ services:
 volumes:
   api_node_modules:
   api_app_node_modules:
-  worker_node_modules:
-  worker_app_node_modules:
   postgres_data:
-  redis_data:
   minio_data:

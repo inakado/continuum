@@ -1,78 +1,16 @@
-import type { TeacherReviewInboxFilters } from "@/lib/api/teacher";
-
 export const authQueryKeys = {
   session: () => ["identity", "session"] as const,
 } as const;
 
-export const learningPhotoQueryKeys = {
-  studentUnit: (unitId: string) =>
-    ["learning-photo", "student", "unit", unitId] as const,
-  studentUnitPdfPreview: (unitId: string, target: "theory" | "method") =>
-    ["learning-photo", "student", "unit", unitId, "pdf-preview", target] as const,
-  studentUnitRenderedContent: (unitId: string, target: "theory" | "method") =>
-    ["learning-photo", "student", "unit", unitId, "rendered-content", target] as const,
-  studentTaskSolutionRenderedContent: (taskId: string) =>
-    ["learning-photo", "student", "task", taskId, "solution-rendered-content"] as const,
-  studentTaskStatementImagePreview: (taskId: string) =>
-    ["learning-photo", "student", "task", taskId, "statement-image"] as const,
-  studentPhotoBoardPreview: (taskId: string, assetKey: string) =>
-    ["learning-photo", "student", "task", taskId, "board-preview", assetKey] as const,
-  studentPhotoSubmissions: (taskId: string) =>
-    ["learning-photo", "student", "task", taskId, "submissions"] as const,
-  studentFeedbackBoardScene: (taskId: string, assetKey: string) =>
-    ["learning-photo", "student", "task", taskId, "feedback-board", assetKey] as const,
-  studentFeedbackBoardPreview: (taskId: string, assetKey: string) =>
-    ["learning-photo", "student", "task", taskId, "feedback-preview", assetKey] as const,
-  teacherReviewInbox: (filters: TeacherReviewInboxFilters | undefined) =>
-    ["learning-photo", "teacher", "review", "inbox", filters ?? {}] as const,
-  teacherReviewSubmissionDetail: (
-    submissionId: string,
-    filters: Omit<TeacherReviewInboxFilters, "limit" | "offset"> | undefined,
-  ) => ["learning-photo", "teacher", "review", "submission", submissionId, filters ?? {}] as const,
-  teacherPhotoAssetPreview: (studentId: string, taskId: string, assetKey: string) =>
-    ["learning-photo", "teacher", "review", "asset-preview", studentId, taskId, assetKey] as const,
+export const studentLibraryQueryKeys = {
+  all: () => ["student-library"] as const,
+  lesson: (lessonId: string) => ["student-library", "lesson", lessonId] as const,
 } as const;
 
-export const contentQueryKeys = {
-  adminTeachers: () => ["identity", "admin", "teachers"] as const,
-  teacherMe: () => ["content", "teacher", "me"] as const,
-  teacherEvents: (params?: {
-    category?: "admin" | "learning" | "system";
-    limit?: number;
-    offset?: number;
-    entityType?: string;
-    entityId?: string;
-  }) => ["content", "teacher", "events", params ?? {}] as const,
-  teacherCourses: () => ["content", "teacher", "courses"] as const,
-  teacherCourse: (courseId: string) => ["content", "teacher", "course", courseId] as const,
-  teacherCourseCoverImagePreview: (courseId: string, assetKey: string) =>
-    ["content", "teacher", "course", courseId, "cover-image", assetKey] as const,
-  teacherSection: (sectionId: string) => ["content", "teacher", "section", sectionId] as const,
-  teacherSectionCoverImagePreview: (sectionId: string, assetKey: string) =>
-    ["content", "teacher", "section", sectionId, "cover-image", assetKey] as const,
-  teacherSectionMeta: (sectionId: string) =>
-    ["content", "teacher", "section-meta", sectionId] as const,
-  teacherUnit: (unitId: string) => ["content", "teacher", "unit", unitId] as const,
-  teacherUnitRenderedContent: (unitId: string, target: "theory" | "method") =>
-    ["content", "teacher", "unit", unitId, "rendered-content", target] as const,
-  teacherTaskStatementImagePreview: (taskId: string, assetKey: string) =>
-    ["content", "teacher", "task", taskId, "statement-image", assetKey] as const,
-  teacherSectionGraph: (sectionId: string) =>
-    ["content", "teacher", "section", sectionId, "graph"] as const,
-  teacherStudents: (query?: string) =>
-    ["content", "teacher", "students", { query: query ?? "" }] as const,
-  teacherStudentsList: () => ["content", "teacher", "students"] as const,
-  teacherTeachers: () => ["content", "teacher", "teachers"] as const,
-  teacherStudentProfileRoot: (studentId: string) =>
-    ["content", "teacher", "student-profile", studentId] as const,
-  teacherStudentProfile: (studentId: string, courseId?: string | null) =>
-    ["content", "teacher", "student-profile", studentId, { courseId: courseId ?? null }] as const,
-  teacherStudentReviewPendingTotal: (studentId: string) =>
-    ["content", "teacher", "student-review-pending-total", studentId] as const,
-  studentDashboardOverview: () => ["content", "student", "dashboard-overview"] as const,
-  studentMe: () => ["content", "student", "me"] as const,
-  studentNotifications: () => ["content", "student", "notifications"] as const,
-  studentCourses: () => ["content", "student", "courses"] as const,
-  studentCourse: (courseId: string) => ["content", "student", "course", courseId] as const,
-  studentSection: (sectionId: string) => ["content", "student", "section", sectionId] as const,
+export const teacherLibraryQueryKeys = {
+  all: () => ["teacher-library"] as const,
+} as const;
+
+export const teacherStudentsQueryKeys = {
+  all: () => ["teacher-students"] as const,
 } as const;

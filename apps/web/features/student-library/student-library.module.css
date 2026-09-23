@@ -1,0 +1,381 @@
+.page {
+  min-height: 100vh;
+  background: var(--catalog-paper);
+  color: var(--catalog-ink);
+}
+
+.gradeNav {
+  display: flex;
+  align-items: stretch;
+  height: 71px;
+  padding: 0 48px;
+  gap: 43px;
+  border-bottom: 1px solid var(--catalog-border);
+  background: var(--catalog-paper);
+}
+
+.gradeNav button {
+  position: relative;
+  padding: 2px 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--catalog-ink);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.gradeNav button:hover,
+.gradeNav button:focus-visible,
+.gradeNav .activeGrade {
+  color: var(--catalog-accent);
+}
+
+.gradeNav .activeGrade {
+  font-weight: 650;
+  padding-right: 18px;
+  padding-left: 5px;
+}
+
+.gradeNav .activeGrade::after {
+  position: absolute;
+  right: -3px;
+  bottom: -1px;
+  left: 3px;
+  height: 3px;
+  background: var(--catalog-accent);
+  content: "";
+}
+
+.main,
+.lessonMain {
+  width: calc(100% - 96px);
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 41px 0 54px;
+}
+
+.intro h1,
+.lessonIntro h1 {
+  margin: 0;
+  color: var(--catalog-heading);
+  font-family: var(--font-inter), Inter, system-ui, sans-serif;
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.18;
+}
+
+.intro p,
+.lessonIntro > p:last-child {
+  margin: 1px 0 0;
+  color: var(--catalog-muted);
+  font-size: 21px;
+  line-height: 1.45;
+}
+
+.sections {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 54px;
+  row-gap: 40px;
+  margin-top: 30px;
+}
+
+.section {
+  min-width: 0;
+}
+
+.section h2,
+.blockHeading h2,
+.taskList h3,
+.empty h2 {
+  margin: 0;
+  color: var(--catalog-heading);
+  font-family: var(--font-inter), Inter, system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+}
+
+.section h2 {
+  overflow: hidden;
+  margin-bottom: 7px;
+  font-size: 27px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lessons,
+.materialList,
+.taskList {
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--catalog-border-strong);
+  list-style: none;
+}
+
+.lessons li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 226px;
+  column-gap: 8px;
+  align-items: center;
+  min-height: 37px;
+  border-bottom: 1px solid #e1e3e6;
+}
+
+.lessonNumber {
+  padding-left: 5px;
+  color: #7a808b;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.lessonTitle {
+  overflow: hidden;
+  color: #2a303d;
+  font-size: 15px;
+  font-weight: 400;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lessonTitle:hover,
+.lessonTitle:focus-visible,
+.formatSlot a:hover,
+.formatSlot a:focus-visible {
+  color: var(--catalog-accent-hover);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.formats {
+  display: grid;
+  grid-template-columns: 47px 99px 64px;
+  column-gap: 8px;
+}
+
+.formatSlot {
+  min-width: 0;
+  color: var(--catalog-accent);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.formatSlot a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.state {
+  width: calc(100% - 96px);
+  max-width: 1600px;
+  margin: 38px auto 0;
+  color: var(--catalog-muted);
+}
+
+.state {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.state button,
+.state a {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--catalog-accent);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.state button:hover,
+.state button:focus-visible,
+.state a:hover,
+.state a:focus-visible {
+  color: var(--catalog-accent-hover);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.empty {
+  width: 100%;
+  margin: 30px 0 0;
+  padding: 26px 0;
+  border-top: 1px solid var(--catalog-border-strong);
+  border-bottom: 1px solid #e1e3e6;
+  color: var(--catalog-muted);
+}
+
+.empty h2 {
+  font-size: 22px;
+}
+
+.empty p {
+  margin: 8px 0 0;
+  font-size: 15px;
+}
+
+.lessonMain {
+  max-width: 1100px;
+}
+
+.lessonIntro {
+  padding-top: 8px;
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  color: var(--catalog-accent);
+  font-size: 13px;
+  font-weight: 650;
+  text-transform: uppercase;
+}
+
+.eyebrow a {
+  color: inherit;
+}
+
+.materials,
+.tasks {
+  margin-top: 54px;
+}
+
+.blockHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--catalog-border-strong);
+}
+
+.blockHeading h2 {
+  font-size: 25px;
+}
+
+.blockHeading span,
+.materialList small,
+.taskList > li > span {
+  color: #7a808b;
+  font-size: 12px;
+}
+
+.materialList {
+  border-top: 0;
+}
+
+.materialList li {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr) auto;
+  gap: 18px;
+  padding: 15px 0;
+  border-bottom: 1px solid #e1e3e6;
+}
+
+.materialList li > span {
+  color: var(--catalog-accent);
+  font-size: 13px;
+  font-weight: 650;
+  text-transform: uppercase;
+}
+
+.taskList {
+  border-top: 0;
+}
+
+.taskList li {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 18px;
+  padding: 20px 0;
+  border-bottom: 1px solid #e1e3e6;
+}
+
+.taskList h3 {
+  font-size: 16px;
+}
+
+.taskList p {
+  margin: 0;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.taskList h3 + p {
+  margin-top: 8px;
+}
+
+@media (max-width: 980px) {
+  .sections {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .gradeNav {
+    height: 58px;
+    padding: 0 20px;
+    gap: 28px;
+    overflow-x: auto;
+  }
+
+  .gradeNav button {
+    flex: 0 0 auto;
+    font-size: 14px;
+  }
+
+  .main,
+  .lessonMain,
+  .state {
+    width: calc(100% - 40px);
+  }
+
+  .main,
+  .lessonMain {
+    padding-top: 28px;
+  }
+
+  .intro h1,
+  .lessonIntro h1 {
+    font-size: 31px;
+  }
+
+  .intro p,
+  .lessonIntro > p:last-child {
+    font-size: 16px;
+  }
+
+  .sections {
+    margin-top: 28px;
+  }
+
+  .section h2 {
+    font-size: 23px;
+    white-space: normal;
+  }
+
+  .lessons li {
+    grid-template-columns: 24px minmax(0, 1fr);
+    padding: 8px 0;
+  }
+
+  .formats {
+    grid-column: 2;
+    grid-template-columns: repeat(3, auto);
+    justify-content: start;
+    gap: 16px;
+  }
+
+  .materialList li {
+    grid-template-columns: 84px minmax(0, 1fr);
+  }
+
+  .materialList small {
+    grid-column: 2;
+  }
+}

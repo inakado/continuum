@@ -7,7 +7,7 @@ export const normalizeLogin = (raw: string) => {
   if (login.length < 3 || login.length > 64 || !LOGIN_PATTERN.test(login)) {
     throw new BadRequestException({
       code: 'INVALID_LOGIN',
-      message: 'Login must be 3-64 characters and contain only a-z, 0-9, dot, underscore or hyphen.',
+      message: 'Логин: от 3 до 64 символов; латинские буквы, цифры, точка, дефис или подчёркивание.',
     });
   }
   return login;

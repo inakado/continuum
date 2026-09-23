@@ -93,7 +93,7 @@ export const createBetterAuth = (prisma: PrismaService) =>
           if (passwordHash) await argon2.verify(passwordHash, password).catch(() => false);
           throw new APIError('UNAUTHORIZED', {
             code: 'INVALID_USERNAME_OR_PASSWORD',
-            message: 'Invalid username or password.',
+            message: 'Неверный логин или пароль.',
           });
         }
       }),

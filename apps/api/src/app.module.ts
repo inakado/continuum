@@ -4,25 +4,14 @@ import { AuthModule as BetterAuthNestModule } from '@thallesp/nestjs-better-auth
 import { AuthModule } from './auth/auth.module';
 import { createBetterAuth } from './auth/better-auth.factory';
 import { SessionAuthGuard } from './auth/guards/session-auth.guard';
-import { ContentModule } from './content/content.module';
-import { EventsLogModule } from './events/events.module';
-import { LearningModule } from './learning/learning.module';
-import { StudentsModule } from './students/students.module';
-import { DebugController } from './debug.controller';
-import { DebugLatexController } from './debug-latex.controller';
-import { DebugStorageController } from './debug-storage.controller';
 import { HealthController } from './health.controller';
+import { IdentityAccessModule } from './identity-access/identity-access.module';
 import { ObjectStorageModule } from './infra/storage/object-storage.module';
+import { LibraryModule } from './library/library.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';
 import { ReadyController } from './ready.controller';
 import { ReadyService } from './ready.service';
-import { shouldRegisterDebugControllers } from './runtime/environment';
-
-export const resolveDebugControllers = () =>
-  shouldRegisterDebugControllers()
-    ? [DebugController, DebugStorageController, DebugLatexController]
-    : [];
 
 @Module({
   imports: [
@@ -40,17 +29,11 @@ export const resolveDebugControllers = () =>
       disableGlobalAuthGuard: true,
     }),
     AuthModule,
-    ContentModule,
-    EventsLogModule,
-    StudentsModule,
-    LearningModule,
+    IdentityAccessModule,
+    LibraryModule,
     ObjectStorageModule,
   ],
-  controllers: [
-    HealthController,
-    ReadyController,
-    ...resolveDebugControllers(),
-  ],
+  controllers: [HealthController, ReadyController],
   providers: [
     ReadyService,
     {

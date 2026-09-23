@@ -1,8 +1,0 @@
-export {
-  TaskStatementImageAllowedContentTypes as TASK_STATEMENT_IMAGE_ALLOWED_CONTENT_TYPES,
-  TaskStatementImageMaxSizeBytes as TASK_STATEMENT_IMAGE_MAX_SIZE_BYTES,
-  TaskStatementImageTtlMaxSec as TASK_STATEMENT_IMAGE_TTL_MAX_SEC,
-  TaskStatementImageUploadTtlDefaultSec as TASK_STATEMENT_IMAGE_UPLOAD_TTL_DEFAULT_SEC,
-  TaskStatementImageViewTtlStudentDefaultSec as TASK_STATEMENT_IMAGE_VIEW_TTL_STUDENT_DEFAULT_SEC,
-  TaskStatementImageViewTtlTeacherDefaultSec as TASK_STATEMENT_IMAGE_VIEW_TTL_TEACHER_DEFAULT_SEC,
-} from '@continuum/shared';

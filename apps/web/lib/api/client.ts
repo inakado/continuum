@@ -56,7 +56,7 @@ const buildApiError = (res: Response, data: unknown) => {
     }
   }
 
-  return new ApiError(res.status, message || res.statusText || "Request failed", code);
+  return new ApiError(res.status, message || "Не удалось выполнить запрос.", code);
 };
 
 const requestRaw = async (path: string, options: RequestOptions = {}) => {
@@ -101,7 +101,7 @@ export async function apiRequestParsed<TSchema extends ZodTypeAny>(
   if (!parsed.success) {
     throw new ApiError(
       500,
-      `API response validation failed for ${path}`,
+      `Сервер вернул некорректные данные: ${path}`,
       "API_RESPONSE_INVALID",
     );
   }

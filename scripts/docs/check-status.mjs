@@ -54,10 +54,10 @@ const DOCUMENT_RULES = {
   },
   "documents/ARCHITECTURE.md": {
     requiredPatterns: [
-      /## 1\) Архитектурный стиль и принципы/,
-      /## 2\) Bounded Contexts/,
-      /## 5\) Очереди и фоновые процессы/,
-      /## 6\) Фиксация политики пересчётов/,
+      /## 1\. Архитектурная форма/,
+      /## 2\. Модули/,
+      /### Interactive Delivery/,
+      /## 8\. Production после cutover/,
     ],
     forbiddenPatterns: [
       /\bPlanned\b/,
@@ -154,26 +154,9 @@ const DOCUMENT_RULES = {
       /\bPlanned\b/,
     ],
   },
-  "documents/QUALITY_SCORE.md": {
-    requiredPatterns: [
-      /## Шкала/,
-      /## Объект оценки/,
-      /## Критерии оценки/,
-      /## Правило обновления оценки/,
-    ],
-    forbiddenPatterns: [
-      /Safety rails snapshot/i,
-      /2026-02-27/,
-      /\bPlanned\b/,
-    ],
-  },
   "documents/CONTENT.md": {
     requiredPatterns: [/## Scope/, /## Source Links/],
     forbiddenPatterns: [/## Planned \/ TODO/, /\bTODO\b/],
-  },
-  "documents/LEARNING.md": {
-    requiredPatterns: [/## Scope/, /## Source Links/],
-    forbiddenPatterns: [/## Tech debt \/ Planned/, /## Planned \/ TODO/, /\bTODO\b/],
   },
   "documents/SECURITY.md": {
     requiredPatterns: [/## Scope/, /## Source Links/],
@@ -183,29 +166,9 @@ const DOCUMENT_RULES = {
     requiredPatterns: [/## Назначение/, /## Source Links/],
     forbiddenPatterns: [/## Planned \/ TODO/, /\bTODO\b/],
   },
-  "documents/PRODUCT_SENSE.md": {
-    requiredPatterns: [/## Назначение/, /## Decision Heuristics/, /## Product Regressions/],
-    forbiddenPatterns: [/\bPlanned\b/, /\bTODO\b/],
-  },
   "documents/DECISIONS.md": {
-    requiredPatterns: [/## DEC-01/, /## DEC-21/, /## DEC-AUTH-02/],
+    requiredPatterns: [/## DEC-01/, /## DEC-02/, /## DEC-06/],
     forbiddenPatterns: [/\bPlanned\b/, /\bTODO\b/, /Mini-gap-check/i, /пока не зафиксирован/i],
-  },
-  "documents/DOMAIN-EVENTS.md": {
-    requiredPatterns: [/## 0\) Общие правила/, /## 1\) Список событий/, /## 2\) Source links/],
-    forbiddenPatterns: [/## Planned/i, /\bTODO\b/, /UserAuthenticated/],
-  },
-  "documents/RELIABILITY.md": {
-    requiredPatterns: [/## Scope/, /## Current invariants/, /## Source links/],
-    forbiddenPatterns: [/## Planned/i, /\bTODO\b/],
-  },
-  "documents/DESIGN-SYSTEM.md": {
-    requiredPatterns: [/## Текущие baseline/, /## 1\) Типографика/, /## Source links/],
-    forbiddenPatterns: [/\bPlanned\b/, /\bTODO\b/, /## Статусы фактов/],
-  },
-  "documents/product-specs/index.md": {
-    requiredPatterns: [/documents\/product-specs\/gamification-proposal\.md/, /не являются SoR/],
-    forbiddenPatterns: [/Scaffold/i, /## Planned specs/i],
   },
 };
 

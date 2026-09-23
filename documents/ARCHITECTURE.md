@@ -1,200 +1,164 @@
-# ARCHITECTURE.md
-**Проект:** «Континуум» закрытая платформа обучения (Teachers + Students)  
-**Аудитория:** нейросетевой агент / разработчики  
+# ARCHITECTURE
 
+Статус: целевая архитектура активной переработки. До завершения плана часть legacy-кода не соответствует этому документу; расхождения перечислены в `documents/exec-plans/active/2026-09-23-content-library-rewrite.md`.
 
----
+## 1. Архитектурная форма
 
-## 1) Архитектурный стиль и принципы
+- Modular Monolith: NestJS API, Next.js web, PostgreSQL и S3-compatible object storage.
+- Один API-процесс без отдельного worker и Redis после удаления legacy LaTeX pipeline.
+- Better Auth отвечает за login/password и DB-backed sessions.
+- Shared Zod-контракты являются единственным transport-контрактом между API и web.
+- Локальные авторские инструменты не являются частью production runtime.
 
-### 1.1 Стиль
-- **Modular Monolith** на **NestJS** (единый деплой API), разбиение по модулям/Bounded Contexts.
-- Отдельный процесс **Worker** (BullMQ consumers) для Rich LaTeX рендера (TeX Live + `pdflatex` / `dvisvgm`).
+## 2. Модули
 
-### 1.2 Доменная декомпозиция (DDD)
-- Ключевая доменная сложность: **Learning Progress & Unlock** (attempts, 3+3, два процента, required-гейт, граф unlock).
-- Контент и прогресс разделены по BC: **Content** отдельно от **Learning**.
-- Audit log и Domain Events — единый механизм фиксации фактов домена.
+### Identity & Access
 
-### 1.3 Консистентность
-- **Прогресс и unlock**: консистентно и “сразу” (синхронно/инкрементально на критическом пути).
-- **Rendering**: асинхронно через очередь; API поток не блокируется.
+Хранит пользователей, роли, профили и доступ учеников к возрастным группам.
 
----
+Инварианты:
 
-## 2) Bounded Contexts (BC) и ответственность
+- `admin` управляет преподавателями;
+- `teacher` управляет учениками и их доступами;
+- ученик создаётся только через единый identity provisioning path с тем же Argon2 password hashing, что использует Better Auth;
+- преподаватель видит и изменяет только учеников, у которых он указан как `leadTeacherId`;
+- деактивация ученика немедленно отзывает все его активные сессии;
+- ученик читает только собственные доступы;
+- отсутствие доступа скрывает всю возрастную группу независимо от прямой ссылки.
 
-> BC = изолированный модуль внутри монолита (Nest module + слой Application/Domain/Infra).  
-> BC взаимодействуют через явно определённые интерфейсы (порт/адаптер).
+Первый transport slice:
 
-### BC1 — Identity & Access
-**Ответственность:** пользователи, роли (admin/teacher/student), Better Auth login/password и DB-backed sessions, ведущий учитель ученика.
-**Инварианты:**
-- только `admin` создаёт и удаляет преподавателей;
-- студент создаётся учителем
-- ведущего учителя можно сменить; прогресс сохраняется, меняется проверяющий фото
+- `GET /teacher/students`;
+- `POST /teacher/students`;
+- `PATCH /teacher/students/:id/active`.
 
-### BC2 — Content (Authoring & Publishing)
-**Ответственность:** курс/раздел/юнит/задача + публикация + граф юнитов внутри раздела + ревизии задач.  
-**Инварианты:**
-- иерархическая видимость draft/published: draft родителя скрывает всё
-- любая правка задачи → новая ревизия, активная ревизия переключается
-- граф не пересекает разделы
+### Library
 
-### BC3 — Learning (Progress, Attempts, Unlock)
-**Ответственность:** прогресс ученика, попытки, статусы, блокировки, 6-й auto-credit, required_skipped, unit status, unlock, override.  
-**Инварианты:**
-- `Unit.in_progress` строго при первом Attempt в юните
-- `Unit.completed` автоматически при required-гейте + пороге optional counted задач (`minOptionalCountedTasksToComplete`, с guard’ом для “нулевого гейта”)
-- счётчики ошибок/блокировок — по активной ревизии задачи
-- solved% и completion% считаются строго по правилам
-- override открывает юнит навсегда
+Хранит возрастные группы, разделы, занятия, задачи и состояние публикации.
 
-### BC4 — Manual Review (Photo)
-**Ответственность:** фото-попытки, очередь, accept/reject, комментарий к попытке.  
-**Инварианты:**
-- проверяет только ведущий учитель ученика
-- rejected не увеличивает ошибки, пересдачи безлимитны
-- засчитывание только после accepted
+Инварианты:
 
-> Примечание: реализационно может быть подмодуль Learning, но границы и права удобно держать отдельно.
+- поддерживаются только группы `grade_7`, `grade_8`, `grade_9`, `grade_10_11`;
+- раздел принадлежит одной возрастной группе;
+- занятие принадлежит одному разделу;
+- ученик видит только опубликованные занятия;
+- порядок разделов, занятий и задач явный и детерминированный.
+- каталог ученика ограничен не только `GradeBand`, но и преподавателем, выдавшим доступ; материалы другого преподавателя той же группы не протекают между контурами.
 
-### BC5 — Files & Assets
-**Ответственность:** хранение/выдача файлов (S3/MinIO), presigned URLs, проверки доступа на уровне API endpoints.  
-**Инварианты:**
-- доступ к файлам только через backend-проверку прав
-- asset keys хранятся в доменных сущностях (например `Unit.theoryPdfAssetKey|theoryHtmlAssetKey`, `TaskRevision.solutionHtmlAssetKey`, `PhotoTaskSubmission.assetKeysJson`)
+Первый transport slice:
 
-### BC6 — Rendering (Rich LaTeX)
-**Ответственность:** очередь компиляции LaTeX → PDF/HTML, worker compile + apply результата в API, логи ошибок/сниппеты.  
-**Инварианты:**
-- compile runtime основан на `TeX Live`; основной PDF path использует `pdflatex`, TikZ HTML asset path использует `pdflatex --output-format=dvi -> dvisvgm`
-- общий backend runtime helper вынесен в `packages/latex-runtime`
-- TeX runtime размещён только в worker-контуре; API (включая debug compile endpoint) ограничен queue-orchestration и read/apply API
-- unit theory/method compile публикует согласованную пару артефактов `PDF + HTML`
-- API защищается от stale-результатов при apply (сравнение assetKey и active revision)
-- при `failed` статусе job API отдаёт структурированную ошибку компиляции: `code/message + log tail (+logTruncated)`; `logSnippet` сохранён для backward compatibility.
+- `GET /teacher/library`;
+- `POST /teacher/library/sections`;
+- `PATCH /teacher/library/sections/:id/publish`;
+- `POST /teacher/library/lessons`;
+- `PATCH /teacher/library/lessons/:id/publish`;
+- `PUT /teacher/library/access-grants`;
+- `GET /student/library`;
+- `GET /student/library/lessons/:id`.
 
-### BC7 — Audit & Domain Events Log
-**Ответственность:** единый лог доменных событий (admin/learning/system) с фильтрацией и payload.  
-**Принцип:** “события — факт домена”, покрывают и админские, и учебные действия.
+Отсутствие доступа, unpublished section или unpublished lesson возвращают одинаковый `LESSON_NOT_FOUND` на student detail path и не позволяют определить наличие скрытой сущности.
 
----
+### Assets
 
-## 3) Связи BC и зависимости (dependency rules)
+Управляет загрузкой и защищённой выдачей PDF, изображений, Excalidraw-сцен и интерактивных пакетов.
 
-### 3.1 Разрешённые зависимости (на уровне чтения/портов)
-- **Learning → Content (read)**: published tasks (required/optional), граф prereq, `minOptionalCountedTasksToComplete`, активная ревизия.
-- **ManualReview → Learning**: принятие/отклонение фото меняет состояние задачи/прогресса.
-- **Rendering → Storage/Content**: результат (`PDF`, `HTML`, `SVG assets`) сохраняется в object storage и применяется в Content через internal endpoint.
-- **Content/Learning/ManualReview/Rendering → Audit**: пишут события.
+Инварианты:
 
-### 3.2 Запрещённые зависимости
-- UI/Next.js не обращается напрямую к S3 — только через API выдачи signed URL.
-- Worker не трогает UI; только очереди/DB/S3 через модульные интерфейсы.
+- браузер получает upload/view URL только после backend-проверки прав;
+- доменные записи хранят asset key и метаданные, а не публичный URL;
+- тип, размер и назначение файла валидируются policy-as-code;
+- удаление доменной записи не должно молча оставлять активную ссылку на материал.
 
----
+### Interactive Delivery
 
-## 4) Application/Domain/Infra слои (внутри каждого BC)
+Принимает локально собранный HTML-пакет, создаёт неизменяемую версию и атомарно переключает активную опубликованную версию занятия.
 
-### 4.1 Domain layer
-- агрегаты/сущности/инварианты
-- доменные сервисы (например, расчёт “task counted/solved” и “unit eligible”)
+Инварианты:
 
-### 4.2 Application layer
-- команды (commands) и их handlers
-- транзакции, оркестрация внутри BC
-- публикация доменных событий в BC7
+- исходники и зависимости лекции не собираются на сервере;
+- пакет запускается в sandboxed iframe без доступа к cookie Continuum;
+- произвольный JavaScript не попадает в DOM аутентифицированного приложения;
+- пакет проходит проверку manifest, размера, entry point и content hash;
+- новая версия не изменяет предыдущую и может быть откачена.
 
-### 4.3 Infrastructure layer
-- Prisma repositories
-- S3 адаптер
-- BullMQ producers/consumers
-- PDF.js здесь не участвует (это фронт)
+### Task Authoring
 
----
+Управляет безопасным текстом задач, MathJax-формулами, изображениями и Excalidraw-диаграммами.
 
-## 5) Очереди и фоновые процессы
+Инварианты:
 
-### 5.1 Очереди (BullMQ)
-- `latex.compile` — compile LaTeX→PDF/HTML (unit theory/method) и LaTeX→HTML (task solution)
-- `system.ping` — debug queue (smoke/проверка worker)
+- текст задачи не содержит исполняемого JavaScript;
+- Excalidraw хранит редактируемую сцену и отдельный SVG/PNG preview;
+- показ ученику не требует загрузки редактора Excalidraw;
+- задачи первой версии не создают попытки и прогресс.
 
-### 5.2 Worker процессы
-- `apps/worker` обрабатывает `latex.compile` и `system.ping` (в одном процессе).
+## 3. Основные данные
 
----
+- `User`, `Session`, `Account`, `Verification`
+- `TeacherProfile`, `StudentProfile`
+- `AccessGrant`
+- `Section`
+- `Lesson`
+- `LessonArtifact`
+- `Task`
+- `Asset`
 
-## 6) Фиксация политики пересчётов (unlock/progress)
+`LessonArtifact` имеет тип `pdf` или `interactive`, номер версии, asset key, hash и состояние публикации. У занятия одновременно не более одной активной опубликованной версии каждого типа.
 
-### Политика пересчётов
+## 4. Основные потоки
 
-**RecomputeAvailability: детерминированный пересчёт снапшотов по section-графу**
+### Публикация PDF
 
-- `LearningAvailabilityService.recomputeSectionAvailability(studentId, sectionId)`:
-  - загружает published units/edges/tasks,
-  - считает снапшоты (status + counters + percents),
-  - persisted в `student_unit_state` (upsert).
-- На критических путях (attempt, student views) пересчёт вызывается синхронно.
-- На publish/unpublish и обновлениях графа пересчёт выполняется синхронно в API через `LearningRecomputeService` (по всем активным студентам).
+1. Учитель запрашивает presigned upload.
+2. Браузер загружает PDF в object storage.
+3. API проверяет asset и создаёт версию материала.
+4. Учитель публикует версию.
+5. Ученик получает короткоживущую view-ссылку после проверки доступа.
 
----
+### Публикация интерактивной лекции
 
-## 7) Безопасность (архитектурные требования)
+1. Лекция собирается локально.
+2. Локальная команда проверяет manifest и загружает пакет.
+3. API создаёт неизменяемую версию.
+4. Учитель активирует версию.
+5. Web запускает её в изолированном iframe.
 
-### 7.1 RBAC и права
-- Управление преподавателями защищено ролью `admin`; teacher directory остаётся read-only для transfer-сценария.
-- Content/learning write endpoints защищены ролью `teacher`.
-- Student endpoints ограничены по `student_id = me`.
-- Photo review endpoints требуют `lead_teacher_id == actor_id`.
+Загрузка лекции не запускает CI и не требует деплоя Continuum.
 
-### 7.2 S3/Assets
-- Только signed URLs с TTL.
-- Проверка прав доступа в API перед выдачей URL.
-- Asset keys хранятся в доменных сущностях (см. Prisma schema); универсальной таблицы привязок пока нет.
+## 5. Frontend
 
-### 7.3 LaTeX sandbox
-- Воркер запускается не от root, с лимитами CPU/mem.
-- Ограничения на внешние зависимости/сеть (по возможности).
-- Очистка временных директорий после job.
+- `/login` — единая существующая страница входа.
+- `/student` — библиотека доступных возрастных групп и занятия.
+- `/teacher` — материалы, ученики и доступы.
+- `/teacher/students` — создание/деактивация учеников и доступы к возрастным группам.
+- `/admin` — системное администрирование; teacher provisioning подключается новым Identity & Access flow.
 
-### 7.4 Dependency hygiene
-- Next.js/React держим на latest stable из-за уязвимостей RSC (включая CVE-2025-55182).
-- Автоматические обновления зависимостей и блокировка мержа при critical/high CVE.
+Teacher и student используют отдельные layouts/feature-контуры и общие токены, UI-примитивы, API client и query infrastructure. Старые dashboard shells не переиспользуются.
 
-## 8) Frontend Architecture (Next.js)
+## 6. Удаляемая legacy-архитектура
 
-См. `FRONTEND.md` (SoR для UI).
+- `Course` и `Unit` как учебная траектория;
+- unit graph, layout и prerequisites;
+- attempts, progress, unlock и overrides;
+- photo-review и notifications;
+- серверный Rich LaTeX rendering;
+- BullMQ, Redis, worker и `packages/latex-runtime`;
+- React Flow и старые course/unit экраны;
+- Domain Events Log, если после удаления legacy-потоков у него не останется продуктового назначения.
 
-### 8.1 Role-scoped dashboard systems
+Excalidraw не входит в удаляемую legacy-архитектуру.
 
-- Teacher dashboard и student dashboard развиваются как отдельные UI-системы с разными visual baseline.
-- Teacher dashboard baseline стабилизирован и является каноническим только для teacher routes.
-- Student dashboard baseline развивается отдельно в `apps/web/features/student-dashboard/*`; текущая активная точка — `/student`.
-- Legacy student routes (`/student/courses*`, `/student/sections/[id]`) остаются переходным compatibility-слоем до полной миграции в новый student dashboard flow.
+## 7. Dependency rules
 
-### 8.2 Shared vs role-specific boundaries
+- Web не обращается к object storage без предварительного разрешения API.
+- Library не знает о S3 SDK: storage implementation скрыта за Assets module.
+- Interactive Delivery не использует sanitizer статического HTML и не разделяет с ним read-path.
+- Role-specific frontend features не импортируют друг друга.
+- Внешние входы валидируются Zod-контрактом до application logic.
 
-- Общими остаются только foundation слои:
-  - `apps/web/app/globals.css` (базовые токены и theme foundation),
-  - `apps/web/components/ui/*` (role-neutral primitives),
-  - `apps/web/lib/api/*` + `apps/web/lib/query/*` (transport/server-state).
-- Role-specific presentation и композиция должны оставаться в своих feature-boundaries:
-  - teacher: `apps/web/features/teacher-*/*`;
-  - student: `apps/web/features/student-dashboard/*`.
-- Role-scoped theme overlays фиксируются на shell-уровне и не смешиваются:
-  - student: `apps/web/components/student-dashboard-theme.module.css`;
-  - teacher: `apps/web/components/teacher-dashboard-theme.module.css`.
-  - Эти модули переопределяют semantic UI tokens (`--bg-accent`, `--button-hover-*`, `--nav-*`) только в пределах соответствующего dashboard subtree.
-- Прямые cross-imports между teacher и student feature-UI слоями не допускаются; переиспользование идёт через role-neutral primitives/helpers/contracts.
+## 8. Production после cutover
 
-## 9) Документы, связанные с архитектурой
-- `CONTENT.md` — content/publishing/graph/LaTeX pipeline (SoR)
-- `LEARNING.md` — attempts/progress/availability/3+3 (SoR)
-- `FRONTEND.md` — frontend SoR
-- `ARCHITECTURE-PRINCIPLES.md` — инженерные принципы читаемости/поддерживаемости и рекомендуемый стек.
-- `DOMAIN-EVENTS.md` — каталог событий (audit)
-- `HANDLER-MAP.md` — карта обработчиков (HTTP → services → events/jobs)
-- `generated/db-schema.md` — срез текущей БД модели (source: Prisma schema)
-- `DECISIONS.md` — decision cards (архитектурные фиксации; сверяются по коду)
-- `DOCS-INDEX.md` — навигация по документации
+- текущие production-данные не мигрируются;
+- БД и object storage могут быть очищены в согласованный cutover;
+- после reset создаётся новый admin и тестовые учётные записи;
+- production меняется только отдельным явным деплоем с проверкой `/health`, `/ready`, login и чтения опубликованного занятия.

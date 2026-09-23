@@ -1,0 +1,355 @@
+.page {
+  min-height: 100vh;
+  background: var(--catalog-paper);
+  color: var(--catalog-ink);
+}
+
+.teacherNav {
+  display: flex;
+  align-items: center;
+  height: 71px;
+  padding: 0 48px;
+  gap: 43px;
+  border-bottom: 1px solid var(--catalog-border);
+}
+
+.teacherNav a {
+  position: relative;
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  color: #353b49;
+  font-size: 16px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.teacherNav a:hover,
+.teacherNav a:focus-visible,
+.teacherNav a[aria-current="page"] {
+  color: var(--catalog-accent);
+}
+
+.teacherNav a[aria-current="page"] {
+  font-weight: 650;
+}
+
+.teacherNav a[aria-current="page"]::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 3px;
+  background: var(--catalog-accent);
+  content: "";
+}
+
+.main {
+  width: calc(100% - 96px);
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 41px 0 72px;
+}
+
+.intro {
+  max-width: 760px;
+}
+
+.intro h1 {
+  margin: 0;
+  color: var(--catalog-heading);
+  font-family: var(--font-inter), Inter, system-ui, sans-serif;
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.18;
+}
+
+.intro > p:last-child {
+  margin: 1px 0 0;
+  color: var(--catalog-muted);
+  font-size: 21px;
+  line-height: 1.45;
+}
+
+.sectionForm,
+.lessonForm {
+  display: grid;
+  gap: 10px;
+}
+
+.sectionForm {
+  grid-template-columns: 170px minmax(0, 1fr) auto;
+  margin-top: 30px;
+  padding: 14px 0;
+  border-top: 1px solid var(--catalog-border-strong);
+  border-bottom: 1px solid var(--catalog-border);
+}
+
+.sectionForm input,
+.sectionForm select,
+.lessonForm input {
+  min-height: 39px;
+  padding: 0 12px;
+  border: 1px solid var(--catalog-border-strong);
+  border-radius: 0;
+  background: var(--catalog-paper);
+  color: var(--catalog-ink);
+  font: inherit;
+}
+
+.sectionForm button,
+.lessonForm button,
+.section button {
+  min-height: 39px;
+  padding: 0 15px;
+  border: 1px solid var(--catalog-accent);
+  border-radius: 0;
+  background: var(--catalog-accent);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.sectionForm button:disabled,
+.lessonForm button:disabled,
+.section button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.sectionForm button:not(:disabled):hover,
+.sectionForm button:not(:disabled):focus-visible,
+.lessonForm button:not(:disabled):hover,
+.lessonForm button:not(:disabled):focus-visible {
+  border-color: var(--catalog-accent-hover);
+  background: var(--catalog-accent-hover);
+}
+
+.sectionForm input:focus-visible,
+.sectionForm select:focus-visible,
+.lessonForm input:focus-visible {
+  border-color: var(--catalog-accent);
+  outline: 2px solid color-mix(in srgb, var(--catalog-accent) 25%, transparent);
+  outline-offset: 1px;
+}
+
+.catalog {
+  margin-top: 40px;
+}
+
+.grade {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 32px;
+  padding: 28px 0 42px;
+  border-top: 1px solid var(--catalog-border-strong);
+}
+
+.gradeHeading h2,
+.sectionHeading h3 {
+  margin: 0;
+  font-family: var(--font-inter), Inter, system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.gradeHeading h2 {
+  font-size: 22px;
+}
+
+.gradeHeading span,
+.status,
+.number {
+  color: #777b75;
+  font-size: 11px;
+}
+
+.gradeHeading span {
+  display: block;
+  margin-top: 8px;
+}
+
+.sections {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 32px;
+}
+
+.section {
+  min-width: 0;
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 86px;
+}
+
+.sectionHeading h3 {
+  margin-top: 5px;
+  font-size: 18px;
+}
+
+.sectionHeading p {
+  margin: 7px 0 0;
+  color: var(--catalog-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.section .publishButton,
+.lessons button {
+  min-height: 28px;
+  padding: 0 9px;
+  background: transparent;
+  color: var(--catalog-accent);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.lessons {
+  margin: 12px 0 0;
+  padding: 0;
+  border-top: 1px solid var(--catalog-border-strong);
+  list-style: none;
+}
+
+.lessons li {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto auto;
+  gap: 9px;
+  align-items: center;
+  min-height: 46px;
+  border-bottom: 1px solid #e1e3e6;
+}
+
+.lessonTitle {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 540;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lessonForm {
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-top: 12px;
+}
+
+.lessonForm input,
+.lessonForm button {
+  min-height: 36px;
+  font-size: 12px;
+}
+
+.state,
+.empty {
+  color: var(--catalog-muted);
+  font-size: 14px;
+}
+
+.state {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 48px;
+}
+
+.state button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--catalog-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.state button:hover,
+.state button:focus-visible {
+  color: var(--catalog-accent-hover);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.formError {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--catalog-danger);
+  font-size: 12px;
+}
+
+.empty {
+  margin: 0;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 940px) {
+  .grade {
+    grid-template-columns: 1fr;
+  }
+
+  .sections {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .teacherNav {
+    height: 58px;
+    padding: 0 20px;
+    gap: 28px;
+    overflow-x: auto;
+  }
+
+  .teacherNav a {
+    flex: 0 0 auto;
+    font-size: 14px;
+  }
+
+  .main {
+    width: calc(100% - 40px);
+    padding: 28px 0 72px;
+  }
+
+  .intro h1 {
+    font-size: 31px;
+  }
+
+  .intro > p:last-child {
+    font-size: 16px;
+  }
+
+  .sectionForm {
+    grid-template-columns: 1fr;
+  }
+
+  .sectionHeading {
+    display: grid;
+  }
+
+  .lessons li {
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+    padding: 8px 0;
+  }
+
+  .lessons button {
+    grid-column: 2 / -1;
+    justify-self: start;
+  }
+}

@@ -11,7 +11,7 @@ const errors = [];
 
 const referencedPaths = new Set(
   [
-    ...indexText.matchAll(/\b(?:documents\/[A-Za-z0-9._/-]+\.md|deploy\/README\.md|README\.md|AGENTS\.md|PRODUCT\.md|DESIGN\.md)\b/g),
+    ...indexText.matchAll(/\b(?:documents\/[A-Za-z0-9._/-]+\.md|deploy\/README\.md|README\.md|AGENTS\.md|CONTEXT\.md|PRODUCT\.md|DESIGN\.md)\b/g),
   ].map((match) => match[0]),
 );
 
@@ -39,7 +39,7 @@ for (const markdownFile of listDocMarkdownFiles()) {
   }
 }
 
-const rootMarkdownFiles = ["README.md", "AGENTS.md", "PRODUCT.md", "DESIGN.md"].filter(fileExists);
+const rootMarkdownFiles = ["README.md", "AGENTS.md", "CONTEXT.md", "PRODUCT.md", "DESIGN.md"].filter(fileExists);
 
 for (const markdownFile of rootMarkdownFiles) {
   if (!referencedPaths.has(markdownFile)) {

@@ -1,266 +1,65 @@
 # FRONTEND
 
-Назначение: текущая frontend-архитектура, UI-конвенции и поведение клиентского слоя.
-
-## Scope
-
-- App Router структура (Next.js)
-- Feature boundaries (`features/components/lib`)
-- API client слой (Better Auth cookie session)
-- Server-state правила
-- UI primitives, motion и asset preview rules
-- rendered-content flow для student unit `theory/method`
-- rendered-content flow для `task solution` (teacher + student)
+Назначение: целевая frontend-архитектура, UI-конвенции и правила клиентского слоя.
 
 ## Structure
 
-### Слои и ответственность
+1. `apps/web/app/**` — routes, layouts и navigation seams.
+2. `apps/web/features/student-*` — student catalog и lesson read-path.
+3. `apps/web/features/teacher-*` — authoring, students и access grants.
+4. `apps/web/components/ui/*` — role-neutral primitives без доменной логики.
+5. `apps/web/lib/api/*` и `apps/web/lib/query/*` — transport и server state.
 
-1. `apps/web/app/**`
-- композиция routes, layout, page shells и navigation boundaries.
-
-2. `apps/web/features/**`
-- use-case уровень: загрузка данных, мутации, orchestration, адаптация данных под UI.
-
-3. `apps/web/components/**`
-- shared role-neutral UI primitives и инфраструктурные presentation helpers без доменной логики.
-
-4. `apps/web/lib/**`
-- infra/helpers:
-  - `apps/web/lib/api/**` — API client;
-  - `apps/web/lib/query/**` — query client и query keys;
-  - `apps/web/lib/status-labels.ts` — единый источник статусов и label mapping.
-
-### Role-scoped dashboard boundaries
-
-- Teacher dashboard visual system и student dashboard visual system считаются разными baseline, даже если используют общие foundation tokens и общий UI-kit.
-- Teacher-specific presentation patterns живут в teacher feature-модулях и shared teacher-first primitives.
-- Student-specific presentation patterns для нового dashboard живут в `apps/web/features/student-dashboard/*`.
-- Прямой импорт teacher feature UI в student feature UI (и наоборот) не допускается; переиспользование идёт через role-neutral слой.
-- Enforced guardrails:
-  - `eslint-plugin-boundaries` запрещает cross-import между `features/student-*` и `features/teacher-*`;
-  - `no-restricted-imports` запрещает прямой импорт `@/components/DashboardShell` из role-specific feature-кода; используются `StudentDashboardShell` / `TeacherDashboardShell`.
-- Sidebar/shell реализация разделена по ролям:
-  - student routes используют отдельный `StudentDashboardShell` + `student-dashboard-shell.module.css`;
-  - teacher routes используют отдельный `TeacherDashboardShell` + `teacher-dashboard-shell.module.css`.
-  - `DashboardShell` оставлен только как deprecated compatibility alias и не используется в role-specific feature-коде.
-- Role-scoped theme слой также разделён:
-  - student dashboard theme: `apps/web/components/student-dashboard-theme.module.css`;
-  - teacher dashboard theme: `apps/web/components/teacher-dashboard-theme.module.css`.
-  - Theme-модули подключаются на root shell и переопределяют semantic tokens (`--bg-accent`, `--button-hover-*`, `--nav-*`) только в пределах своей role subtree.
-  - Нейтральный dark foundation (`surface/outline/text/success/paper`) живёт в `apps/web/app/globals.css`, а role theme modules только маппят его в role-level interactive tokens и reusable role surfaces (`--role-surface*`, `--role-outline*`, `--role-success*`, `--role-paper-bg*`).
-
-### Практическая карта UI-правок (role ownership)
-
-| Что меняем | Где менять | Что не трогать в этой задаче |
-|---|---|---|
-| Teacher sidebar layout/анимации | `apps/web/components/TeacherDashboardShell.tsx`, `apps/web/components/teacher-dashboard-shell.module.css` | `StudentDashboardShell.tsx`, `student-dashboard-shell.module.css` |
-| Teacher sidebar/button/nav цвета и hover/active | `apps/web/components/teacher-dashboard-theme.module.css` | `student-dashboard-theme.module.css`, `globals.css` (если задача только teacher) |
-| Student sidebar layout/анимации | `apps/web/components/StudentDashboardShell.tsx`, `apps/web/components/student-dashboard-shell.module.css` | `TeacherDashboardShell.tsx`, `teacher-dashboard-shell.module.css` |
-| Student sidebar/button/nav цвета и hover/active | `apps/web/components/student-dashboard-theme.module.css` | `teacher-dashboard-theme.module.css`, `globals.css` (если задача только student) |
-| Teacher feature-экран UI | `apps/web/features/teacher-*/*` | `apps/web/features/student-*/*` |
-| Student dashboard feature-экран UI | `apps/web/features/student-dashboard/*` | `apps/web/features/teacher-*/*` |
-| Shared кнопки/инпуты/примитивы для обеих ролей | `apps/web/components/ui/*` | role theme-файлы, если изменение должно быть глобальным |
-| Foundation tokens и reset | `apps/web/app/globals.css` | role-specific theme-файлы, если изменение должно быть только для одной роли |
-
-Правило применения:
-- Если UX-изменение относится к одной роли, сначала ищем решение в role theme/shell/feature слое.
-- До `components/ui/*` и `globals.css` доходим только если изменение осознанно общее для teacher и student.
-- В role-specific CSS запрещены raw neutral literals (`#fff`, `#ffffff`, `white`, `#f8fafc`, `#f1f5f9`, `#1e293b`, `#334155` и аналоги) вне foundation/theme layers; новые элементы собираются из semantic tokens.
-
-### Layering contract
-
-- Shell-слои обеих ролей используют общие semantic tokens `--z-shell-sidebar`, `--z-shell-popover`, `--z-shell-skip-link` из `globals.css`.
-- Встроенные инструменты со своей системой `z-index` (например, Excalidraw) изолируются на границе feature-контейнера через собственный stacking context; внутренние popup/modal значения библиотеки не должны перекрывать dashboard shell.
-- Dialog/alert/select/dropdown primitives остаются выше shell-слоёв согласно собственным semantic уровням.
-
-### Конвенция статусов в UI
-
-- В экранах и компонентах запрещено рендерить сырой enum напрямую (`locked`, `available`, `draft`, `published` и т.п.).
-- Любой новый статус сначала добавляется в `apps/web/lib/status-labels.ts`, затем используется через явный mapping-layer.
-
-### Терминология required-задач в UI
-
-- В user-facing копирайте фронта required-задачи именуются как `Ключевая`/`Ключевые`.
-- Доменный и контрактный нейминг не меняется: `isRequired`, `requiredSkipped`, `required_*` events/notification codes.
-- На student unit screen (`/student/units/[id]`) ключевые задачи визуально отмечаются иконкой в task tabs и в заголовке task card.
-- Student sidebar показывает события через `StudentNotificationsButton` в header actions:
-  - `Bell` icon показывает unread badge из `GET /student/notifications`;
-  - popover фиксируется относительно sidebar и не рендерится внутри clipping-контейнера;
-  - клик по событию `photo_reviewed` ведёт на `/student/units/:unitId?taskId=:taskId` и отмечает уведомление прочитанным.
-- Student unit route принимает `taskId` в query string и передаёт его как initial focus в task navigation.
-- Верхний контекст student unit screen управляется `StudentUnitContextPanel`: expanded показывает название, описание и полную статистику, collapsed сохраняет компактную строку с названием и ключевыми метриками. Выбор хранится локально под `continuum-student-unit-context-collapsed`; без сохранённого выбора mobile `<=720px` стартует компактно.
-- Для проверенных задач типа `photo` (user-facing `Развернутый ответ`) student unit screen показывает “Разбор учителя”, если latest reviewed submission содержит `teacherFeedbackBoardAssetKey`.
-- Teacher feedback board открывается student-side как read-only Excalidraw scene через student `presign-view`; при ошибке JSON используется PNG preview fallback.
-- Все Excalidraw surfaces синхронизируют UI theme и `viewBackgroundColor` с фактическим `html[data-theme]`: light canvas `#f8fafc`, dark canvas `#1e293b`. Theme-only `updateScene` выполняется с `CaptureUpdateAction.NEVER`, поэтому переключение темы не попадает в undo history и не считается teacher interaction.
-- Editable student Excalidraw board предоставляет fullscreen focus action через штатный `renderTopRightUI`: основной путь использует browser Fullscreen API, fallback разворачивает canvas на viewport и блокирует body scroll; выход доступен той же кнопкой и через `Escape` в fallback-режиме.
-- Student-форма развернутого ответа использует единую композицию: компактный сегментированный выбор `Фото` / `Доска`, рабочая область и общий submission footer. Выбранные фотографии можно удалять пофайлово до отправки. Feedback board показывается как нейтральная disclosure-строка с итогом проверки `Решение верное` / `Решение требует доработки`.
-- Multi-choice controls используют Lucide `Check` в 20px custom visual поверх нативного checkbox input. Итог автопроверки показывается как нейтральная status row `Верно` / `Неверно`, без badge-капсулы.
-- Numeric multipart answers используют общую grid-колонку для подписей, поэтому поля ввода выровнены по одной вертикали независимо от длины label.
+Teacher и student получают отдельные role-specific layouts и feature-контуры. Старые dashboard shells удалены; новые создаются только вместе с реальным каталогом и authoring flow. Cross-import между role-specific features запрещён.
 
 ## Routes Map
 
-- `/login` — общий логин.
-- `/student/login`, `/teacher/login` — role-specific entrypoints.
-- `/student` — student dashboard.
-- `/student/courses`, `/student/courses/[id]`, `/student/sections/[id]` — legacy student content routes (compatibility layer, не целевой baseline для нового student dashboard).
-- `/student/units/[id]` — просмотр юнита студентом.
-- `/teacher` — teacher dashboard.
-- `/teacher/sections/[id]` — section + graph view.
-- `/teacher/units/[id]` — unit editor/view.
-- `/teacher/students` и `/teacher/students/[studentId]` — управление учениками.
-- `/teacher/review` и `/teacher/review/[submissionId]` — проверка развернутых ответов.
-- `/teacher/events` — audit/event log.
-- `/teacher/analytics` — analytics route, если включена в текущем UI.
-- `/teacher/settings` — teacher settings.
+- `/login` — единый вход.
+- `/student` — доступные возрастные группы и каталог.
+- `/student/lessons/[lessonId]` — PDF, интерактив и задачи.
+- `/teacher` — обзор материалов.
+- `/teacher/materials` — разделы и занятия.
+- `/teacher/materials/[lessonId]` — редактирование и публикация занятия.
+- `/teacher/students` — ученики и доступы.
+- `/admin` — системное администрирование; управление преподавателями будет добавлено в новом identity flow.
+
+Старые `/student/courses*`, `/student/sections*`, `/student/units*`, `/teacher/sections*`, `/teacher/units*`, `/teacher/review*`, `/teacher/events` и `/teacher/analytics` удалены. `/student`, `/student/lessons/[lessonId]`, `/teacher/materials` и `/teacher/students` уже работают через новый API; asset authoring пока не реализован.
 
 ## API Client Behavior
 
-- Все запросы к backend идут с `credentials: "include"`.
-- Login/session/logout выполняются через Better Auth client и username plugin.
-- `401` означает отсутствие сессии, `403` — недостаточно прав; network/5xx отображаются как недоступность API без принудительного logout.
-- Единственный frontend source of truth для сессии — React Query `auth.session`.
-- Базовый URL — `NEXT_PUBLIC_API_BASE_URL` (default `http://localhost:3000`).
-- Для ключевых transport boundaries используется runtime parsing через shared contracts.
+- Все запросы к API используют `credentials: "include"`.
+- Login/session/logout выполняются Better Auth client.
+- `401` означает отсутствие сессии; `403` — отсутствие роли или доступа к возрастной группе.
+- Ответы критичных transport interfaces проходят Zod parsing.
+- Object storage URL используется без cookie/credentials.
 
 ## Server-State Rules
 
-- `@tanstack/react-query` — основной server-state слой web.
-- Query client и key factories централизованы в `apps/web/lib/query/*`.
-- Query-driven read flows и mutation + invalidation model являются default для экранов с server-state.
-- Ручные anti-race паттерны, `cancelled` guards и `requestIdRef` допустимы только там, где их нельзя заменить query lifecycle.
-- Read-path и write-path должны быть разделены: чтение через query, запись через mutation/hook orchestration.
-- Student dashboard overview читает aggregated read-model через отдельный query (`/student/dashboard`), а не собирает hero/continue-learning сводку вручную из нескольких client-side запросов.
-- Student dashboard course landing использует hybrid read-path:
-  - overview/hero/stat cards — из aggregated query `/student/dashboard`;
-  - sections landing — из `GET /courses/:id`, где student UI использует section descriptions и student-specific `accessStatus` для навигационных карточек.
-- Locked section cards на student dashboard не ведут в graph view: UI рендерит их disabled-state, а backend дополнительно защищает `GET /sections/:id`, `GET /sections/:id/graph` и direct unit access от обхода последовательности курса.
+- `@tanstack/react-query` — единственный общий server-state слой.
+- Query keys и invalidation централизованы.
+- Чтение и запись разделены: query для read-path, mutation для write-path.
+- Draft editor state может быть локальным, но опубликованное состояние всегда перечитывается с сервера.
+- UI не вычисляет доступ: API возвращает только разрешённые ученику сущности.
 
-## Presigned Assets and CORS
+## Materials
 
-- Presigned PDF/asset preview из object storage рендерится без credentials (`withCredentials = false`).
-- Это исключает отправку auth-cookie на внешний storage origin и предотвращает CORS-блокировку при `credentials: include`.
-- Teacher cover image flow для `Course/Section` использует тот же presign pattern, что и другие content assets:
-  - backend выдаёт upload/view URLs;
-  - web делает direct upload в storage;
-  - сохранение asset key подтверждается отдельным apply step.
-- В student unit PDF tabs zoom хранится отдельно по target; теория и методика открываются с масштабом `50%`.
-- Для student unit `theory/method` primary read-path теперь идёт через backend endpoint `rendered-content`, который отдаёт уже подписанный HTML fragment и optional `pdfUrl`.
-- Для student task solution primary read-path идёт через `GET /student/tasks/:taskId/solution/rendered-content`; PDF viewer для решения задачи не используется.
-- В `StudentUnitHtmlPanel` кнопка `Скачать PDF` не использует сохранённый при первичной загрузке `pdfUrl` как единственный источник: перед открытием файла panel запрашивает свежий rendered-content (`refresh*Content`) и берёт актуальный presigned URL.
-- HTML fragment рендерится как часть страницы; legacy PDF preview остаётся fallback path для unit без собранного HTML.
-- Rich math внутри student/teacher HTML preview typeset'ится локальным MathJax helper из workspace, а не CDN/runtime с внешнего origin.
-- MathJax helper работает как сериализованный runtime:
-  - typeset вызовы выполняются через очередь (без конкурентных гонок);
-  - при runtime-сбое есть controlled retry с переинициализацией MathJax script.
-- В teacher unit editor preview для `theory/method` живёт внутри того же preview container и поддерживает два режима: `PDF` и `HTML`. HTML preview читает backend `teacher/units/:id/rendered-content`, а PDF preview остаётся canvas-based.
-- В teacher unit tasks editor preview решения задачи (`TeacherTaskSolutionSection`) рендерится только HTML через `GET /teacher/tasks/:taskId/solution/rendered-content`.
+- PDF рендерится через PDF.js и скачивается по свежей presigned URL.
+- Интерактивная лекция запускается отдельным sandboxed iframe, а не через `dangerouslySetInnerHTML`.
+- MathJax загружается локально.
+- Excalidraw lazy-load используется только в teacher authoring; student видит SVG/PNG preview.
 
-## UI Primitives and Motion
+## Visual baseline
 
-- Базовый UI-kit живёт в `apps/web/components/ui/*`.
-- Shared presentation primitives для teacher dashboard живут там же:
-  - `PageHeader`
-  - `SurfaceCard` / `PanelCard` / `SectionCard` / `InsetCard`
-  - `FieldLabel`
-  - `InlineStatus`
-  - `EmptyState`
-  - `Kicker`
-- Для сложных interactive primitives используются локальные обёртки над Radix primitives.
-- В teacher dashboard карточки курса и раздела переключают publish/draft через `Switch`-контрол (а не icon-only toggle button).
-- В teacher unit tasks list публикация задачи переключается через `Switch` на карточке задачи; форма создания новой задачи не публикует её сразу и оставляет `draft` по умолчанию.
-- `Button` использует typed semantic API:
-  - variants: `primary`, `secondary`, `ghost`, `danger`
-  - sizes: `sm`, `md`, `lg`
-- `Button`/`ButtonLink` остаются role-neutral primitives (`apps/web/components/ui/button.module.css`), а финальный visual результат зависит от role-scoped tokens, заданных в соответствующем dashboard shell theme module.
-- Для role-specific dark button tuning используем variant-scoped theme tokens (`--button-primary-*`, `--button-secondary-*`, `--button-ghost-*`, `--button-danger-*`) в `student-dashboard-theme.module.css` / `teacher-dashboard-theme.module.css`, а не локальные overrides по feature-экранам.
-- Focus states оформляются через semantic foundation tokens `--focus-ring-color`, `--focus-ring-border-color`, `--focus-ring-soft-color`; новые feature-модули не используют `--border-primary` как прямой источник focus outline/box-shadow в dark theme.
-- Table/list surfaces с header/row-hover состояниями оформляются через foundation tokens `--table-frame-*`, `--table-divider`, `--table-header-bg`, `--table-row-hover-bg`, `--table-row-focus-bg`, `--table-row-subtle-bg`; teacher/student feature-модули не должны вшивать light-biased `rgba(248,250,252,...)` или аналогичные raw neutrals в table UI.
-- Elevated form/filter/dialog surfaces оформляются через semantic surface tokens `--surface-elevated-*` и `--surface-elevated-control-*`; новые feature-модули не вшивают white-based `color-mix(..., white ...)` для modal/filter card backgrounds и inset meta blocks.
-- `Switch` остаётся role-neutral primitive и получает dark/light поведение через foundation tokens `--switch-track-*` и `--switch-thumb-*`, а не через локальные `[data-theme="dark"]` overrides в feature-CSS.
-- Для route navigation, которая выглядит как button CTA, используем `ButtonLink`/`Link`, а не `button + router.push`.
-- Teacher screens не должны по умолчанию строить CTA через контейнерные `--button-*` overrides; сначала выбирается variant/size, overrides остаются только для локально уникальных случаев.
-- Button semantics для teacher routes:
-  - `primary` = create/save/confirm/accept/next-step;
-  - `secondary` = refresh/open/compile/utility;
-  - `ghost` = quiet nav, inline edit или non-destructive dismiss без сильного акцента;
-  - `danger` = delete/reject/remove.
-- `framer-motion` применяется точечно для React UI-анимаций; layout-size анимации по возможности остаются на CSS custom properties.
-- Для frequently triggered interactions избегаем тяжёлых `filter: blur(...)` и уважаем `prefers-reduced-motion`.
-- Student dashboard может иметь другой visual language и набор presentation blocks; teacher shared primitives не являются обязательным baseline для student feature UI.
-
-## Typography Runtime
-
-- Шрифты подключаются локально через `@fontsource/*` в `apps/web/app/layout.tsx`; CDN/Google Fonts runtime не используется.
-- Токены в `apps/web/app/globals.css`:
-  - `--font-logo` = `Unbounded` (только для логотипного текста `Континуум`),
-  - `--font-onest` = `Onest` (заголовки и интерфейсные акценты),
-  - `--font-inter` = `Inter` (основной текст).
-- Semantic typography layer:
-  - title roles: `--text-title-display-*`, `--text-title-page-*`, `--text-title-section-*`, `--text-title-card-*`
-  - body roles: `--text-body-md-*`, `--text-body-sm-*`
-  - label/meta roles: `--text-label-*`, `--text-caption-*`, `--text-overline-*`, `--text-mono-*`
-- Teacher dashboard baseline:
-  - `Onest` = headings/kickers/labels
-  - `Inter` = body/forms/tables/meta
-  - `Unbounded` не используется как обычный heading face вне бренда
-- Teacher `students` / `review` detail screens не вводят свой отдельный scale:
-  - identity headers = `page-title`,
-  - drilldown headings = `section-title`,
-  - table/card titles = `card-title`,
-  - table/meta/help text = `body-sm` / `caption`.
-- Для совместимости существующих CSS-модулей `--font-unbounded` алиасится на `--font-onest`; новая вёрстка не должна использовать `--font-unbounded` как “брендовый” шрифт.
-
-## Teacher Dashboard Baseline
-
-- Канонический visual baseline teacher UI = `TeacherDashboardShell` + glass tokens + shared UI primitives + feature CSS Modules.
-- В репозитории больше нет параллельного legacy teacher CRUD flow для курсов/разделов; teacher dashboard baseline является единственным SoR для этого домена на web.
-- Teacher features собираются по схеме:
-  - data/query orchestration в `features/**`
-  - presentation composition в shared `components/ui/*`
-  - локальные CSS только для feature-specific layout/state, а не для дублирования базовых panel/header/label/status/button patterns
-- Новые и существующие teacher read screens используют `react-query`; `useEffect + useState` CRUD-read flow не считается допустимым baseline для teacher dashboard.
-
-## Student Dashboard Baseline (`In progress`)
-
-- Новый student dashboard baseline развивается в `apps/web/features/student-dashboard/*` и используется маршрутом `/student`.
-- Shell-уровень student dashboard использует `StudentDashboardShell` с отдельным CSS-модулем (`student-dashboard-shell.module.css`).
-- Цвет/hover/CTA токены student dashboard задаются отдельным `student-dashboard-theme.module.css`, поэтому изменение кнопок и sidebar-интерактивов студента не должно затрагивать teacher dashboard.
-- Student routes используют тот же общий dark foundation, что и teacher, но через собственный role mapping; совпадение palette basis не означает совпадение visual baseline.
-- Текущий student flow опирается на aggregated read-model (`GET /student/dashboard`) + course detail read (`GET /courses/:id`) и встроенную навигацию `courses -> sections -> graph`.
-- Визуальная система student dashboard может осознанно отличаться от teacher dashboard; совпадение токенов/компонентов не является целью само по себе.
-- Legacy маршруты `/student/courses*` и `/student/sections/[id]` поддерживаются как переходный compatibility слой до завершения миграции.
-
-## Navigation Patterns
-
-- Teacher dashboard edit flow и student dashboard (`/student`) синхронизируют внутридашбордную навигацию с `window.history.state`.
-- Browser `Back/Forward` должен возвращать предыдущий UI-шаг внутри dashboard, а не ломать user journey.
-- В teacher unit editor route exits через breadcrumbs/back-actions обязаны проходить через shared dirty-form guard; минимум инварианта:
-  - `beforeunload` предупреждение при `isDirty`;
-  - in-app exit из editor не теряет изменения без confirm dialog.
-- В student и teacher view `Раздел → Граф` canvas-контейнер должен занимать почти весь viewport по высоте (viewport-aware `dvh`) с сохранением нижнего визуального зазора.
-- Teacher create/edit flow для `Course/Section` открывает формы в modal `Dialog` с overlay/focus trap; inline-формы внутри списка карточек не используются, а create modal поддерживает тот же cover image flow (`pick preview -> create -> presign upload -> apply`) что и edit.
-- Teacher students flow использует focused modal `Dialog` для создания и редактирования ученика, а также для одноразового показа нового/сброшенного пароля; inline-формы внутри списка учеников не используются.
-- Teacher students list при больших наборах данных использует windowing/virtualized rendering; не рендерим длинный список учеников как full unbounded `.map()` без причины.
-- В teacher student profile drilldown (`/teacher/students/[studentId]`) карточки курсов и разделов рендерятся вертикальным списком; для раздела сохраняется внутренний drilldown в прогресс ученика и отдельное прямое действие `Открыть раздел`, которое вручную открывает раздел ученику без выхода из teacher student profile.
-- Teacher `students` visual baseline:
-  - список учеников = compact registry rows, а не высокие dashboard cards;
-  - профиль ученика = compact identity header + immediate workspace;
-  - `courses -> sections -> units` уплотняются по мере drilldown, где `units` остаётся table-first рабочим уровнем;
-  - breadcrumbs в `Материалы и прогресс` остаются secondary navigation и не дублируются отдельными stage titles.
-- Teacher dashboard interactive card pattern:
-  - hover у карточек `курсы/разделы/ученики` и у row-like drilldown cards должен быть одинаковым;
-  - базовое состояние hover = лёгкий подъём (`translateY(-2px)`), `--glass-shadow`, `--surface-2`, мягкий `--glass-border`;
-  - новые teacher screens не вводят отдельные локальные card-hover эффекты без явной причины.
+- Светлая редакционная поверхность, почти чёрный текст, тёмно-зелёный акцент.
+- Плотные списки и тонкие разделители вместо избыточных карточек.
+- Desktop может использовать две колонки; mobile — одну.
+- Без glass, градиентного SaaS-декора и игровых progress-элементов.
+- Общий shell: header `64px`, tabs `71px`, desktop gutter `48px`, Inter и акцент `#0B6B4F`.
 
 ## Related Source Links
 
-- `apps/web/app/`
-- `apps/web/features/`
-- `apps/web/components/`
-- `apps/web/components/ui/`
-- `apps/web/lib/api/client.ts`
-- `apps/web/lib/query/query-client.ts`
-- `apps/web/lib/query/query-provider.tsx`
-- `apps/web/lib/query/keys.ts`
-- `apps/web/lib/status-labels.ts`
+- `apps/web/app/*`
+- `apps/web/features/*`
+- `apps/web/components/ui/*`
+- `apps/web/lib/api/*`
+- `apps/web/lib/query/*`

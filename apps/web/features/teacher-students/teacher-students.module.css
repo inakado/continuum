@@ -1,0 +1,361 @@
+.page {
+  min-height: 100vh;
+  background: var(--catalog-paper);
+  color: var(--catalog-ink);
+}
+
+.teacherNav {
+  display: flex;
+  align-items: center;
+  height: 71px;
+  padding: 0 48px;
+  gap: 43px;
+  border-bottom: 1px solid var(--catalog-border);
+}
+
+.teacherNav a {
+  position: relative;
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  color: #353b49;
+  font-size: 16px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.teacherNav a:hover,
+.teacherNav a:focus-visible,
+.teacherNav a[aria-current="page"] {
+  color: var(--catalog-accent);
+}
+
+.teacherNav a[aria-current="page"] {
+  font-weight: 650;
+}
+
+.teacherNav a[aria-current="page"]::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 3px;
+  background: var(--catalog-accent);
+  content: "";
+}
+
+.main {
+  width: calc(100% - 96px);
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 41px 0 72px;
+}
+
+.intro h1 {
+  margin: 0;
+  color: var(--catalog-heading);
+  font-family: var(--font-inter), Inter, system-ui, sans-serif;
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.18;
+}
+
+.intro > p:last-child {
+  margin: 1px 0 0;
+  color: var(--catalog-muted);
+  font-size: 21px;
+  line-height: 1.45;
+}
+
+.createForm {
+  display: grid;
+  grid-template-columns: 230px repeat(4, minmax(120px, 1fr)) auto;
+  gap: 10px;
+  align-items: end;
+  margin-top: 30px;
+  padding: 14px 0;
+  border-top: 1px solid var(--catalog-border-strong);
+  border-bottom: 1px solid var(--catalog-border);
+}
+
+.formHeading {
+  display: grid;
+  align-self: center;
+  gap: 4px;
+}
+
+.formHeading strong,
+.rosterHeading h2,
+.identity strong {
+  font-family: var(--font-inter), Inter, system-ui, sans-serif;
+}
+
+.formHeading span,
+.rosterHeading span,
+.identity span,
+.number {
+  color: #7a808b;
+  font-size: 12px;
+}
+
+.createForm input {
+  width: 100%;
+  min-width: 0;
+  min-height: 39px;
+  padding: 0 11px;
+  border: 1px solid var(--catalog-border-strong);
+  border-radius: 0;
+  background: var(--catalog-paper);
+  color: var(--catalog-ink);
+  font: inherit;
+}
+
+.createForm button,
+.students button {
+  min-height: 39px;
+  padding: 0 15px;
+  border: 1px solid var(--catalog-accent);
+  border-radius: 0;
+  background: var(--catalog-accent);
+  color: #ffffff;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.createForm button:disabled,
+.students button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.createForm button:not(:disabled):hover,
+.createForm button:not(:disabled):focus-visible {
+  border-color: var(--catalog-accent-hover);
+  background: var(--catalog-accent-hover);
+}
+
+.createForm input:focus-visible {
+  border-color: var(--catalog-accent);
+  outline: 2px solid color-mix(in srgb, var(--catalog-accent) 25%, transparent);
+  outline-offset: 1px;
+}
+
+.error {
+  margin: 12px 0 0;
+  color: var(--catalog-danger);
+  font-size: 13px;
+}
+
+.errorState {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 0;
+  border-top: 1px solid var(--catalog-border-strong);
+  color: var(--catalog-danger);
+  font-size: 13px;
+}
+
+.errorState button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--catalog-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.errorState button:hover,
+.errorState button:focus-visible {
+  color: var(--catalog-accent-hover);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.roster {
+  margin-top: 40px;
+}
+
+.rosterHeading {
+  display: grid;
+  grid-template-columns: 1fr 250px 108px;
+  gap: 18px;
+  align-items: end;
+  padding-bottom: 11px;
+}
+
+.rosterHeading h2 {
+  margin: 0;
+  color: var(--catalog-heading);
+  font-size: 27px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+}
+
+.rosterHeading > div:first-child > span {
+  display: block;
+  margin-top: 4px;
+}
+
+.gradeLegend,
+.grades {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  text-align: center;
+}
+
+.students {
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--catalog-border-strong);
+  list-style: none;
+}
+
+.students li {
+  display: grid;
+  grid-template-columns: 34px minmax(220px, 1fr) 250px 108px;
+  gap: 18px;
+  align-items: center;
+  min-height: 58px;
+  border-bottom: 1px solid var(--catalog-border);
+}
+
+.students li.inactive {
+  opacity: 0.52;
+}
+
+.identity {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.identity strong {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.grades button {
+  min-width: 0;
+  min-height: 31px;
+  padding: 0 6px;
+  border-color: var(--catalog-border-strong);
+  background: transparent;
+  color: #6f7682;
+  font-size: 11px;
+}
+
+.grades button[aria-pressed="true"] {
+  border-color: var(--catalog-accent);
+  background: var(--catalog-selected);
+  color: var(--catalog-accent-hover);
+  font-weight: 650;
+}
+
+.students .activeButton {
+  min-height: 31px;
+  padding: 0 9px;
+  background: transparent;
+  color: var(--catalog-accent);
+  font-size: 11px;
+}
+
+.empty {
+  margin: 0;
+  padding: 24px 0;
+  border-top: 1px solid var(--catalog-border-strong);
+  color: var(--catalog-muted);
+  font-size: 14px;
+}
+
+@media (max-width: 980px) {
+  .createForm {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .formHeading {
+    grid-column: 1 / -1;
+  }
+
+  .students li,
+  .rosterHeading {
+    grid-template-columns: 28px minmax(180px, 1fr) 220px 100px;
+    gap: 10px;
+  }
+
+  .rosterHeading > div:first-child {
+    grid-column: 1 / 3;
+  }
+}
+
+@media (max-width: 700px) {
+  .teacherNav {
+    height: 58px;
+    padding: 0 20px;
+    gap: 28px;
+    overflow-x: auto;
+  }
+
+  .teacherNav a {
+    flex: 0 0 auto;
+    font-size: 14px;
+  }
+
+  .main {
+    width: calc(100% - 40px);
+    padding: 28px 0 72px;
+  }
+
+  .intro h1 {
+    font-size: 31px;
+  }
+
+  .intro > p:last-child {
+    font-size: 16px;
+  }
+
+  .createForm {
+    grid-template-columns: 1fr;
+  }
+
+  .formHeading {
+    grid-column: auto;
+  }
+
+  .rosterHeading {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .gradeLegend {
+    display: none;
+  }
+
+  .students li {
+    grid-template-columns: 26px minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 14px 0;
+  }
+
+  .grades {
+    grid-column: 2 / -1;
+    width: min(100%, 250px);
+  }
+
+  .grades button,
+  .students .activeButton {
+    min-height: 44px;
+  }
+
+  .students .activeButton {
+    grid-column: 2 / -1;
+    justify-self: start;
+  }
+}

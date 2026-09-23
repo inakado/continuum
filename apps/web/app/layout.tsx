@@ -17,14 +17,13 @@ import "@fontsource/unbounded/500.css";
 import "@fontsource/unbounded/600.css";
 import "@fontsource/unbounded/700.css";
 import "./globals.css";
-import "katex/dist/katex.min.css";
 import "@excalidraw/excalidraw/index.css";
 import ThemeHydration from "@/components/ThemeHydration";
 import QueryProvider from "@/lib/query/query-provider";
 
 export const metadata: Metadata = {
   title: "Континуум",
-  description: "Консоль преподавателя",
+  description: "Закрытая библиотека занятий по физике",
   manifest: "/site.webmanifest",
   icons: {
     icon: [

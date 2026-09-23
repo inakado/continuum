@@ -1,145 +1,85 @@
-# DEVELOPMENT.md
+# DEVELOPMENT
 
-Назначение: короткий operational runbook для dev/build/test и базовых deploy-команд.
-Краткие правила выбора документов см. `AGENTS.md` и `documents/PLANS.md`.
+Назначение: короткий runbook для dev/build/test. Production operations находятся в [deploy/README.md](../deploy/README.md).
 
 ## Prerequisites / Env
 
-- Node.js `24.x` (для nvm: `nvm use`; версия зафиксирована в `.nvmrc`)
-- pnpm `10.11.1` через Corepack/root `packageManager`
-- `API_PORT` — default `3000`
-- `NEXT_PUBLIC_API_BASE_URL` — default `http://localhost:3000`
-- Для backend/Prisma-команд должны быть доступны `DATABASE_URL` или `POSTGRES_*`
-- В агентской sandbox-сессии команда `CI=true pnpm install --frozen-lockfile` не запускается; её должен выполнять пользователь локально
+- Node.js `24.x`.
+- pnpm `10.11.1` через Corepack.
+- `API_PORT` — default `3000`.
+- `NEXT_PUBLIC_API_BASE_URL` — default `http://localhost:3000`.
+- Backend использует `DATABASE_URL` или `POSTGRES_*`.
+- Storage использует `S3_*`; локально это MinIO.
+- В агентской sandbox-сессии `CI=true pnpm install --frozen-lockfile` не запускается.
 
 ## Dev Runbook
 
-### Базовый локальный контур
+1. `pnpm dev:infra` — PostgreSQL и MinIO.
+2. `pnpm dev:backend` — NestJS API в Docker.
+3. `pnpm dev:web` — Next.js на `http://localhost:3001`.
+4. `pnpm smoke` — `/health`, `/ready` и `/login`.
 
-1. Поднять infra:
-   - `pnpm dev:infra`
-2. Поднять backend:
-   - `pnpm dev:backend`
-3. Запустить web локально:
-   - `pnpm dev:web`
-
-Примечание:
-- `dev:web` и `smoke` рассчитаны на bash-совместимую оболочку.
-- `dev:web` запускает Next.js dev server в webpack-режиме; Turbopack (`next dev` по умолчанию в Next 16) на текущем проекте может зависать после `Starting...`.
-- На Windows использовать WSL или задавать env-переменные вручную.
-
-### Подготовка окружения
-
-1. Установить workspace dependencies:
-   - `pnpm -r install --force`
-2. Проверить, что web binary доступны:
-   - `ls -l apps/web/node_modules/.bin/next apps/web/node_modules/.bin/tsc`
+Worker, Redis и TeX Live не входят в целевой runtime.
 
 ## Verification Commands
 
-### Build
+- Документация: `pnpm docs:check`
+- Shared contracts: `pnpm --filter @continuum/shared typecheck && pnpm --filter @continuum/shared test`
+- Frontend boundaries: `pnpm lint:boundaries`
+- Frontend: `pnpm --filter web typecheck && pnpm --filter web test`
+- Backend image: `pnpm build:backend`
+- Web + shared: `pnpm build:web`
+- Full build: `pnpm build`
+- Full test: `pnpm test`
 
-- Backend images:
-  - `pnpm build:backend`
-- Dev backend images:
-  - `pnpm build:backend:dev`
-- Local worker runtime base image (one-time or after explicit cleanup):
-  - `export TEXLIVE_BASE_IMAGE=continuum-texlive-base:texlive-2022-node20-bookworm`
-  - `docker build -f apps/worker/Dockerfile.texlive-base -t "$TEXLIVE_BASE_IMAGE" .`
-  - legacy tag сохранён для reuse существующего тяжёлого TeX image; исполняемый Node.js 24 накладывается отдельно в `apps/worker/Dockerfile`
-- Web + shared:
-  - `pnpm build:web`
-- Full workspace build:
-  - `pnpm build`
+### Auth smoke
 
-### Typecheck / Lint / Tests
+```bash
+docker compose exec -T api sh -lc "cd /app/apps/api && pnpm smoke:auth"
+```
 
-- Typecheck:
-  - `pnpm typecheck`
-- Lint:
-  - `pnpm lint`
-- Dependency boundaries:
-  - `pnpm lint:boundaries`
-- Tests:
-  - `pnpm test`
-- Documentation checks:
-  - `pnpm docs:check`
+### API integration tests
 
-### Smoke
+```bash
+docker compose exec -T api sh -lc "pnpm --filter @continuum/api test:integration"
+```
 
-Перед запуском smoke должны быть подняты infra и backend, а web должен быть доступен локально.
+### Library smoke
 
-- `pnpm smoke`
+После baseline migration и создания локальных `teacher1` / `student1`:
 
-### API auth smoke (Docker only)
+```bash
+pnpm --filter @continuum/api smoke:library
+```
 
-- Полный Better Auth smoke для username sign-in/session/sign-out:
-  - `docker compose exec -T api sh -lc "cd /app/apps/api && pnpm smoke:auth"`
+Проверяет полный API-поток: создание и публикацию раздела/занятия, выдачу доступа и чтение учеником.
 
-Smoke проверяет:
-1. `GET /health`
-2. `GET /ready`
-3. `POST /debug/enqueue-ping`
-4. `GET /login`
-
-Auth smoke проверяет:
-1. `POST /auth/sign-in/username`
-2. `GET /auth/get-session`
-3. блокировку auth mutation с чужим `Origin`
-4. `POST /auth/sign-out`
-5. `401` на protected route после logout
-
-### API integration tests (Docker only)
-
-- Полный integration-прогон:
-  - `docker compose exec -T api sh -lc "pnpm --filter @continuum/api test:integration"`
-- Точечный прогон одного suite:
-  - `docker compose exec -T api sh -lc "cd /app/apps/api && pnpm exec vitest run --config vitest.integration.config.ts test/integration/<suite>.integration.test.ts"`
+Управление учениками проверяется через `/teacher/students`: создание выполняется из teacher-сессии, деактивация отзывает student-сессии, доступы к классам сохраняются через `/teacher/library/access-grants`.
 
 ## Prisma / Migrations
 
-1. Создать миграцию в контейнере:
-   - `docker compose exec -T api sh -lc "DATABASE_URL=postgresql://continuum:continuum@postgres:5432/continuum pnpm --filter @continuum/api exec prisma migrate dev --name <name>"`
-2. Явно пересгенерировать Prisma client:
-   - `docker compose exec -T api sh -lc "DATABASE_URL=postgresql://continuum:continuum@postgres:5432/continuum pnpm --filter @continuum/api exec prisma generate"`
-3. Production manual migration:
-   - `docker compose -f docker-compose.prod.yml run --rm --build api sh -lc 'export COREPACK_ENABLE_DOWNLOAD_PROMPT=0 && pnpm --filter @continuum/api exec prisma migrate deploy'`
+Создание локальной миграции:
+
+```bash
+docker compose exec -T api sh -lc "DATABASE_URL=postgresql://continuum:continuum@postgres:5432/continuum pnpm --filter @continuum/api exec prisma migrate dev --name <name>"
+```
+
+Генерация клиента:
+
+```bash
+docker compose exec -T api sh -lc "DATABASE_URL=postgresql://continuum:continuum@postgres:5432/continuum pnpm --filter @continuum/api exec prisma generate"
+```
+
+Production migration выполняется только как часть подтверждённого cutover.
 
 ## Operational Invariants
 
-### Backend build/typecheck only in Docker
-
-- `apps/api` и `apps/worker` не должны собираться на хосте напрямую.
-- Скрипты `build` и `typecheck` для backend содержат guard `scripts/ensure-docker-build.cjs`.
-- Если backend build/typecheck запускается вне Docker, это считается неверным operational path.
-
-### Production deploy source of truth
-
-- Подробный production deploy runbook хранится в [deploy/README.md](../deploy/README.md).
-- `DEVELOPMENT.md` хранит только минимальные operational инварианты и команды.
-- Dev storage использует MinIO; production storage использует внешний S3-провайдер.
-- Для production deploy применяется cache-first policy: по умолчанию пересобирается только изменившийся сервис (обычно `api`), а `worker` пересобирается только при изменениях в worker/runtime контуре.
-- Для production deploy действует disk hygiene policy (проверки `df -h`/`df -i`/`docker system df`, регулярный cleanup image/container без удаления volumes); детали в `deploy/README.md`.
-
-### Worker Dockerfile model
-
-- `apps/worker/Dockerfile.texlive-base` — отдельный runtime Dockerfile для тяжёлой TeX Live базы.
-- `apps/worker/Dockerfile` — application Dockerfile для `worker`, который использует `ARG TEXLIVE_BASE_IMAGE`, удаляет legacy Node из base и накладывает pinned `NODE_RUNTIME_IMAGE`; `texlive-full` не переустанавливается.
-- Обычный production/deploy цикл работает через:
-  - редкий rebuild `Dockerfile.texlive-base` при изменении runtime-зависимостей;
-  - частый rebuild `apps/worker/Dockerfile` при изменении worker/shared application-кода.
-- Если в логе `docker compose -f docker-compose.prod.yml build worker` снова появляется шаг `install-texlive-runtime.sh`, это признак, что используется старая схема или отсутствует нужный `TEXLIVE_BASE_IMAGE`.
-- Тот же invariant действует и локально: если `docker compose build worker` не находит `continuum-texlive-base:texlive-2022-node20-bookworm`, сначала нужно вручную собрать `apps/worker/Dockerfile.texlive-base`.
-- Смена `NODE_RUNTIME_IMAGE` не требует rebuild `Dockerfile.texlive-base`: пересобирается только worker application image.
-
-### Lockfile discipline
-
-- Docker builds используют `--frozen-lockfile`.
-- После изменения `package.json` lockfile должен быть актуальным.
-- В репозитории включён `recursive-install=true`, чтобы `pnpm install` ставил все workspace-пакеты.
+- Backend build/typecheck выполняется в Docker-контуре.
+- Docker build использует frozen lockfile; после изменения зависимостей lockfile обновляется отдельно.
+- Production storage внешний, dev storage — MinIO.
+- Новое занятие публикуется как content artifact и не запускает platform deploy.
+- Push и deploy выполняются только по явной команде пользователя.
 
 ## Troubleshooting
 
-Длинные повторяемые run/build/test/deploy сбои вынесены в [documents/ops/TROUBLESHOOTING.md](ops/TROUBLESHOOTING.md).
-
-В этом файле остаются только базовые команды, проверочный runbook и operational invariants.
+Повторяемые dev/run/build/test/deploy сбои хранятся в [documents/ops/TROUBLESHOOTING.md](ops/TROUBLESHOOTING.md).

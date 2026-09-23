@@ -12,6 +12,7 @@
     "test:integration": "node ../../scripts/ensure-docker-build.cjs && pnpm exec vitest run --config vitest.integration.config.ts",
     "bootstrap:admin": "node scripts/bootstrap-admin.mjs",
     "smoke:auth": "node scripts/smoke-auth.mjs",
+    "smoke:library": "node scripts/smoke-library.mjs",
     "start": "node dist/main.js"
   },
   "dependencies": {
@@ -28,13 +29,10 @@
     "@thallesp/nestjs-better-auth": "2.7.0",
     "argon2": "^0.41.1",
     "better-auth": "1.6.23",
-    "bullmq": "^5.78.0",
     "cookie-parser": "^1.4.7",
     "express": "^5.2.1",
     "helmet": "^8.2.0",
-    "ioredis": "5.10.1",
     "pg": "^8.21.0",
-    "redis": "^5.12.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "zod": "^4.4.3"

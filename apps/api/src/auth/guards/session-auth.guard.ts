@@ -41,7 +41,7 @@ export class SessionAuthGuard implements CanActivate {
     if (!session) {
       throw new UnauthorizedException({
         code: 'AUTH_REQUIRED',
-        message: 'Authentication required.',
+        message: 'Требуется вход.',
       });
     }
 
@@ -50,7 +50,7 @@ export class SessionAuthGuard implements CanActivate {
     if (typeof user.id !== 'string' || typeof login !== 'string' || !isRole(user.role)) {
       throw new UnauthorizedException({
         code: 'SESSION_INVALID',
-        message: 'Session identity is invalid.',
+        message: 'Не удалось проверить учётную запись.',
       });
     }
 
@@ -58,7 +58,7 @@ export class SessionAuthGuard implements CanActivate {
       await this.prisma.session.deleteMany({ where: { userId: user.id } });
       throw new UnauthorizedException({
         code: 'SESSION_REVOKED',
-        message: 'Session revoked or expired.',
+        message: 'Сессия завершена. Войдите снова.',
       });
     }
 

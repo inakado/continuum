@@ -6,7 +6,7 @@ export type ZodExceptionFactory = (error: ZodError, metadata: ArgumentMetadata) 
 const defaultZodExceptionFactory: ZodExceptionFactory = () =>
   new BadRequestException({
     code: 'VALIDATION_FAILED',
-    message: 'Validation failed',
+    message: 'Проверьте введённые данные.',
   });
 
 @Injectable()

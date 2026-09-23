@@ -1,45 +1,46 @@
 # DESIGN
 
-Статус: `Draft` (источник истины — код).
+Статус: целевая модель активной переработки; фактический UI сверяется с кодом.
 
 ## Назначение
 
-Высокоуровневые продуктовые и UX-инварианты, влияющие на системные решения.
+Высокоуровневые продуктовые и UX-инварианты закрытой библиотеки занятий.
 
-## Invariants (`Implemented`, verified in code)
+## Инварианты
 
-### Закрытая система (no public signup)
+### Закрытая система
 
-- Пользователей создаёт teacher; публичной регистрации нет.
+- Публичной регистрации нет.
+- Учителя и ученики создаются только авторизованными ролями.
 
-### Иерархическая видимость draft/published
+### Прямая навигация
 
-- Student видит только published контент по цепочке `Course → Section → Unit → Task`.
-- Любой draft в родителях скрывает дочерние сущности для student views.
+- Основная ось: возрастная группа → раздел → занятие.
+- Каталог не изображает прогресс, граф или обязательную траекторию.
+- PDF, интерактив и задачи открываются со страницы занятия.
 
-### Unpublish = “объекта нет”
+### Публикация
 
-- При `unpublish` объект пропадает из student UI и не должен учитываться в прогрессе и метриках.
+- Черновик скрыт от ученика.
+- Учитель явно публикует занятие и версии материалов.
+- Новая загруженная версия не заменяет опубликованную до отдельного действия публикации.
 
-### Два режима проверки задач
+### Плотность
 
-- Auto-check (`numeric`, `single_choice`, `multi_choice`).
-- Manual review (`photo`, user-facing `Развернутый ответ`) — решение принимает lead teacher студента.
+- На одной странице должно помещаться много занятий.
+- Списки, строки и тонкие разделители предпочтительнее каскада карточек.
+- Мобильная версия сохраняет полную функциональность без горизонтального скролла.
+- Визуальный источник истины student catalog: выбранный двухколоночный макет с верхним brand header, горизонтальными классами, Inter, белым фоном и зелёным `#0B6B4F`.
 
-### Прогресс: две метрики
+### Формулы и диаграммы
 
-- `completionPercent` и `solvedPercent` — разные метрики и должны отображаться и интерпретироваться отдельно.
+- Формулы отображаются через локальный MathJax runtime.
+- Excalidraw используется учителем для создания диаграмм.
+- Ученик получает статический preview и не загружает редактор.
 
 ## Source Links
 
-- Published-only queries:
-  - `apps/api/src/content/content.service.ts`
-  - `apps/api/src/content/content-write.service.ts`
-  - `apps/api/src/learning/learning.service.ts`
-  - `apps/api/src/learning/learning-attempts-write.service.ts`
-- Photo review policy:
-  - `apps/api/src/learning/photo-task.service.ts`
-  - `apps/api/src/learning/photo-task-read.service.ts`
-  - `apps/api/src/learning/photo-task-review-write.service.ts`
-- Unit progress snapshots:
-  - `apps/api/src/learning/learning-availability.service.ts`
+- Визуальные токены и композиции: `DESIGN.md`
+- Продуктовая модель: `PRODUCT.md`
+- Целевая frontend-архитектура: `documents/FRONTEND.md`
+- Active plan: `documents/exec-plans/active/2026-09-23-content-library-rewrite.md`

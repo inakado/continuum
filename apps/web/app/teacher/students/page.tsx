@@ -1,8 +1,8 @@
 import { buildPageMetadata } from "@/app/page-metadata";
-import TeacherDashboardScreen from "@/features/teacher-dashboard/TeacherDashboardScreen";
+import TeacherStudentsScreen from "@/features/teacher-students/TeacherStudentsScreen";
 
-export const metadata = buildPageMetadata("Ученики", "Список учеников и доступ к их профилям.");
+export const metadata = buildPageMetadata("Ученики", "Учётные записи и доступ к классам.");
 
 export default function TeacherStudentsPage() {
-  return <TeacherDashboardScreen active="students" />;
+  return <TeacherStudentsScreen />;
 }

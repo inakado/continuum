@@ -9,7 +9,6 @@ import {
   PutObjectCommand,
   type PutObjectCommandInput,
   S3Client,
-  S3ServiceException,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Upload } from '@aws-sdk/lib-storage';
@@ -124,7 +123,7 @@ export class ObjectStorageService {
       const result = await upload.done();
       return { key: params.key, etag: result.ETag };
     } catch (error) {
-      throw this.wrapStorageError(error, 'failed to upload object');
+      throw this.wrapStorageError(error, 'не удалось загрузить объект');
     }
   }
 
@@ -146,9 +145,9 @@ export class ObjectStorageService {
       };
     } catch (error) {
       if (this.isNotFoundError(error)) {
-        throw new NotFoundException('Object not found');
+        throw new NotFoundException('Файл не найден.');
       }
-      throw this.wrapStorageError(error, 'failed to download object');
+      throw this.wrapStorageError(error, 'не удалось скачать объект');
     }
   }
 
@@ -182,7 +181,7 @@ export class ObjectStorageService {
       if (this.isNotFoundError(error)) {
         return { exists: false };
       }
-      throw this.wrapStorageError(error, 'failed to read object metadata');
+      throw this.wrapStorageError(error, 'не удалось прочитать метаданные объекта');
     }
   }
 
@@ -195,7 +194,7 @@ export class ObjectStorageService {
         }),
       );
     } catch (error) {
-      throw this.wrapStorageError(error, 'failed to delete object');
+      throw this.wrapStorageError(error, 'не удалось удалить объект');
     }
   }
 
@@ -233,7 +232,7 @@ export class ObjectStorageService {
         },
       };
     } catch (error) {
-      throw this.wrapStorageError(error, 'failed to generate presigned upload URL');
+      throw this.wrapStorageError(error, 'не удалось создать ссылку для загрузки');
     }
   }
 
@@ -259,7 +258,7 @@ export class ObjectStorageService {
       );
       return url;
     } catch (error) {
-      throw this.wrapStorageError(error, 'failed to generate presigned URL');
+      throw this.wrapStorageError(error, 'не удалось создать ссылку для скачивания');
     }
   }
 
@@ -279,13 +278,13 @@ export class ObjectStorageService {
       return;
     } catch (error) {
       if (!this.isBucketMissingError(error)) {
-        throw this.wrapStorageError(error, 'failed to verify bucket');
+        throw this.wrapStorageError(error, 'не удалось проверить хранилище');
       }
     }
 
     if (this.config.isProduction) {
       throw new InternalServerErrorException(
-        `S3 bucket "${this.config.bucket}" does not exist in production`,
+        `Хранилище S3 "${this.config.bucket}" не существует в рабочей среде`,
       );
     }
 
@@ -301,7 +300,7 @@ export class ObjectStorageService {
 
       await this.s3.send(new CreateBucketCommand(input));
     } catch (error) {
-      throw this.wrapStorageError(error, `failed to create bucket "${this.config.bucket}"`);
+      throw this.wrapStorageError(error, `не удалось создать хранилище "${this.config.bucket}"`);
     }
   }
 
@@ -331,24 +330,12 @@ export class ObjectStorageService {
       }
     }
 
-    throw new InternalServerErrorException('Storage returned an unsupported stream body');
+    throw new InternalServerErrorException('Хранилище вернуло неподдерживаемый поток.');
   }
 
   private wrapStorageError(error: unknown, action: string): InternalServerErrorException {
-    const details = this.extractStorageErrorDetails(error);
-    return new InternalServerErrorException(`Object storage ${action}: ${details}`);
-  }
-
-  private extractStorageErrorDetails(error: unknown): string {
-    if (error instanceof S3ServiceException) {
-      return `${error.name}: ${error.message}`;
-    }
-
-    if (error instanceof Error) {
-      return error.message;
-    }
-
-    return 'unknown storage error';
+    void error;
+    return new InternalServerErrorException(`Объектное хранилище: ${action}.`);
   }
 
   private isNotFoundError(error: unknown): boolean {

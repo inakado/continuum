@@ -1,0 +1,66 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 48px;
+  background: var(--catalog-paper);
+  color: var(--catalog-ink);
+}
+
+.brand {
+  margin: 0 0 30px;
+  color: var(--catalog-heading);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.page h1 {
+  max-width: 720px;
+  margin: 0;
+  color: var(--catalog-heading);
+  font-size: 40px;
+  letter-spacing: -0.04em;
+  line-height: 1.15;
+}
+
+.page > p:not(.brand) {
+  margin: 10px 0 24px;
+  color: var(--catalog-muted);
+  font-size: 16px;
+}
+
+.page button,
+.page a {
+  min-height: 42px;
+  padding: 10px 16px;
+  border: 1px solid var(--catalog-accent);
+  border-radius: 0;
+  background: var(--catalog-accent);
+  color: #ffffff;
+  font: inherit;
+  font-size: 14px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.page button:hover,
+.page button:focus-visible,
+.page a:hover,
+.page a:focus-visible {
+  background: var(--catalog-accent-hover);
+  border-color: var(--catalog-accent-hover);
+}
+
+@media (max-width: 700px) {
+  .page {
+    padding: 24px 20px;
+  }
+
+  .page h1 {
+    font-size: 31px;
+  }
+}

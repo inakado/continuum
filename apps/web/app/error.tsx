@@ -1,5 +1,7 @@
 "use client";
 
+import styles from "./error-page.module.css";
+
 export default function Error({
   error: _error,
   reset,
@@ -8,11 +10,12 @@ export default function Error({
   reset: () => void;
 }) {
   return (
-    <main>
-      <h1>Ошибка</h1>
-      <p>Что-то пошло не так.</p>
+    <main className={styles.page}>
+      <p className={styles.brand}>Континуум</p>
+      <h1>Не удалось открыть страницу</h1>
+      <p>Попробуйте ещё раз.</p>
       <button type="button" onClick={() => reset()}>
-        Попробовать снова
+        Повторить
       </button>
     </main>
   );

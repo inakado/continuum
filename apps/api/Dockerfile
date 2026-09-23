@@ -9,7 +9,7 @@ ENV BACKEND_BUILD_IN_DOCKER=1
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 
-RUN corepack enable
+RUN corepack enable && corepack prepare pnpm@10.11.1 --activate
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \

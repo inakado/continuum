@@ -43,12 +43,11 @@ jobs:
           APP_DOMAIN: ${{ secrets.APP_DOMAIN }}
           AUTH_SMOKE_LOGIN: ${{ secrets.AUTH_SMOKE_LOGIN }}
           AUTH_SMOKE_PASSWORD: ${{ secrets.AUTH_SMOKE_PASSWORD }}
-          AUTH_SMOKE_PROTECTED_PATH: ${{ secrets.AUTH_SMOKE_PROTECTED_PATH }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          envs: DEPLOY_REF,MIGRATIONS_APPROVED,APP_DIR,APP_DOMAIN,AUTH_SMOKE_LOGIN,AUTH_SMOKE_PASSWORD,AUTH_SMOKE_PROTECTED_PATH
+          envs: DEPLOY_REF,MIGRATIONS_APPROVED,APP_DIR,APP_DOMAIN,AUTH_SMOKE_LOGIN,AUTH_SMOKE_PASSWORD
           script_stop: true
           script: |
             set -eu
@@ -74,5 +73,5 @@ jobs:
             APP_DOMAIN="$APP_DOMAIN" \
             AUTH_SMOKE_LOGIN="$AUTH_SMOKE_LOGIN" \
             AUTH_SMOKE_PASSWORD="$AUTH_SMOKE_PASSWORD" \
-            AUTH_SMOKE_PROTECTED_PATH="${AUTH_SMOKE_PROTECTED_PATH:-/student/me}" \
+            AUTH_SMOKE_PROTECTED_PATH="/me" \
               ./deploy/scripts/deploy-on-vps.sh

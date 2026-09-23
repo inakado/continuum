@@ -1,356 +1,45 @@
-# DECISIONS.md
-**Проект:** «Континуум» закрытая платформа обучения (Teachers + Students)  
-**Назначение:** Decision Cards (архитектурные фиксации) — что выбрали и почему.  
-**Формат:** DEC-XX, статус, контекст, решение, последствия.  
+# DECISIONS
 
-Статус: `Draft` (решения сверяются по коду; несоответствия исправляются в коде или в документации).
+Назначение: действующие архитектурные решения новой версии Continuum. История старой LMS доступна в Git и не является документацией текущего продукта.
 
----
+## DEC-01 — Modular Monolith без фонового runtime
 
-## DEC-01 — Архитектурный стиль: Modular Monolith + отдельный worker
 **Статус:** Accepted  
-**Контекст:** Нужны чёткие доменные границы (DDD), но при этом быстрый MVP. Есть тяжёлая асинхронная компиляция LaTeX.  
-**Решение:**  
-- Backend = **NestJS Modular Monolith** (BC по модулям).  
-- Отдельный процесс **worker** (BullMQ consumers) для LaTeX compile pipeline (queue `latex.compile`).  
-**Последствия:**  
-- Простая эксплуатация (1 API сервис + 1 worker).  
-- Границы BC остаются внутри репозитория и кода (port/adapter).  
-- Рендер не блокирует API.
+**Дата:** 2026-09-23
 
----
+NestJS API, Next.js web, PostgreSQL и S3-compatible storage образуют production runtime. Отдельные worker и Redis отсутствуют, пока не появится подтверждённая фоновая нагрузка.
 
-## DEC-02 — Технологический стек (backend/frontend/storage)
+## DEC-02 — Домен библиотеки занятий
+
 **Статус:** Accepted  
-**Контекст:** Требование: NestJS, Next.js, ReactFlow, CodeMirror6, S3-compatible.  
-**Решение:**  
-- Backend: NestJS + PostgreSQL + Prisma  
-- Frontend: Next.js (latest stable) + React (latest stable)  
-- Queue: Redis + BullMQ  
-- Storage: S3-compatible (MinIO dev)  
-- PDF view: PDF.js (без браузерного viewer UI)  
-**Последствия:**  
-- Быстрый dev и предсказуемые миграции.  
-- Удержание зависимостей в “latest stable” требует регулярных обновлений и CI security gates.
+**Дата:** 2026-09-23
 
----
+Каталог строится как `GradeBand → Section → Lesson`. Занятие объединяет versioned PDF, интерактивный пакет и задачи. Course, Unit, graph, progress, attempt и unlock не входят в новый домен.
 
-## DEC-03 — Политика безопасности зависимостей (React/Next из-за CVE-2025-55182)
+## DEC-03 — Готовые материалы вместо серверной сборки
+
 **Статус:** Accepted  
-**Контекст:** Уязвимость в RSC (в т.ч. CVE-2025-55182) требует избегать старых версий.  
-**Решение:**  
-- **React и Next.js держим на latest stable**.  
-- В CI включаем dependency scanning и блокируем merge при critical/high.  
-**Последствия:**  
-- Нужны регулярные обновления и контроль регрессий.  
-- Стабильность обеспечивается lockfile и контролируемыми PR.
+**Дата:** 2026-09-23
 
----
+TeX/PDF и интерактивный HTML собираются локально. Сервер принимает готовые артефакты, проверяет их, версионирует и публикует. Добавление занятия не требует platform deploy.
 
-## DEC-04 — Публикация и видимость: иерархическое скрытие + unpublish пересчитывает статистику
+## DEC-04 — Изоляция интерактивных лекций
+
 **Статус:** Accepted  
-**Контекст:** Пользовательское правило: если родитель draft → всё скрыто; unpublish = “объекта нет и он не учитывается”.  
-**Решение:**  
-- Видимость для ученика: объект виден только если он `published` и все родители `published`.  
-- При `unpublish` пересчитываем availability/progress для затронутого section (в текущем коде синхронно в API через `LearningRecomputeService`).  
-**Последствия:**  
-- Усложнение пересчётов при массовых изменениях сейчас решается синхронным recompute в API; вынос тяжёлых batch-пересчётов отслеживается как `TD-006`.  
-- История Attempts и Audit сохраняется (не удаляем).
+**Дата:** 2026-09-23
 
----
+Исполняемый HTML открывается только в sandboxed iframe без доступа к cookie Continuum. Он не проходит через static HTML sanitizer и не вставляется в authenticated DOM.
 
-## DEC-05 — Две метрики прогресса (completion vs solved)
+## DEC-05 — Excalidraw остаётся в Task Authoring
+
 **Статус:** Accepted  
-**Контекст:** В требованиях две метрики с разной семантикой.  
-**Решение:**  
-- **Unit Completion %**: `counted_tasks / total_tasks`, counted = `correct | accepted | credited_without_progress | teacher_credited`.  
-- **Task Solved %**: `solved_tasks / total_tasks`, solved = `correct | accepted | teacher_credited`.  
-**Последствия:**  
-- В БД храним и counters, и percents (кэшируем), пересчитываем детерминированно.  
-- UI должен показывать обе метрики и не смешивать их.
+**Дата:** 2026-09-23
 
----
+Учитель хранит editable Excalidraw scene и статический SVG/PNG preview. Student read-path получает preview и не загружает editor runtime. Legacy photo-review удаляется независимо.
 
-## DEC-06 — Required задачи как жёсткий гейт + required_skipped флаг
+## DEC-06 — Чистый production cutover
+
 **Статус:** Accepted  
-**Контекст:** Required задачи должны блокировать unlock, но могут быть auto-credited после 6 ошибок. Нужно отдельное отображение “важная задача не решена”.  
-**Решение:**  
-- required задачи обязательны для “unit eligible”: либо solved/accepted, либо `credited_without_progress`.  
-- Если required ушла в auto-credit → ставим `required_skipped=true` (в student_task_state) + уведомление учителю.  
-**Последствия:**  
-- Учителю проще видеть “слабые места”.  
-- Unlock возможен, но видно что required пропущена.
+**Дата:** 2026-09-23
 
----
-
-## DEC-07 — Попытки 3+3: блокировка после 3, закрытие после 6
-**Статус:** Accepted  
-**Контекст:** Строгая механика мотивации/дисциплины + прозрачность прогресса.  
-**Решение:**  
-- После 3-й неверной попытки: блокировка на `X минут` (X на уровне курса).  
-- После 6-й: `credited_without_progress`, показываем ответ/решение, дальше попыток нет (кроме действий учителя).  
-- Попытка **не создаётся**, если задача заблокирована (`locked_until > now`).  
-**Последствия:**  
-- Честная статистика попыток (без “спама” во время блока).  
-- UI показывает оставшееся время блокировки.
-
----
-
-## DEC-08 — Ревизии задач: любая правка = новая ревизия; зачёт не отменяется
-**Статус:** Accepted  
-**Контекст:** Требование консистентности: “если засчитано — остаётся засчитанным”, но попытки/блокировки относятся к актуальной ревизии.  
-**Решение:**  
-- Любое изменение задачи создаёт `task_revision` и делает её активной.  
-- Если задача уже засчитана студенту (любой credited статус) — она остаётся засчитанной.  
-- Счётчики ошибок/блокировок ведутся по `student_task_state.active_revision_id`.  
-**Последствия:**  
-- В `student_task_state` храним `credited_revision_id` и `active_revision_id`.  
-- При переходе на новую активную ревизию для не-зачтённых учеников — сбрасываем/ведём счётчики по новой ревизии.
-
----
-
-## DEC-09 — Фото-задачи: только ведущий учитель; rejected не увеличивает ошибки; пересдачи безлимитны
-**Статус:** Accepted  
-**Контекст:** Фото-ответы требуют ручной проверки и отдельной логики.  
-**Решение:**  
-- Фото Attempt → `pending_review`.  
-- Проверяет только `lead_teacher_id` ученика.  
-- `rejected` не увеличивает ошибки/блокировки, пересдачи безлимитны.  
-- `accepted` увеличивает solved и completion.  
-**Последствия:**  
-- Нужна очередь проверок и строгая проверка прав.  
-- Нужны события и уведомления по решениям review.
-
----
-
-## DEC-10 — Unlock rules: AND по prereq; граф не пересекает разделы
-**Статус:** Accepted  
-**Контекст:** Граф юнитов в пределах раздела; зависимости многовходовые.  
-**Решение:**  
-- Unlock `available` если **все prereq** юниты `completed` (по правилам completion) или есть override.  
-- Граф хранится на уровне section (`unit_graph_edges`).  
-**Последствия:**  
-- Пересчёт availability идёт по section-графу.  
-- Изменение графа требует recompute availability; сейчас пересчёт выполняется синхронно в API.
-
----
-
-## DEC-11 — Пересчёт availability/progress: синхронный API-contour
-**Статус:** Accepted  
-**Контекст:** Нужен мгновенный UX ученика, но publish/unpublish и массовые изменения должны быть безопасны.  
-**Решение (как реализовано сейчас):**  
-- Availability/progress считаются детерминированно по section-графу через `LearningAvailabilityService.recomputeSectionAvailability(studentId, sectionId)` и persisted в `student_unit_state`.  
-- Attempt/Student reads → синхронный пересчёт в API (иногда в транзакции attempt).  
-- Publish/Unpublish/GraphUpdate → синхронный пересчёт в API через `LearningRecomputeService` (по всем активным студентам).
-- Массовый batch-contour для тяжёлых пересчётов не реализован и отслеживается как `TD-006`.
-
----
-
-## DEC-12 — Отображение PDF “как контент страницы”: PDF.js без браузерного viewer UI
-**Статус:** Accepted  
-**Контекст:** Требование: без рамок/тулбаров/iframe; адаптивно; лениво.  
-**Решение:**  
-- PDF.js (`pdfjs-dist`) с собственным viewer-компонентом на фронте.  
-**Последствия:**  
-- Нужно аккуратно управлять производительностью (lazy pages, кеширование).  
-- Нужен endpoint выдачи signed URL на PDF.
-
----
-
-## DEC-13 — Files/Assets как отдельный модуль для переиспользования кода
-**Статус:** Accepted  
-**Контекст:** Файлы используются в разных местах: attachments, фото, pdf теории/решений.  
-**Решение (как реализовано сейчас):**  
-- Единый `ObjectStorageService` для работы с S3/MinIO и presign PUT/GET.  
-- Asset keys хранятся в доменных сущностях (unit/task_revision/photo_submission), выдача URL — через API endpoints с проверками.  
-
-**Последствия:**  
-- Единый контроль доступа к файлам.  
-- Унификация asset model отслеживается отдельно как `TD-003`, пока нет реализованной универсальной таблицы assets.
-
----
-
-## DEC-14 — Audit log: логируем и admin, и learning события с фильтрацией по категориям
-**Статус:** Accepted  
-**Контекст:** Требование хранить журнал событий для админ-действий и учебных событий.  
-**Решение:**  
-- `domain_event_log` хранит все события с `category` и фильтрами.  
-**Последствия:**  
-- Полезно для расследований/аналитики.  
-- Нужно следить за объёмом и индексами, возможно архивирование позже.
-
----
-
-## DEC-15 — Метрики MVP хранятся как learning snapshots
-**Статус:** Accepted  
-**Контекст:** Progress UI должен быстро читать completion/solved состояние без сборки метрик на клиенте.  
-**Решение:**  
-- Основные counters и percents для MVP хранятся в `student_unit_state`.
-- Пересчёт выполняется backend-сервисами learning contour, а UI читает готовый snapshot.
-**Последствия:**  
-- UI не собирает канонические progress метрики из разрозненных запросов.
-- Расширенные analytics/read-model projections отслеживаются как `DR-008`.
-
----
-
-
-## DEC-16 — Фиксация версий Node + pnpm (одинаковая среда у всех)
-**Контекст**  
-У нас monorepo (pnpm + turbo), часть сервисов в Docker, часть локально. Расхождение версий Node/pnpm приводит к “у меня работает”.
-
-**Решение**  
-Фиксируем package manager через `packageManager` в root `package.json` и используем corepack.
-
-**Обоснование**  
-Это самый дешёвый способ убрать класс ошибок “несовместимые lockfile/peer deps/ESM”.
-
-**Последствия**  
-- Любой разработчик/CI получает предсказуемую pnpm-версию.
-- Если обновляем Node/pnpm — делаем отдельным шагом и проверяем `pnpm smoke`.
-
----
-
-## DEC-17 — Dev-режим Hybrid как стандарт
-**Контекст**  
-Web удобнее дебажить локально (Next dev server), но infra и backend-части должны быть воспроизводимы и одинаковы.
-
-**Решение**  
-Стандарт разработки:
-- **Docker Compose**: infra + api + worker
-- **Локально**: web
-
-**Обоснование**  
-Ускоряет UI итерации, но сохраняет воспроизводимость backend/infra.
-
-**Последствия**  
-- `pnpm dev:infra`, `pnpm dev:backend`, `pnpm dev:web`, `pnpm smoke` — обязательный путь.
-- Порт-конфликты решаем стандартом: API 3000, WEB 3001.
-
----
-
-## DEC-18 — TeX Live runtime для backend LaTeX, без shell-escape
-**Контекст**  
-Rich LaTeX компилируется на сервере, потенциально небезопасен (инъекции, доступ к FS/сети). Компиляция должна быть асинхронной и не блокировать API.
-
-**Решение (уточнение по факту кода):**  
-- Основной pipeline: compile выполняется в worker (BullMQ `latex.compile`) и применяется через internal endpoint в API.  
-- Runtime основан на `TeX Live`; основной PDF path использует `pdflatex`, а TikZ HTML asset path — `pdflatex --output-format=dvi -> dvisvgm`.
-- TeX runtime установлен только в `worker`; `api` debug compile endpoint работает как queue-orchestration и не компилирует локально.  
-- Worker вызывает internal apply с `x-internal-token` (`WORKER_INTERNAL_TOKEN`).  
-- Shell-escape не используется.
-- Source compatibility фиксируется как strict `pdflatex`; XeTeX/LuaTeX-only preamble и внешний toolchain отклоняются fail-fast.
-
-**Обоснование**  
-Разделение обязанностей и blast-radius: API остаётся быстрым и безопасным, тяжёлый/опасный процесс живёт отдельно.
-
-**Последствия**  
-- Любой endpoint “Preview/Compile” в UI становится постановкой job.
-- Ошибки компиляции возвращаются через статус job, а не синхронный ответ API.
-
-**Вне scope этого DEC**  
-Реализация “job lifecycle” для PDF (если появится отдельная сущность render job) и дополнительные UI-детали pdf-view.
-
----
-
-## DEC-19 — Политика секретов: только `.env.example` в репо, `.env` никогда
-**Контекст**  
-У нас есть MinIO creds, DB creds, потенциально ключи подписи/TTL для signed URLs.
-
-**Решение**  
-- В репозитории хранится **только** `.env.example`.
-- Реальные `.env`/секреты — локально или в CI secrets, никогда в git.
-- Любые новые env-переменные добавляем сначала в `.env.example` и описываем в `documents/DEVELOPMENT.md`.
-
-**Обоснование**  
-Это базовая дисциплина безопасности и воспроизводимости.
-
-**Последствия**  
-- Любая новая конфигурация проходит через явный контракт окружения.
-- Утечек в git меньше по определению.
-
----
-
-## DEC-20 — Smoke-check как “контроль качества окружения” перед любыми фичами
-**Контекст**  
-Мы развиваем систему пошагово, хотим ловить регрессии сразу.
-
-**Решение**  
-- Любая “инфра/настройка/библиотеки” меняется только вместе с проверкой `pnpm smoke`.
-- `pnpm smoke` — минимальный end-to-end контроль (health/ready/enqueue + web `/login`).
-
-**Обоснование**  
-Это обеспечивает контролируемость и снижает стоимость ошибок.
-
-**Последствия**  
-- Любая поломка окружения выявляется в течение минут.
-- В CI/deploy контуре smoke остаётся базовой проверкой runtime.
-
----
-
-## DEC-21 — Teacher и Student dashboard развиваются как две отдельные дизайн-системы
-**Статус:** Accepted  
-**Контекст:** Teacher dashboard уже стабилизирован в glass baseline, а student dashboard перешёл в отдельную стадию редизайна, начиная с `/student`. Единый visual baseline для обеих ролей создаёт путаницу и усложняет эволюцию UI.  
-**Решение:**  
-- Фиксируем dual-design-system модель:
-  - teacher dashboard visual baseline и student dashboard visual baseline развиваются независимо;
-  - shared остаётся только foundation слой (`globals.css`, role-neutral `components/ui/*`, API/query/contracts/helpers).
-- Student dashboard v2 развивается в `apps/web/features/student-dashboard/*` и не обязан повторять teacher presentation patterns.
-- Legacy student routes (`/student/courses*`, `/student/sections/[id]`) считаются compatibility-слоем до полной миграции в `/student`.
-- На shell-уровне вводим role-scoped theme modules:
-  - student: `student-dashboard-theme.module.css`;
-  - teacher: `teacher-dashboard-theme.module.css`.
-  - Theme modules переопределяют semantic UI tokens внутри своей роли и служат точкой независимой эволюции кнопок/sidebar интерактивов.
-**Последствия:**  
-- Снижается риск смешивания teacher/student visual primitives и дублирования стилей.
-- Требуется явная дисциплина feature-boundaries (teacher UI не импортируется в student UI и наоборот).
-- В документации teacher и student baseline описываются раздельно.
-- Изменения в `Button`-поведении по ролям делаются через role theme modules, а не через точечные cross-feature overrides.
-
----
-
-## DEC-AUTH-01 — JWT в httpOnly cookie (без localStorage)
-**Статус:** Superseded by DEC-AUTH-03
-**Контекст:** Нужно убрать хранение JWT в localStorage и защитить токен от XSS; при этом оставаться на JWT без refresh.  
-**Решение:**  
-- access token хранится в **httpOnly cookie** (`access_token`).  
-- `SameSite=Lax`, `HttpOnly=true`, `Secure=true` только в production.  
-- CORS с `credentials: true`, origin = web‑origin (в dev `http://localhost:3001`).  
-- Authorization Bearer оставляем как fallback на время миграции.  
-**Последствия:**  
-- JS на фронте не читает токен; все запросы идут с `credentials: "include"`.  
-- Полноценную CSRF‑защиту можно добавить позже (Lax уменьшает риск).  
-
----
-
-## DEC-AUTH-02 — Access + Refresh с server-side сессиями и ротацией refresh токена
-**Статус:** Superseded by DEC-AUTH-03
-**Контекст:** Access токен с коротким TTL без refresh приводил к частым перелогинам. Нужно сохранить безопасный cookie-based подход и убрать ручной re-login при истечении access.  
-**Решение:**  
-- `access_token` (httpOnly cookie) живёт коротко: **15 минут**.  
-- `refresh_token` (httpOnly cookie, path задаётся `AUTH_REFRESH_COOKIE_PATH`, default `/`) живёт **14 дней** (fixed TTL, без sliding).  
-- Refresh сессии храним в БД (`auth_sessions`, `auth_refresh_tokens`), токены в БД только в виде **SHA-256 hash**.  
-- На каждом `POST /auth/refresh` делаем **rotation** refresh токена.  
-- Если обнаружено повторное использование уже использованного refresh токена (reuse) — ревокация всей token family (вся сессия), кроме short grace-сценария конкурентного benign-replay (`REFRESH_TOKEN_STALE`).  
-- На login/refresh/logout очищаются legacy refresh-cookie paths (`AUTH_REFRESH_COOKIE_LEGACY_PATHS`) для предотвращения дублей cookie с одинаковым именем.  
-- `POST /auth/login` и `POST /auth/refresh` работают в **strict cookie-only** режиме: токены не возвращаются в body.  
-**Последствия:**  
-- Существенно лучше UX (тихое продление сессии), при этом сохраняется контроль revocation и защита от replay/reuse, а race между вкладками меньше приводит к forced logout.  
-- Появляется состояние сессии в БД и дополнительная auth-логика на backend/frontend.  
-
----
-
-## DEC-AUTH-03 — Better Auth с DB-backed sessions
-**Статус:** Accepted
-**Контекст:** Custom JWT/refresh contour требовал собственной реализации rotation, replay handling и frontend refresh orchestration. До запуска продукта выбран стандартный session contour.
-**Решение:**
-- username/password authentication и sessions обслуживает Better Auth;
-- opaque session хранится в БД 14 дней без sliding refresh и cookie cache;
-- доменные роли и ownership остаются в приложении;
-- API защищён глобально, public routes объявляются явно;
-- credential hash хранится только в `Account`, смена/сброс пароля удаляет все sessions.
-**Последствия:**
-- JWT/refresh endpoints, таблицы, env и клиентский refresh orchestration удалены;
-- logout и password reset отзывают доступ немедленно;
-- production deploy обязан проходить внешний HTTPS auth smoke.
-
----
+Старые production-данные не мигрируются. Очистка БД и storage выполняется только по явной команде в отдельный cutover с возможностью отката на предыдущий revision.

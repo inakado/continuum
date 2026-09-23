@@ -1,8 +1,8 @@
 import { buildPageMetadata } from "@/app/page-metadata";
-import TeacherDashboardScreen from "@/features/teacher-dashboard/TeacherDashboardScreen";
+import { redirect } from "next/navigation";
 
-export const metadata = buildPageMetadata("Консоль преподавателя", "Главный teacher dashboard для управления курсами.");
+export const metadata = buildPageMetadata("Материалы", "Разделы и занятия библиотеки.");
 
-export default function TeacherDashboardPage() {
-  return <TeacherDashboardScreen active="edit" />;
+export default function TeacherLibraryPage() {
+  redirect("/teacher/materials");
 }

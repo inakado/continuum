@@ -87,7 +87,7 @@
 - В агентской/sandbox-сессии агент не запускает `CI=true pnpm install --frozen-lockfile`.
 - Если нужна эта команда, агент просит пользователя выполнить её локально и прислать результат.
 
-## 8) UI/UX работа с двумя дизайн-системами дашбордов
+## 8) UI/UX работа с role-specific интерфейсами
 
 Этот раздел обязателен для любой UI/UX-задачи в `apps/web`.
 
@@ -95,29 +95,20 @@
 - teacher routes: `/teacher*`
 - student routes: `/student*`
 
-2. Менять только role-specific слой нужного дашборда:
-- Teacher shell и sidebar:
-  - `apps/web/components/TeacherDashboardShell.tsx`
-  - `apps/web/components/teacher-dashboard-shell.module.css`
-  - `apps/web/components/teacher-dashboard-theme.module.css`
-- Student shell и sidebar:
-  - `apps/web/components/StudentDashboardShell.tsx`
-  - `apps/web/components/student-dashboard-shell.module.css`
-  - `apps/web/components/student-dashboard-theme.module.css`
+2. Менять только role-specific layout и feature-контур нужной роли. Старые dashboard shells удалены и не должны восстанавливаться без реального сценария новой библиотеки.
 
 3. Для feature-экранов менять CSS/компоненты только в своём bounded UI-контуре:
 - teacher: `apps/web/features/teacher-*/*`
-- student dashboard: `apps/web/features/student-dashboard/*`
-- student content legacy/compatibility: `apps/web/features/student-content/*`
+- student: `apps/web/features/student-*/*`
 
 4. Общий UI-kit и foundation трогать только если изменение реально должно затронуть обе роли:
 - `apps/web/components/ui/*`
 - `apps/web/app/globals.css`
 
 5. Запрещено для role-specific задачи:
-- в задаче teacher менять `student-dashboard-theme.module.css` и student shell CSS;
-- в задаче student менять `teacher-dashboard-theme.module.css` и teacher shell CSS;
-- использовать `@/components/DashboardShell` в role-specific feature-коде (только `StudentDashboardShell` / `TeacherDashboardShell`).
+- в задаче teacher менять student layout/features без общей причины;
+- в задаче student менять teacher layout/features без общей причины;
+- импортировать feature-модули другой роли.
 
 6. Обязательные проверки после UI-правок:
 - `pnpm lint:boundaries`

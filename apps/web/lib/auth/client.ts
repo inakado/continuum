@@ -15,6 +15,7 @@ const client = createAuthClient({
 const AuthRoleSchema = z.enum(['admin', 'teacher', 'student']);
 const AuthUserSchema = z.object({
   id: z.string(),
+  name: z.string(),
   username: z.string(),
   role: AuthRoleSchema,
   isActive: z.literal(true),
@@ -24,15 +25,21 @@ const AuthSessionSchema = z.object({ user: AuthUserSchema });
 export type AuthPrincipal = {
   id: string;
   login: string;
+  name: string;
   role: z.infer<typeof AuthRoleSchema>;
 };
 
 const mapPrincipal = (value: unknown): AuthPrincipal => {
   const parsed = AuthUserSchema.safeParse(value);
   if (!parsed.success) {
-    throw new ApiError(500, 'Authentication response is invalid', 'AUTH_RESPONSE_INVALID');
+    throw new ApiError(500, 'Сервер вернул некорректные данные входа.', 'AUTH_RESPONSE_INVALID');
   }
-  return { id: parsed.data.id, login: parsed.data.username, role: parsed.data.role };
+  return {
+    id: parsed.data.id,
+    login: parsed.data.username,
+    name: parsed.data.name,
+    role: parsed.data.role,
+  };
 };
 
 const mapError = (error: {
@@ -43,7 +50,7 @@ const mapError = (error: {
 }) =>
   new ApiError(
     error.status ?? error.statusCode ?? 500,
-    error.message || 'Authentication request failed',
+    error.message || 'Не удалось проверить учётную запись.',
     error.code,
   );
 
@@ -60,7 +67,7 @@ export const authApi = {
     if (!result.data) return null;
     const session = AuthSessionSchema.safeParse(result.data);
     if (!session.success) {
-      throw new ApiError(500, 'Authentication response is invalid', 'AUTH_RESPONSE_INVALID');
+      throw new ApiError(500, 'Сервер вернул некорректные данные входа.', 'AUTH_RESPONSE_INVALID');
     }
     return { user: mapPrincipal(session.data.user) };
   },

@@ -1,6 +1,6 @@
 # Континуум
 
-«Континуум» — закрытая платформа обучения с раздельными рабочими интерфейсами для учителя и ученика.
+«Континуум» — закрытая библиотека занятий по физике: PDF, интерактивные лекции и задачи с доступом по возрастным группам.
 
 Документация:
 - `documents/DOCS-INDEX.md` — карта документации и SoR-доков.
@@ -8,7 +8,7 @@
 
 Локальный dev-контур:
 
-- `pnpm dev:infra` — Postgres, Redis, MinIO.
-- `pnpm dev:backend` — API и worker в Docker.
+- `pnpm dev:infra` — PostgreSQL и MinIO.
+- `pnpm dev:backend` — API в Docker.
 - `pnpm dev:web` — Next.js web на `http://localhost:3001`.
-- `pnpm smoke` — базовая проверка health/ready/queue/web.
+- `pnpm smoke` — базовая проверка health/ready/login.

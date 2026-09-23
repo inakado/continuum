@@ -12,7 +12,7 @@
 - **P4. Read/write separation**: read-path и write-path не смешиваются в одном orchestration без явной причины.
 - **P5. Typed mapping**: преобразования DB/API/UI выполняются явными mapper-функциями без протекания `any` и неконтролируемого `unknown`.
 - **P6. Unified error semantics**: пользовательские и интеграционные ошибки проходят через единый `code/message/details` contract.
-- **P7. Policy-as-code**: TTL, asset rules, queue limits и аналогичные правила выносятся в централизованные policy/helper слои.
+- **P7. Policy-as-code**: TTL, asset rules, package limits и аналогичные правила выносятся в централизованные policy/helper слои.
 - **P8. Convention over duplication**: повторяющиеся cross-cutting patterns оформляются как общие примитивы, а не копируются по контроллерам и экранам.
 
 ### Frontend
@@ -32,7 +32,7 @@
 - CI использует эти проверки как обязательный quality gate.
 - Для frontend feature-layer дополнительно enforced:
   - запрет cross-import между `apps/web/features/student-*` и `apps/web/features/teacher-*`;
-  - запрет прямого импорта `@/components/DashboardShell` из role-specific feature-кода (используются role-specific shell wrappers).
+  - role-specific layout не должен зависеть от feature-кода другой роли.
 
 ### Contracts and boundary validation
 
@@ -48,14 +48,14 @@
 
 ### Testing safety-net
 
-- `vitest` является базовым test runner для `apps/api`, `apps/web`, `apps/worker` и `packages/shared`.
+- `vitest` является базовым test runner для `apps/api`, `apps/web` и `packages/shared`.
 - `@testing-library/*` используется для component/unit coverage во frontend.
 - `supertest` используется для controller-level HTTP boundary tests в API.
 - Refactor выполняется под unit/component/integration safety-net, а не “вслепую”.
 
 ### Build and environment guardrails
 
-- `apps/api` и `apps/worker` не должны собираться на хосте напрямую; backend build/typecheck выполняется только в Docker-контуре.
+- `apps/api` не должен собираться на хосте напрямую; backend build/typecheck выполняется только в Docker-контуре.
 - Production deploy runbook и эксплуатационные детали хранятся в `documents/DEVELOPMENT.md` и `deploy/README.md`, а не здесь.
 
 ## Approved Stack

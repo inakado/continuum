@@ -1,4 +1,14 @@
 :root {
+  --catalog-paper: #ffffff;
+  --catalog-ink: #202633;
+  --catalog-heading: #080c13;
+  --catalog-muted: #747a86;
+  --catalog-accent: #0b6b4f;
+  --catalog-accent-hover: #084c3a;
+  --catalog-border: #dfe2e5;
+  --catalog-border-strong: #cfd3d8;
+  --catalog-selected: #eef6f2;
+  --catalog-danger: #a33a32;
   --font-inter: "Inter";
   --font-onest: "Onest";
   --font-unbounded: var(--font-onest);

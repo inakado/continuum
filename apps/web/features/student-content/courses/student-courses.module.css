@@ -1,9 +1,0 @@
-.error {
-  border: var(--border-width-thin) solid var(--role-outline, var(--foundation-outline));
-  padding: 8px;
-  background: var(--role-surface, var(--foundation-surface));
-  color: var(--text-primary);
-  font-size: 13px;
-  border-radius: var(--card-radius);
-  box-shadow: var(--role-shadow-md, var(--foundation-shadow-md));
-}

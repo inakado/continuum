@@ -32,7 +32,7 @@ describe('ZodValidationPipe', () => {
       expect(error).toBeInstanceOf(BadRequestException);
       const response = (error as BadRequestException).getResponse() as Record<string, unknown>;
       expect(response.code).toBe('VALIDATION_FAILED');
-      expect(response.message).toBe('Validation failed');
+      expect(response.message).toBe('Проверьте введённые данные.');
     }
   });
 });

@@ -3,7 +3,6 @@ import { NestFactory } from '@nestjs/core';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
-import { resolveWorkerInternalToken } from './auth/internal-auth.config';
 
 const isProd = () => {
   const env = process.env.NODE_ENV || process.env.APP_ENV || '';
@@ -11,7 +10,6 @@ const isProd = () => {
 };
 
 async function bootstrap() {
-  resolveWorkerInternalToken();
   const app = await NestFactory.create(AppModule, {
     bodyParser: false,
     logger: ['log', 'error', 'warn'],

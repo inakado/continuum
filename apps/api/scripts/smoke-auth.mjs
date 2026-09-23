@@ -2,7 +2,7 @@ const apiUrl = process.env.API_URL || 'http://localhost:3000';
 const origin = process.env.AUTH_SMOKE_ORIGIN || 'http://localhost:3001';
 const username = process.env.AUTH_SMOKE_LOGIN || 'teacher1';
 const password = process.env.AUTH_SMOKE_PASSWORD || 'Pass123!';
-const protectedPath = process.env.AUTH_SMOKE_PROTECTED_PATH || '/teacher/me';
+const protectedPath = process.env.AUTH_SMOKE_PROTECTED_PATH || '/me';
 
 const expectStatus = async (response, expected, step) => {
   if (response.status !== expected) {
