@@ -1,17 +1,15 @@
-import { Body, Controller, Get, Inject, Param, Patch, Post, Put, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Inject, Param, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import {
   CreateLessonInputSchema,
   CreateSectionInputSchema,
-  CompleteLessonArtifactUploadInputSchema,
-  PrepareLessonArtifactUploadInputSchema,
   ResourceIdParamsSchema,
   SetAccessGrantInputSchema,
   UpdateLessonInputSchema,
   UpdateSectionInputSchema,
-  type CompleteLessonArtifactUploadInput,
   type CreateLessonInput,
   type CreateSectionInput,
-  type PrepareLessonArtifactUploadInput,
+  UploadLessonArtifactQuerySchema,
+  type UploadLessonArtifactQuery,
   type ResourceIdParams,
   type SetAccessGrantInput,
   type UpdateLessonInput,
@@ -89,24 +87,18 @@ export class TeacherLibraryController {
     return this.writes.updateLesson(request.user.id, params.id, input);
   }
 
-  @Post('lessons/:id/artifacts/upload-url')
-  prepareArtifactUpload(
+  @Put('lessons/:id/artifacts/upload')
+  uploadArtifact(
     @Req() request: AuthRequest,
     @Param(new ZodValidationPipe(ResourceIdParamsSchema)) params: ResourceIdParams,
-    @Body(new ZodValidationPipe(PrepareLessonArtifactUploadInputSchema))
-    input: PrepareLessonArtifactUploadInput,
+    @Query(new ZodValidationPipe(UploadLessonArtifactQuerySchema)) input: UploadLessonArtifactQuery,
+    @Headers('content-type') contentType: string | undefined,
+    @Headers('content-length') contentLength: string | undefined,
   ) {
-    return this.writes.prepareArtifactUpload(request.user.id, params.id, input);
-  }
-
-  @Post('lessons/:id/artifacts')
-  completeArtifactUpload(
-    @Req() request: AuthRequest,
-    @Param(new ZodValidationPipe(ResourceIdParamsSchema)) params: ResourceIdParams,
-    @Body(new ZodValidationPipe(CompleteLessonArtifactUploadInputSchema))
-    input: CompleteLessonArtifactUploadInput,
-  ) {
-    return this.writes.completeArtifactUpload(request.user.id, params.id, input);
+    return this.writes.uploadArtifact(request.user.id, params.id, {
+      ...input,
+      contentType: contentType ?? '',
+    }, contentLength, request);
   }
 
   @Get('artifacts/:id/view')

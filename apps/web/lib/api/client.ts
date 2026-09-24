@@ -14,6 +14,7 @@ export class ApiError extends Error {
 type RequestOptions = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
+  contentType?: string;
 };
 
 const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000";
@@ -72,8 +73,13 @@ const requestRaw = async (path: string, options: RequestOptions = {}) => {
   };
 
   if (options.body !== undefined) {
-    headers["Content-Type"] = "application/json";
-    init.body = JSON.stringify(options.body);
+    if (options.body instanceof Blob) {
+      headers["Content-Type"] = options.contentType ?? options.body.type;
+      init.body = options.body;
+    } else {
+      headers["Content-Type"] = "application/json";
+      init.body = JSON.stringify(options.body);
+    }
   }
 
   const res = await fetch(`${baseUrl}${path}`, init);

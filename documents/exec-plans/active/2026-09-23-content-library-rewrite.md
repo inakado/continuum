@@ -100,7 +100,7 @@ Excalidraw удалению не подлежит, но после перехо�
 2. **Catalog UI — готов.** Плотный student catalog, lesson view, teacher materials screen, create/publish mutations и состояния loading/error/empty. Проверен в browser на desktop/mobile.
 3. **Identity & Access UI — готов для teacher/student.** Узкий список учеников учителя, создание через единый identity provisioner, деактивация с отзывом сессий, выдача/снятие `GradeBand`; остаётся вернуть admin provisioning преподавателей.
 4. **Редактирование структуры.** Переименование готово; описание, publish/unpublish, безопасное удаление пустых draft-сущностей и явный reorder остаются.
-5. **PDF vertical slice.** Presigned upload, проверка метаданных и сигнатуры, SHA-256, versioned teacher view и защищённая выдача опубликованных PDF ученику реализованы; browser upload/publish и API smoke прошли локально. Отдельное скачивание и rollback остаются.
+5. **PDF vertical slice.** Загрузка через авторизованный API, проверка метаданных и сигнатуры, SHA-256, versioned teacher view и защищённая выдача опубликованных PDF ученику реализованы; browser upload/publish и API smoke прошли локально. Отдельное скачивание и rollback остаются.
 6. **Interactive vertical slice.** Manifest и CLI для локального build output, versioned upload, atomic publish/rollback, отдельный origin/path и sandboxed iframe без cookie.
 7. **Задачи PDF.** Отдельный versioned `tasks_pdf` загружается и публикуется тем же защищённым потоком, что и конспект.
 8. **Hardening и cutover.** Полный role/access E2E, mobile/desktop QA, asset cleanup policy, backup/rollback rehearsal, затем только по отдельной команде — production reset и deploy.
@@ -249,7 +249,7 @@ TeX и интерактивный HTML собираются локально. П
 - Экран материалов переведён на выбранный двухпанельный дизайн: вкладки классов, сворачиваемые разделы, редактирование названий и инспектор занятия.
 - Конспект и задачи загружаются независимыми PDF-версиями; ученик получает подписанную ссылку только на опубликованную активную версию в разрешённом классе.
 - Локальный API smoke и браузерная загрузка/публикация PDF прошли; desktop `1488 × 1058` и mobile `390 × 844` просмотрены. Пять созданных smoke-разделов и пять S3-объектов удалены после проверки.
-- Production API Docker image, web build, shared/API/web tests, boundary lint и docs checks прошли. Для production S3 подготовлены CORS-настройка и проверка preflight до переключения API.
+- Production API Docker image, web build, shared/API/web tests, boundary lint и docs checks прошли. Первая попытка deploy остановилась до миграции: Beget S3 отклонил изменение CORS через S3 API (`AccessDenied`). Загрузка переведена на авторизованный API, чтобы не требовать CORS для S3.
 
 ## Task-specific troubleshooting
 

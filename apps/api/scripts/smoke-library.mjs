@@ -81,33 +81,21 @@ for (const offset of offsets.slice(1)) {
 pdfSource += `trailer\n<< /Size ${offsets.length} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
 const pdf = Buffer.from(pdfSource);
 const uploadPdf = async (type, filename) => {
-  const metadata = {
+  const query = new URLSearchParams({
     type,
     filename,
-    contentType: 'application/pdf',
-    sizeBytes: pdf.length,
-  };
-  const ticket = await request(`/teacher/library/lessons/${lesson.id}/artifacts/upload-url`, {
-    cookie: teacherCookie,
-    method: 'POST',
-    body: metadata,
+    sizeBytes: String(pdf.length),
   });
-  const upload = await fetch(ticket.uploadUrl, {
+  const upload = await fetch(`${apiUrl}/teacher/library/lessons/${lesson.id}/artifacts/upload?${query}`, {
     method: 'PUT',
-    headers: ticket.headers,
+    headers: { cookie: teacherCookie, origin, 'content-type': 'application/pdf' },
     body: pdf,
   });
-  if (upload.status !== 200) {
-    const xml = await upload.text();
-    const code = xml.match(/<Code>([^<]+)<\/Code>/)?.[1] || 'unknown';
-    const message = xml.match(/<Message>([^<]+)<\/Message>/)?.[1] || 'unknown';
-    throw new Error(`${type} upload failed: ${upload.status} ${code}: ${message}`);
+  const text = await upload.text();
+  if (!upload.ok) {
+    throw new Error(`${type} upload failed: ${upload.status} ${text.slice(0, 300)}`);
   }
-  return request(`/teacher/library/lessons/${lesson.id}/artifacts`, {
-    cookie: teacherCookie,
-    method: 'POST',
-    body: { ...metadata, objectKey: ticket.objectKey },
-  });
+  return JSON.parse(text);
 };
 
 const handout = await uploadPdf('pdf', 'smoke-handout.pdf');

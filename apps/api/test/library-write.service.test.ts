@@ -1,7 +1,9 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Readable } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
 import { LibraryWriteService } from '../src/library/library-write.service';
 import type { PrismaService } from '../src/prisma/prisma.service';
+import type { ObjectStorageService } from '../src/infra/storage/object-storage.service';
 
 const teacherId = '123e4567-e89b-12d3-a456-426614174001';
 const studentId = '123e4567-e89b-12d3-a456-426614174000';
@@ -38,6 +40,36 @@ describe('LibraryWriteService', () => {
       select: { id: true },
     });
     expect(prisma.lesson.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects mismatched upload length before reading or storing a file', async () => {
+    const prisma = makePrisma();
+    const storage = { putObject: vi.fn() };
+    const service = new LibraryWriteService(
+      prisma as unknown as PrismaService,
+      storage as unknown as ObjectStorageService,
+    );
+
+    await expect(service.uploadArtifact(teacherId, sectionId, {
+      type: 'pdf', filename: 'Конспект.pdf', contentType: 'application/pdf', sizeBytes: 42,
+    }, '41', Readable.from(['%PDF-']))).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.lesson.findFirst).not.toHaveBeenCalled();
+    expect(storage.putObject).not.toHaveBeenCalled();
+  });
+
+  it('does not store a file for another teacher lesson', async () => {
+    const prisma = makePrisma();
+    prisma.lesson.findFirst.mockResolvedValue(null);
+    const storage = { putObject: vi.fn() };
+    const service = new LibraryWriteService(
+      prisma as unknown as PrismaService,
+      storage as unknown as ObjectStorageService,
+    );
+
+    await expect(service.uploadArtifact(teacherId, sectionId, {
+      type: 'pdf', filename: 'Конспект.pdf', contentType: 'application/pdf', sizeBytes: 5,
+    }, '5', Readable.from(['%PDF-']))).rejects.toBeInstanceOf(NotFoundException);
+    expect(storage.putObject).not.toHaveBeenCalled();
   });
 
   it('requires the parent section to be published first', async () => {

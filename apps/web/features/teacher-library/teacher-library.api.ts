@@ -3,7 +3,6 @@ import {
   LessonArtifactSchema,
   LessonArtifactViewResultSchema,
   LibrarySectionSchema,
-  PrepareLessonArtifactUploadResultSchema,
   PublicationResultSchema,
   TeacherLessonDetailSchema,
   TeacherLibrarySchema,
@@ -11,7 +10,7 @@ import {
   type CreateLessonInput,
   type CreateSectionInput,
 } from "@continuum/shared";
-import { ApiError, apiRequestParsed } from "@/lib/api/client";
+import { apiRequestParsed } from "@/lib/api/client";
 
 type ArtifactUpload = {
   lessonId: string;
@@ -62,32 +61,15 @@ export const teacherLibraryApi = {
     ),
   uploadArtifact: async ({ lessonId, type, file }: ArtifactUpload) => {
     const contentType = normalizedContentType(type, file);
-    const metadata = {
+    const query = new URLSearchParams({
       type,
       filename: file.name,
-      contentType,
-      sizeBytes: file.size,
-    };
-    const ticket = await apiRequestParsed(
-      `/teacher/library/lessons/${lessonId}/artifacts/upload-url`,
-      PrepareLessonArtifactUploadResultSchema,
-      { method: "POST", body: metadata },
-    );
-    const upload = await fetch(ticket.uploadUrl, {
-      method: "PUT",
-      headers: ticket.headers,
-      body: file,
+      sizeBytes: String(file.size),
     });
-    if (!upload.ok) {
-      throw new ApiError(upload.status, "Не удалось загрузить файл.", "ARTIFACT_UPLOAD_FAILED");
-    }
     return apiRequestParsed(
-      `/teacher/library/lessons/${lessonId}/artifacts`,
+      `/teacher/library/lessons/${lessonId}/artifacts/upload?${query}`,
       LessonArtifactSchema,
-      {
-        method: "POST",
-        body: { ...metadata, objectKey: ticket.objectKey },
-      },
+      { method: "PUT", body: file, contentType },
     );
   },
   getArtifactView: (artifactId: string) =>

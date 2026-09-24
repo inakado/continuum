@@ -4,6 +4,7 @@ import {
   GradeBandSchema,
   LessonDetailSchema,
   StudentLibrarySchema,
+  UploadLessonArtifactQuerySchema,
 } from "../src/contracts/library";
 
 const id = "123e4567-e89b-12d3-a456-426614174000";
@@ -95,5 +96,18 @@ describe("library contracts", () => {
     expect(
       CreateLessonInputSchema.safeParse({ sectionId: id, title: "   " }).success,
     ).toBe(false);
+  });
+
+  it("validates file upload metadata from the query string", () => {
+    expect(UploadLessonArtifactQuerySchema.parse({
+      type: "tasks_pdf",
+      filename: "Задачи.pdf",
+      sizeBytes: "42",
+    }).sizeBytes).toBe(42);
+    expect(UploadLessonArtifactQuerySchema.safeParse({
+      type: "tasks_pdf",
+      filename: "Задачи.pdf",
+      sizeBytes: "0",
+    }).success).toBe(false);
   });
 });

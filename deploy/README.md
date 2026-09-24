@@ -31,7 +31,7 @@ Production deploy выполняется только по явной коман
 - `DATABASE_URL` или `POSTGRES_*`;
 - `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, credentials и public base URL.
 
-Перед переключением API скрипт идемпотентно добавляет к бакету CORS-правило для `WEB_ORIGIN`: только `PUT` с заголовком `Content-Type`. Затем выполняет внешний preflight-запрос к `S3_PUBLIC_BASE_URL`. Другие CORS-правила сохраняются.
+Загрузка файлов идёт через авторизованный API; CORS для S3 не требуется. В Nginx у `location /api/` нужны `client_max_body_size 210m`, `proxy_read_timeout 300s` и `proxy_send_timeout 300s` для ZIP-черновиков до 200 МиБ. Перед деплоем новой версии обновить установленный Nginx-конфиг по `deploy/nginx/continuum.conf`, выполнить `nginx -t` и reload.
 
 ## Ручной deploy
 

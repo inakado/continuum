@@ -7,7 +7,7 @@
 - Better Auth sessions;
 - RBAC;
 - доступ ученика к возрастным группам;
-- object storage и presigned URLs;
+- object storage, защищённая загрузка и presigned view URLs;
 - безопасная публикация PDF, изображений, Excalidraw-сцен и интерактивных пакетов;
 - изоляция исполняемого HTML.
 
@@ -31,8 +31,8 @@
 ### Assets
 
 - Bucket не является публичным.
-- API проверяет роль, ownership и назначение до выдачи presigned URL.
-- Upload policy ограничивает key prefix, content type, размер и TTL.
+- API проверяет роль, ownership и назначение до приёма файла или выдачи presigned view URL.
+- Upload policy ограничивает тип, размер и ключ объекта; запрос требует точного `Content-Length` и проверяется после сохранения в S3.
 - PDF, изображения, Excalidraw JSON/preview и interactive packages имеют разные policies.
 - Asset key хранится в доменной модели; storage URL не сохраняется.
 

@@ -1,14 +1,12 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type {
   AccessGrant,
-  CompleteLessonArtifactUploadInput,
   CreateLessonInput,
   CreateSectionInput,
   LessonArtifact,
   LessonSummary,
   LibrarySection,
-  PrepareLessonArtifactUploadInput,
-  PrepareLessonArtifactUploadResult,
+  LessonArtifactFileInput,
   PublicationResult,
   SetAccessGrantInput,
   SetAccessGrantResult,
@@ -175,24 +173,37 @@ export class LibraryWriteService {
     };
   }
 
-  async prepareArtifactUpload(
+  async uploadArtifact(
     teacherId: string,
     lessonId: string,
-    input: PrepareLessonArtifactUploadInput,
-  ): Promise<PrepareLessonArtifactUploadResult> {
+    input: LessonArtifactFileInput,
+    contentLength: string | undefined,
+    body: NodeJS.ReadableStream,
+  ): Promise<LessonArtifact> {
     assertLessonArtifactFile(input);
+    if (contentLength !== String(input.sizeBytes)) {
+      throw new BadRequestException({
+        code: 'ARTIFACT_SIZE_INVALID',
+        message: 'Размер файла не совпадает с запросом.',
+      });
+    }
     await this.assertOwnedLesson(teacherId, lessonId);
 
     const filename = safeArtifactFilename(input.filename);
     const objectKey = `${this.artifactPrefix(teacherId, lessonId, input.type)}/${randomUUID()}-${filename}`;
-    const upload = await this.storage.presignPutObject(objectKey, input.contentType);
-    return { objectKey, uploadUrl: upload.url, headers: upload.headers };
+    try {
+      await this.storage.putObject({ key: objectKey, contentType: input.contentType, body });
+      return await this.completeArtifactUpload(teacherId, lessonId, { ...input, objectKey });
+    } catch (error) {
+      await this.storage.deleteObject(objectKey).catch(() => undefined);
+      throw error;
+    }
   }
 
-  async completeArtifactUpload(
+  private async completeArtifactUpload(
     teacherId: string,
     lessonId: string,
-    input: CompleteLessonArtifactUploadInput,
+    input: LessonArtifactFileInput & { objectKey: string },
   ): Promise<LessonArtifact> {
     assertLessonArtifactFile(input);
     await this.assertOwnedLesson(teacherId, lessonId);

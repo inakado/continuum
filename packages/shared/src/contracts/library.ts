@@ -100,23 +100,17 @@ export const UpdateLessonInputSchema = z.object({
   title: z.string().trim().min(1).max(200),
 });
 
-const ArtifactFileInputSchema = z.object({
+export const LessonArtifactFileInputSchema = z.object({
   type: LessonArtifactTypeSchema,
   filename: z.string().trim().min(1).max(240),
   contentType: z.string().trim().min(1).max(120),
   sizeBytes: z.number().int().positive(),
 });
 
-export const PrepareLessonArtifactUploadInputSchema = ArtifactFileInputSchema;
-
-export const PrepareLessonArtifactUploadResultSchema = z.object({
-  objectKey: z.string().trim().min(1),
-  uploadUrl: z.url(),
-  headers: z.record(z.string(), z.string()),
-});
-
-export const CompleteLessonArtifactUploadInputSchema = ArtifactFileInputSchema.extend({
-  objectKey: z.string().trim().min(1),
+export const UploadLessonArtifactQuerySchema = LessonArtifactFileInputSchema.omit({
+  contentType: true,
+}).extend({
+  sizeBytes: z.coerce.number().int().positive(),
 });
 
 export const LessonArtifactViewResultSchema = z.object({
@@ -158,15 +152,8 @@ export type CreateSectionInput = z.infer<typeof CreateSectionInputSchema>;
 export type CreateLessonInput = z.infer<typeof CreateLessonInputSchema>;
 export type UpdateSectionInput = z.infer<typeof UpdateSectionInputSchema>;
 export type UpdateLessonInput = z.infer<typeof UpdateLessonInputSchema>;
-export type PrepareLessonArtifactUploadInput = z.infer<
-  typeof PrepareLessonArtifactUploadInputSchema
->;
-export type PrepareLessonArtifactUploadResult = z.infer<
-  typeof PrepareLessonArtifactUploadResultSchema
->;
-export type CompleteLessonArtifactUploadInput = z.infer<
-  typeof CompleteLessonArtifactUploadInputSchema
->;
+export type LessonArtifactFileInput = z.infer<typeof LessonArtifactFileInputSchema>;
+export type UploadLessonArtifactQuery = z.infer<typeof UploadLessonArtifactQuerySchema>;
 export type LessonArtifactViewResult = z.infer<typeof LessonArtifactViewResultSchema>;
 export type ResourceIdParams = z.infer<typeof ResourceIdParamsSchema>;
 export type SetAccessGrantInput = z.infer<typeof SetAccessGrantInputSchema>;

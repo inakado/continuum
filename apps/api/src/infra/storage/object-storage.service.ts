@@ -6,7 +6,6 @@ import {
   GetObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
-  PutObjectCommand,
   type PutObjectCommandInput,
   S3Client,
 } from '@aws-sdk/client-s3';
@@ -40,11 +39,6 @@ export type ObjectMetaResult = {
   contentLength?: number;
   etag?: string;
   lastModified?: Date;
-};
-
-export type PresignedPutObjectResult = {
-  url: string;
-  headers: Record<string, string>;
 };
 
 type KnownStorageError = {
@@ -204,37 +198,6 @@ export class ObjectStorageService {
     responseContentType?: string,
   ): Promise<string> {
     return this.presignGetObject(key, ttlSec, responseContentType);
-  }
-
-  async presignPutObject(
-    assetKey: string,
-    contentType: string,
-    ttlSec = 300,
-    extraHeaders?: Record<string, string>,
-  ): Promise<PresignedPutObjectResult> {
-    try {
-      await this.ensureBucketExists();
-      const presignClient = this.presignS3 || this.s3;
-      const url = await getSignedUrl(
-        presignClient,
-        new PutObjectCommand({
-          Bucket: this.config.bucket,
-          Key: assetKey,
-          ContentType: contentType,
-        }),
-        { expiresIn: ttlSec },
-      );
-
-      return {
-        url,
-        headers: {
-          'Content-Type': contentType,
-          ...(extraHeaders ?? {}),
-        },
-      };
-    } catch (error) {
-      throw this.wrapStorageError(error, 'не удалось создать ссылку для загрузки');
-    }
   }
 
   async presignGetObject(
