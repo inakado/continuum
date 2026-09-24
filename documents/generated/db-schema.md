@@ -13,7 +13,7 @@
 - `Role`: `admin` | `teacher` | `student`
 - `GradeBand`: `grade_7` | `grade_8` | `grade_9` | `grade_10_11`
 - `PublicationStatus`: `draft` | `published`
-- `LessonArtifactType`: `pdf` | `interactive`
+- `LessonArtifactType`: `pdf` | `interactive` | `tasks_pdf`
 
 ## Models
 

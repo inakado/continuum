@@ -1,22 +1,40 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { GradeBand, LessonDetail, StudentLibrary, TeacherLibrary } from '@continuum/shared';
-import { PublicationStatus } from '@prisma/client';
+import type {
+  GradeBand,
+  LessonArtifactViewResult,
+  LessonDetail,
+  StudentLibrary,
+  TeacherLessonDetail,
+  TeacherLibrary,
+} from '@continuum/shared';
+import { LessonArtifactType as DbLessonArtifactType, PublicationStatus } from '@prisma/client';
+import { ObjectStorageService } from '../infra/storage/object-storage.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { mapLessonDetail, mapLibrarySection } from './library.mapper';
 
 const gradeBandOrder: GradeBand[] = ['grade_7', 'grade_8', 'grade_9', 'grade_10_11'];
+const studentPdfTypes = [DbLessonArtifactType.pdf, DbLessonArtifactType.tasks_pdf];
 
 const lessonSummaryInclude = {
   artifacts: {
     where: { status: PublicationStatus.published, isActive: true },
     select: { type: true },
   },
-  _count: { select: { tasks: true } },
+} as const;
+
+const studentLessonSummaryInclude = {
+  artifacts: {
+    where: { status: PublicationStatus.published, isActive: true, type: { in: studentPdfTypes } },
+    select: { type: true },
+  },
 } as const;
 
 @Injectable()
 export class LibraryReadService {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(ObjectStorageService) private readonly storage: ObjectStorageService,
+  ) {}
 
   async getTeacherLibrary(teacherId: string): Promise<TeacherLibrary> {
     const sections = await this.prisma.section.findMany({
@@ -60,7 +78,7 @@ export class LibraryReadService {
         lessons: {
           where: { status: PublicationStatus.published },
           orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
-          include: lessonSummaryInclude,
+          include: studentLessonSummaryInclude,
         },
       },
     });
@@ -100,22 +118,98 @@ export class LibraryReadService {
       include: {
         section: { select: { id: true, gradeBand: true, title: true } },
         artifacts: {
-          where: { status: PublicationStatus.published, isActive: true },
+          where: { status: PublicationStatus.published, isActive: true, type: { in: studentPdfTypes } },
           orderBy: [{ type: 'asc' }, { version: 'desc' }],
           include: {
             asset: { select: { filename: true, contentType: true, sizeBytes: true } },
           },
         },
-        tasks: {
-          orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
-          select: { id: true, title: true, body: true, sortOrder: true },
-        },
-        _count: { select: { tasks: true } },
       },
     });
 
     if (!lesson) throw this.lessonNotFound();
     return mapLessonDetail(lesson);
+  }
+
+  async getTeacherLesson(teacherId: string, lessonId: string): Promise<TeacherLessonDetail> {
+    const lesson = await this.prisma.lesson.findFirst({
+      where: { id: lessonId, createdById: teacherId },
+      include: {
+        section: { select: { id: true, gradeBand: true, title: true } },
+        artifacts: {
+          orderBy: [{ type: 'asc' }, { version: 'desc' }],
+          include: {
+            asset: { select: { filename: true, contentType: true, sizeBytes: true } },
+          },
+        },
+      },
+    });
+
+    if (!lesson) throw this.lessonNotFound();
+    return mapLessonDetail(lesson);
+  }
+
+  async getTeacherArtifactView(
+    teacherId: string,
+    artifactId: string,
+  ): Promise<LessonArtifactViewResult> {
+    const artifact = await this.prisma.lessonArtifact.findFirst({
+      where: { id: artifactId, lesson: { is: { createdById: teacherId } } },
+      select: { asset: { select: { objectKey: true, contentType: true } } },
+    });
+    if (!artifact) throw this.lessonNotFound();
+
+    return {
+      url: await this.storage.getPresignedGetUrl(
+        artifact.asset.objectKey,
+        300,
+        artifact.asset.contentType,
+      ),
+    };
+  }
+
+  async getStudentArtifactView(
+    studentId: string,
+    artifactId: string,
+  ): Promise<LessonArtifactViewResult> {
+    const grants = await this.prisma.accessGrant.findMany({
+      where: { studentId },
+      select: { gradeBand: true, grantedById: true },
+    });
+    if (grants.length === 0) throw this.lessonNotFound();
+
+    const artifact = await this.prisma.lessonArtifact.findFirst({
+      where: {
+        id: artifactId,
+        type: { in: studentPdfTypes },
+        status: PublicationStatus.published,
+        isActive: true,
+        lesson: {
+          is: {
+            status: PublicationStatus.published,
+            section: {
+              is: {
+                status: PublicationStatus.published,
+                OR: grants.map((grant) => ({
+                  gradeBand: grant.gradeBand,
+                  createdById: grant.grantedById,
+                })),
+              },
+            },
+          },
+        },
+      },
+      select: { asset: { select: { objectKey: true, contentType: true } } },
+    });
+    if (!artifact) throw this.lessonNotFound();
+
+    return {
+      url: await this.storage.getPresignedGetUrl(
+        artifact.asset.objectKey,
+        300,
+        artifact.asset.contentType,
+      ),
+    };
   }
 
   private lessonNotFound() {

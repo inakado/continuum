@@ -16,14 +16,14 @@ Teacher и student получают отдельные role-specific layouts и 
 
 - `/login` — единый вход.
 - `/student` — доступные возрастные группы и каталог.
-- `/student/lessons/[lessonId]` — PDF, интерактив и задачи.
+- `/student/lessons/[lessonId]` — открытие опубликованных PDF конспекта и задач; интерактивный проигрыватель ещё не подключён.
 - `/teacher` — обзор материалов.
 - `/teacher/materials` — разделы и занятия.
 - `/teacher/materials/[lessonId]` — редактирование и публикация занятия.
 - `/teacher/students` — ученики и доступы.
 - `/admin` — системное администрирование; управление преподавателями будет добавлено в новом identity flow.
 
-Старые `/student/courses*`, `/student/sections*`, `/student/units*`, `/teacher/sections*`, `/teacher/units*`, `/teacher/review*`, `/teacher/events` и `/teacher/analytics` удалены. `/student`, `/student/lessons/[lessonId]`, `/teacher/materials` и `/teacher/students` уже работают через новый API; asset authoring пока не реализован.
+Старые `/student/courses*`, `/student/sections*`, `/student/units*`, `/teacher/sections*`, `/teacher/units*`, `/teacher/review*`, `/teacher/events` и `/teacher/analytics` удалены. `/student`, `/student/lessons/[lessonId]`, `/teacher/materials` и `/teacher/students` работают через новый API. Teacher materials использует вкладки классов, сворачиваемые разделы, инспектор занятия и versioned upload готовых артефактов.
 
 ## API Client Behavior
 
@@ -46,7 +46,7 @@ Teacher и student получают отдельные role-specific layouts и 
 - PDF рендерится через PDF.js и скачивается по свежей presigned URL.
 - Интерактивная лекция запускается отдельным sandboxed iframe, а не через `dangerouslySetInnerHTML`.
 - MathJax загружается локально.
-- Excalidraw lazy-load используется только в teacher authoring; student видит SVG/PNG preview.
+- Excalidraw сохранён для будущих authoring-сценариев и не входит в текущий student read-path.
 
 ## Visual baseline
 

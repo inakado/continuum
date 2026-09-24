@@ -2,12 +2,20 @@ import { Body, Controller, Get, Inject, Param, Patch, Post, Put, Req, UseGuards 
 import {
   CreateLessonInputSchema,
   CreateSectionInputSchema,
+  CompleteLessonArtifactUploadInputSchema,
+  PrepareLessonArtifactUploadInputSchema,
   ResourceIdParamsSchema,
   SetAccessGrantInputSchema,
+  UpdateLessonInputSchema,
+  UpdateSectionInputSchema,
+  type CompleteLessonArtifactUploadInput,
   type CreateLessonInput,
   type CreateSectionInput,
+  type PrepareLessonArtifactUploadInput,
   type ResourceIdParams,
   type SetAccessGrantInput,
+  type UpdateLessonInput,
+  type UpdateSectionInput,
 } from '@continuum/shared';
 import { Role } from '@prisma/client';
 import type { AuthRequest } from '../auth/auth.request';
@@ -31,12 +39,29 @@ export class TeacherLibraryController {
     return this.reads.getTeacherLibrary(request.user.id);
   }
 
+  @Get('lessons/:id')
+  getLesson(
+    @Req() request: AuthRequest,
+    @Param(new ZodValidationPipe(ResourceIdParamsSchema)) params: ResourceIdParams,
+  ) {
+    return this.reads.getTeacherLesson(request.user.id, params.id);
+  }
+
   @Post('sections')
   createSection(
     @Req() request: AuthRequest,
     @Body(new ZodValidationPipe(CreateSectionInputSchema)) input: CreateSectionInput,
   ) {
     return this.writes.createSection(request.user.id, input);
+  }
+
+  @Patch('sections/:id')
+  updateSection(
+    @Req() request: AuthRequest,
+    @Param(new ZodValidationPipe(ResourceIdParamsSchema)) params: ResourceIdParams,
+    @Body(new ZodValidationPipe(UpdateSectionInputSchema)) input: UpdateSectionInput,
+  ) {
+    return this.writes.updateSection(request.user.id, params.id, input);
   }
 
   @Patch('sections/:id/publish')
@@ -53,6 +78,43 @@ export class TeacherLibraryController {
     @Body(new ZodValidationPipe(CreateLessonInputSchema)) input: CreateLessonInput,
   ) {
     return this.writes.createLesson(request.user.id, input);
+  }
+
+  @Patch('lessons/:id')
+  updateLesson(
+    @Req() request: AuthRequest,
+    @Param(new ZodValidationPipe(ResourceIdParamsSchema)) params: ResourceIdParams,
+    @Body(new ZodValidationPipe(UpdateLessonInputSchema)) input: UpdateLessonInput,
+  ) {
+    return this.writes.updateLesson(request.user.id, params.id, input);
+  }
+
+  @Post('lessons/:id/artifacts/upload-url')
+  prepareArtifactUpload(
+    @Req() request: AuthRequest,
+    @Param(new ZodValidationPipe(ResourceIdParamsSchema)) params: ResourceIdParams,
+    @Body(new ZodValidationPipe(PrepareLessonArtifactUploadInputSchema))
+    input: PrepareLessonArtifactUploadInput,
+  ) {
+    return this.writes.prepareArtifactUpload(request.user.id, params.id, input);
+  }
+
+  @Post('lessons/:id/artifacts')
+  completeArtifactUpload(
+    @Req() request: AuthRequest,
+    @Param(new ZodValidationPipe(ResourceIdParamsSchema)) params: ResourceIdParams,
+    @Body(new ZodValidationPipe(CompleteLessonArtifactUploadInputSchema))
+    input: CompleteLessonArtifactUploadInput,
+  ) {
+    return this.writes.completeArtifactUpload(request.user.id, params.id, input);
+  }
+
+  @Get('artifacts/:id/view')
+  getArtifactView(
+    @Req() request: AuthRequest,
+    @Param(new ZodValidationPipe(ResourceIdParamsSchema)) params: ResourceIdParams,
+  ) {
+    return this.reads.getTeacherArtifactView(request.user.id, params.id);
   }
 
   @Patch('lessons/:id/publish')

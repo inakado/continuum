@@ -8,7 +8,7 @@ export const GradeBandSchema = z.enum([
 ]);
 
 export const PublicationStatusSchema = z.enum(["draft", "published"]);
-export const LessonArtifactTypeSchema = z.enum(["pdf", "interactive"]);
+export const LessonArtifactTypeSchema = z.enum(["pdf", "interactive", "tasks_pdf"]);
 
 export const LessonArtifactSchema = z.object({
   id: z.uuid(),
@@ -17,16 +17,9 @@ export const LessonArtifactSchema = z.object({
   filename: z.string().trim().min(1),
   contentType: z.string().trim().min(1),
   sizeBytes: z.number().int().nonnegative(),
+  status: PublicationStatusSchema,
+  isActive: z.boolean(),
   publishedAt: z.iso.datetime().nullable(),
-});
-
-export const LessonTaskSchema = z.object({
-  id: z.uuid(),
-  title: z.string().trim().min(1).nullable(),
-  body: z.string().trim().min(1),
-  imageUrl: z.url().nullable(),
-  diagramPreviewUrl: z.url().nullable(),
-  sortOrder: z.number().int().nonnegative(),
 });
 
 export const LessonSummarySchema = z.object({
@@ -61,14 +54,24 @@ export const StudentLibrarySchema = z.object({
   ),
 });
 
+const LessonSectionSchema = z.object({
+  id: z.uuid(),
+  gradeBand: GradeBandSchema,
+  title: z.string().trim().min(1),
+});
+
 export const LessonDetailSchema = LessonSummarySchema.extend({
+  section: LessonSectionSchema,
+  artifacts: z.array(LessonArtifactSchema),
+});
+
+export const TeacherLessonDetailSchema = LessonSummarySchema.extend({
   section: z.object({
     id: z.uuid(),
     gradeBand: GradeBandSchema,
     title: z.string().trim().min(1),
   }),
   artifacts: z.array(LessonArtifactSchema),
-  tasks: z.array(LessonTaskSchema),
 });
 
 export const AccessGrantSchema = z.object({
@@ -87,6 +90,37 @@ export const CreateLessonInputSchema = z.object({
   sectionId: z.uuid(),
   title: z.string().trim().min(1).max(200),
   description: z.string().trim().max(4_000).nullable().optional(),
+});
+
+export const UpdateSectionInputSchema = z.object({
+  title: z.string().trim().min(1).max(160),
+});
+
+export const UpdateLessonInputSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+});
+
+const ArtifactFileInputSchema = z.object({
+  type: LessonArtifactTypeSchema,
+  filename: z.string().trim().min(1).max(240),
+  contentType: z.string().trim().min(1).max(120),
+  sizeBytes: z.number().int().positive(),
+});
+
+export const PrepareLessonArtifactUploadInputSchema = ArtifactFileInputSchema;
+
+export const PrepareLessonArtifactUploadResultSchema = z.object({
+  objectKey: z.string().trim().min(1),
+  uploadUrl: z.url(),
+  headers: z.record(z.string(), z.string()),
+});
+
+export const CompleteLessonArtifactUploadInputSchema = ArtifactFileInputSchema.extend({
+  objectKey: z.string().trim().min(1),
+});
+
+export const LessonArtifactViewResultSchema = z.object({
+  url: z.url(),
 });
 
 export const ResourceIdParamsSchema = z.object({
@@ -114,14 +148,26 @@ export type GradeBand = z.infer<typeof GradeBandSchema>;
 export type PublicationStatus = z.infer<typeof PublicationStatusSchema>;
 export type LessonArtifactType = z.infer<typeof LessonArtifactTypeSchema>;
 export type LessonArtifact = z.infer<typeof LessonArtifactSchema>;
-export type LessonTask = z.infer<typeof LessonTaskSchema>;
 export type LessonSummary = z.infer<typeof LessonSummarySchema>;
 export type LibrarySection = z.infer<typeof LibrarySectionSchema>;
 export type StudentLibrary = z.infer<typeof StudentLibrarySchema>;
 export type LessonDetail = z.infer<typeof LessonDetailSchema>;
+export type TeacherLessonDetail = z.infer<typeof TeacherLessonDetailSchema>;
 export type AccessGrant = z.infer<typeof AccessGrantSchema>;
 export type CreateSectionInput = z.infer<typeof CreateSectionInputSchema>;
 export type CreateLessonInput = z.infer<typeof CreateLessonInputSchema>;
+export type UpdateSectionInput = z.infer<typeof UpdateSectionInputSchema>;
+export type UpdateLessonInput = z.infer<typeof UpdateLessonInputSchema>;
+export type PrepareLessonArtifactUploadInput = z.infer<
+  typeof PrepareLessonArtifactUploadInputSchema
+>;
+export type PrepareLessonArtifactUploadResult = z.infer<
+  typeof PrepareLessonArtifactUploadResultSchema
+>;
+export type CompleteLessonArtifactUploadInput = z.infer<
+  typeof CompleteLessonArtifactUploadInputSchema
+>;
+export type LessonArtifactViewResult = z.infer<typeof LessonArtifactViewResultSchema>;
 export type ResourceIdParams = z.infer<typeof ResourceIdParamsSchema>;
 export type SetAccessGrantInput = z.infer<typeof SetAccessGrantInputSchema>;
 export type SetAccessGrantResult = z.infer<typeof SetAccessGrantResultSchema>;

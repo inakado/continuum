@@ -27,6 +27,7 @@ enum PublicationStatus {
 enum LessonArtifactType {
   pdf
   interactive
+  tasks_pdf
 }
 
 model User {
@@ -231,6 +232,8 @@ model LessonArtifact {
   @@map("lesson_artifacts")
 }
 
+// Legacy rows are retained until a separate, explicitly authorized data cleanup.
+// The new library serves task PDFs through LessonArtifact instead.
 model Task {
   id                    String   @id @default(uuid()) @db.Uuid
   lessonId              String   @map("lesson_id") @db.Uuid

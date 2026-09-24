@@ -25,4 +25,12 @@ export class StudentLibraryController {
   ) {
     return this.reads.getStudentLesson(request.user.id, params.id);
   }
+
+  @Get('artifacts/:id/view')
+  getArtifactView(
+    @Req() request: AuthRequest,
+    @Param(new ZodValidationPipe(ResourceIdParamsSchema)) params: ResourceIdParams,
+  ) {
+    return this.reads.getStudentArtifactView(request.user.id, params.id);
+  }
 }

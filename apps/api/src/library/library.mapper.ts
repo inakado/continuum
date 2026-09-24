@@ -22,7 +22,6 @@ type LessonSummaryRow = {
   status: PublicationStatus;
   sortOrder: number;
   artifacts: ArtifactFormatRow[];
-  _count: { tasks: number };
 };
 
 type SectionRow = {
@@ -45,18 +44,14 @@ type LessonDetailRow = LessonSummaryRow & {
     id: string;
     type: LessonArtifactType;
     version: number;
+    status: PublicationStatus;
+    isActive: boolean;
     publishedAt: Date | null;
     asset: {
       filename: string;
       contentType: string;
       sizeBytes: bigint;
     };
-  }>;
-  tasks: Array<{
-    id: string;
-    title: string | null;
-    body: string;
-    sortOrder: number;
   }>;
 };
 
@@ -69,7 +64,7 @@ export const mapLessonSummary = (lesson: LessonSummaryRow): LessonSummary => ({
   formats: {
     pdf: lesson.artifacts.some((artifact) => artifact.type === 'pdf'),
     interactive: lesson.artifacts.some((artifact) => artifact.type === 'interactive'),
-    tasks: lesson._count.tasks > 0,
+    tasks: lesson.artifacts.some((artifact) => artifact.type === 'tasks_pdf'),
   },
 });
 
@@ -90,6 +85,8 @@ const mapLessonArtifact = (artifact: LessonDetailRow['artifacts'][number]): Less
   filename: artifact.asset.filename,
   contentType: artifact.asset.contentType,
   sizeBytes: Number(artifact.asset.sizeBytes),
+  status: artifact.status,
+  isActive: artifact.isActive,
   publishedAt: artifact.publishedAt?.toISOString() ?? null,
 });
 
@@ -101,12 +98,4 @@ export const mapLessonDetail = (lesson: LessonDetailRow): LessonDetail => ({
     title: lesson.section.title,
   },
   artifacts: lesson.artifacts.map(mapLessonArtifact),
-  tasks: lesson.tasks.map((task) => ({
-    id: task.id,
-    title: task.title,
-    body: task.body,
-    imageUrl: null,
-    diagramPreviewUrl: null,
-    sortOrder: task.sortOrder,
-  })),
 });

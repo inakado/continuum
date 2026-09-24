@@ -44,9 +44,6 @@ const teacherCookie = await signIn(teacherLogin, teacherPassword);
 const studentCookie = await signIn(studentLogin, studentPassword);
 const studentIdentity = await request('/me', { cookie: studentCookie });
 
-const beforeGrant = await request('/student/library', { cookie: studentCookie });
-assert.deepEqual(beforeGrant.gradeBands, []);
-
 const suffix = new Date().toISOString();
 const section = await request('/teacher/library/sections', {
   cookie: teacherCookie,
@@ -63,6 +60,58 @@ const lesson = await request('/teacher/library/lessons', {
   method: 'POST',
   body: { sectionId: section.id, title: `Smoke lesson ${suffix}` },
 });
+
+const pdfObjects = [
+  '<< /Type /Catalog /Pages 2 0 R >>',
+  '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+  '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>',
+  '<< /Length 0 >>\nstream\n\nendstream',
+];
+let pdfSource = '%PDF-1.4\n';
+const offsets = [0];
+for (const [index, object] of pdfObjects.entries()) {
+  offsets.push(Buffer.byteLength(pdfSource));
+  pdfSource += `${index + 1} 0 obj\n${object}\nendobj\n`;
+}
+const xrefOffset = Buffer.byteLength(pdfSource);
+pdfSource += `xref\n0 ${offsets.length}\n0000000000 65535 f \n`;
+for (const offset of offsets.slice(1)) {
+  pdfSource += `${String(offset).padStart(10, '0')} 00000 n \n`;
+}
+pdfSource += `trailer\n<< /Size ${offsets.length} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+const pdf = Buffer.from(pdfSource);
+const uploadPdf = async (type, filename) => {
+  const metadata = {
+    type,
+    filename,
+    contentType: 'application/pdf',
+    sizeBytes: pdf.length,
+  };
+  const ticket = await request(`/teacher/library/lessons/${lesson.id}/artifacts/upload-url`, {
+    cookie: teacherCookie,
+    method: 'POST',
+    body: metadata,
+  });
+  const upload = await fetch(ticket.uploadUrl, {
+    method: 'PUT',
+    headers: ticket.headers,
+    body: pdf,
+  });
+  if (upload.status !== 200) {
+    const xml = await upload.text();
+    const code = xml.match(/<Code>([^<]+)<\/Code>/)?.[1] || 'unknown';
+    const message = xml.match(/<Message>([^<]+)<\/Message>/)?.[1] || 'unknown';
+    throw new Error(`${type} upload failed: ${upload.status} ${code}: ${message}`);
+  }
+  return request(`/teacher/library/lessons/${lesson.id}/artifacts`, {
+    cookie: teacherCookie,
+    method: 'POST',
+    body: { ...metadata, objectKey: ticket.objectKey },
+  });
+};
+
+const handout = await uploadPdf('pdf', 'smoke-handout.pdf');
+const tasks = await uploadPdf('tasks_pdf', 'smoke-tasks.pdf');
 await request(`/teacher/library/lessons/${lesson.id}/publish`, {
   cookie: teacherCookie,
   method: 'PATCH',
@@ -90,5 +139,15 @@ const detail = await request(`/student/library/lessons/${lesson.id}`, {
 });
 assert.equal(detail.id, lesson.id);
 assert.equal(detail.section.id, section.id);
+assert.deepEqual(new Set(detail.artifacts.map((artifact) => artifact.id)), new Set([handout.id, tasks.id]));
 
-console.log('Library smoke passed: create, publish, grant and student read.');
+for (const artifact of detail.artifacts) {
+  const view = await request(`/student/library/artifacts/${artifact.id}/view`, {
+    cookie: studentCookie,
+  });
+  const file = await fetch(view.url);
+  assert.equal(file.status, 200, `${artifact.type} view failed`);
+  assert.equal(Buffer.compare(Buffer.from(await file.arrayBuffer()), pdf), 0);
+}
+
+console.log('Library smoke passed: catalog, both PDF uploads, publish, grant and student views.');

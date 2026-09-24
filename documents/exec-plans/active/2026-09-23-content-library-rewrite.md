@@ -15,7 +15,7 @@
 - teacher authoring и доступы;
 - PDF upload/view/download;
 - versioned interactive packages и sandbox player;
-- задачи с текстом, MathJax, изображениями и Excalidraw;
+- задачи как versioned PDF-артефакт;
 - удаление старой LMS, worker/Redis/LaTeX runtime;
 - упрощение CI, Docker и документации;
 - чистая инициализация production БД и storage при cutover.
@@ -53,7 +53,7 @@
 - `apps/worker`, `packages/latex-runtime`, BullMQ и Redis;
 - старые routes, contracts, tests и docs после замены соответствующего потока.
 
-Excalidraw удалению не подлежит: он переводится в Task Authoring и отвязывается от `PhotoTaskSubmission`.
+Excalidraw удалению не подлежит, но после перехода задач на PDF не входит в текущий authoring flow.
 
 ## Порядок выполнения
 
@@ -67,7 +67,7 @@ Excalidraw удалению не подлежит: он переводится �
 
 ### Волна 1 — новый контракт библиотеки
 
-- [x] Добавить Zod-контракты `GradeBand`, `Section`, `Lesson`, `LessonArtifact`, `Task`, `AccessGrant`.
+- [x] Добавить Zod-контракты `GradeBand`, `Section`, `Lesson`, `LessonArtifact`, `AccessGrant`.
 - [x] Заменить Prisma schema на минимальную целевую модель и создать destructive reset migration для локальной БД.
 - [x] Добавить Library read/write modules с отдельными read/write paths.
 - [x] Добавить access-policy tests: чужой доступ, draft, direct-link bypass.
@@ -85,7 +85,7 @@ Excalidraw удалению не подлежит: он переводится �
 ### Волна 3 — teacher authoring и доступы
 
 - [x] Добавить первый экран материалов: создание разделов/занятий и публикация draft.
-- [ ] Добавить редактирование, удаление и порядок разделов/занятий.
+- [x] Добавить переименование разделов/занятий; удаление и порядок остаются следующими операциями.
 - [x] Добавить управление доступом ученика к возрастным группам.
 - [x] Сохранить teacher/student provisioning, удалить зависимости от progress/photo-review.
 - [ ] Вернуть admin provisioning преподавателей в новый минимальный UI.
@@ -99,10 +99,10 @@ Excalidraw удалению не подлежит: он переводится �
 1. **Catalog core — готов.** Shared contracts, новая Prisma-модель, отдельные read/write services, teacher create/publish endpoints, student catalog/detail endpoints, tenant scope через `grantedById`, скрытие draft и защита direct URL. Проверен на чистой БД.
 2. **Catalog UI — готов.** Плотный student catalog, lesson view, teacher materials screen, create/publish mutations и состояния loading/error/empty. Проверен в browser на desktop/mobile.
 3. **Identity & Access UI — готов для teacher/student.** Узкий список учеников учителя, создание через единый identity provisioner, деактивация с отзывом сессий, выдача/снятие `GradeBand`; остаётся вернуть admin provisioning преподавателей.
-4. **Редактирование структуры.** Переименование, описание, publish/unpublish, безопасное удаление пустых draft-сущностей и явный reorder для разделов/занятий.
-5. **PDF vertical slice.** Presigned upload, metadata validation, immutable version, atomic activation, защищённый view/download URL и PDF.js reader. Добавление PDF не требует deploy.
+4. **Редактирование структуры.** Переименование готово; описание, publish/unpublish, безопасное удаление пустых draft-сущностей и явный reorder остаются.
+5. **PDF vertical slice.** Presigned upload, проверка метаданных и сигнатуры, SHA-256, versioned teacher view и защищённая выдача опубликованных PDF ученику реализованы; browser upload/publish и API smoke прошли локально. Отдельное скачивание и rollback остаются.
 6. **Interactive vertical slice.** Manifest и CLI для локального build output, versioned upload, atomic publish/rollback, отдельный origin/path и sandboxed iframe без cookie.
-7. **Task authoring.** Безопасный текст и MathJax, изображения, lazy-loaded Excalidraw editor, scene JSON и статический preview; student route не загружает editor runtime.
+7. **Задачи PDF.** Отдельный versioned `tasks_pdf` загружается и публикуется тем же защищённым потоком, что и конспект.
 8. **Hardening и cutover.** Полный role/access E2E, mobile/desktop QA, asset cleanup policy, backup/rollback rehearsal, затем только по отдельной команде — production reset и deploy.
 
 ## Ближайший порядок
@@ -113,7 +113,7 @@ Excalidraw удалению не подлежит: он переводится �
 
 ### Волна 4 — материалы занятия
 
-- [ ] Реализовать PDF upload/version/publish/view/download.
+- [ ] Завершить PDF vertical slice: teacher upload/version/publish/view, student view URL и browser upload smoke готовы; остаются отдельное скачивание и rollback.
 - [ ] Определить package manifest интерактивной лекции.
 - [ ] Реализовать upload/version/atomic publish/rollback.
 - [ ] Реализовать sandboxed iframe player без cookie access.
@@ -121,14 +121,13 @@ Excalidraw удалению не подлежит: он переводится �
 
 Критерий выхода: новая версия PDF или лекции появляется без platform deploy; предыдущая версия доступна для rollback.
 
-### Волна 5 — задачи и Excalidraw
+### Волна 5 — задачи PDF
 
-- [ ] Добавить редактор безопасного текста и MathJax.
-- [ ] Добавить изображения.
-- [ ] Перенести Excalidraw в Task Authoring: scene JSON + SVG/PNG preview.
-- [ ] Не загружать Excalidraw runtime на student read-path.
+- [x] Добавить отдельный тип `tasks_pdf` и тот же versioned upload flow, что для конспекта.
+- [x] Добавить защищённое открытие задач PDF учеником после проверки публикации и доступа.
+- [x] Не загружать Excalidraw runtime на student read-path.
 
-Критерий выхода: учитель создаёт задачу с диаграммой, ученик видит готовый preview и формулы.
+Критерий выхода: учитель загружает PDF с задачами, ученик открывает опубликованную версию.
 
 ### Волна 6 — удаление legacy runtime
 
@@ -167,7 +166,11 @@ TeX и интерактивный HTML собираются локально. П
 
 ### 2026-09-23 — Excalidraw сохраняется
 
-Удаляется legacy photo-review workflow, но Excalidraw остаётся инструментом диаграмм задач с editable scene и статическим preview.
+Удаляется legacy photo-review workflow. Excalidraw остаётся зависимостью для будущих авторских инструментов, но текущие задачи публикуются готовым PDF.
+
+### 2026-09-23 — задачи публикуются PDF-файлом
+
+Пользователь отказался от структурированного редактора задач в первой версии. Конспект и задачи являются независимыми versioned PDF-артефактами; публикация занятия атомарно активирует их последние версии.
 
 ### 2026-09-23 — один runtime API
 
@@ -206,7 +209,7 @@ TeX и интерактивный HTML собираются локально. П
 - Удалены старые web routes курсов, юнитов, review, analytics, events и role-specific login; `/student` и `/teacher` заменены чистыми защищёнными экранами новой библиотеки.
 - Admin login переведён со старого `/admin/teachers` на чистый защищённый `/admin`.
 - Физически удалены legacy API/web features, worker, LaTeX runtime, старые shared contracts и их тесты; Excalidraw, MathJax и PDF.js сохранены.
-- Prisma сведена к Better Auth, профилям, `AccessGrant`, `Section`, `Lesson`, `Asset`, `LessonArtifact` и `Task`; создана новая destructive baseline migration.
+- Runtime-модель сведена к Better Auth, профилям, `AccessGrant`, `Section`, `Lesson`, `Asset` и `LessonArtifact`; старая физическая таблица `tasks` оставлена до отдельной подтверждённой очистки локальных данных.
 - Удалены BullMQ, Redis, React Flow, CodeMirror, DnD и legacy authoring dependencies; lockfile пересчитан.
 - Generated API/DB docs обновлены после удаления кода и смены схемы.
 - `pnpm docs:check`, shared typecheck, web typecheck, web production build, boundary lint, compose config и `git diff --check` прошли.
@@ -240,6 +243,13 @@ TeX и интерактивный HTML собираются локально. П
 - Production cutover выполнен на `09315f6`: чистая baseline migration применена, 5 существующих auth identities и профили сохранены, прежние сессии и учебные данные удалены, S3 подтверждён пустым.
 - Production auth smoke прошёл через временные teacher/student identities; временные записи после проверки удалены.
 - Worker, Redis, TeX Live, старые PostgreSQL/Redis volumes и около 9,9 ГБ старого BuildKit cache удалены; Orbit не затронут. После очистки на VPS свободно около 25 ГБ.
+
+### 2026-09-24
+
+- Экран материалов переведён на выбранный двухпанельный дизайн: вкладки классов, сворачиваемые разделы, редактирование названий и инспектор занятия.
+- Конспект и задачи загружаются независимыми PDF-версиями; ученик получает подписанную ссылку только на опубликованную активную версию в разрешённом классе.
+- Локальный API smoke и браузерная загрузка/публикация PDF прошли; desktop `1488 × 1058` и mobile `390 × 844` просмотрены. Пять созданных smoke-разделов и пять S3-объектов удалены после проверки.
+- Production API Docker image, web build, shared/API/web tests, boundary lint и docs checks прошли. Для production S3 подготовлены CORS-настройка и проверка preflight до переключения API.
 
 ## Task-specific troubleshooting
 

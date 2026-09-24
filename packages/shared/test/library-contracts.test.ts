@@ -51,7 +51,7 @@ describe("library contracts", () => {
     expect(parsed.gradeBands[0]?.sections[0]?.lessons[0]?.title).toBe("Кинематика");
   });
 
-  it("keeps lesson artifacts and tasks free from legacy progress fields", () => {
+  it("keeps lesson artifacts free from legacy progress fields", () => {
     const parsed = LessonDetailSchema.parse({
       id,
       title: "Кинематика",
@@ -68,22 +68,26 @@ describe("library contracts", () => {
           filename: "kinematics.pdf",
           contentType: "application/pdf",
           sizeBytes: 42,
+          status: "published",
+          isActive: true,
           publishedAt: "2026-09-23T00:00:00.000Z",
         },
-      ],
-      tasks: [
         {
           id,
-          title: null,
-          body: "Найдите скорость.",
-          imageUrl: null,
-          diagramPreviewUrl: null,
-          sortOrder: 0,
+          type: "tasks_pdf",
+          version: 1,
+          filename: "kinematics-tasks.pdf",
+          contentType: "application/pdf",
+          sizeBytes: 58,
+          status: "published",
+          isActive: true,
+          publishedAt: "2026-09-23T00:00:00.000Z",
         },
       ],
     });
 
     expect(parsed.artifacts[0]?.type).toBe("pdf");
+    expect(parsed.artifacts[1]?.type).toBe("tasks_pdf");
     expect("completionPercent" in parsed).toBe(false);
   });
 

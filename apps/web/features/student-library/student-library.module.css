@@ -284,6 +284,25 @@
   text-transform: uppercase;
 }
 
+.materialList li > button {
+  border: 0;
+  background: transparent;
+  color: var(--catalog-accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.materialList li > button:hover {
+  text-decoration: underline;
+}
+
+.materialList li > button:disabled {
+  cursor: wait;
+  opacity: .6;
+}
+
 .taskList {
   border-top: 0;
 }
@@ -377,5 +396,11 @@
 
   .materialList small {
     grid-column: 2;
+  }
+
+  .materialList li > button {
+    grid-column: 2;
+    justify-self: start;
+    padding: 0;
   }
 }

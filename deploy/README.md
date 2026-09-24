@@ -31,6 +31,8 @@ Production deploy выполняется только по явной коман
 - `DATABASE_URL` или `POSTGRES_*`;
 - `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, credentials и public base URL.
 
+Перед переключением API скрипт идемпотентно добавляет к бакету CORS-правило для `WEB_ORIGIN`: только `PUT` с заголовком `Content-Type`. Затем выполняет внешний preflight-запрос к `S3_PUBLIC_BASE_URL`. Другие CORS-правила сохраняются.
+
 ## Ручной deploy
 
 До cutover новой схемы команда не запускается. После явного подтверждения:

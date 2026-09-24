@@ -9,6 +9,7 @@ export const studentLibraryQueryKeys = {
 
 export const teacherLibraryQueryKeys = {
   all: () => ["teacher-library"] as const,
+  lesson: (lessonId: string) => ["teacher-library", "lesson", lessonId] as const,
 } as const;
 
 export const teacherStudentsQueryKeys = {

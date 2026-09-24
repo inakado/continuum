@@ -78,6 +78,26 @@ docker compose -f docker-compose.prod.yml up -d postgres
 docker compose -f docker-compose.prod.yml build api
 NEXT_PUBLIC_API_BASE_URL="https://${APP_DOMAIN}/api" pnpm --filter web build
 
+docker compose -f docker-compose.prod.yml run --rm --no-deps api \
+  node apps/api/scripts/configure-s3-cors.mjs
+
+cors_probe_headers=''
+for ((attempt = 1; attempt <= 30; attempt += 1)); do
+  cors_probe_headers="$(curl --connect-timeout 5 --max-time 15 -sSi -X OPTIONS \
+    "${S3_PUBLIC_BASE_URL%/}/${S3_BUCKET}/continuum-cors-probe" \
+    -H "Origin: ${WEB_ORIGIN}" \
+    -H 'Access-Control-Request-Method: PUT' \
+    -H 'Access-Control-Request-Headers: content-type' || true)"
+  if printf '%s\n' "$cors_probe_headers" | grep -Fiq "Access-Control-Allow-Origin: ${WEB_ORIGIN}"; then
+    break
+  fi
+  sleep 1
+done
+if ! printf '%s\n' "$cors_probe_headers" | grep -Fiq "Access-Control-Allow-Origin: ${WEB_ORIGIN}"; then
+  echo 'S3 CORS preflight did not allow the production web origin.'
+  exit 1
+fi
+
 if [ "$MIGRATIONS_APPROVED" != "yes" ]; then
   echo "Set MIGRATIONS_APPROVED=yes to allow prisma migrate deploy."
   exit 1

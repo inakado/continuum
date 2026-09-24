@@ -1,33 +1,56 @@
 "use client";
 
-import type { FormEvent } from "react";
-import { useState } from "react";
-import type { GradeBand, LibrarySection } from "@continuum/shared";
+import type { ChangeEvent, FormEvent } from "react";
+import { useMemo, useRef, useState } from "react";
+import type {
+  GradeBand,
+  LessonArtifact,
+  LessonArtifactType,
+  LibrarySection,
+} from "@continuum/shared";
+import {
+  ChevronDown,
+  ChevronRight,
+  FileArchive,
+  FileText,
+  Pencil,
+  Plus,
+  Upload,
+} from "lucide-react";
 import Link from "next/link";
 import ContinuumHeader from "@/components/ContinuumHeader";
+import { teacherLibraryApi } from "./teacher-library.api";
 import {
   useCreateLesson,
   useCreateSection,
   usePublishLesson,
   usePublishSection,
+  useTeacherLesson,
   useTeacherLibrary,
+  useUpdateLesson,
+  useUpdateSection,
+  useUploadLessonArtifact,
 } from "./use-teacher-library";
 import styles from "./teacher-library.module.css";
 
-const gradeLabels: Record<GradeBand, string> = {
-  grade_7: "7 класс",
-  grade_8: "8 класс",
-  grade_9: "9 класс",
-  grade_10_11: "10–11 классы",
-};
+const gradeTabs: Array<{ code: GradeBand; label: string }> = [
+  { code: "grade_7", label: "7 класс" },
+  { code: "grade_8", label: "8 класс" },
+  { code: "grade_9", label: "9 класс" },
+  { code: "grade_10_11", label: "10–11 классы" },
+];
 
-const sectionCountLabel = (count: number) => {
-  const mod100 = count % 100;
-  const mod10 = count % 10;
-  if (mod100 >= 11 && mod100 <= 14) return `${count} разделов`;
-  if (mod10 === 1) return `${count} раздел`;
-  if (mod10 >= 2 && mod10 <= 4) return `${count} раздела`;
-  return `${count} разделов`;
+const formatLabels: Array<{ key: keyof LibrarySection["lessons"][number]["formats"]; label: string }> = [
+  { key: "pdf", label: "PDF" },
+  { key: "interactive", label: "Интерактив" },
+  { key: "tasks", label: "Задачи" },
+];
+
+const lessonCount = (count: number) => {
+  const lastTwo = count % 100;
+  const last = count % 10;
+  const noun = lastTwo >= 11 && lastTwo <= 14 ? "занятий" : last === 1 ? "занятие" : last >= 2 && last <= 4 ? "занятия" : "занятий";
+  return `${count} ${noun}`;
 };
 
 function NewLessonForm({ sectionId }: { sectionId: string }) {
@@ -46,6 +69,7 @@ function NewLessonForm({ sectionId }: { sectionId: string }) {
 
   return (
     <form className={styles.lessonForm} onSubmit={submit}>
+      <Plus aria-hidden="true" size={17} strokeWidth={1.8} />
       <label className={styles.visuallyHidden} htmlFor={`lesson-${sectionId}`}>
         Название нового занятия
       </label>
@@ -53,7 +77,7 @@ function NewLessonForm({ sectionId }: { sectionId: string }) {
         id={`lesson-${sectionId}`}
         value={title}
         onChange={(event) => setTitle(event.target.value)}
-        placeholder="Новое занятие"
+        placeholder="Добавить занятие"
         maxLength={200}
       />
       <button disabled={createLesson.isPending || title.trim().length === 0} type="submit">
@@ -66,71 +90,315 @@ function NewLessonForm({ sectionId }: { sectionId: string }) {
   );
 }
 
-function SectionBlock({ section }: { section: LibrarySection }) {
-  const publishSection = usePublishSection();
-  const publishLesson = usePublishLesson();
+function SectionTitle({ section }: { section: LibrarySection }) {
+  const updateSection = useUpdateSection();
+  const [editing, setEditing] = useState(false);
+  const [title, setTitle] = useState(section.title);
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const normalized = title.trim();
+    if (!normalized) return;
+    updateSection.mutate(
+      { sectionId: section.id, title: normalized },
+      { onSuccess: () => setEditing(false) },
+    );
+  };
+
+  if (editing) {
+    return (
+      <form className={styles.inlineEdit} onSubmit={submit} onClick={(event) => event.stopPropagation()}>
+        <input
+          aria-label="Название раздела"
+          autoFocus
+          maxLength={160}
+          onChange={(event) => setTitle(event.target.value)}
+          value={title}
+        />
+        <button disabled={updateSection.isPending || !title.trim()} type="submit">Сохранить</button>
+        <button className={styles.cancelButton} onClick={() => setEditing(false)} type="button">Отмена</button>
+      </form>
+    );
+  }
 
   return (
-    <article className={styles.section}>
+    <div className={styles.sectionTitleLine}>
+      <h2>{section.title}</h2>
+      <button
+        aria-label={`Переименовать раздел «${section.title}»`}
+        className={styles.iconButton}
+        onClick={(event) => {
+          event.stopPropagation();
+          setTitle(section.title);
+          setEditing(true);
+        }}
+        type="button"
+      >
+        <Pencil aria-hidden="true" size={16} strokeWidth={1.7} />
+      </button>
+    </div>
+  );
+}
+
+type SectionBlockProps = {
+  section: LibrarySection;
+  open: boolean;
+  selectedLessonId: string | null;
+  onToggle: () => void;
+  onSelectLesson: (lessonId: string) => void;
+};
+
+function SectionBlock({ section, open, selectedLessonId, onToggle, onSelectLesson }: SectionBlockProps) {
+  const publishSection = usePublishSection();
+
+  return (
+    <section className={styles.section}>
       <div className={styles.sectionHeading}>
-        <div>
-          <span className={styles.status}>{section.status === "published" ? "Опубликован" : "Черновик"}</span>
-          <h3>{section.title}</h3>
-          {section.description ? <p>{section.description}</p> : null}
-        </div>
+        <button
+          aria-expanded={open}
+          aria-label={`${open ? "Свернуть" : "Развернуть"} раздел «${section.title}»`}
+          className={styles.sectionToggle}
+          onClick={onToggle}
+          type="button"
+        >
+          {open ? <ChevronDown aria-hidden="true" size={20} /> : <ChevronRight aria-hidden="true" size={20} />}
+        </button>
+        <SectionTitle section={section} />
+        <span className={styles.sectionMeta}>
+          {section.status === "published" ? "Опубликован" : "Черновик"} · {lessonCount(section.lessons.length)}
+        </span>
         {section.status === "draft" ? (
           <button
-            className={styles.publishButton}
+            className={styles.textAction}
             disabled={publishSection.isPending}
             onClick={() => publishSection.mutate(section.id)}
             type="button"
           >
-            {publishSection.isPending ? "Публикуем…" : "Опубликовать раздел"}
+            Опубликовать
           </button>
         ) : null}
       </div>
 
-      {publishSection.isError || publishLesson.isError ? (
-        <p className={styles.formError} role="alert">Не удалось опубликовать. Повторите позже.</p>
+      {open ? (
+        <div className={styles.sectionBody}>
+          <ol className={styles.lessons}>
+            {section.lessons.map((lesson, index) => (
+              <li key={lesson.id} className={lesson.id === selectedLessonId ? styles.selectedLesson : undefined}>
+                <button className={styles.lessonSelect} onClick={() => onSelectLesson(lesson.id)} type="button">
+                  <span className={styles.number}>{index + 1}</span>
+                  <span className={styles.lessonTitle}>{lesson.title}</span>
+                  <span className={styles.formatColumns}>
+                    {formatLabels.map((format) => (
+                      <span className={styles.formatSlot} key={format.key}>
+                        {lesson.formats[format.key] ? format.label : ""}
+                      </span>
+                    ))}
+                  </span>
+                  <span className={styles.lessonStatus}>
+                    {lesson.status === "published" ? "Опубликовано" : "Черновик"}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ol>
+          <NewLessonForm sectionId={section.id} />
+        </div>
       ) : null}
+    </section>
+  );
+}
 
-      <ol className={styles.lessons}>
-        {section.lessons.map((lesson, index) => (
-          <li key={lesson.id}>
-            <span className={styles.number}>{String(index + 1).padStart(2, "0")}</span>
-            <span className={styles.lessonTitle}>{lesson.title}</span>
-            <span className={styles.status}>{lesson.status === "published" ? "Опубликовано" : "Черновик"}</span>
-            {lesson.status === "draft" ? (
-              <button
-                disabled={publishLesson.isPending || section.status !== "published"}
-                onClick={() => publishLesson.mutate(lesson.id)}
-                title={section.status === "draft" ? "Сначала опубликуйте раздел" : undefined}
-                type="button"
-              >
-                {publishLesson.isPending ? "Публикуем…" : "Опубликовать"}
-              </button>
-            ) : null}
-          </li>
-        ))}
-      </ol>
-      <NewLessonForm sectionId={section.id} />
-    </article>
+type ArtifactSlotProps = {
+  artifact?: LessonArtifact;
+  lessonId: string;
+  type: LessonArtifactType;
+  title: string;
+};
+
+function ArtifactSlot({ artifact, lessonId, type, title }: ArtifactSlotProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const uploadArtifact = useUploadLessonArtifact();
+  const [opening, setOpening] = useState(false);
+  const isInteractive = type === "interactive";
+
+  const upload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    uploadArtifact.mutate({ lessonId, type, file });
+    event.target.value = "";
+  };
+
+  const open = async () => {
+    if (!artifact) return;
+    const tab = window.open("", "_blank");
+    setOpening(true);
+    try {
+      const result = await teacherLibraryApi.getArtifactView(artifact.id);
+      if (tab) tab.location.replace(result.url);
+      else window.location.assign(result.url);
+    } catch {
+      tab?.close();
+      setOpening(false);
+      return;
+    } finally {
+      setOpening(false);
+    }
+  };
+
+  return (
+    <section className={styles.artifactSlot}>
+      <h3>{title}</h3>
+      {artifact ? (
+        <div className={styles.artifactFile}>
+          {isInteractive ? (
+            <FileArchive aria-hidden="true" size={32} strokeWidth={1.5} />
+          ) : (
+            <FileText aria-hidden="true" size={32} strokeWidth={1.5} />
+          )}
+          <div>
+            <strong>{artifact.filename}</strong>
+            <span>Версия {artifact.version}{artifact.status === "draft" ? " · черновик" : ""}</span>
+          </div>
+        </div>
+      ) : (
+        <div className={styles.artifactEmpty}>
+          <Upload aria-hidden="true" size={25} strokeWidth={1.5} />
+          <span>{isInteractive ? "Интерактивная лекция не добавлена" : "PDF-файл не добавлен"}</span>
+        </div>
+      )}
+      {isInteractive ? <p className={styles.artifactNote}>ZIP можно сохранить здесь. Публикация и просмотр учениками появятся после подключения защищённого проигрывателя.</p> : null}
+      <div className={styles.artifactActions}>
+        <input
+          accept={isInteractive ? ".zip,application/zip,application/x-zip-compressed" : ".pdf,application/pdf"}
+          aria-label={`${title}: выберите файл`}
+          className={styles.visuallyHidden}
+          onChange={upload}
+          ref={inputRef}
+          type="file"
+        />
+        <button disabled={uploadArtifact.isPending} onClick={() => inputRef.current?.click()} type="button">
+          {uploadArtifact.isPending ? "Загружаем…" : artifact ? "Заменить" : isInteractive ? "Загрузить пакет" : "Загрузить PDF"}
+        </button>
+        {artifact ? <button disabled={opening} onClick={() => void open()} type="button">{opening ? "Открываем…" : isInteractive ? "Скачать пакет" : "Открыть PDF"}</button> : null}
+      </div>
+      {uploadArtifact.isError ? <p className={styles.formError} role="alert">Не удалось загрузить файл.</p> : null}
+    </section>
+  );
+}
+
+function LessonInspector({ lessonId, sectionStatus }: { lessonId: string | null; sectionStatus: LibrarySection["status"] | null }) {
+  const query = useTeacherLesson(lessonId);
+  const updateLesson = useUpdateLesson();
+  const publishLesson = usePublishLesson();
+  const [editing, setEditing] = useState(false);
+  const [title, setTitle] = useState("");
+
+  if (!lessonId) {
+    return <aside className={styles.inspectorEmpty}>Выберите занятие, чтобы добавить материалы.</aside>;
+  }
+  if (query.isPending) return <aside className={styles.inspectorEmpty}>Загружаем занятие…</aside>;
+  if (!query.data) return <aside className={styles.inspectorEmpty}>Не удалось загрузить занятие.</aside>;
+
+  const latestArtifact = (type: LessonArtifactType) =>
+    query.data.artifacts
+      .filter((artifact) => artifact.type === type)
+      .sort((left, right) => right.version - left.version)[0];
+
+  const saveTitle = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const normalized = title.trim();
+    if (!normalized) return;
+    updateLesson.mutate(
+      { lessonId, title: normalized },
+      { onSuccess: () => setEditing(false) },
+    );
+  };
+
+  return (
+    <aside className={styles.inspector}>
+      <div className={styles.inspectorHeader}>
+        {editing ? (
+          <form className={styles.inspectorTitleEdit} onSubmit={saveTitle}>
+            <input autoFocus maxLength={200} onChange={(event) => setTitle(event.target.value)} value={title} />
+            <button disabled={updateLesson.isPending || !title.trim()} type="submit">Сохранить</button>
+            <button className={styles.cancelButton} onClick={() => setEditing(false)} type="button">Отмена</button>
+          </form>
+        ) : (
+          <div className={styles.inspectorTitle}>
+            <h2>{query.data.title}</h2>
+            <button
+              aria-label="Переименовать занятие"
+              className={styles.iconButton}
+              onClick={() => {
+                setTitle(query.data.title);
+                setEditing(true);
+              }}
+              type="button"
+            >
+              <Pencil aria-hidden="true" size={17} strokeWidth={1.7} />
+            </button>
+          </div>
+        )}
+        <div className={styles.inspectorState}>
+          <span>{query.data.status === "published" ? "Опубликовано" : "Черновик"}</span>
+          {query.data.status === "draft" || query.data.artifacts.some((artifact) => artifact.status === "draft" && artifact.type !== "interactive") ? (
+            <button
+              disabled={publishLesson.isPending || sectionStatus !== "published"}
+              onClick={() => publishLesson.mutate(lessonId)}
+              title={sectionStatus === "draft" ? "Сначала опубликуйте раздел" : undefined}
+              type="button"
+            >
+              {publishLesson.isPending ? "Публикуем…" : "Опубликовать"}
+            </button>
+          ) : null}
+        </div>
+      </div>
+      {publishLesson.isError ? <p className={styles.formError} role="alert">Не удалось опубликовать занятие.</p> : null}
+
+      <ArtifactSlot artifact={latestArtifact("pdf")} lessonId={lessonId} title="Конспект PDF" type="pdf" />
+      <ArtifactSlot artifact={latestArtifact("interactive")} lessonId={lessonId} title="Интерактивная лекция" type="interactive" />
+      <ArtifactSlot artifact={latestArtifact("tasks_pdf")} lessonId={lessonId} title="Задачи PDF" type="tasks_pdf" />
+    </aside>
   );
 }
 
 export default function TeacherMaterialsScreen() {
   const library = useTeacherLibrary();
   const createSection = useCreateSection();
-  const [title, setTitle] = useState("");
-  const [gradeBand, setGradeBand] = useState<GradeBand>("grade_10_11");
+  const [selectedGrade, setSelectedGrade] = useState<GradeBand>("grade_10_11");
+  const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
+  const [expandedSectionId, setExpandedSectionId] = useState<string | null | "none">(null);
+  const [showSectionForm, setShowSectionForm] = useState(false);
+  const [sectionTitle, setSectionTitle] = useState("");
+
+  const activeGrade = library.data?.gradeBands.find((band) => band.code === selectedGrade);
+  const allLessons = useMemo(
+    () => activeGrade?.sections.flatMap((section) => section.lessons) ?? [],
+    [activeGrade],
+  );
+  const resolvedLessonId = allLessons.some((lesson) => lesson.id === selectedLessonId)
+    ? selectedLessonId
+    : (allLessons[0]?.id ?? null);
+  const selectedSection = activeGrade?.sections.find((section) =>
+    section.lessons.some((lesson) => lesson.id === resolvedLessonId),
+  );
+  const resolvedExpandedSectionId = expandedSectionId === "none" ? null : expandedSectionId && activeGrade?.sections.some((section) => section.id === expandedSectionId)
+    ? expandedSectionId
+    : (selectedSection?.id ?? activeGrade?.sections[0]?.id ?? null);
 
   const submitSection = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const normalizedTitle = title.trim();
+    const normalizedTitle = sectionTitle.trim();
     if (!normalizedTitle) return;
     createSection.mutate(
-      { gradeBand, title: normalizedTitle },
-      { onSuccess: () => setTitle("") },
+      { gradeBand: selectedGrade, title: normalizedTitle },
+      {
+        onSuccess: (section) => {
+          setSectionTitle("");
+          setShowSectionForm(false);
+          setExpandedSectionId(section.id);
+        },
+      },
     );
   };
 
@@ -141,69 +409,89 @@ export default function TeacherMaterialsScreen() {
         <Link aria-current="page" href="/teacher/materials">Материалы</Link>
         <Link href="/teacher/students">Ученики и доступы</Link>
       </nav>
-      <main className={styles.main}>
-        <div className={styles.intro}>
-          <h1>Разделы и занятия</h1>
-          <p>Структура библиотеки и публикация готовых материалов.</p>
-        </div>
-
-        <form className={styles.sectionForm} onSubmit={submitSection}>
-          <select
-            aria-label="Класс"
-            value={gradeBand}
-            onChange={(event) => setGradeBand(event.target.value as GradeBand)}
+      <nav aria-label="Классы" className={styles.gradeNav}>
+        {gradeTabs.map((grade) => (
+          <button
+            aria-current={selectedGrade === grade.code ? "page" : undefined}
+            key={grade.code}
+            onClick={() => {
+              setSelectedGrade(grade.code);
+              setSelectedLessonId(null);
+              setExpandedSectionId(null);
+            }}
+            type="button"
           >
-            {Object.entries(gradeLabels).map(([code, label]) => (
-              <option key={code} value={code}>
-                {label}
-              </option>
-            ))}
-          </select>
-          <label className={styles.visuallyHidden} htmlFor="section-title">
-            Название раздела
-          </label>
-          <input
-            id="section-title"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="Например, Механика"
-            maxLength={160}
-          />
-          <button disabled={createSection.isPending || title.trim().length === 0} type="submit">
-            {createSection.isPending ? "Создаём…" : "Создать раздел"}
+            {grade.label}
           </button>
-        </form>
+        ))}
+      </nav>
 
-        {createSection.isError ? (
-          <p className={styles.formError} role="alert">Не удалось создать раздел.</p>
-        ) : null}
+      <main className={styles.workspace}>
+        <div className={styles.catalogPane}>
+          <div className={styles.intro}>
+            <div>
+              <h1>Материалы</h1>
+              <p>Создавайте и редактируйте учебные материалы для своих классов</p>
+            </div>
+            <button className={styles.primaryButton} onClick={() => setShowSectionForm(true)} type="button">
+              Добавить раздел
+            </button>
+          </div>
 
-        {library.isPending ? <div className={styles.state}>Загружаем материалы…</div> : null}
-        {library.isError ? (
-          <div className={styles.state} role="alert">
-            <span>Не удалось загрузить материалы.</span>
-            <button onClick={() => void library.refetch()} type="button">Повторить</button>
-          </div>
-        ) : null}
-        {library.data ? (
-          <div className={styles.catalog}>
-            {library.data.gradeBands.map((band) => (
-              <section className={styles.grade} key={band.code}>
-                <div className={styles.gradeHeading}>
-                  <h2>{gradeLabels[band.code]}</h2>
-                  <span>{sectionCountLabel(band.sections.length)}</span>
-                </div>
-                <div className={styles.sections}>
-                  {band.sections.length === 0 ? (
-                    <p className={styles.empty}>Разделов пока нет.</p>
-                  ) : (
-                    band.sections.map((section) => <SectionBlock key={section.id} section={section} />)
-                  )}
-                </div>
-              </section>
-            ))}
-          </div>
-        ) : null}
+          {showSectionForm ? (
+            <form className={styles.sectionForm} onSubmit={submitSection}>
+              <label htmlFor="section-title">Название раздела</label>
+              <input
+                autoFocus
+                id="section-title"
+                maxLength={160}
+                onChange={(event) => setSectionTitle(event.target.value)}
+                placeholder="Например, Механика"
+                value={sectionTitle}
+              />
+              <button disabled={createSection.isPending || !sectionTitle.trim()} type="submit">
+                {createSection.isPending ? "Создаём…" : "Создать"}
+              </button>
+              <button className={styles.cancelButton} onClick={() => setShowSectionForm(false)} type="button">Отмена</button>
+              {createSection.isError ? <span className={styles.formError}>Не удалось создать раздел.</span> : null}
+            </form>
+          ) : null}
+
+          {library.isPending ? <div className={styles.state}>Загружаем материалы…</div> : null}
+          {library.isError ? (
+            <div className={styles.state} role="alert">
+              <span>Не удалось загрузить материалы.</span>
+              <button onClick={() => void library.refetch()} type="button">Повторить</button>
+            </div>
+          ) : null}
+          {activeGrade ? (
+            activeGrade.sections.length === 0 ? (
+              <div className={styles.emptyState}>
+                <h2>В этом классе пока нет разделов</h2>
+                <button onClick={() => setShowSectionForm(true)} type="button">Добавить первый раздел</button>
+              </div>
+            ) : (
+              <div className={styles.sections}>
+                {activeGrade.sections.map((section) => (
+                  <SectionBlock
+                    key={section.id}
+                    onSelectLesson={(lessonId) => {
+                      setSelectedLessonId(lessonId);
+                      setExpandedSectionId(section.id);
+                    }}
+                    onToggle={() => setExpandedSectionId(
+                      resolvedExpandedSectionId === section.id ? "none" : section.id,
+                    )}
+                    open={resolvedExpandedSectionId === section.id}
+                    section={section}
+                    selectedLessonId={resolvedLessonId}
+                  />
+                ))}
+              </div>
+            )
+          ) : null}
+        </div>
+        <LessonInspector lessonId={resolvedLessonId} sectionStatus={selectedSection?.status ?? null} />
       </main>
     </div>
   );

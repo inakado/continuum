@@ -213,6 +213,7 @@ export class ObjectStorageService {
     extraHeaders?: Record<string, string>,
   ): Promise<PresignedPutObjectResult> {
     try {
+      await this.ensureBucketExists();
       const presignClient = this.presignS3 || this.s3;
       const url = await getSignedUrl(
         presignClient,
