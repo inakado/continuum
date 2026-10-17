@@ -12,6 +12,9 @@ import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';
 import { ReadyController } from './ready.controller';
 import { ReadyService } from './ready.service';
+import { AssessmentBankModule } from './assessment-bank/assessment-bank.module';
+import { AssessmentWorksModule } from './assessment-works/assessment-works.module';
+import { AssessmentAssignmentsModule } from './assessment-assignments/assessment-assignments.module';
 
 @Module({
   imports: [
@@ -31,6 +34,9 @@ import { ReadyService } from './ready.service';
     AuthModule,
     IdentityAccessModule,
     LibraryModule,
+    AssessmentBankModule,
+    AssessmentWorksModule,
+    AssessmentAssignmentsModule,
     ObjectStorageModule,
   ],
   controllers: [HealthController, ReadyController],

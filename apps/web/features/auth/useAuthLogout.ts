@@ -3,6 +3,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { authApi } from '@/lib/auth/client';
+import { clearAnswerDrafts } from '@/lib/assessment/answer-draft';
 
 export const useAuthLogout = () => {
   const queryClient = useQueryClient();
@@ -12,6 +13,7 @@ export const useAuthLogout = () => {
     try {
       await authApi.signOut();
     } finally {
+      clearAnswerDrafts();
       queryClient.clear();
       router.replace('/login');
     }

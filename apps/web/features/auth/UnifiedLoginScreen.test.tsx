@@ -5,6 +5,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/api/client";
 import { authApi } from "@/lib/auth/client";
 import UnifiedLoginScreen from "./UnifiedLoginScreen";
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+function showLogin() { return render(<QueryClientProvider client={new QueryClient()}><UnifiedLoginScreen /></QueryClientProvider>); }
 
 vi.mock("next/navigation", () => ({
   useRouter: vi.fn(),
@@ -31,6 +34,7 @@ describe("UnifiedLoginScreen", () => {
   const replaceMock = vi.fn();
 
   beforeEach(() => {
+    window.history.replaceState({}, '', '/login');
     replaceMock.mockReset();
     vi.mocked(useRouter).mockReturnValue({ replace: replaceMock } as never);
     vi.mocked(authApi.signIn).mockReset();
@@ -41,7 +45,7 @@ describe("UnifiedLoginScreen", () => {
       user: { role: "teacher" },
     } as never);
 
-    render(<UnifiedLoginScreen />);
+    showLogin();
     const user = userEvent.setup();
 
     await user.type(screen.getByLabelText("Логин"), "teacher1");
@@ -61,7 +65,7 @@ describe("UnifiedLoginScreen", () => {
       user: { role: "student" },
     } as never);
 
-    render(<UnifiedLoginScreen />);
+    showLogin();
     const user = userEvent.setup();
 
     await user.type(screen.getByLabelText("Логин"), "student1");
@@ -78,7 +82,7 @@ describe("UnifiedLoginScreen", () => {
       new ApiError(401, "Unauthorized"),
     );
 
-    render(<UnifiedLoginScreen />);
+    showLogin();
     const user = userEvent.setup();
 
     await user.type(screen.getByLabelText("Логин"), "bad-user");
@@ -90,12 +94,29 @@ describe("UnifiedLoginScreen", () => {
     );
   });
 
+  it.each([
+    ['/student/works/00000000-0000-4000-8000-000000000001', '/student/works/00000000-0000-4000-8000-000000000001'],
+    ['https://example.org/steal', '/student'],
+  ])('limits returnTo %s to an internal work and replaces the previous account cache', async (returnTo, expected) => {
+    window.history.replaceState({}, '', `/login?returnTo=${encodeURIComponent(returnTo)}`);
+    const cache = new QueryClient();
+    cache.setQueryData(['private'], { oldAccount: true });
+    vi.mocked(authApi.signIn).mockResolvedValue({ user: { id: 'new', role: 'student', login: 'student1', name: 'Иван' } });
+    render(<QueryClientProvider client={cache}><UnifiedLoginScreen /></QueryClientProvider>);
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText('Логин'), 'student1');
+    await user.type(screen.getByLabelText('Пароль'), 'password');
+    await user.click(screen.getByRole('button', { name: 'Войти' }));
+    await waitFor(() => expect(replaceMock).toHaveBeenCalledWith(expected));
+    expect(cache.getQueryData(['private'])).toBeUndefined();
+  });
+
   it("не показывает внутреннее сообщение сервера", async () => {
     vi.mocked(authApi.signIn).mockRejectedValueOnce(
       new ApiError(500, "Authentication request failed"),
     );
 
-    render(<UnifiedLoginScreen />);
+    showLogin();
     const user = userEvent.setup();
 
     await user.type(screen.getByLabelText("Логин"), "teacher1");

@@ -30,6 +30,7 @@ export class IdentityAccessWriteService {
         leadTeacherId: teacherId,
         firstName: input.firstName ?? null,
         lastName: input.lastName ?? null,
+        middleName: input.middleName ?? null,
       });
       return { id: created.user.id, isActive: true };
     } catch (error) {

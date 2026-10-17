@@ -408,6 +408,8 @@ export default function TeacherMaterialsScreen() {
       <nav aria-label="Разделы учителя" className={styles.teacherNav}>
         <Link aria-current="page" href="/teacher/materials">Материалы</Link>
         <Link href="/teacher/students">Ученики и доступы</Link>
+        <Link href="/teacher/bank">Банк заданий</Link>
+        <Link href="/teacher/works">Работы</Link>
       </nav>
       <nav aria-label="Классы" className={styles.gradeNav}>
         {gradeTabs.map((grade) => (

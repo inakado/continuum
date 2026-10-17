@@ -9,8 +9,8 @@
 - `AGENTS.md` — короткий контракт работы агента с репозиторием и документацией.
 - `CONTEXT.md` — канонический словарь нового домена библиотеки занятий.
 - `DESIGN.md` — root Impeccable/Stitch design context для AI-инструментов: machine-readable tokens, visual rules и component snippets текущей UI-системы.
-- `PRODUCT.md` — стратегический контекст Impeccable для register, аудитории, назначения продукта, brand personality, anti-references и дизайн-принципов.
-- `design-qa.md` — последний визуальный QA выбранного catalog mock против локальной реализации.
+- `PRODUCT.md` — назначение продукта, аудитории, действующая библиотека и границы нового направления проверочных работ, визуальные принципы.
+- `design-qa.md` — визуальные проверки каталогов и учительских экранов, ограничения текущей проверки.
 
 
 
@@ -21,6 +21,8 @@
 - `documents/SECURITY.md` — security invariants и эксплуатационные security-ограничения.
 - `documents/PLANS.md` — lifecycle execution plans, deferred roadmap и tech debt.
 - `documents/CONTENT.md` — целевая модель каталога, публикации и материалов занятия.
+- `documents/ASSESSMENTS.md` — работающие классы, банк, конструктор, назначения и тестовая часть: версии, получатели, автосохранение, автопроверка, история и права.
+- `documents/ASSESSMENT-PACKAGE.md` — подготовка пакета v1: поля, ключи, Markdown, лимиты импорта и пробный пакет; читать перед адаптацией TeX.
 - `documents/DESIGN.md` — высокоуровневые продуктовые и UX-инварианты.
 - `documents/FRONTEND.md` — frontend-архитектура и UI-конвенции.
 - `documents/DEVELOPMENT.md` — короткий dev/build/test runbook и operational invariants.
@@ -39,8 +41,15 @@
 
 ## Каталоги
 
+- `documents/research/` — исследования внешних продуктов и источников; выводы не заменяют утверждённые требования и работающие контракты.
+- `documents/research/2026-10-17-question-bank-import.md` — UX-референсы Formative, Classtime и Wayground для банка и пакетного импорта; предлагаемые экраны Э2 после локального пилота.
+- `documents/research/2026-10-17-work-assignments.md` — официальные сценарии назначения и контроля выполнения Formative, Classtime и Wayground; предложение экранов Э4, не реализация.
+- `examples/assessment-package/pilot-v1/` — шесть реальных задач, манифест и изображения для проверки формата; учительские ключи внутри, не ученический контент.
+- `scripts/assessments/` — локальная сборка ZIP и PDF-предпросмотра пробного пакета, без серверного TeX.
+
 - `documents/exec-plans/active/` — активные execution plans.
 - `documents/exec-plans/active/2026-09-23-content-library-rewrite.md` — активная переработка Continuum в закрытую библиотеку занятий.
+- `documents/exec-plans/active/2026-10-15-assessment-roadmap.md` — этапы классов, банка заданий, назначений, локальной проверки фото и статистики; решения, критерии готовности и журнал выполнения.
 - `documents/exec-plans/deferred-roadmap.md` — отложенные future items, которые не являются техдолгом.
 - `documents/exec-plans/tech-debt-tracker.md` — техдолг и engineering debt.
 - `documents/ops/TROUBLESHOOTING.md` — повторяемые dev/run/build/test сбои и проверенная диагностика.

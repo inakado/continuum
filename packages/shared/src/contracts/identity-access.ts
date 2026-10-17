@@ -7,6 +7,8 @@ export const TeacherStudentSchema = z.object({
   name: z.string().min(1),
   firstName: z.string().nullable(),
   lastName: z.string().nullable(),
+  middleName: z.string().nullable().default(null),
+  classId: z.uuid().nullable().default(null),
   isActive: z.boolean(),
   gradeBands: z.array(GradeBandSchema),
 });
@@ -26,6 +28,7 @@ export const CreateTeacherStudentInputSchema = z.object({
   password: z.string().min(8).max(128),
   firstName: z.string().trim().min(1).max(100).nullable().optional(),
   lastName: z.string().trim().min(1).max(100).nullable().optional(),
+  middleName: z.string().trim().min(1).max(100).nullable().optional(),
 });
 
 export const SetStudentActiveInputSchema = z.object({

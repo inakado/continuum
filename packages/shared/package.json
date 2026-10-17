@@ -32,6 +32,7 @@
     "vitest": "^4.1.10"
   },
   "dependencies": {
+    "marked": "16.4.2",
     "zod": "^4.4.3"
   }
 }

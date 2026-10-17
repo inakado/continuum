@@ -1,0 +1,23 @@
+{
+  "id": "shkolkovo-24187",
+  "title": "Соответствие графиков и физических величин",
+  "gradeBand": "grade_10_11",
+  "topicPath": ["Электродинамика", "Электромагнитная индукция"],
+  "maxPoints": 2,
+  "source": {
+    "provider": "Школково", "externalId": "24187", "collection": "Магнетизм-2",
+    "sectionCode": "15.08", "taskNumber": 7, "examYear": 2026, "examTaskNumber": 15
+  },
+  "type": "matching",
+  "rows": [
+    { "id": "a", "content": "А) ![График А](images/graph-a.png)" },
+    { "id": "b", "content": "Б) ![График Б](images/graph-b.png)" }
+  ],
+  "options": [
+    { "id": "1", "content": "Магнитный поток, пронизывающий рамку 1." },
+    { "id": "2", "content": "Магнитный поток, пронизывающий рамку 2." },
+    { "id": "3", "content": "Модуль ЭДС индукции, возникающей в рамке 1." },
+    { "id": "4", "content": "Модуль ЭДС индукции, возникающей в рамке 2." }
+  ],
+  "grading": { "matches": { "a": "1", "b": "4" } }
+}

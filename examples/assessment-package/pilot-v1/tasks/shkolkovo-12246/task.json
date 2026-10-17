@@ -1,0 +1,14 @@
+{
+  "id": "shkolkovo-12246",
+  "title": "Температура газа по таблице",
+  "gradeBand": "grade_10_11",
+  "topicPath": ["Молекулярная физика", "Уравнение Менделеева-Клапейрона"],
+  "maxPoints": 1,
+  "source": {
+    "provider": "Школково", "externalId": "12246", "collection": "МКТ и термодинамика - 1",
+    "sectionCode": "7.07", "taskNumber": 13, "examYear": 2026, "examTaskNumber": 7
+  },
+  "type": "short_number",
+  "unit": "К",
+  "grading": { "answer": "300", "absoluteTolerance": 0 }
+}

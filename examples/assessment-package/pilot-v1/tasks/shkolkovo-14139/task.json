@@ -1,0 +1,22 @@
+{
+  "id": "shkolkovo-14139",
+  "title": "Радиус орбиты и сила Лоренца",
+  "gradeBand": "grade_10_11",
+  "topicPath": ["Электродинамика", "Магнитное поле"],
+  "maxPoints": 2,
+  "source": {
+    "provider": "Школково", "externalId": "14139", "collection": "Магнетизм-1",
+    "sectionCode": "15.07", "taskNumber": 3, "examYear": 2026, "examTaskNumber": 15
+  },
+  "type": "matching",
+  "rows": [
+    { "id": "radius", "content": "Радиус орбиты частицы" },
+    { "id": "force", "content": "Сила Лоренца, действующая на частицу" }
+  ],
+  "options": [
+    { "id": "1", "content": "Увеличится" },
+    { "id": "2", "content": "Уменьшится" },
+    { "id": "3", "content": "Не изменится" }
+  ],
+  "grading": { "matches": { "radius": "2", "force": "2" } }
+}

@@ -1,0 +1,6 @@
+{
+  "format": "continuum-assessment-package",
+  "version": 1,
+  "title": "Пробный пакет: МКТ и магнетизм",
+  "tasks": ["shkolkovo-11121", "shkolkovo-12246", "shkolkovo-65365", "shkolkovo-17846", "shkolkovo-14139", "shkolkovo-24187"]
+}

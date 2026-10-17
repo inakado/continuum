@@ -7,7 +7,7 @@ import { useAuthLogout } from "@/features/auth/useAuthLogout";
 import { useAuthSession } from "@/features/auth/useAuthSession";
 import styles from "./continuum-header.module.css";
 
-export default function ContinuumHeader({ homeHref }: { homeHref: string }) {
+export default function ContinuumHeader({ homeHref, beforeLogout }: { homeHref: string; beforeLogout?: () => Promise<boolean> }) {
   const session = useAuthSession();
   const logout = useAuthLogout();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -37,7 +37,7 @@ export default function ContinuumHeader({ homeHref }: { homeHref: string }) {
         </button>
         {menuOpen ? (
           <div className={styles.menu} role="menu">
-            <button onClick={() => void logout()} role="menuitem" type="button">
+            <button onClick={() => { void (async () => { if (!beforeLogout || await beforeLogout()) await logout(); })(); }} role="menuitem" type="button">
               Выйти
             </button>
           </div>

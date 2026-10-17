@@ -8,7 +8,7 @@ type ManagedStudentRecord = {
   login: string;
   name: string;
   isActive: boolean;
-  studentProfile: { firstName: string | null; lastName: string | null } | null;
+  studentProfile: { firstName: string | null; lastName: string | null; middleName: string | null; classId: string | null } | null;
   accessGrants: Array<{ gradeBand: GradeBand }>;
 };
 
@@ -28,7 +28,7 @@ export class IdentityAccessReadService {
         login: true,
         name: true,
         isActive: true,
-        studentProfile: { select: { firstName: true, lastName: true } },
+        studentProfile: { select: { firstName: true, lastName: true, middleName: true, classId: true } },
         accessGrants: {
           where: { grantedById: teacherId },
           orderBy: { gradeBand: 'asc' },
@@ -47,6 +47,8 @@ export class IdentityAccessReadService {
       name: student.name,
       firstName: student.studentProfile?.firstName ?? null,
       lastName: student.studentProfile?.lastName ?? null,
+      middleName: student.studentProfile?.middleName ?? null,
+      classId: student.studentProfile?.classId ?? null,
       isActive: student.isActive,
       gradeBands: student.accessGrants.map((grant) => grant.gradeBand),
     };

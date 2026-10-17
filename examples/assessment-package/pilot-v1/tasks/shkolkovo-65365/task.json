@@ -1,0 +1,19 @@
+{
+  "id": "shkolkovo-65365",
+  "title": "ЭДС индукции по графику",
+  "gradeBand": "grade_10_11",
+  "topicPath": ["Электродинамика", "Электромагнитная индукция"],
+  "maxPoints": 1,
+  "source": {
+    "provider": "Школково", "externalId": "65365", "collection": "Магнетизм-2",
+    "sectionCode": "12.07", "taskNumber": 2, "examYear": 2026, "examTaskNumber": 12
+  },
+  "type": "single_choice",
+  "options": [
+    { "id": "1", "content": "Участок 1" },
+    { "id": "2", "content": "Участок 2" },
+    { "id": "3", "content": "Участок 3" },
+    { "id": "4", "content": "Участок 4" }
+  ],
+  "grading": { "correctOptionId": "3" }
+}

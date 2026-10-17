@@ -12,6 +12,7 @@ export class ApiError extends Error {
 }
 
 type RequestOptions = {
+  signal?: AbortSignal;
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   contentType?: string;
@@ -66,6 +67,7 @@ const requestRaw = async (path: string, options: RequestOptions = {}) => {
   };
 
   const init: RequestInit = {
+    signal: options.signal,
     method: options.method ?? "GET",
     headers,
     cache: "no-store",

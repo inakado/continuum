@@ -1,0 +1,14 @@
+{
+  "id": "shkolkovo-11121",
+  "title": "Давление газа",
+  "gradeBand": "grade_10_11",
+  "topicPath": ["Молекулярная физика", "Основы МКТ"],
+  "maxPoints": 1,
+  "source": {
+    "provider": "Школково", "externalId": "11121", "collection": "МКТ и термодинамика - 1",
+    "sectionCode": "7.05", "taskNumber": 86, "examYear": 2026, "examTaskNumber": 7
+  },
+  "type": "short_number",
+  "unit": "Па",
+  "grading": { "answer": "4.83", "absoluteTolerance": 0 }
+}

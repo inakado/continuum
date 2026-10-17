@@ -17,7 +17,7 @@ export const useTeacherStudents = () =>
 
 export const useCreateStudent = () => {
   const refresh = useRefreshStudents();
-  return useMutation({ mutationFn: teacherStudentsApi.createStudent, onSuccess: refresh });
+  return useMutation({ mutationFn: teacherStudentsApi.createStudent, onSuccess: refresh, gcTime: 0, retry: false });
 };
 
 export const useSetStudentActive = () => {
@@ -28,4 +28,27 @@ export const useSetStudentActive = () => {
 export const useSetStudentAccess = () => {
   const refresh = useRefreshStudents();
   return useMutation({ mutationFn: teacherStudentsApi.setAccess, onSuccess: refresh });
+};
+
+export const useSchoolClasses = () => useQuery({ queryKey: teacherStudentsQueryKeys.classes(), queryFn: teacherStudentsApi.getClasses });
+export const useUpdateSchoolClass = () => {
+  const refresh = useRefreshStudents();
+  return useMutation({ mutationFn: teacherStudentsApi.updateClass, onSuccess: refresh });
+};
+export const useSetStudentClass = () => {
+  const refresh = useRefreshStudents();
+  return useMutation({ mutationFn: teacherStudentsApi.setClass, onSuccess: refresh });
+};
+export const useBulkCreateStudents = () => {
+  const refresh = useRefreshStudents();
+  return useMutation({ mutationFn: teacherStudentsApi.createStudents, onSuccess: refresh, retry: false, gcTime: 0 });
+};
+export const useResetStudentPassword = () => useMutation({ mutationFn: teacherStudentsApi.resetPassword, retry: false, gcTime: 0 });
+export const useDeleteSchoolClass = () => {
+  const refresh = useRefreshStudents();
+  return useMutation({ mutationFn: teacherStudentsApi.deleteClass, onSuccess: refresh });
+};
+export const useDeleteStudent = () => {
+  const refresh = useRefreshStudents();
+  return useMutation({ mutationFn: teacherStudentsApi.deleteStudent, onSuccess: refresh });
 };

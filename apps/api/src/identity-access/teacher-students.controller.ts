@@ -1,8 +1,10 @@
-import { Body, Controller, Get, Inject, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Inject, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import {
   CreateTeacherStudentInputSchema,
   ResourceIdParamsSchema,
   SetStudentActiveInputSchema,
+  SetStudentClassInputSchema,
+  ResetStudentPasswordInputSchema,
   type CreateTeacherStudentInput,
   type ResourceIdParams,
   type SetStudentActiveInput,
@@ -14,6 +16,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { IdentityAccessReadService } from './identity-access-read.service';
 import { IdentityAccessWriteService } from './identity-access-write.service';
+import { SchoolClassesWriteService } from './school-classes-write.service';
 
 @Controller('teacher/students')
 @UseGuards(RolesGuard)
@@ -22,6 +25,7 @@ export class TeacherStudentsController {
   constructor(
     @Inject(IdentityAccessReadService) private readonly reads: IdentityAccessReadService,
     @Inject(IdentityAccessWriteService) private readonly writes: IdentityAccessWriteService,
+    @Inject(SchoolClassesWriteService) private readonly classes: SchoolClassesWriteService,
   ) {}
 
   @Get()
@@ -44,5 +48,23 @@ export class TeacherStudentsController {
     @Body(new ZodValidationPipe(SetStudentActiveInputSchema)) input: SetStudentActiveInput,
   ) {
     return this.writes.setStudentActive(request.user.id, params.id, input);
+  }
+
+  @Patch(':id/class')
+  setClass(@Req() request: AuthRequest, @Param(new ZodValidationPipe(ResourceIdParamsSchema)) params: ResourceIdParams,
+    @Body(new ZodValidationPipe(SetStudentClassInputSchema)) input: { classId: string | null }) {
+    return this.classes.setStudentClass(request.user.id, params.id, input.classId);
+  }
+
+  @Post(':id/password-reset')
+  @Header('Cache-Control', 'no-store')
+  resetPassword(@Req() request: AuthRequest, @Param(new ZodValidationPipe(ResourceIdParamsSchema)) params: ResourceIdParams,
+    @Body(new ZodValidationPipe(ResetStudentPasswordInputSchema)) input: { requestId: string }) {
+    return this.classes.resetPassword(request.user.id, params.id, input.requestId);
+  }
+
+  @Delete(':id')
+  deleteStudent(@Req() request: AuthRequest, @Param(new ZodValidationPipe(ResourceIdParamsSchema)) params: ResourceIdParams) {
+    return this.classes.deleteStudent(request.user.id, params.id);
   }
 }

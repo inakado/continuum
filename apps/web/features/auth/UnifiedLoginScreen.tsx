@@ -2,6 +2,9 @@
 
 import { memo, useEffect, useReducer, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from '@tanstack/react-query';
+import { authQueryKeys } from '@/lib/query/keys';
+import { clearAnswerDrafts } from '@/lib/assessment/answer-draft';
 import Input from "@/components/ui/Input";
 import Grainient from "@/components/Grainient";
 import { useTheme } from "@/components/useTheme";
@@ -43,6 +46,7 @@ const GrainientBackdrop = memo(function GrainientBackdrop() {
 
 export default function UnifiedLoginScreen() {
   const router = useRouter();
+  const cache = useQueryClient();
   const { theme } = useTheme();
   const loginInputRef = useRef<HTMLInputElement | null>(null);
   const [state, dispatch] = useReducer(
@@ -97,13 +101,17 @@ export default function UnifiedLoginScreen() {
     dispatch({ type: "loading", value: true });
     try {
       const result = await authApi.signIn(state.login, state.password);
+      cache.clear();
+      cache.setQueryData(authQueryKeys.session(), result);
+      clearAnswerDrafts(result.user.id);
       const role = result.user?.role;
       if (role === "admin") {
         router.replace("/admin");
       } else if (role === "teacher") {
         router.replace("/teacher");
       } else if (role === "student") {
-        router.replace("/student");
+        const returnTo = new URLSearchParams(window.location.search).get('returnTo');
+        router.replace(returnTo && /^\/student\/works\/[0-9a-f-]{36}$/i.test(returnTo) ? returnTo : '/student');
       } else {
         router.replace("/");
       }

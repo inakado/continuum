@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { GradeBand, StudentLibrary } from "@continuum/shared";
 import Link from "next/link";
 import ContinuumHeader from "@/components/ContinuumHeader";
+import { StudentNavigation } from '@/features/student-works/StudentWorksShell';
 import { useStudentLibrary } from "./use-student-library";
 import styles from "./student-library.module.css";
 
@@ -38,12 +39,7 @@ export function StudentLibraryView({ library }: { library: StudentLibrary }) {
         ))}
       </nav>
 
-      <main className={styles.main}>
-        <div className={styles.intro}>
-          <h1>Материалы по физике</h1>
-          <p>Конспекты, интерактивные лекции и задачи</p>
-        </div>
-
+      <main aria-label="Материалы по физике" className={styles.main}>
         {!activeGrade ? (
           <div className={styles.empty}>
             <h2>Материалы этого класса недоступны</h2>
@@ -99,6 +95,7 @@ export default function StudentLibraryScreen() {
   return (
     <div className={styles.page}>
       <ContinuumHeader homeHref="/student" />
+      <StudentNavigation active="materials" />
       {query.isPending ? <div className={styles.state}>Загружаем материалы…</div> : null}
       {query.isError ? (
         <div className={styles.state} role="alert">

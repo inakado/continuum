@@ -1,4 +1,10 @@
 export const sharedVersion = '0.0.0';
 export * from './storage-core';
 export * from './contracts/identity-access';
+export * from './contracts/school-classes';
 export * from './contracts/library';
+export * from './contracts/assessment-package';
+export * from './contracts/assessment-bank';
+export * from './assessment-markdown';
+export * from './contracts/assessment-works';
+export * from './contracts/assessment-assignments';

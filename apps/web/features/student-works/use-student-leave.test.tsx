@@ -1,0 +1,61 @@
+import { act, renderHook } from '@testing-library/react';
+import { afterEach, expect, it, vi } from 'vitest';
+import { useStudentLeave } from './use-student-leave';
+import { installHistoryPositions } from '@/lib/navigation/history-position';
+
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+it('waits for saving and lets the student stay, retry or explicitly discard on failure', async () => {
+  const flush = vi.fn().mockResolvedValue(false);
+  const discard = vi.fn();
+  const { result } = renderHook(() => useStudentLeave(true, flush, discard));
+  let request!: Promise<boolean>;
+  await act(async () => { request = result.current.request(); });
+  expect(result.current.failed).toBe(true);
+  await act(async () => { result.current.decide('stay'); expect(await request).toBe(false); });
+  expect(discard).not.toHaveBeenCalled();
+  await act(async () => { request = result.current.request(); });
+  flush.mockResolvedValueOnce(true);
+  await act(async () => { result.current.decide('retry'); expect(await request).toBe(true); });
+  expect(flush).toHaveBeenCalledTimes(3);
+  await act(async () => { request = result.current.request(); });
+  await act(async () => { result.current.decide('discard'); expect(await request).toBe(true); });
+  expect(discard).toHaveBeenCalledOnce();
+});
+
+it('holds non-cancelable Back and Forward without Navigation API, including repeated Back while saving', async () => {
+  installHistoryPositions();
+  history.replaceState({ __NA: true }, '', '/student/works');
+  const previous = history.state;
+  history.pushState({ __NA: true }, '', '/student/works/current');
+  const current = history.state;
+  expect(current.__NA).toBe(true);
+  const go = vi.spyOn(history, 'go').mockImplementation(() => {});
+  const nextRouter = vi.fn();
+  window.addEventListener('popstate', nextRouter);
+  let saved!: (value: boolean) => void;
+  const flush = vi.fn(() => new Promise<boolean>((resolve) => { saved = resolve; }));
+  const hook = renderHook(() => useStudentLeave(true, flush, vi.fn()));
+  await act(async () => { window.dispatchEvent(new PopStateEvent('popstate', { state: current })); });
+  expect(go).not.toHaveBeenCalled();
+  nextRouter.mockClear();
+  await act(async () => { window.dispatchEvent(new PopStateEvent('popstate', { state: previous })); });
+  expect(go).toHaveBeenLastCalledWith(1);
+  expect(nextRouter).not.toHaveBeenCalled();
+  await act(async () => { window.dispatchEvent(new PopStateEvent('popstate', { state: current })); });
+  await act(async () => { window.dispatchEvent(new PopStateEvent('popstate', { state: previous })); window.dispatchEvent(new PopStateEvent('popstate', { state: current })); });
+  expect(flush).toHaveBeenCalledOnce();
+  await act(async () => { saved(true); });
+  expect(go).toHaveBeenLastCalledWith(-1);
+  await act(async () => { window.dispatchEvent(new PopStateEvent('popstate', { state: previous })); });
+  expect(nextRouter).toHaveBeenCalledOnce();
+  hook.unmount();
+  window.removeEventListener('popstate', nextRouter);
+  const forward = renderHook(() => useStudentLeave(true, async () => false, vi.fn()));
+  await act(async () => { window.dispatchEvent(new PopStateEvent('popstate', { state: current })); });
+  expect(go).toHaveBeenLastCalledWith(-1);
+  await act(async () => { window.dispatchEvent(new PopStateEvent('popstate', { state: previous })); });
+  await act(async () => { forward.result.current.decide('stay'); });
+  expect(go).toHaveBeenLastCalledWith(-1);
+  forward.unmount();
+});

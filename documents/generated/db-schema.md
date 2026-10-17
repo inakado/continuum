@@ -24,6 +24,8 @@
 
 | Field | Type | Attributes |
 | --- | --- | --- |
+| `assessmentWorks` | `AssessmentWork[]` |  |
+| `assessmentRecipients` | `AssessmentRecipient[]` |  |
 | `id` | `String` | `@id @default(uuid()) @db.Uuid` |
 | `role` | `Role` |  |
 | `login` | `String` | `@unique` |
@@ -45,6 +47,166 @@
 | `createdSections` | `Section[]` | `@relation("SectionCreator")` |
 | `createdLessons` | `Lesson[]` | `@relation("LessonCreator")` |
 | `uploadedAssets` | `Asset[]` | `@relation("AssetUploader")` |
+| `schoolClasses` | `SchoolClass[]` |  |
+| `studentBatches` | `StudentProvisioningBatch[]` |  |
+| `passwordResets` | `StudentPasswordReset[]` | `@relation("PasswordResetTeacher")` |
+| `bankTasks` | `AssessmentBankTask[]` |  |
+| `bankImports` | `AssessmentBankImport[]` |  |
+
+### AssessmentBankTask
+
+- Таблица: `assessment_bank_tasks`
+- Model attributes: `@@unique([teacherId, stableId])`, `@@map("assessment_bank_tasks")`
+
+| Field | Type | Attributes |
+| --- | --- | --- |
+| `id` | `String` | `@id @default(uuid()) @db.Uuid` |
+| `teacherId` | `String` | `@map("teacher_id") @db.Uuid` |
+| `stableId` | `String` | `@map("stable_id")` |
+| `latestVersionId` | `String?` | `@unique @map("latest_version_id") @db.Uuid` |
+| `createdAt` | `DateTime` | `@default(now()) @map("created_at")` |
+| `teacher` | `User` | `@relation(fields: [teacherId], references: [id], onDelete: Restrict)` |
+| `latestVersion` | `AssessmentTaskVersion?` | `@relation("LatestAssessmentVersion", fields: [latestVersionId], references: [id], onDelete: SetNull)` |
+| `versions` | `AssessmentTaskVersion[]` | `@relation("AssessmentVersions")` |
+
+### AssessmentTaskVersion
+
+- Таблица: `assessment_task_versions`
+- Model attributes: `@@unique([taskId, version])`, `@@index([gradeBand, type])`, `@@map("assessment_task_versions")`
+
+| Field | Type | Attributes |
+| --- | --- | --- |
+| `id` | `String` | `@id @default(uuid()) @db.Uuid` |
+| `taskId` | `String` | `@map("task_id") @db.Uuid` |
+| `version` | `Int` |  |
+| `contentHash` | `String` | `@map("content_hash")` |
+| `data` | `Json` |  |
+| `title` | `String` |  |
+| `gradeBand` | `GradeBand` | `@map("grade_band")` |
+| `type` | `String` |  |
+| `topicPath` | `String[]` | `@map("topic_path")` |
+| `searchText` | `String` | `@map("search_text")` |
+| `createdAt` | `DateTime` | `@default(now()) @map("created_at")` |
+| `task` | `AssessmentBankTask` | `@relation("AssessmentVersions", fields: [taskId], references: [id], onDelete: Cascade)` |
+| `currentFor` | `AssessmentBankTask?` | `@relation("LatestAssessmentVersion")` |
+
+### AssessmentWork
+
+- Таблица: `assessment_works`
+- Model attributes: `@@index([teacherId, updatedAt])`, `@@map("assessment_works")`
+
+| Field | Type | Attributes |
+| --- | --- | --- |
+| `id` | `String` | `@id @db.Uuid` |
+| `teacherId` | `String` | `@map("teacher_id") @db.Uuid` |
+| `title` | `String` |  |
+| `instructions` | `String` | `@default("")` |
+| `gradeBand` | `GradeBand` | `@map("grade_band")` |
+| `items` | `Json` |  |
+| `revision` | `Int` | `@default(1)` |
+| `taskCount` | `Int` | `@default(0) @map("task_count")` |
+| `maxPoints` | `Int` | `@default(0) @map("max_points")` |
+| `lastRequestId` | `String?` | `@map("last_request_id") @db.Uuid` |
+| `lastInputHash` | `String?` | `@map("last_input_hash")` |
+| `createdAt` | `DateTime` | `@default(now()) @map("created_at")` |
+| `updatedAt` | `DateTime` | `@updatedAt @map("updated_at")` |
+| `teacher` | `User` | `@relation(fields: [teacherId], references: [id], onDelete: Restrict)` |
+| `versions` | `AssessmentWorkVersion[]` |  |
+| `assignmentRequests` | `AssessmentAssignmentRequest[]` |  |
+
+### AssessmentWorkVersion
+
+- Таблица: `assessment_work_versions`
+- Model attributes: `@@unique([workId, number])`, `@@unique([workId, revision])`, `@@map("assessment_work_versions")`
+
+| Field | Type | Attributes |
+| --- | --- | --- |
+| `id` | `String` | `@id @default(uuid()) @db.Uuid` |
+| `workId` | `String` | `@map("work_id") @db.Uuid` |
+| `number` | `Int` |  |
+| `revision` | `Int` |  |
+| `data` | `Json` |  |
+| `createdAt` | `DateTime` | `@default(now()) @map("created_at")` |
+| `work` | `AssessmentWork` | `@relation(fields: [workId], references: [id], onDelete: Restrict)` |
+| `assignments` | `AssessmentAssignment[]` |  |
+| `recipients` | `AssessmentRecipient[]` |  |
+
+### AssessmentAssignment
+
+- Таблица: `assessment_assignments`
+- Model attributes: `@@unique([versionId, classId])`, `@@map("assessment_assignments")`
+
+| Field | Type | Attributes |
+| --- | --- | --- |
+| `id` | `String` | `@id @default(uuid()) @db.Uuid` |
+| `versionId` | `String` | `@map("version_id") @db.Uuid` |
+| `classId` | `String?` | `@map("class_id") @db.Uuid` |
+| `classTitle` | `String` | `@map("class_title")` |
+| `academicYear` | `Int` | `@map("academic_year")` |
+| `createdAt` | `DateTime` | `@default(now()) @map("created_at")` |
+| `version` | `AssessmentWorkVersion` | `@relation(fields: [versionId], references: [id], onDelete: Restrict)` |
+| `schoolClass` | `SchoolClass?` | `@relation(fields: [classId], references: [id], onDelete: SetNull)` |
+| `recipients` | `AssessmentRecipient[]` |  |
+
+### AssessmentRecipient
+
+- Таблица: `assessment_recipients`
+- Model attributes: `@@unique([versionId, studentId])`, `@@index([studentId, createdAt])`, `@@index([assignmentId])`, `@@map("assessment_recipients")`
+
+| Field | Type | Attributes |
+| --- | --- | --- |
+| `id` | `String` | `@id @default(uuid()) @db.Uuid` |
+| `assignmentId` | `String` | `@map("assignment_id") @db.Uuid` |
+| `versionId` | `String` | `@map("version_id") @db.Uuid` |
+| `studentId` | `String?` | `@map("student_id") @db.Uuid` |
+| `studentName` | `String` | `@map("student_name")` |
+| `studentLogin` | `String` | `@map("student_login")` |
+| `answers` | `Json` | `@default("{}")` |
+| `revision` | `Int` | `@default(1)` |
+| `answeredCount` | `Int` | `@default(0) @map("answered_count")` |
+| `startedAt` | `DateTime?` | `@map("started_at")` |
+| `completedAt` | `DateTime?` | `@map("completed_at")` |
+| `points` | `Int?` |  |
+| `correctCount` | `Int?` | `@map("correct_count")` |
+| `incorrectCount` | `Int?` | `@map("incorrect_count")` |
+| `lastRequestId` | `String?` | `@map("last_request_id") @db.Uuid` |
+| `lastInputHash` | `String?` | `@map("last_input_hash")` |
+| `createdAt` | `DateTime` | `@default(now()) @map("created_at")` |
+| `updatedAt` | `DateTime` | `@updatedAt @map("updated_at")` |
+| `assignment` | `AssessmentAssignment` | `@relation(fields: [assignmentId], references: [id], onDelete: Restrict)` |
+| `version` | `AssessmentWorkVersion` | `@relation(fields: [versionId], references: [id], onDelete: Restrict)` |
+| `student` | `User?` | `@relation(fields: [studentId], references: [id], onDelete: SetNull)` |
+
+### AssessmentAssignmentRequest
+
+- Таблица: `assessment_assignment_requests`
+- Model attributes: `@@index([workId])`, `@@map("assessment_assignment_requests")`
+
+| Field | Type | Attributes |
+| --- | --- | --- |
+| `id` | `String` | `@id @db.Uuid` |
+| `workId` | `String` | `@map("work_id") @db.Uuid` |
+| `inputHash` | `String` | `@map("input_hash")` |
+| `result` | `Json` |  |
+| `createdAt` | `DateTime` | `@default(now()) @map("created_at")` |
+| `work` | `AssessmentWork` | `@relation(fields: [workId], references: [id], onDelete: Restrict)` |
+
+### AssessmentBankImport
+
+- Таблица: `assessment_bank_imports`
+- Model attributes: `@@index([teacherId, expiresAt])`, `@@map("assessment_bank_imports")`
+
+| Field | Type | Attributes |
+| --- | --- | --- |
+| `id` | `String` | `@id @default(uuid()) @db.Uuid` |
+| `teacherId` | `String` | `@map("teacher_id") @db.Uuid` |
+| `title` | `String` |  |
+| `data` | `Json` |  |
+| `baseline` | `Json` |  |
+| `result` | `Json?` |  |
+| `expiresAt` | `DateTime` | `@map("expires_at")` |
+| `createdAt` | `DateTime` | `@default(now()) @map("created_at")` |
+| `teacher` | `User` | `@relation(fields: [teacherId], references: [id], onDelete: Restrict)` |
 
 ### Session
 
@@ -117,7 +279,7 @@
 ### StudentProfile
 
 - Таблица: `student_profiles`
-- Model attributes: `@@index([leadTeacherId])`, `@@map("student_profiles")`
+- Model attributes: `@@index([leadTeacherId])`, `@@index([classId])`, `@@map("student_profiles")`
 
 | Field | Type | Attributes |
 | --- | --- | --- |
@@ -125,10 +287,66 @@
 | `leadTeacherId` | `String` | `@map("lead_teacher_id") @db.Uuid` |
 | `firstName` | `String?` | `@map("first_name")` |
 | `lastName` | `String?` | `@map("last_name")` |
+| `middleName` | `String?` | `@map("middle_name")` |
+| `classId` | `String?` | `@map("class_id") @db.Uuid` |
+| `provisioningBatchId` | `String?` | `@map("provisioning_batch_id") @db.Uuid` |
 | `createdAt` | `DateTime` | `@default(now()) @map("created_at")` |
 | `updatedAt` | `DateTime` | `@updatedAt @map("updated_at")` |
 | `user` | `User` | `@relation("StudentProfileUser", fields: [userId], references: [id], onDelete: Cascade)` |
 | `leadTeacher` | `User` | `@relation("StudentProfileLeadTeacher", fields: [leadTeacherId], references: [id], onDelete: Restrict)` |
+| `schoolClass` | `SchoolClass?` | `@relation(fields: [classId], references: [id], onDelete: Restrict)` |
+| `provisioningBatch` | `StudentProvisioningBatch?` | `@relation(fields: [provisioningBatchId], references: [id], onDelete: Restrict)` |
+| `passwordResets` | `StudentPasswordReset[]` |  |
+
+### SchoolClass
+
+- Таблица: `school_classes`
+- Model attributes: `@@unique([teacherId, academicYear, title])`, `@@map("school_classes")`
+
+| Field | Type | Attributes |
+| --- | --- | --- |
+| `id` | `String` | `@id @default(uuid()) @db.Uuid` |
+| `teacherId` | `String` | `@map("teacher_id") @db.Uuid` |
+| `title` | `String` |  |
+| `grade` | `Int` |  |
+| `academicYear` | `Int` | `@map("academic_year")` |
+| `isArchived` | `Boolean` | `@default(false) @map("is_archived")` |
+| `createdAt` | `DateTime` | `@default(now()) @map("created_at")` |
+| `updatedAt` | `DateTime` | `@updatedAt @map("updated_at")` |
+| `teacher` | `User` | `@relation(fields: [teacherId], references: [id], onDelete: Restrict)` |
+| `students` | `StudentProfile[]` |  |
+| `batches` | `StudentProvisioningBatch[]` |  |
+| `assignments` | `AssessmentAssignment[]` |  |
+
+### StudentProvisioningBatch
+
+- Таблица: `student_provisioning_batches`
+- Model attributes: `@@map("student_provisioning_batches")`
+
+| Field | Type | Attributes |
+| --- | --- | --- |
+| `id` | `String` | `@id @db.Uuid` |
+| `teacherId` | `String` | `@map("teacher_id") @db.Uuid` |
+| `classId` | `String?` | `@map("class_id") @db.Uuid` |
+| `inputHash` | `String` | `@map("input_hash")` |
+| `createdAt` | `DateTime` | `@default(now()) @map("created_at")` |
+| `teacher` | `User` | `@relation(fields: [teacherId], references: [id], onDelete: Restrict)` |
+| `schoolClass` | `SchoolClass?` | `@relation(fields: [classId], references: [id], onDelete: SetNull)` |
+| `students` | `StudentProfile[]` |  |
+
+### StudentPasswordReset
+
+- Таблица: `student_password_resets`
+- Model attributes: `@@map("student_password_resets")`
+
+| Field | Type | Attributes |
+| --- | --- | --- |
+| `id` | `String` | `@id @db.Uuid` |
+| `teacherId` | `String` | `@map("teacher_id") @db.Uuid` |
+| `studentId` | `String` | `@map("student_id") @db.Uuid` |
+| `createdAt` | `DateTime` | `@default(now()) @map("created_at")` |
+| `teacher` | `User` | `@relation("PasswordResetTeacher", fields: [teacherId], references: [id], onDelete: Restrict)` |
+| `student` | `StudentProfile` | `@relation(fields: [studentId], references: [userId], onDelete: Restrict)` |
 
 ### AccessGrant
 

@@ -1,9 +1,10 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthSession } from "./useAuthSession";
+import { clearAnswerDrafts } from '@/lib/assessment/answer-draft';
 import styles from "./role-guard.module.css";
 
 type RoleGuardProps = {
@@ -20,12 +21,17 @@ export default function RoleGuard({ requiredRole, children }: RoleGuardProps) {
     return pathname.endsWith("/login");
   }, [pathname]);
   const sessionQuery = useAuthSession(!allowBypass);
+  const [previousUser, setPreviousUser] = useState<string | null>(null);
+  useEffect(() => {
+    if (sessionQuery.data?.user.role === requiredRole) { setPreviousUser(sessionQuery.data.user.id); clearAnswerDrafts(sessionQuery.data.user.id); }
+  }, [requiredRole, sessionQuery.data]);
+  const preserveWork = requiredRole === 'student' && /^\/student\/works\/[^/]+$/.test(pathname ?? '') && Boolean(previousUser);
 
   useEffect(() => {
-    if (!allowBypass && !sessionQuery.isPending && !sessionQuery.isError && !sessionQuery.data) {
-      router.replace("/login");
+    if (!allowBypass && !preserveWork && !sessionQuery.isPending && !sessionQuery.isError && !sessionQuery.data) {
+      router.replace(requiredRole === 'student' && /^\/student\/works\/[^/]+$/.test(pathname ?? '') ? `/login?returnTo=${encodeURIComponent(pathname!)}` : '/login');
     }
-  }, [allowBypass, router, sessionQuery.data, sessionQuery.isError, sessionQuery.isPending]);
+  }, [allowBypass, pathname, preserveWork, requiredRole, router, sessionQuery.data, sessionQuery.isError, sessionQuery.isPending]);
 
   if (allowBypass) return <>{children}</>;
 
@@ -34,6 +40,7 @@ export default function RoleGuard({ requiredRole, children }: RoleGuardProps) {
   }
 
   if (sessionQuery.isError) {
+    if (preserveWork) return <div key={previousUser} style={{ display: 'contents' }}>{children}</div>;
     return (
       <div className={styles.state}>
         <div className={styles.title}>Сервис временно недоступен</div>
@@ -43,6 +50,7 @@ export default function RoleGuard({ requiredRole, children }: RoleGuardProps) {
   }
 
   if (!sessionQuery.data) {
+    if (preserveWork) return <div key={previousUser} style={{ display: 'contents' }}>{children}</div>;
     return <div className={styles.state}>Переход ко входу…</div>;
   }
 
@@ -55,5 +63,5 @@ export default function RoleGuard({ requiredRole, children }: RoleGuardProps) {
     );
   }
 
-  return <>{children}</>;
+  return <div key={sessionQuery.data.user.id} style={{ display: 'contents' }}>{children}</div>;
 }

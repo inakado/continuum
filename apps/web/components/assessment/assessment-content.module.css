@@ -1,0 +1,21 @@
+.markdown { font-size: 16px; line-height: 1.6; overflow-wrap: anywhere; min-width: 0; }
+.markdown > :first-child { margin-top: 0; }
+.markdown > :last-child { margin-bottom: 0; }
+.markdown p { max-inline-size: 75ch; margin: 0 0 16px; }
+.markdown h3 { margin: 24px 0 12px; font-size: 18px; line-height: 1.4; font-weight: 600; overflow-wrap: anywhere; }
+.markdown ul, .markdown ol { margin: 0 0 16px; padding-inline-start: 24px; }
+.markdown li + li { margin-top: 8px; }
+.markdown li > :last-child { margin-bottom: 0; }
+.markdown a { color: #0b6b4f; }
+.tableScroll { max-width: 100%; overflow-x: auto; margin: 20px 0; }
+.tableScroll:focus-visible { outline: 2px solid #0b6b4f; outline-offset: 3px; }
+.markdown table { width: max-content; min-width: min(100%, 420px); border-collapse: collapse; font-size: 15px; }
+.markdown th, .markdown td { border: 1px solid #dfe2e5; padding: 10px 14px; text-align: left; min-width: 72px; vertical-align: baseline; }
+.markdown td { font-variant-numeric: tabular-nums; }
+.markdown blockquote { margin: 16px 0; padding: 0; color: #626b78; }
+.taskImage { display: block; width: auto; height: auto; max-width: 100%; max-height: 420px; object-fit: contain; margin: 16px auto; }
+.imageError { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; color: #a33a32; font-size: 14px; line-height: 1.5; padding: 8px 0; }
+.textButton { min-height: 44px; padding: 8px 0; color: #0b6b4f; background: transparent; border: 0; font: inherit; cursor: pointer; }
+.textButton:focus-visible { outline: 2px solid #0b6b4f; outline-offset: 3px; }
+.displayMath { display: block; max-width: 100%; overflow-x: auto; margin: 16px 0; padding-block: 4px; }
+.markdown .displayMath :global(mjx-container[display="true"]) { margin: 0; }

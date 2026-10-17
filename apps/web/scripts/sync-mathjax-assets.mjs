@@ -1,6 +1,7 @@
-import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, realpathSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const webRoot = dirname(currentDir);
@@ -17,3 +18,12 @@ cpSync(sourceDir, targetDir, {
   recursive: true,
   filter: (path) => !path.endsWith(".md"),
 });
+
+// MathJax 4 loads font data separately. Keep those requests local too.
+const require = createRequire(join(realpathSync(sourceDir), "package.json"));
+const fontRoot = dirname(require.resolve("@mathjax/mathjax-newcm-font/package.json"));
+const fontTarget = join(targetDir, "fonts", "mathjax-newcm-font");
+mkdirSync(fontTarget, { recursive: true });
+for (const entry of ["chtml.js", "chtml", "svg.js", "svg"]) {
+  cpSync(join(fontRoot, entry), join(fontTarget, entry), { recursive: true });
+}

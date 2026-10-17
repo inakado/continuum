@@ -18,6 +18,7 @@ type StudentIdentityInput = {
   leadTeacherId: string;
   firstName: string | null;
   lastName: string | null;
+  middleName?: string | null;
 };
 
 @Injectable()
@@ -95,10 +96,18 @@ export class IdentityProvisioningService {
 
   async createStudent(input: StudentIdentityInput) {
     const passwordHash = await this.hashPassword(input.password);
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction((tx) => this.createStudentInTransaction(tx, input, passwordHash));
+  }
+
+  async createStudentInTransaction(
+    tx: Prisma.TransactionClient,
+    input: Omit<StudentIdentityInput, 'password'> & { classId?: string; provisioningBatchId?: string },
+    passwordHash: string,
+  ) {
       const user = await tx.user.create({
         data: this.buildUserData({
           ...input,
+          firstName: [input.firstName, input.middleName].filter(Boolean).join(' ') || null,
           role: Role.student,
         }),
         select: { id: true, login: true, role: true },
@@ -110,10 +119,12 @@ export class IdentityProvisioningService {
           leadTeacherId: input.leadTeacherId,
           firstName: input.firstName,
           lastName: input.lastName,
+          middleName: input.middleName ?? null,
+          classId: input.classId,
+          provisioningBatchId: input.provisioningBatchId,
         },
       });
       return { user, profile };
-    });
   }
 
   async replacePasswordInTransaction(
