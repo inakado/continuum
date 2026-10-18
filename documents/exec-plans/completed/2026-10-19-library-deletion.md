@@ -1,6 +1,6 @@
 # Удаление материалов библиотеки
 
-Статус: Active. Запрос: удалять PDF, занятие и раздел с подтверждением, проверить и выпустить на production.
+Статус: Completed. Запрос: удалять PDF, занятие и раздел с подтверждением, проверить и выпустить на production.
 
 ## Границы и решения
 
@@ -33,4 +33,12 @@
 - Локально прошли shared 40, API unit 71, web 101; после добавления проверки pending отдельно прошли 4 component-теста и web typecheck. Полный HTTP integration — 32/32; дополнительная гонка удаления с незавершённой S3-загрузкой — 5/5 library-тестов. Оба production build прошли (API только в Docker), boundaries и docs:check прошли.
 - Встроенный браузер: 1440×1000 и 390×844, диалоги PDF/раздела, фокус отмены и возврат фокуса. Mobile scrollWidth = 390. Необратимое UI-действие не нажималось; фактическое удаление проверено HTTP/S3-тестами на временных данных. Скриншоты: `/private/tmp/continuum-library-delete-desktop.png`, `/private/tmp/continuum-library-delete-mobile.png`. Собственная временная dev-фикстура удалена.
 - Review: очередь оправдана гарантией повторной очистки после commit, без нового worker/зависимостей; отдельный delete-сервис сохраняет read/write separation и не раздувает существующий write-сервис. Ponystack-contract: лишних слоёв для удаления не добавлено.
-- Production-выпуск ожидает commit, CI, backup и проверки exact SHA.
+- 2026-10-19: выпущен `0b22b417091666ea91b86c8baa7466b84f268949`, [CI 39135708262](https://github.com/inakado/continuum/actions/runs/39135708262) прошёл quality/security, включая Trivy. В CI полный web-набор — 102 теста, API unit — 71, shared — 40.
+- Production: штатный `deploy-on-vps.sh` от deploy, миграция `20261019000000_library_deletion` применена, API healthy, `continuum-web` active, `/api/health`, `/api/ready`, `/login` и login JavaScript — 200. Все четыре новых DELETE URL без сессии — 401. Проверка production S3 создала и удалила только собственный временный объект; очередь очистки пуста.
+- Закрытый backup: `/home/deploy/continuum-backups/pre-library-deletion-20261019-1792333373292.dump`, 0600, `pg_restore --list` проверен. Предыдущий API: `continuum-prod-api:rollback-8053ead`. Новый image: `sha256:6bae60a8938cbce414f8d0ebf35621b1f7d607daadc1beb13ae32aa45506abe3`.
+- До релиза: 4 users, 3 sections, 10 lessons, 0 assets/artifacts. После переключения access.log фиксирует 8 реальных DELETE lesson с 200; каталог изменён через кабинет, не миграцией/сбросом. Агентские production smoke-запросы не авторизованы, используют заведомо отсутствующий UUID и получили 401; реальные материалы агент для проверки не удалял.
+
+## Troubleshooting выпуска
+
+- Первое SSH-соединение оборвалось при экспорте API image. Повторная проверка показала прежний healthy API, работающий frontend и отсутствие deploy-процесса; переключение ещё не начиналось. Сервер не перезагружался.
+- Штатный deploy повторён через `nohup` с закрытым журналом `/home/deploy/continuum-backups/library-deletion-0b22b41-deploy.log`; он завершился `Deploy checks passed`. Пересобранный image использовал cache. Причина обрыва транспорта не установлена; это не свидетельство сбоя приложения.
