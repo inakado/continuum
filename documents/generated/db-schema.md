@@ -24,6 +24,8 @@
 
 | Field | Type | Attributes |
 | --- | --- | --- |
+| `reviewerKeys` | `ReviewerDeviceKey[]` |  |
+| `reviewerGrants` | `AssessmentReviewerGrant[]` |  |
 | `assessmentWorks` | `AssessmentWork[]` |  |
 | `assessmentRecipients` | `AssessmentRecipient[]` |  |
 | `id` | `String` | `@id @default(uuid()) @db.Uuid` |
@@ -138,6 +140,7 @@
 
 | Field | Type | Attributes |
 | --- | --- | --- |
+| `reviewerGrants` | `AssessmentReviewerGrant[]` |  |
 | `id` | `String` | `@id @default(uuid()) @db.Uuid` |
 | `versionId` | `String` | `@map("version_id") @db.Uuid` |
 | `classId` | `String?` | `@map("class_id") @db.Uuid` |
@@ -176,6 +179,176 @@
 | `assignment` | `AssessmentAssignment` | `@relation(fields: [assignmentId], references: [id], onDelete: Restrict)` |
 | `version` | `AssessmentWorkVersion` | `@relation(fields: [versionId], references: [id], onDelete: Restrict)` |
 | `student` | `User?` | `@relation(fields: [studentId], references: [id], onDelete: SetNull)` |
+| `solutionAnswers` | `AssessmentSolutionAnswer[]` |  |
+
+### AssessmentSolutionAnswer
+
+- Таблица: `assessment_solution_answers`
+- Model attributes: `@@unique([recipientId, taskId])`, `@@map("assessment_solution_answers")`
+
+| Field | Type | Attributes |
+| --- | --- | --- |
+| `review` | `AssessmentReview?` |  |
+| `reports` | `AssessmentReviewReport[]` |  |
+| `id` | `String` | `@id @default(uuid()) @db.Uuid` |
+| `recipientId` | `String` | `@map("recipient_id") @db.Uuid` |
+| `taskId` | `String` | `@map("task_id") @db.Uuid` |
+| `revision` | `Int` | `@default(0)` |
+| `lockedAt` | `DateTime?` | `@map("locked_at")` |
+| `recipient` | `AssessmentRecipient` | `@relation(fields: [recipientId], references: [id], onDelete: Cascade)` |
+| `photos` | `AssessmentSolutionPhoto[]` |  |
+
+### AssessmentSolutionPhoto
+
+- Таблица: `assessment_solution_photos`
+- Model attributes: `@@index([answerId, createdAt])`, `@@map("assessment_solution_photos")`
+
+| Field | Type | Attributes |
+| --- | --- | --- |
+| `id` | `String` | `@id @db.Uuid` |
+| `answerId` | `String` | `@map("answer_id") @db.Uuid` |
+| `objectKey` | `String` | `@unique @map("object_key")` |
+| `contentHash` | `String` | `@map("content_hash")` |
+| `contentType` | `String` | `@map("content_type")` |
+| `sizeBytes` | `Int` | `@map("size_bytes")` |
+| `confirmedAt` | `DateTime?` | `@map("confirmed_at")` |
+| `removedAt` | `DateTime?` | `@map("removed_at")` |
+| `purgedAt` | `DateTime?` | `@map("purged_at")` |
+| `createdAt` | `DateTime` | `@default(now()) @map("created_at")` |
+| `answer` | `AssessmentSolutionAnswer` | `@relation(fields: [answerId], references: [id], onDelete: Cascade)` |
+
+### Apikey
+
+- Таблица: `api_keys`
+- Model attributes: `@@index([referenceId])`, `@@map("api_keys")`
+
+| Field | Type | Attributes |
+| --- | --- | --- |
+| `id` | `String` | `@id @default(uuid()) @db.Uuid` |
+| `configId` | `String` | `@default("default")` |
+| `name` | `String?` |  |
+| `start` | `String?` |  |
+| `referenceId` | `String` |  |
+| `prefix` | `String?` |  |
+| `key` | `String` | `@unique` |
+| `refillInterval` | `Int?` |  |
+| `refillAmount` | `Int?` |  |
+| `lastRefillAt` | `DateTime?` |  |
+| `enabled` | `Boolean` | `@default(true)` |
+| `rateLimitEnabled` | `Boolean` | `@default(true)` |
+| `rateLimitTimeWindow` | `Int` | `@default(60000)` |
+| `rateLimitMax` | `Int` | `@default(120)` |
+| `requestCount` | `Int` | `@default(0)` |
+| `remaining` | `Int?` |  |
+| `lastRequest` | `DateTime?` |  |
+| `expiresAt` | `DateTime?` |  |
+| `createdAt` | `DateTime` | `@default(now())` |
+| `updatedAt` | `DateTime` | `@updatedAt` |
+| `permissions` | `String?` |  |
+| `metadata` | `String?` |  |
+
+### ReviewerDeviceKey
+
+- Таблица: `reviewer_device_keys`
+- Model attributes: `@@index([userId])`, `@@map("reviewer_device_keys")`
+
+| Field | Type | Attributes |
+| --- | --- | --- |
+| `id` | `String` | `@id @db.Uuid` |
+| `userId` | `String` | `@db.Uuid` |
+| `name` | `String` |  |
+| `scopes` | `String[]` |  |
+| `assignmentIds` | `String[]` | `@default([]) @db.Uuid` |
+| `classIds` | `String[]` | `@default([]) @db.Uuid` |
+| `studentIds` | `String[]` | `@default([]) @db.Uuid` |
+| `createdAt` | `DateTime` | `@default(now())` |
+| `expiresAt` | `DateTime` |  |
+| `revokedAt` | `DateTime?` |  |
+| `user` | `User` | `@relation(fields: [userId], references: [id], onDelete: Cascade)` |
+
+### AssessmentReviewerGrant
+
+- Таблица: `assessment_reviewer_grants`
+- Model attributes: `@@unique([assignmentId, reviewerUserId])`, `@@map("assessment_reviewer_grants")`
+
+| Field | Type | Attributes |
+| --- | --- | --- |
+| `id` | `String` | `@id @default(uuid()) @db.Uuid` |
+| `assignmentId` | `String` | `@db.Uuid` |
+| `reviewerUserId` | `String` | `@db.Uuid` |
+| `canPublish` | `Boolean` | `@default(false)` |
+| `expiresAt` | `DateTime` |  |
+| `revokedAt` | `DateTime?` |  |
+| `assignment` | `AssessmentAssignment` | `@relation(fields: [assignmentId], references: [id], onDelete: Cascade)` |
+| `reviewer` | `User` | `@relation(fields: [reviewerUserId], references: [id], onDelete: Cascade)` |
+
+### AssessmentReview
+
+- Таблица: `assessment_reviews`
+- Model attributes: `@@map("assessment_reviews")`
+
+| Field | Type | Attributes |
+| --- | --- | --- |
+| `id` | `String` | `@id @default(uuid()) @db.Uuid` |
+| `solutionId` | `String` | `@unique @db.Uuid` |
+| `revision` | `Int` | `@default(0)` |
+| `publishedRevision` | `Int?` |  |
+| `solution` | `AssessmentSolutionAnswer` | `@relation(fields: [solutionId], references: [id], onDelete: Cascade)` |
+| `versions` | `AssessmentReviewVersion[]` |  |
+
+### AssessmentReviewVersion
+
+- Таблица: `assessment_review_versions`
+- Model attributes: `@@unique([reviewId, revision])`, `@@map("assessment_review_versions")`
+
+| Field | Type | Attributes |
+| --- | --- | --- |
+| `id` | `String` | `@id @default(uuid()) @db.Uuid` |
+| `reviewId` | `String` | `@db.Uuid` |
+| `revision` | `Int` |  |
+| `sourceRevision` | `Int` |  |
+| `points` | `Int?` |  |
+| `reportId` | `String?` | `@db.Uuid` |
+| `authorUserId` | `String` | `@db.Uuid` |
+| `keyId` | `String` | `@db.Uuid` |
+| `createdAt` | `DateTime` | `@default(now())` |
+| `review` | `AssessmentReview` | `@relation(fields: [reviewId], references: [id], onDelete: Cascade)` |
+| `report` | `AssessmentReviewReport?` | `@relation(fields: [reportId], references: [id], onDelete: Restrict)` |
+
+### AssessmentReviewReport
+
+- Таблица: `assessment_review_reports`
+- Model attributes: `@@map("assessment_review_reports")`
+
+| Field | Type | Attributes |
+| --- | --- | --- |
+| `id` | `String` | `@id @db.Uuid` |
+| `solutionId` | `String` | `@db.Uuid` |
+| `sourceRevision` | `Int` |  |
+| `uploaderId` | `String` | `@db.Uuid` |
+| `objectKey` | `String` | `@unique` |
+| `contentHash` | `String?` |  |
+| `sizeBytes` | `Int?` |  |
+| `confirmedAt` | `DateTime?` |  |
+| `createdAt` | `DateTime` | `@default(now())` |
+| `solution` | `AssessmentSolutionAnswer` | `@relation(fields: [solutionId], references: [id], onDelete: Cascade)` |
+| `reviews` | `AssessmentReviewVersion[]` |  |
+
+### ReviewerWriteReceipt
+
+- Таблица: `reviewer_write_receipts`
+- Model attributes: `@@index([assignmentId])`, `@@map("reviewer_write_receipts")`
+
+| Field | Type | Attributes |
+| --- | --- | --- |
+| `id` | `String` | `@id @db.Uuid` |
+| `userId` | `String` | `@db.Uuid` |
+| `keyId` | `String` | `@db.Uuid` |
+| `assignmentId` | `String` | `@db.Uuid` |
+| `route` | `String` |  |
+| `inputHash` | `String` |  |
+| `result` | `Json` |  |
+| `createdAt` | `DateTime` | `@default(now())` |
 
 ### AssessmentAssignmentRequest
 
@@ -301,7 +474,7 @@
 ### SchoolClass
 
 - Таблица: `school_classes`
-- Model attributes: `@@unique([teacherId, academicYear, title])`, `@@map("school_classes")`
+- Model attributes: `@@unique([academicYear, title])`, `@@map("school_classes")`
 
 | Field | Type | Attributes |
 | --- | --- | --- |

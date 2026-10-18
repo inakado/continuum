@@ -31,6 +31,7 @@ const teacherResult = z.object({ points: count, maxPoints: positive, percentage:
 const assignmentClass = z.object({ id: uuid, classId: uuid.nullable(), title: z.string(), academicYear: positive });
 export const AssignmentSummarySchema = z.object({
   versionId: uuid, workId: uuid, title: z.string(), versionNumber: positive, taskCount: count, maxPoints: count,
+  automaticTaskCount: count.optional(), extendedTaskCount: count.optional(),
   classes: z.array(assignmentClass), studentCount: count, completedCount: count,
 });
 export const AssignmentListSchema = z.array(AssignmentSummarySchema);
@@ -38,6 +39,7 @@ export const AssignmentReportSchema = AssignmentSummarySchema.extend({
   recipients: z.array(z.object({
     id: uuid, name: z.string(), login: z.string(), assignmentId: uuid, isActive: z.boolean(), deleted: z.boolean(),
     status: AttemptStatusSchema, answeredCount: count, result: teacherResult.nullable(), completedAt: z.iso.datetime().nullable(),
+    photoTaskCount: count.optional(),
   })),
 });
 
@@ -52,6 +54,7 @@ export const AttemptSaveSchema = z.strictObject({ requestId: uuid, expectedRevis
 export const AttemptFinishSchema = z.strictObject({ expectedRevision: positive });
 const publicItem = { id: uuid, title: z.string(), statement: z.string(), images: z.record(z.string(), z.string()), maxPoints: positive };
 export const PublicAssessmentItemSchema = z.discriminatedUnion('type', [
+  z.strictObject({ ...publicItem, type: z.literal('extended') }),
   z.strictObject({ ...publicItem, type: z.literal('short_number'), unit: z.string().optional() }),
   z.strictObject({ ...publicItem, type: z.literal('short_text') }),
   z.strictObject({ ...publicItem, type: z.literal('single_choice'), options }),
@@ -65,6 +68,7 @@ export const StudentAttemptStateSchema = z.strictObject({
 });
 export const StudentWorkSummarySchema = StudentAttemptStateSchema.extend({
   id: uuid, title: z.string(), versionNumber: positive, taskCount: positive, assignedAt: z.iso.datetime(),
+  automaticTaskCount: count.optional(), extendedTaskCount: count.optional(),
 });
 export const StudentWorkListSchema = z.array(StudentWorkSummarySchema);
 export const StudentWorkDetailSchema = StudentWorkSummarySchema.extend({

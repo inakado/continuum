@@ -292,14 +292,14 @@ export class LibraryWriteService {
       where: {
         id: input.studentId,
         role: Role.student,
-        studentProfile: { is: { leadTeacherId: teacherId } },
+        studentProfile: { isNot: null },
       },
       select: { id: true },
     });
     if (!student) {
       throw new ForbiddenException({
         code: 'STUDENT_NOT_MANAGED',
-        message: 'Ученик не привязан к этому преподавателю.',
+        message: 'Ученик не найден.',
       });
     }
 

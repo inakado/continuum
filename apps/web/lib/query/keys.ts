@@ -42,3 +42,10 @@ export const studentWorkQueryKeys = {
   list: () => ['student-works', 'list'] as const,
   detail: (id: string) => ['student-works', 'detail', id] as const,
 } as const;
+export const solutionQueryKeys = {
+  answers: (recipientId: string) => ['assessment-solutions', recipientId] as const,
+} as const;
+export const reviewerQueryKeys = {
+  keys: () => ['reviewer-access', 'keys'] as const,
+  targets: () => ['reviewer-access', 'targets'] as const,
+} as const;

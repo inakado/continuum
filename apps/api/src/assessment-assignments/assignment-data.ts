@@ -19,7 +19,7 @@ export function publicItem(recipientId: string, item: WorkSnapshot['items'][numb
     images: Object.fromEntries(item.data.images.map((image) => [image.path, `/student/assessment-works/${recipientId}/items/${item.taskId}/images/${encodeURIComponent(image.path.slice('images/'.length))}`])) };
   switch (task.type) {
     case 'short_number': return { ...base, type: task.type, ...(task.unit ? { unit: task.unit } : {}) };
-    case 'short_text': return { ...base, type: task.type };
+    case 'short_text': case 'extended': return { ...base, type: task.type };
     case 'single_choice': case 'multiple_choice': return { ...base, type: task.type, options: task.options };
     case 'matching': return { ...base, type: task.type, rows: task.rows, options: task.options };
   }

@@ -49,6 +49,7 @@ export class StudentAttemptWriteService {
       const snapshot = WorkSnapshotSchema.parse(row.version.data);
       const item = snapshot.items.find((entry) => entry.taskId === taskId);
       if (!item) throw new BadRequestException('Задание не входит в работу.');
+      if (item.data.task.type === 'extended') throw new BadRequestException('Фотографии сохраняются отдельно от тестовых ответов.');
       validateAnswer(input.answer, item.data.task);
       const answers = answersSchema.parse(row.answers);
       if (input.answer) answers[taskId] = input.answer; else delete answers[taskId];
@@ -63,7 +64,9 @@ export class StudentAttemptWriteService {
       if (!row.startedAt || row.revision !== expectedRevision) throw new ConflictException('Сначала сохраните актуальные ответы и повторите завершение.');
       const snapshot = WorkSnapshotSchema.parse(row.version.data);
       const answers = answersSchema.parse(row.answers);
-      const scores = snapshot.items.map((item) => gradeAssessmentAnswer(item.data.task, answers[item.taskId] ?? null));
+      const automatic = snapshot.items.filter((item) => item.data.task.type !== 'extended');
+      if (!automatic.length) throw new BadRequestException('В этой работе нет тестовой части. Фотографии сохраняются отдельно.');
+      const scores = automatic.map((item) => gradeAssessmentAnswer(item.data.task, answers[item.taskId] ?? null));
       const correctCount = scores.filter((score) => score > 0).length;
       return attemptState(await tx.assessmentRecipient.update({ where: { id }, data: {
         completedAt: new Date(), revision: { increment: 1 }, points: scores.reduce((sum, value) => sum + value, 0), correctCount, incorrectCount: scores.length - correctCount,

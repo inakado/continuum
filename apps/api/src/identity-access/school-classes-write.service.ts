@@ -23,10 +23,10 @@ export class SchoolClassesWriteService {
     } catch (error) { this.classConflict(error); }
   }
 
-  async updateClass(teacherId: string, id: string, input: UpdateSchoolClassInput) {
+  async updateClass(_teacherId: string, id: string, input: UpdateSchoolClassInput) {
     try {
       return await classTransaction(this.prisma, async (tx) => {
-        await managedClass(tx, teacherId, id, false);
+        await managedClass(tx, id, false);
         const item = await tx.schoolClass.update({ where: { id }, data: input, include: { _count: { select: { students: true } } } });
         return { ...item, studentCount: item._count.students };
       });
@@ -35,9 +35,9 @@ export class SchoolClassesWriteService {
 
   async setStudentClass(teacherId: string, id: string, classId: string | null) {
     return classTransaction(this.prisma, async (tx) => {
-      await managedStudent(tx, teacherId, id);
+      await managedStudent(tx, id);
       if (classId) {
-        const schoolClass = await managedClass(tx, teacherId, classId);
+        const schoolClass = await managedClass(tx, classId);
         await grantClassLibrary(tx, id, teacherId, schoolClass.grade);
       }
       // Assignments, grants and identity are independent of the current class.
@@ -59,7 +59,7 @@ export class SchoolClassesWriteService {
     try {
       return await classTransaction(this.prisma, async (tx) => {
         const schoolClass = input.classId
-          ? await managedClass(tx, teacherId, input.classId)
+          ? await managedClass(tx, input.classId)
           : await tx.schoolClass.create({ data: { ...input.newClass!, teacherId } });
         await tx.studentProvisioningBatch.create({ data: { id: input.requestId, teacherId, classId: schoolClass.id, inputHash } });
         const bases = [...new Set(prepared.map((student) => studentLoginBase(student.lastName)))];
@@ -112,7 +112,7 @@ export class SchoolClassesWriteService {
     const hash = await this.identities.hashPassword(password);
     try {
       return await classTransaction(this.prisma, async (tx) => {
-        const student = await managedStudent(tx, teacherId, studentId);
+        const student = await managedStudent(tx, studentId);
         await tx.studentPasswordReset.create({ data: { id: requestId, teacherId, studentId } });
         await this.identities.replacePasswordInTransaction(tx, studentId, hash);
         return { credential: { ...student, password }, replayed: false };
@@ -132,21 +132,21 @@ export class SchoolClassesWriteService {
     throw error;
   }
 
-  async deleteStudent(teacherId: string, id: string) {
+  async deleteStudent(_teacherId: string, id: string) {
     return classTransaction(this.prisma, async (tx) => {
-      await managedStudent(tx, teacherId, id);
+      await managedStudent(tx, id);
       await tx.studentPasswordReset.deleteMany({ where: { studentId: id } });
       await tx.user.delete({ where: { id } });
       return { id };
     });
   }
 
-  async deleteClass(teacherId: string, id: string, deleteStudents: boolean) {
+  async deleteClass(_teacherId: string, id: string, deleteStudents: boolean) {
     return classTransaction(this.prisma, async (tx) => {
-      await managedClass(tx, teacherId, id, false);
+      await managedClass(tx, id, false);
       let deletedStudentsCount = 0;
       if (deleteStudents) {
-        const students = await tx.studentProfile.findMany({ where: { classId: id, leadTeacherId: teacherId }, select: { userId: true } });
+        const students = await tx.studentProfile.findMany({ where: { classId: id }, select: { userId: true } });
         const userIds = students.map((student) => student.userId);
         await tx.studentPasswordReset.deleteMany({ where: { studentId: { in: userIds } } });
         const result = await tx.user.deleteMany({ where: { id: { in: userIds }, role: 'student' } });

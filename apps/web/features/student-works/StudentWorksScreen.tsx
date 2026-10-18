@@ -13,8 +13,8 @@ export default function StudentWorksScreen() {
     {query.isPending && <p role="status">Загружаем работы…</p>}
     {query.error && <div className={styles.error} role="alert"><p>{apiErrorMessage(query.error)}</p><button className={styles.secondary} onClick={() => void query.refetch()}>Повторить</button></div>}
     {query.data?.length ? <ul className={styles.workList}>{query.data.map((item) => <li key={item.id}><Link href={`/student/works/${item.id}`}>
-      <div><strong>{item.title}</strong><p>{item.status === 'completed' ? `Верно: ${item.result?.correctCount} · Неверно: ${item.result?.incorrectCount}` : item.status === 'in_progress' ? `Заполнено ${item.answeredCount} из ${item.taskCount}` : `Заданий: ${item.taskCount}`}</p></div>
-      <span>{item.status === 'not_started' ? 'Начать' : item.status === 'in_progress' ? 'Продолжить' : 'Завершено'}</span>
+      <div><strong>{item.title}</strong><p>{item.status === 'completed' ? `${item.extendedTaskCount ? 'Тестовая часть: ' : ''}Верно: ${item.result?.correctCount} · Неверно: ${item.result?.incorrectCount}` : item.status === 'in_progress' ? item.automaticTaskCount === 0 ? 'Развёрнутые задачи · фото решений' : `Заполнено ${item.answeredCount} из ${item.automaticTaskCount ?? item.taskCount}` : `Заданий: ${item.taskCount}`}</p></div>
+      <span>{item.status === 'not_started' ? 'Начать' : item.status === 'in_progress' || item.extendedTaskCount ? 'Продолжить' : 'Завершено'}</span>
     </Link></li>)}</ul> : query.data && <p className={styles.empty}>Назначенных работ пока нет.</p>}
   </StudentWorksShell>;
 }

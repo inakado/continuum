@@ -66,14 +66,16 @@
   position: absolute;
   top: 50px;
   right: 0;
-  min-width: 150px;
+  min-width: 240px;
+  max-width: calc(100vw - 40px);
   padding: 6px;
   border: 1px solid var(--catalog-border);
   background: var(--catalog-paper);
-  box-shadow: 0 12px 28px rgba(20, 28, 39, 0.1);
 }
 
-.menu button {
+.menu button,
+.menu a {
+  display: block;
   width: 100%;
   padding: 9px 12px;
   border: 0;
@@ -81,11 +83,14 @@
   color: #343a48;
   font: inherit;
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
 }
 
 .menu button:hover,
-.menu button:focus-visible {
+.menu button:focus-visible,
+.menu a:hover,
+.menu a:focus-visible {
   background: #f3f7f5;
   color: var(--catalog-accent);
 }

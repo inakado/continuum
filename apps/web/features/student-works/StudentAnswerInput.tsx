@@ -6,6 +6,7 @@ import { ChevronDown } from 'lucide-react';
 import styles from './student-works.module.css';
 
 export default function StudentAnswerInput({ item, answer, onChange }: { item: PublicAssessmentItem; answer?: AssessmentAnswer; onChange: (value: AssessmentAnswer) => void }) {
+  if (item.type === 'extended') return null;
   if (item.type === 'short_number' || item.type === 'short_text') {
     const value = answer?.type === item.type ? answer.value : '';
     return <div><label className={styles.shortAnswer}>Ответ<input aria-label={`Ответ: ${item.title}`} aria-describedby={item.type === 'short_number' ? `number-format-${item.id}` : undefined} inputMode="text" autoCapitalize="off" autoComplete="off" spellCheck={false} maxLength={item.type === 'short_number' ? 64 : 5000} value={value} onChange={(event) => onChange({ type: item.type, value: event.target.value })} />{item.type === 'short_number' && item.unit}</label>{item.type === 'short_number' && <p id={`number-format-${item.id}`} className={styles.answerHint}>Можно использовать минус, запятую или точку.{item.unit ? ' Единицу измерения вводить не нужно.' : ''}</p>}</div>;

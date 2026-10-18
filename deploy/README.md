@@ -52,7 +52,7 @@ MIGRATIONS_APPROVED=yes APP_DOMAIN=vl-physics.ru ./deploy/scripts/deploy-on-vps.
 1. проверяет пользователя, Git, Node, pnpm и env;
 2. устанавливает frozen dependencies;
 3. поднимает PostgreSQL;
-4. собирает API и web;
+4. собирает API, затем shared contracts и web (`pnpm build:web`);
 5. применяет Prisma migrations только при `MIGRATIONS_APPROVED=yes`;
 6. перезапускает API и `continuum-web`;
 7. проверяет локальные и публичные health/login endpoints;

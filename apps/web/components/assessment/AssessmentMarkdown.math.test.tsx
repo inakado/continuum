@@ -39,6 +39,7 @@ it('measures inline and display math in their real text context and retypesets a
   vi.spyOn(document.head, 'appendChild').mockImplementation(function<T extends Node>(node: T): T {
     const result = append(node);
     if (node instanceof HTMLScriptElement && node.src.endsWith('/vendor/mathjax/tex-chtml.js')) {
+      expect((window as Window & { MathJax?: unknown }).MathJax).toMatchObject({ output: { linebreaks: { inline: false } } });
       Object.assign(window, { MathJax: { startup: { promise: Promise.resolve(), document: { reset, updateDocument } }, getMetricsFor, tex2chtmlPromise } });
       queueMicrotask(() => node.dispatchEvent(new Event('load')));
     }

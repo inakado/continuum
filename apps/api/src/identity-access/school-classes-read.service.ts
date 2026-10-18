@@ -6,9 +6,8 @@ import { PrismaService } from '../prisma/prisma.service';
 export class SchoolClassesReadService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
-  async getClasses(teacherId: string): Promise<{ classes: SchoolClass[] }> {
+  async getClasses(): Promise<{ classes: SchoolClass[] }> {
     const classes = await this.prisma.schoolClass.findMany({
-      where: { teacherId },
       orderBy: [{ academicYear: 'desc' }, { grade: 'asc' }, { title: 'asc' }],
       include: { _count: { select: { students: true } } },
     });

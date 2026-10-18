@@ -10,12 +10,14 @@ const reportInclude = {
   recipients: { orderBy: [{ studentName: 'asc' }, { id: 'asc' }], select: {
     id: true, studentName: true, studentLogin: true, studentId: true, assignmentId: true, answeredCount: true,
     startedAt: true, completedAt: true, points: true, correctCount: true, incorrectCount: true, student: { select: { isActive: true } },
+    solutionAnswers: { select: { photos: { where: { confirmedAt: { not: null }, removedAt: null }, select: { id: true } } } },
   } },
 } satisfies Prisma.AssessmentWorkVersionInclude;
 type ReportRow = Prisma.AssessmentWorkVersionGetPayload<{ include: typeof reportInclude }>;
 function summary(row: Pick<ReportRow, 'id' | 'workId' | 'number' | 'data' | 'assignments'>, studentCount: number, completedCount: number) {
   const snapshot = WorkSnapshotSchema.parse(row.data);
   return { versionId: row.id, workId: row.workId, title: snapshot.title, versionNumber: row.number, taskCount: snapshot.items.length,
+    automaticTaskCount: snapshot.items.filter((item) => item.data.task.type !== 'extended').length, extendedTaskCount: snapshot.items.filter((item) => item.data.task.type === 'extended').length,
     maxPoints: snapshot.items.reduce((sum, item) => sum + item.data.task.maxPoints, 0),
     classes: row.assignments.map((item) => ({ id: item.id, classId: item.classId, title: item.classTitle, academicYear: item.academicYear })),
     studentCount, completedCount };
@@ -53,9 +55,11 @@ export class AssignmentReadService {
     const row = await this.db.assessmentWorkVersion.findFirst({ where: { id: versionId, work: { teacherId }, assignments: { some: {} } }, include: reportInclude });
     if (!row) throw new NotFoundException('Назначение не найдено.');
     const base = summary(row, row.recipients.length, row.recipients.filter((item) => item.completedAt).length);
+    const automaticMaxPoints = WorkSnapshotSchema.parse(row.data).items.filter((item) => item.data.task.type !== 'extended').reduce((sum, item) => sum + item.data.task.maxPoints, 0);
     return { ...base, recipients: row.recipients.map((item) => ({ id: item.id, name: item.studentName, login: item.studentLogin, assignmentId: item.assignmentId,
       deleted: item.studentId === null, isActive: item.student?.isActive ?? false, status: attemptStatus(item), answeredCount: item.answeredCount, completedAt: item.completedAt?.toISOString() ?? null,
-      result: item.completedAt ? { points: item.points!, maxPoints: base.maxPoints, percentage: Math.round(100 * item.points! / base.maxPoints), correctCount: item.correctCount!, incorrectCount: item.incorrectCount! } : null,
+      photoTaskCount: item.solutionAnswers.filter((answer) => answer.photos.length > 0).length,
+      result: item.completedAt && automaticMaxPoints > 0 ? { points: item.points!, maxPoints: automaticMaxPoints, percentage: Math.round(100 * item.points! / automaticMaxPoints), correctCount: item.correctCount!, incorrectCount: item.incorrectCount! } : null,
     })) };
   }
 }

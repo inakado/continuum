@@ -1,6 +1,7 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionAuthGuard } from '../src/auth/guards/session-auth.guard';
+import { REVIEWER_SCOPE } from '../src/reviewer/reviewer-auth.service';
 
 describe('SessionAuthGuard', () => {
   const request: { headers: Record<string, string>; user?: unknown; session?: unknown } = {
@@ -21,6 +22,7 @@ describe('SessionAuthGuard', () => {
     reflector as never,
     betterAuth as never,
     prisma as never,
+    { authenticate: vi.fn() } as never,
   );
 
   beforeEach(() => {
@@ -32,7 +34,7 @@ describe('SessionAuthGuard', () => {
   });
 
   it('does not query sessions for explicitly anonymous routes', async () => {
-    reflector.getAllAndOverride.mockReturnValue(true);
+    reflector.getAllAndOverride.mockImplementation((key) => key !== REVIEWER_SCOPE);
 
     await expect(guard.canActivate(context as never)).resolves.toBe(true);
 

@@ -32,9 +32,9 @@ export const AssessmentPackageManifestSchema = z.strictObject({
   tasks: z.array(id).min(1).max(ASSESSMENT_PACKAGE_TASK_LIMIT).refine(distinct, "Идентификаторы задач повторяются."),
 });
 
-// Candidate v1 covers automatic answers only. Extended-response criteria need a real authorial example.
 // These are teacher import records, NEVER student DTOs: grading and source are private.
 export const AssessmentPackageTaskSchema = z.discriminatedUnion("type", [
+  z.strictObject({ ...common, type: z.literal("extended") }),
   z.strictObject({
     ...common, type: z.literal("short_number"), unit: z.string().trim().min(1).max(80).optional(),
     grading: z.strictObject({ answer: decimal, absoluteTolerance: z.number().finite().nonnegative() }),

@@ -12,6 +12,11 @@
 
 | Method | Path | Handler | Source |
 | --- | --- | --- | --- |
+| `GET` | `/assessment-solutions/:id` | `list` | `apps/api/src/assessment-assignments/solutions.controller.ts:17` |
+| `DELETE` | `/assessment-solutions/:id/items/:taskId/photos/:photoId` | `remove` | `apps/api/src/assessment-assignments/solutions.controller.ts:39` |
+| `GET` | `/assessment-solutions/:id/items/:taskId/photos/:photoId` | `photo` | `apps/api/src/assessment-assignments/solutions.controller.ts:25` |
+| `PUT` | `/assessment-solutions/:id/items/:taskId/photos/:photoId` | `upload` | `apps/api/src/assessment-assignments/solutions.controller.ts:31` |
+| `GET` | `/assessment-solutions/:id/items/:taskId/review` | `review` | `apps/api/src/assessment-assignments/solutions.controller.ts:20` |
 | `GET` | `/health` | `health` | `apps/api/src/health.controller.ts:8` |
 | `GET` | `/me` | `getMe` | `apps/api/src/auth/auth-me.controller.ts:6` |
 | `GET` | `/ready` | `ready` | `apps/api/src/ready.controller.ts:11` |

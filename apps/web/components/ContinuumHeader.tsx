@@ -37,6 +37,7 @@ export default function ContinuumHeader({ homeHref, beforeLogout }: { homeHref: 
         </button>
         {menuOpen ? (
           <div className={styles.menu} role="menu">
+            {session.data?.user.role === 'teacher' && <Link href="/teacher/reviewer-access" role="menuitem" onClick={() => setMenuOpen(false)}>Подключение агента</Link>}
             <button onClick={() => { void (async () => { if (!beforeLogout || await beforeLogout()) await logout(); })(); }} role="menuitem" type="button">
               Выйти
             </button>

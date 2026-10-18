@@ -107,3 +107,15 @@
   .matchingSelect { width: 150px; }
   .shortAnswer input, .matchingSelect select { font-size: 16px; }
 }
+.solutionUpload { margin-top: 32px; max-width: 860px; }
+.solutionHeading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px 20px; }
+.solutionHeading h3 { margin: 0; font-size: 18px; font-weight: 600; }
+.solutionHeading > span { color: #626b78; font-size: 13px; }
+.photoDrop { display: flex; align-items: center; gap: 16px; margin-top: 16px; padding: 20px 24px; border: 1px dashed #aab4b0; border-radius: 2px; color: #626b78; }
+.photoDropActive { background: #f3f8f5; border-color: #0b6b4f; }
+.photoDrop p { margin: 0; font-size: 13px; line-height: 1.5; }
+.dragHint { margin-left: 12px; font-size: 14px; }
+@media (max-width: 760px) {
+  .photoDrop { padding: 16px; gap: 12px; }
+  .dragHint { display: none; }
+}

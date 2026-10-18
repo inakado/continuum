@@ -11,6 +11,7 @@ import { pointsLabel } from '@/features/teacher-bank/task-source';
 import ui from '@/features/teacher-works/teacher-works.module.css';
 import { useAssignmentReport } from './use-assignments';
 import styles from './teacher-assignments.module.css';
+import StudentSolutionsPanel from './StudentSolutionsPanel';
 
 const statusLabels = { not_started: 'Не начал', in_progress: 'В работе', completed: 'Завершил' };
 const filters = [{ id: 'all', label: 'Все' }, { id: 'not_started', label: 'Не начали' }, { id: 'in_progress', label: 'В работе' }, { id: 'completed', label: 'Завершили' }] as const;
@@ -19,6 +20,7 @@ export function AssignmentReportView({ data }: { data: AssignmentReport }) {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<(typeof filters)[number]['id']>('all');
   const [page, setPage] = useState(1);
+  const [viewing, setViewing] = useState<{ id: string; name: string } | null>(null);
   const query = search.trim().toLocaleLowerCase('ru');
   const scoped = data.recipients.filter((item) => (!classId || item.assignmentId === classId) && `${item.name} ${item.login}`.toLocaleLowerCase('ru').includes(query));
   const filtered = scoped.filter((item) => status === 'all' || item.status === status);
@@ -37,13 +39,16 @@ export function AssignmentReportView({ data }: { data: AssignmentReport }) {
       const count = item.id === 'all' ? scoped.length : scoped.filter((row) => row.status === item.id).length;
       return <button key={item.id} aria-pressed={status === item.id} onClick={() => { setStatus(item.id); setPage(1); }}>{item.label} {count}</button>;
     })}</div>
-    {shown.length ? <table className={styles.reportTable}><thead><tr><th>Ученик</th><th>Класс</th><th>Состояние</th><th>Заполнено</th><th>Результат</th></tr></thead><tbody>{shown.map((item) => <tr key={item.id}>
+    {data.extendedTaskCount ? <p className={styles.muted}>Состояние и результат — по тестовой части. Фотографии решений принимаются независимо.</p> : null}
+    {shown.length ? <table className={styles.reportTable}><thead><tr><th>Ученик</th><th>Класс</th><th>Состояние</th><th>Заполнено</th><th>Результат</th>{data.extendedTaskCount ? <th>Фото решений</th> : null}</tr></thead><tbody>{shown.map((item) => <tr key={item.id}>
       <td>{item.name}{item.deleted ? <small>Учётная запись удалена</small> : !item.isActive ? <small>Учётная запись отключена</small> : null}</td>
       <td>{data.classes.find((group) => group.id === item.assignmentId)?.title}</td>
-      <td className={item.status === 'completed' ? styles.completed : undefined}>{statusLabels[item.status]}</td><td>{item.answeredCount} из {data.taskCount}</td>
+      <td className={item.status === 'completed' ? styles.completed : undefined}>{data.automaticTaskCount === 0 ? 'Без тестовой части' : statusLabels[item.status]}</td><td>{item.answeredCount} из {data.automaticTaskCount ?? data.taskCount}</td>
       <td className={item.result ? styles.completed : undefined}>{item.result ? `${item.result.points} из ${item.result.maxPoints} · ${item.result.percentage}%` : '—'}</td>
+      {data.extendedTaskCount ? <td><button className={ui.textButton} onClick={() => setViewing({ id: item.id, name: item.name })}>Фото: {item.photoTaskCount ?? 0} из {data.extendedTaskCount}</button></td> : null}
     </tr>)}</tbody></table> : <p className={ui.empty}>По этим фильтрам учеников нет.</p>}
     <div className={styles.pagination}><span>{filtered.length ? `${(activePage - 1) * 20 + 1}–${Math.min(activePage * 20, filtered.length)} из ${filtered.length}` : '0 учеников'}</span><div><button className={ui.secondary} disabled={activePage === 1} onClick={() => setPage(activePage - 1)}>Назад</button><span>{activePage} / {pages}</span><button className={ui.secondary} disabled={activePage === pages} onClick={() => setPage(activePage + 1)}>Далее</button></div></div>
+    {viewing && <StudentSolutionsPanel key={viewing.id} id={viewing.id} name={viewing.name} close={() => setViewing(null)} />}
   </>;
 }
 

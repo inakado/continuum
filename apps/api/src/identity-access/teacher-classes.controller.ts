@@ -21,7 +21,7 @@ export class TeacherClassesController {
     @Inject(SchoolClassesWriteService) private readonly writes: SchoolClassesWriteService,
   ) {}
   @Get()
-  getClasses(@Req() request: AuthRequest) { return this.reads.getClasses(request.user.id); }
+  getClasses() { return this.reads.getClasses(); }
 
   @Post()
   createClass(@Req() request: AuthRequest, @Body(new ZodValidationPipe(SchoolClassInputSchema)) input: SchoolClassInput) {

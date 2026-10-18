@@ -7,11 +7,13 @@ import StudentWorkScreen from './StudentWorkScreen';
 import { studentWorksApi } from './student-works.api';
 import { studentWorkQueryKeys } from '@/lib/query/keys';
 import { ApiError } from '@/lib/api/client';
+import { solutionsApi } from '@/lib/assessment/solutions.api';
 
 vi.mock('@/components/ContinuumHeader', () => ({ default: () => null }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('@/features/auth/useAuthSession', () => ({ useAuthSession: () => ({ data: { user: { id: 'student', login: 'student1' } } }) }));
 vi.mock('./student-works.api', () => ({ studentWorksApi: { detail: vi.fn(), start: vi.fn(), save: vi.fn(), finish: vi.fn() } }));
+vi.mock('@/lib/assessment/solutions.api', () => ({ solutionsApi: { list: vi.fn(), upload: vi.fn(), remove: vi.fn() } }));
 const id = '00000000-0000-4000-8000-000000000001';
 const taskId = '00000000-0000-4000-8000-000000000002';
 const initial: StudentWorkDetail = { id, title: 'Давление газа', versionNumber: 1, taskCount: 1, assignedAt: '2026-10-17T00:00:00Z',
@@ -143,4 +145,27 @@ it('links the completion review to an incomplete matching task without submittin
   expect(await screen.findByRole('heading', { name: 'Соответствие' })).toBeVisible();
   expect(screen.getByRole('combobox', { name: 'Ответ для А: Соответствие' })).toHaveValue('one');
   expect(studentWorksApi.finish).not.toHaveBeenCalled();
+});
+
+it('keeps photo answers available after completing the automatic part without reopening test answers', async () => {
+  const photoTaskId = '00000000-0000-4000-8000-000000000004';
+  vi.mocked(studentWorksApi.detail).mockResolvedValue({ ...started, ...completed, taskCount: 2, automaticTaskCount: 1, extendedTaskCount: 1,
+    items: [...started.items, { id: photoTaskId, title: 'Работа газа', type: 'extended', maxPoints: 2, statement: 'Найдите работу газа.', images: {} }] });
+  vi.mocked(solutionsApi.list).mockResolvedValue([{ taskId: photoTaskId, title: 'Работа газа', maxPoints: 2, revision: 0, photos: [], locked: false }]);
+  show();
+  await screen.findByText('Тестовая часть завершена');
+  expect(screen.getByRole('textbox', { name: 'Ответ: Давление' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Задание 2: без ответа' }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Добавить фото' })).toBeEnabled());
+  expect(screen.queryByRole('button', { name: 'Завершить тестовую часть' })).not.toBeInTheDocument();
+});
+
+it('does not require final submission for a photo-only work', async () => {
+  vi.mocked(studentWorksApi.detail).mockResolvedValue({ ...started, automaticTaskCount: 0, extendedTaskCount: 1,
+    items: [{ id: taskId, title: 'Работа газа', type: 'extended', maxPoints: 2, statement: 'Найдите работу.', images: {} }] });
+  vi.mocked(solutionsApi.list).mockResolvedValue([{ taskId, title: 'Работа газа', maxPoints: 2, revision: 0, photos: [], locked: false }]);
+  show();
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Добавить фото' })).toBeEnabled());
+  expect(screen.queryByRole('button', { name: /Завершить/ })).not.toBeInTheDocument();
+  expect(screen.queryByText(/Сохранено ответов/)).not.toBeInTheDocument();
 });

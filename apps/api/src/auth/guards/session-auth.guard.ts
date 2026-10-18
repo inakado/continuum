@@ -13,6 +13,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import type { ContinuumBetterAuth } from '../better-auth.factory';
 import { ALLOW_ANONYMOUS_KEY } from '../decorators/allow-anonymous.decorator';
 import type { AuthUser } from '../auth.types';
+import { REVIEWER_SCOPE, ReviewerAuthService } from '../../reviewer/reviewer-auth.service';
+import type { ReviewerScope } from '@continuum/shared';
 
 const isRole = (value: unknown): value is Role =>
   value === Role.admin || value === Role.teacher || value === Role.student;
@@ -24,9 +26,12 @@ export class SessionAuthGuard implements CanActivate {
     @Inject(BetterAuthService)
     private readonly betterAuth: BetterAuthService<ContinuumBetterAuth>,
     @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(ReviewerAuthService) private readonly reviewerAuth: ReviewerAuthService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const reviewerScope = this.reflector.getAllAndOverride<ReviewerScope>(REVIEWER_SCOPE, [context.getHandler(), context.getClass()]);
+    if (reviewerScope) return this.reviewerAuth.authenticate(context.switchToHttp().getRequest(), reviewerScope);
     const allowAnonymous = this.reflector.getAllAndOverride<boolean>(ALLOW_ANONYMOUS_KEY, [
       context.getHandler(),
       context.getClass(),

@@ -11,7 +11,7 @@ export function taskSourceDetails(source: Source): [string, string][] {
     ['Год ЕГЭ', source.examYear?.toString()], ['Номер задания ЕГЭ', source.examTaskNumber?.toString()],
   ].filter((entry): entry is [string, string] => Boolean(entry[1]));
 }
-export const taskTypeLabels = { short_number: 'Числовой ответ', short_text: 'Текстовый ответ', single_choice: 'Один вариант', multiple_choice: 'Несколько вариантов', matching: 'Соответствие' } as const;
+export const taskTypeLabels = { short_number: 'Числовой ответ', short_text: 'Текстовый ответ', single_choice: 'Один вариант', multiple_choice: 'Несколько вариантов', matching: 'Соответствие', extended: 'Развёрнутая задача' } as const;
 export function pointsLabel(points: number) {
   return `${points} ${points % 100 >= 11 && points % 100 <= 14 ? 'баллов' : points % 10 === 1 ? 'балл' : points % 10 >= 2 && points % 10 <= 4 ? 'балла' : 'баллов'}`;
 }

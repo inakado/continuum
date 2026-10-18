@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { AssessmentPackageTaskSchema } from './assessment-package';
 import { GradeBandSchema } from './library';
 
-export const AssessmentTaskTypeSchema = z.enum(['short_number', 'short_text', 'single_choice', 'multiple_choice', 'matching']);
+export const AssessmentTaskTypeSchema = z.enum(['short_number', 'short_text', 'single_choice', 'multiple_choice', 'matching', 'extended']);
 export const AssessmentBankQuerySchema = z.object({
   gradeBand: GradeBandSchema.optional(),
   search: z.string().trim().max(200).default(''),

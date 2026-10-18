@@ -17,11 +17,25 @@ import { useAnswerDraft } from './use-answer-draft';
 import StudentDraftNotice from './StudentDraftNotice';
 import StudentReauthenticate from './StudentReauthenticate';
 import StudentFinishReview from './StudentFinishReview';
+import StudentSolutionUpload from './StudentSolutionUpload';
+import { useSolutionPhotos } from './use-solution-photos';
+import type { StudentSolutionPhotos } from './use-solution-photos';
+import StudentPhotoFeedback from './StudentPhotoFeedback';
 import styles from './student-works.module.css';
 
 function SaveStatus({ attempt }: { attempt: ReturnType<typeof useStudentAttempt> }) {
   const text = !attempt.online ? 'Нет сети' : attempt.error ? 'Не сохранено' : attempt.saving ? 'Сохраняем…' : attempt.dirty ? 'Есть изменения' : 'Сохранено';
   return <span role="status" className={styles.muted}>{text}</span>;
+}
+
+function PlayerStatus({ attempt, photos }: { attempt: ReturnType<typeof useStudentAttempt>; photos: StudentSolutionPhotos }) {
+  if (photos.busy || photos.error) return <span role="status" className={styles.muted}>{photos.busy ? 'Загружаем фото…' : 'Фото не сохранены'}</span>;
+  return attempt.state.status !== 'completed' ? <SaveStatus attempt={attempt} /> : null;
+}
+
+function FinishBar({ attempt, count, mixed, disabled, open }: { attempt: ReturnType<typeof useStudentAttempt>; count: number; mixed: boolean; disabled: boolean; open: () => void }) {
+  if (!count || attempt.state.status === 'completed') return null;
+  return <div className={styles.finishBar}><span>Сохранено ответов: {attempt.state.answeredCount} из {count}</span><button className={styles.secondary} disabled={disabled} onClick={open}>{attempt.finishing ? 'Завершаем…' : mixed ? 'Завершить тестовую часть' : 'Завершить работу'}</button></div>;
 }
 
 function SaveError({ error, onReload, retry }: { error: Error | null; onReload: () => void; retry?: () => void }) {
@@ -32,36 +46,41 @@ function SaveError({ error, onReload, retry }: { error: Error | null; onReload: 
   </div>;
 }
 
-function WorkResult({ result }: { result: StudentWorkDetail['result'] }) {
-  return <div className={styles.result}><h2>Работа завершена</h2><p>Верно: {result?.correctCount} · Неверно: {result?.incorrectCount}</p><Link className={styles.textButton} href="/student/works">К списку работ</Link></div>;
+function WorkResult({ result, mixed = false }: { result: StudentWorkDetail['result']; mixed?: boolean }) {
+  return <div className={styles.result}><h2>{mixed ? 'Тестовая часть завершена' : 'Работа завершена'}</h2><p>Верно: {result?.correctCount} · Неверно: {result?.incorrectCount}</p>{!mixed && <Link className={styles.textButton} href="/student/works">К списку работ</Link>}</div>;
 }
 
 function StudentWorkPlayer({ initial, onReload, reloadError }: { initial: StudentWorkDetail; onReload: () => void; reloadError: Error | null }) {
   const attempt = useStudentAttempt(initial);
+  const hasExtended = initial.items.some((item) => item.type === 'extended');
+  const automaticCount = initial.items.filter((item) => item.type !== 'extended').length;
+  const photos = useSolutionPhotos(initial.id, hasExtended);
   const [review, setReview] = useState(false);
   const [requestedTask, setRequestedTask] = useState<{ id: string; request: number }>();
   const session = useAuthSession();
   const [principal] = useState(() => session.data?.user ?? { id: '', login: '' });
   const draft = useAnswerDraft(principal.id, initial, attempt.answers, attempt.saved, attempt.state.status === 'completed');
-  const leave = useStudentLeave(attempt.dirty, attempt.flush, () => { draft.discard(); attempt.discard(); });
+  const leave = useStudentLeave(attempt.dirty || photos.dirty, async () => (await attempt.flush()) && (await photos.flush()), () => { draft.discard(); attempt.discard(); photos.discard(); });
   const { state } = attempt;
-  const error = attempt.error ?? attempt.finishError;
+  const error = attempt.error ?? attempt.finishError ?? photos.error ?? photos.readError;
   const expired = (error instanceof ApiError && error.status === 401) || session.data === null;
   const blocked = attempt.finishing || leave.leaving || expired || Boolean(draft.candidate);
   return <StudentWorksShell beforeLeave={leave.request}>
     <StudentLeaveDialog open={leave.failed} decide={leave.decide} />
-    {expired && principal.id && <StudentReauthenticate owner={principal.id} login={principal.login} onReady={attempt.retry} />}
+    {expired && principal.id && <StudentReauthenticate owner={principal.id} login={principal.login} onReady={() => { attempt.retry(); void photos.reload(); void photos.flush(); }} />}
     <Link className={styles.textButton} href="/student/works">К работам</Link>
     {reloadError && <p className={styles.error} role="alert">{apiErrorMessage(reloadError, 'Не удалось загрузить сохранённую работу. Изменения этой вкладки сохранены на экране.')}</p>}
     <div className={styles.heading}><div><h1>{initial.title}</h1><p>Версия {initial.versionNumber} · Заданий: {initial.taskCount}</p></div>
-      {state.status !== 'completed' && <SaveStatus attempt={attempt} />}
+      <PlayerStatus attempt={attempt} photos={photos} />
     </div>
-    {state.status === 'completed' ? <WorkResult result={state.result} /> : <>
+    {state.status === 'completed' && !hasExtended ? <WorkResult result={state.result} /> : <>
+      {state.status === 'completed' && <WorkResult result={state.result} mixed />}
       {initial.instructions && <details className={styles.workInstructions}><summary>Инструкция к работе</summary><p>{initial.instructions}</p></details>}
       {draft.candidate && <StudentDraftNotice draft={draft.candidate} work={initial} compatible={draft.compatible} restore={() => draft.restore(attempt.change)} discard={draft.discard} />}
-      <SaveError error={error} onReload={onReload} retry={attempt.error ? attempt.retry : undefined} />
-      <StudentWorkQuestions work={initial} answers={attempt.answers} disabled={blocked} onChange={attempt.change} requestedTask={requestedTask} />
-      <div className={styles.finishBar}><span>Сохранено ответов: {state.answeredCount} из {initial.taskCount}</span><button className={styles.secondary} disabled={attempt.dirty || blocked} onClick={() => setReview(true)}>{attempt.finishing ? 'Завершаем…' : 'Завершить работу'}</button></div>
+      <SaveError error={attempt.error ?? attempt.finishError} onReload={onReload} retry={attempt.error ? attempt.retry : undefined} />
+      <StudentPhotoFeedback photos={photos} />
+      <StudentWorkQuestions work={initial} answers={attempt.answers} disabled={blocked || photos.busy} onChange={attempt.change} requestedTask={requestedTask} solutions={photos.answers} automaticCompleted={state.status === 'completed'} renderExtended={(id) => <StudentSolutionUpload key={id} taskId={id} controller={photos} disabled={blocked} />} />
+      <FinishBar attempt={attempt} count={automaticCount} mixed={hasExtended} disabled={attempt.dirty || blocked || photos.dirty} open={() => setReview(true)} />
       <StudentFinishReview open={review} close={() => setReview(false)} work={initial} answers={attempt.answers} disabled={attempt.dirty || blocked} onTask={(id) => setRequestedTask((previous) => ({ id, request: (previous?.request ?? 0) + 1 }))} onFinish={() => void attempt.finish()} />
     </>}
   </StudentWorksShell>;
@@ -87,7 +106,7 @@ function StudentWorkSession({ id }: { id: string }) {
       <header className={styles.introHeading}><h1 id="work-intro-title">{query.data.title}</h1><p>Заданий: {query.data.taskCount}</p></header>
       <div className={styles.introBody}>
         {query.data.instructions && <p className={styles.introInstructions}>{query.data.instructions}</p>}
-        <div className={styles.introNotes}><p id="work-start-note">Ответы сохраняются автоматически. Можно выйти и продолжить позже.</p><p>После завершения ответы изменить нельзя.</p></div>
+        <div className={styles.introNotes}><p id="work-start-note">Ответы сохраняются автоматически. Можно выйти и продолжить позже.</p><p>{query.data.items.some((item) => item.type === 'extended') ? 'Фотографии решений можно добавлять постепенно. До проверки их можно заменить.' : 'После завершения ответы изменить нельзя.'}</p></div>
         <div className={styles.introActions}><button className={styles.primary} aria-describedby="work-start-note" disabled={start.isPending} onClick={() => start.mutate()}>{start.isPending ? 'Начинаем…' : 'Начать работу'}</button></div>
       </div>
       {start.error && <p role="alert" className={styles.error}>{apiErrorMessage(start.error)}</p>}

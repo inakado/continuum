@@ -53,7 +53,7 @@ describe('IdentityAccessWriteService', () => {
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
-  it('cannot deactivate another teacher student', async () => {
+  it('cannot deactivate a missing student or a non-student account', async () => {
     const { service, tx } = makeService();
     tx.user.findFirst.mockResolvedValue(null);
 

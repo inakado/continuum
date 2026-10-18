@@ -5,7 +5,7 @@ import type { PrismaService } from '../src/prisma/prisma.service';
 const teacherId = '123e4567-e89b-12d3-a456-426614174001';
 
 describe('IdentityAccessReadService', () => {
-  it('lists only students led by the current teacher and maps their grants', async () => {
+  it('lists shared students and maps the current teacher library grants', async () => {
     const prisma = {
       user: {
         findMany: vi.fn().mockResolvedValue([
@@ -33,9 +33,7 @@ describe('IdentityAccessReadService', () => {
     });
     expect(prisma.user.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({
-          studentProfile: { is: { leadTeacherId: teacherId } },
-        }),
+        where: { role: 'student' },
       }),
     );
   });

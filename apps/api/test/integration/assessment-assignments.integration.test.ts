@@ -17,6 +17,8 @@ const origin = 'http://localhost:3001';
 const root = '/teacher/assessment-assignments';
 const studentRoot = '/student/assessment-works';
 const teachers: string[] = [], students: { id: string; cookie: string }[] = [], classes: string[] = [];
+const runLabel = randomUUID().slice(0, 8);
+const classTitle = (title: string) => `${title} · ${runLabel}`;
 let cookie = '', other = '';
 let refs: { taskId: string; version: number }[] = [];
 async function login(username: string) {
@@ -49,7 +51,7 @@ beforeAll(async () => {
     teachers.push(result.user.id);
     if (i) other = await login(username); else cookie = await login(username);
   }
-  for (const title of ['11А', '11Б']) classes.push((await db.schoolClass.create({ data: { teacherId: teachers[0], title, grade: 11, academicYear: 2026 } })).id);
+  for (const title of ['11А', '11Б']) classes.push((await db.schoolClass.create({ data: { teacherId: teachers[0], title: classTitle(title), grade: 11, academicYear: 2026 } })).id);
   await student(teachers[0], classes[0]); await student(teachers[0], classes[1]); await student(teachers[1]);
   const bytes = await readFile(resolve(__dirname, '../../../../output/assessment-package-pilot-v1.zip'));
   const preview = await api('/teacher/assessment-bank/imports/preview', 'POST', bytes);
@@ -79,7 +81,8 @@ it('assigns an immutable draft to two rosters once, validates ownership and isol
   const id = await work();
   const prepared = await api(`${root}/works/${id}/prepare`);
   expect(prepared.status).toBe(200);
-  const input = { requestId: randomUUID(), selection: prepared.data.selection, classes: prepared.data.classes.map((item: { id: string; rosterHash: string }) => ({ id: item.id, rosterHash: item.rosterHash })) };
+  const selectedClasses = prepared.data.classes.filter((item: { id: string }) => classes.includes(item.id));
+  const input = { requestId: randomUUID(), selection: prepared.data.selection, classes: selectedClasses.map((item: { id: string; rosterHash: string }) => ({ id: item.id, rosterHash: item.rosterHash })) };
   expect((await api(`${root}/works/${id}`, 'POST', input, students[0].cookie)).status).toBe(403);
   expect((await api(`${root}/works/${id}`, 'POST', input, other)).status).toBe(404);
   expect((await api(`${root}/works/${id}`, 'POST', input, cookie, 'https://foreign.example')).status).toBe(403);
@@ -91,7 +94,7 @@ it('assigns an immutable draft to two rosters once, validates ownership and isol
   const report = await api(`${root}/${assigned.data.versionId}`);
   expect(report.data.recipients.map((item: { status: string }) => item.status)).toEqual(['not_started', 'not_started']);
   expect(report.data.recipients.every((item: { result: object | null }) => item.result === null)).toBe(true);
-  const own = report.data.recipients.find((item: { login: string }) => item.login === prepared.data.classes[0].students[0].login);
+  const own = report.data.recipients.find((item: { login: string }) => item.login === selectedClasses.find((item: { id: string }) => item.id === classes[0]).students[0].login);
   const detail = await api(`${studentRoot}/${own.id}`, 'GET', undefined, students[0].cookie);
   expect(detail.status).toBe(200);
   for (const item of detail.data.items) {
@@ -137,7 +140,7 @@ it('rejects a stale draft even when frozen, assigns the chosen old version and d
   const update = { title: 'Один ответ', gradeBand: 'grade_10_11', instructions: '', items: [refs[0]], expectedRevision: 2, requestId: randomUUID() };
   expect((await api(`/teacher/assessment-works/${id}`, 'PATCH', update)).status).toBe(200);
   const frozen = (await api(`/teacher/assessment-works/${id}/versions`, 'POST', { expectedRevision: 3 })).data;
-  const classId = (await db.schoolClass.create({ data: { teacherId: teachers[0], title: '10В', grade: 10, academicYear: 2026 } })).id;
+  const classId = (await db.schoolClass.create({ data: { teacherId: teachers[0], title: classTitle('10В'), grade: 10, academicYear: 2026 } })).id;
   classes.push(classId);
   const learner = await student(teachers[0], classId);
   const inactive = await student(teachers[0], classId);
@@ -150,6 +153,7 @@ it('rejects a stale draft even when frozen, assigns the chosen old version and d
   const old = (await api(`${root}/works/${id}/prepare?version=${frozen.number}`)).data;
   const exact = { ...input, requestId: randomUUID(), selection: old.selection };
   const assigned = await api(`${root}/works/${id}`, 'POST', exact);
+  expect(assigned.status, JSON.stringify(assigned.data)).toBe(201);
   expect(assigned.data.addedCount).toBe(1);
   await student(teachers[0], classId);
   expect((await api(`${root}/works/${id}`, 'POST', exact)).data).toEqual(assigned.data);
@@ -170,7 +174,7 @@ it('rejects a stale draft even when frozen, assigns the chosen old version and d
   expect((await api(`/teacher/students/${learner.id}`, 'DELETE')).status).toBe(200);
   expect((await api(reportPath)).data.recipients[0]).toMatchObject({ deleted: true, status: 'completed', result: { points: 1, maxPoints: 1, percentage: 100 } });
   expect((await api(`/teacher/classes/${classId}`, 'DELETE', { deleteStudents: false })).status).toBe(200);
-  expect((await api(reportPath)).data.classes[0]).toMatchObject({ classId: null, title: '10В' });
+  expect((await api(reportPath)).data.classes[0]).toMatchObject({ classId: null, title: classTitle('10В') });
 });
 
 it('keeps recipients fixed, detects roster changes and preserves history through transfer and account/class deletion', async () => {
@@ -181,7 +185,9 @@ it('keeps recipients fixed, detects roster changes and preserves history through
   const newcomer = await student(teachers[0], classes[0]);
   expect((await api(`${root}/works/${id}`, 'POST', input)).status).toBe(409);
   const refreshed = (await api(`${root}/works/${id}/prepare`)).data;
-  const assigned = (await api(`${root}/works/${id}`, 'POST', { ...input, requestId: randomUUID(), classes: [{ id: classA.id, rosterHash: refreshed.classes.find((item: { id: string }) => item.id === classes[0]).rosterHash }] })).data;
+  const assignedResponse = await api(`${root}/works/${id}`, 'POST', { ...input, requestId: randomUUID(), classes: [{ id: classA.id, rosterHash: refreshed.classes.find((item: { id: string }) => item.id === classes[0]).rosterHash }] });
+  expect(assignedResponse.status, JSON.stringify(assignedResponse.data)).toBe(201);
+  const assigned = assignedResponse.data;
   expect(assigned.addedCount).toBe(2);
   const late = await student(teachers[0], classes[0]);
   expect((await api(`${root}/${assigned.versionId}`)).data.studentCount).toBe(2);
@@ -196,5 +202,5 @@ it('keeps recipients fixed, detects roster changes and preserves history through
   expect((await api(`/teacher/students/${late.id}`, 'DELETE')).status).toBe(200);
   expect((await api(`${root}/${assigned.versionId}`)).data.recipients.some((item: { deleted: boolean }) => item.deleted)).toBe(true);
   expect((await api(`/teacher/classes/${classes[0]}`, 'DELETE', { deleteStudents: false })).status).toBe(200);
-  expect((await api(`${root}/${assigned.versionId}`)).data.classes[0]).toMatchObject({ classId: null, title: '11А' });
+  expect((await api(`${root}/${assigned.versionId}`)).data.classes[0]).toMatchObject({ classId: null, title: classTitle('11А') });
 });

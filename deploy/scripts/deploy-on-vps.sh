@@ -76,7 +76,7 @@ echo "Deploying commit: $(git rev-parse HEAD)"
 pnpm install --frozen-lockfile
 docker compose -f docker-compose.prod.yml up -d postgres
 docker compose -f docker-compose.prod.yml build api
-NEXT_PUBLIC_API_BASE_URL="https://${APP_DOMAIN}/api" pnpm --filter web build
+NEXT_PUBLIC_API_BASE_URL="https://${APP_DOMAIN}/api" pnpm build:web
 
 if [ "$MIGRATIONS_APPROVED" != "yes" ]; then
   echo "Set MIGRATIONS_APPROVED=yes to allow prisma migrate deploy."

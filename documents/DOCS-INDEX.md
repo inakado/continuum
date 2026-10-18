@@ -21,7 +21,8 @@
 - `documents/SECURITY.md` — security invariants и эксплуатационные security-ограничения.
 - `documents/PLANS.md` — lifecycle execution plans, deferred roadmap и tech debt.
 - `documents/CONTENT.md` — целевая модель каталога, публикации и материалов занятия.
-- `documents/ASSESSMENTS.md` — работающие классы, банк, конструктор, назначения и тестовая часть: версии, получатели, автосохранение, автопроверка, история и права.
+- `documents/ASSESSMENTS.md` — классы, банк, конструктор, назначения, ответы, фотографии и локальная проверка: версии, публикация PDF/баллов, история и права.
+- `documents/REVIEWER-CLIENT.md` — пересылаемая инструкция преподавателю и агенту: ключ классов/учеников в общей базе, подключение Mac/Keychain, фото, PDF/баллы, публикация и конфликты.
 - `documents/ASSESSMENT-PACKAGE.md` — подготовка пакета v1: поля, ключи, Markdown, лимиты импорта и пробный пакет; читать перед адаптацией TeX.
 - `documents/DESIGN.md` — высокоуровневые продуктовые и UX-инварианты.
 - `documents/FRONTEND.md` — frontend-архитектура и UI-конвенции.
@@ -44,12 +45,17 @@
 - `documents/research/` — исследования внешних продуктов и источников; выводы не заменяют утверждённые требования и работающие контракты.
 - `documents/research/2026-10-17-question-bank-import.md` — UX-референсы Formative, Classtime и Wayground для банка и пакетного импорта; предлагаемые экраны Э2 после локального пилота.
 - `documents/research/2026-10-17-work-assignments.md` — официальные сценарии назначения и контроля выполнения Formative, Classtime и Wayground; предложение экранов Э4, не реализация.
+- `documents/research/2026-10-18-solution-photos.md` — сценарии файлового ответа Formative, Gradescope и Classroom и адаптация загрузки фото к существующему ученическому экрану.
+- `documents/research/2026-10-18-reviewer-access.md` — сравнение API keys, OAuth, MCP и Agent Auth для локальной проверки с двух компьютеров; совместимость Better Auth и границы безопасности.
 - `examples/assessment-package/pilot-v1/` — шесть реальных задач, манифест и изображения для проверки формата; учительские ключи внутри, не ученический контент.
+- `examples/assessment-package/extended-v1/` — развёрнутая задача Школково №14449 из пользовательских скриншотов, максимум 2 балла, без серверных критериев.
 - `scripts/assessments/` — локальная сборка ZIP и PDF-предпросмотра пробного пакета, без серверного TeX.
+- `scripts/reviewer/` — локальный клиент проверяющего, тесты и сборка автономного `output/continuum-reviewer-client.zip` с инструкцией, без секретов.
 
 - `documents/exec-plans/active/` — активные execution plans.
 - `documents/exec-plans/active/2026-09-23-content-library-rewrite.md` — активная переработка Continuum в закрытую библиотеку занятий.
 - `documents/exec-plans/active/2026-10-15-assessment-roadmap.md` — этапы классов, банка заданий, назначений, локальной проверки фото и статистики; решения, критерии готовности и журнал выполнения.
+- `documents/exec-plans/active/2026-10-18-reviewer-api-contract.md` — контракт и приёмка Э6: общая база преподавателей, ключи классов/учеников, фото, PDF/баллы, ревизии и публикация.
 - `documents/exec-plans/deferred-roadmap.md` — отложенные future items, которые не являются техдолгом.
 - `documents/exec-plans/tech-debt-tracker.md` — техдолг и engineering debt.
 - `documents/ops/TROUBLESHOOTING.md` — повторяемые dev/run/build/test сбои и проверенная диагностика.

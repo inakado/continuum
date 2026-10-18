@@ -3,6 +3,7 @@ import { betterAuth } from 'better-auth';
 import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { username } from 'better-auth/plugins/username';
+import { apiKey } from '@better-auth/api-key';
 import type { PrismaService } from '../prisma/prisma.service';
 import { isProductionEnvironment } from '../runtime/environment';
 import { normalizeLogin } from './identity-policy';
@@ -116,6 +117,7 @@ export const createBetterAuth = (prisma: PrismaService) =>
       },
     },
     disabledPaths: [
+      '/api-key/create', '/api-key/update', '/api-key/delete', '/api-key/get', '/api-key/list', '/api-key/delete-all-expired-api-keys',
       '/sign-up/email',
       '/sign-in/email',
       '/is-username-available',
@@ -139,6 +141,7 @@ export const createBetterAuth = (prisma: PrismaService) =>
       ipAddress: { ipAddressHeaders: ['x-real-ip'] },
     },
     plugins: [
+      apiKey({ enableSessionForAPIKeys: false, disableKeyHashing: false, storage: 'database', rateLimit: { enabled: true, timeWindow: 60000, maxRequests: 120 } }),
       username({
         minUsernameLength: 3,
         maxUsernameLength: 64,

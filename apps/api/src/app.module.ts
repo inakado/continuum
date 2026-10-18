@@ -15,6 +15,7 @@ import { ReadyService } from './ready.service';
 import { AssessmentBankModule } from './assessment-bank/assessment-bank.module';
 import { AssessmentWorksModule } from './assessment-works/assessment-works.module';
 import { AssessmentAssignmentsModule } from './assessment-assignments/assessment-assignments.module';
+import { ReviewerModule } from './reviewer/reviewer.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { AssessmentAssignmentsModule } from './assessment-assignments/assessment
     AssessmentBankModule,
     AssessmentWorksModule,
     AssessmentAssignmentsModule,
+    ReviewerModule,
     ObjectStorageModule,
   ],
   controllers: [HealthController, ReadyController],

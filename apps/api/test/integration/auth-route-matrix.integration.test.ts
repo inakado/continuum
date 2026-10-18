@@ -11,6 +11,7 @@ import { Roles } from '../../src/auth/decorators/roles.decorator';
 import { RolesGuard } from '../../src/auth/guards/roles.guard';
 import { SessionAuthGuard } from '../../src/auth/guards/session-auth.guard';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { ReviewerAuthService } from '../../src/reviewer/reviewer-auth.service';
 
 @Controller('auth-matrix')
 class AuthMatrixController {
@@ -43,6 +44,7 @@ describe('global auth route matrix', () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [AuthMatrixController],
       providers: [
+        { provide: ReviewerAuthService, useValue: { authenticate: vi.fn() } },
         RolesGuard,
         {
           provide: APP_GUARD,

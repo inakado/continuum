@@ -18,7 +18,7 @@ function loadMath() {
     runtimeWindow.MathJax = {
       loader: { paths: { mathjax: '/vendor/mathjax', fonts: '/vendor/mathjax/fonts' }, load: ['[tex]/ams'] },
       tex: { packages: ['base', 'ams'], maxBuffer: 8000, maxMacros: 1000 },
-      output: { font: 'mathjax-newcm' }, startup: { typeset: false },
+      output: { font: 'mathjax-newcm', linebreaks: { inline: false } }, startup: { typeset: false },
     };
     const script = document.createElement('script'); script.src = '/vendor/mathjax/tex-chtml.js'; script.async = true;
     script.onload = () => {

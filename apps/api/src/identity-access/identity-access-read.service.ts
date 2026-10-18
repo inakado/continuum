@@ -20,7 +20,6 @@ export class IdentityAccessReadService {
     const students = await this.prisma.user.findMany({
       where: {
         role: Role.student,
-        studentProfile: { is: { leadTeacherId: teacherId } },
       },
       orderBy: [{ isActive: 'desc' }, { login: 'asc' }],
       select: {

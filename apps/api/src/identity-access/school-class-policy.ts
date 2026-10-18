@@ -1,6 +1,6 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
+import type { PrismaService } from '../prisma/prisma.service';
 import type { GradeBand } from '@prisma/client';
 
 export const classGradeBand = (grade: number): GradeBand => grade >= 10 ? 'grade_10_11' : grade === 9 ? 'grade_9' : grade === 8 ? 'grade_8' : 'grade_7';
@@ -22,8 +22,8 @@ export function isLoginConflict(error: unknown): boolean {
   return Array.isArray(target) && target.some((field) => field === 'login' || field === 'email');
 }
 
-export async function managedClass(tx: Prisma.TransactionClient, teacherId: string, id: string, writable = true) {
-  const schoolClass = await tx.schoolClass.findFirst({ where: { id, teacherId } });
+export async function managedClass(tx: Prisma.TransactionClient, id: string, writable = true) {
+  const schoolClass = await tx.schoolClass.findUnique({ where: { id } });
   if (!schoolClass) throw new NotFoundException({ code: 'CLASS_NOT_FOUND', message: 'Класс не найден.' });
   if (writable && schoolClass.isArchived) {
     throw new ConflictException({ code: 'CLASS_ARCHIVED', message: 'Сначала восстановите класс из архива.' });
@@ -31,9 +31,9 @@ export async function managedClass(tx: Prisma.TransactionClient, teacherId: stri
   return schoolClass;
 }
 
-export async function managedStudent(tx: Prisma.TransactionClient, teacherId: string, id: string) {
+export async function managedStudent(tx: Prisma.TransactionClient, id: string) {
   const student = await tx.user.findFirst({
-    where: { id, role: 'student', studentProfile: { is: { leadTeacherId: teacherId } } },
+    where: { id, role: 'student', studentProfile: { isNot: null } },
     select: { id: true, name: true, login: true },
   });
   if (!student) throw new NotFoundException({ code: 'STUDENT_NOT_FOUND', message: 'Ученик не найден.' });

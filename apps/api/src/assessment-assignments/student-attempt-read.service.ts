@@ -21,13 +21,13 @@ export class StudentAttemptReadService {
     } });
     return rows.map((row) => {
       const snapshot = WorkSnapshotSchema.parse(row.version.data);
-      return { id: row.id, title: snapshot.title, versionNumber: row.version.number, taskCount: snapshot.items.length, assignedAt: row.createdAt.toISOString(), ...attemptState(row) };
+      return { id: row.id, title: snapshot.title, versionNumber: row.version.number, taskCount: snapshot.items.length, automaticTaskCount: snapshot.items.filter((item) => item.data.task.type !== 'extended').length, extendedTaskCount: snapshot.items.filter((item) => item.data.task.type === 'extended').length, assignedAt: row.createdAt.toISOString(), ...attemptState(row) };
     });
   }
   async detail(studentId: string, id: string) {
     const row = await this.owned(studentId, id);
     const snapshot = WorkSnapshotSchema.parse(row.version.data);
-    return { id: row.id, title: snapshot.title, versionNumber: row.version.number, taskCount: snapshot.items.length, assignedAt: row.createdAt.toISOString(), ...attemptState(row),
+    return { id: row.id, title: snapshot.title, versionNumber: row.version.number, taskCount: snapshot.items.length, automaticTaskCount: snapshot.items.filter((item) => item.data.task.type !== 'extended').length, extendedTaskCount: snapshot.items.filter((item) => item.data.task.type === 'extended').length, assignedAt: row.createdAt.toISOString(), ...attemptState(row),
       instructions: snapshot.instructions, answers: answersSchema.parse(row.answers), items: snapshot.items.map((item) => publicItem(row.id, item)) };
   }
   async image(studentId: string, id: string, taskId: string, name: string) {

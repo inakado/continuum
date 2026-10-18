@@ -9,8 +9,11 @@ import { StudentAttemptReadService } from './student-attempt-read.service';
 import { StudentAttemptWriteService } from './student-attempt-write.service';
 import { TeacherAssignmentsController } from './teacher-assignments.controller';
 import { StudentAttemptsController } from './student-attempts.controller';
+import { SolutionsController } from './solutions.controller';
+import { SolutionReadService } from './solution-read.service';
+import { SolutionWriteService } from './solution-write.service';
 
 @Module({ imports: [PrismaModule, ObjectStorageModule, AssessmentWorksModule],
-  controllers: [TeacherAssignmentsController, StudentAttemptsController],
-  providers: [AssignmentRosterService, AssignmentReadService, AssignmentWriteService, StudentAttemptReadService, StudentAttemptWriteService] })
+  controllers: [TeacherAssignmentsController, StudentAttemptsController, SolutionsController],
+  providers: [AssignmentRosterService, AssignmentReadService, AssignmentWriteService, StudentAttemptReadService, StudentAttemptWriteService, SolutionReadService, SolutionWriteService] })
 export class AssessmentAssignmentsModule {}
