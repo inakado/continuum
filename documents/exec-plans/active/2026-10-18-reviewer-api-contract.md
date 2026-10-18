@@ -2,7 +2,7 @@
 
 Статус: `Active`
 
-Родительский план — [дорожная карта](2026-10-15-assessment-roadmap.md), основания — [исследование](../../research/2026-10-18-reviewer-access.md). Локально реализованы общая база преподавателей и ключи по классам/ученикам. Production и два физических Mac не проверены. Инварианты — [ASSESSMENTS](../../ASSESSMENTS.md), инструкция — [REVIEWER-CLIENT](../../REVIEWER-CLIENT.md).
+Родительский план — [дорожная карта](2026-10-15-assessment-roadmap.md), основания — [исследование](../../research/2026-10-18-reviewer-access.md). Общая база преподавателей и ключи по классам/ученикам выпущены в production на `8053ead`; технические smoke-проверки прошли. Пользовательская приёмка и два физических Mac остаются открыты. Инварианты — [ASSESSMENTS](../../ASSESSMENTS.md), инструкция — [REVIEWER-CLIENT](../../REVIEWER-CLIENT.md).
 
 ## 1. Согласованные границы
 
@@ -75,6 +75,10 @@ Publication body: `{requestId,items:[{reviewId,reviewRevision,sourceRevision,exp
 
 ## Журнал
 
+- 2026-10-18: выпущен `8053ead1f080a800e8218fa6fcc564e2ff957f8e` через штатный `deploy-on-vps.sh` от deploy. [CI 39133062736](https://github.com/inakado/continuum/actions/runs/39133062736) полностью прошёл quality/security, включая Trivy; повторная HTTP integration после обновления зависимостей — 28/28. Первое повторение остановилось на ECONNREFUSED: dev watcher перезапустился во время установки модулей; после завершения установки и restart API health и тесты прошли без изменения кода.
+  - Восемь новых миграций применены; всего 10 завершённых, незавершённых нет. API/PostgreSQL healthy, continuum-web active; image runtime совпадает с собранным `sha256:87f140ac4de0dcadcc690001b1a8da606f5550f6fd9d28a5ab0ee8aff2eb8dc0`.
+  - До/после: 5 users, 3 sections, 10 lessons, 0 assets, 0 lesson_artifacts. Сброса/переноса локальной БД не было. Резерв: `/home/deploy/continuum-backups/pre-assessments-20261018-1792330301490.dump` (0600, pg_restore --list прошёл); прежний API сохранён как `continuum-prod-api:rollback-64d87b8`.
+  - Через публичный HTTPS: health/ready/login и JavaScript 200, новые teacher/student страницы 200; защищённые student/teacher/reviewer API без credentials 401, generic выдача API-key и internal prefix 404. Это технический smoke без входа под production-аккаунтами, не полная пользовательская приёмка PDF/фото/Keychain. Следующий продуктовый этап — Э7, параллельно пользователь проверяет текущую версию.
 - 2026-10-18: CI `39132210013` для `0016220` прошёл quality, но Trivy остановил выпуск: 14 HIGH/CRITICAL в fast-uri, image-size, next, proxy-addr, sharp, source-map-js и undici. Выбраны указанные сканером исправленные patch-версии без смены major; исключения/сканер не ослабляются. Миграции production до исправления не запускались.
 - 2026-10-18: пользователь поручил выпуск текущей версии для проверки на сервере; Э7 остаётся следующим этапом. Production preflight: чистый main `64d87b8`, Node 24/pnpm 10.11.1, API/PostgreSQL healthy, 22 ГБ свободно; применены только две baseline-миграции, school_classes отсутствует. Создан и прочитан закрытый pg_dump перед восемью новыми миграциями. Исправлена сборка deploy-script: shared contracts собираются перед web, а не используются старые dist. Nginx уже имеет лимит 210 МиБ и timeouts 300s. Повторно прошли shared 40, API 70 и HTTP integration 28; текущие production-данные не сбрасываются.
 - 2026-10-18: заключительные проверки: web 98, локальный клиент 6; web typecheck/build, boundaries, workspace lint (без ошибок, существующие complexity warnings), docs:check и diff --check прошли. Автономный ZIP пересобран и проверен `unzip -t`. Во встроенном браузере проверены форма, выбор класса и ученика без класса при 1440×1100 и 390×844; отчёт — `design-qa.md`. Отдельный полный code review перед выпуском и пользовательская настройка двух Mac остаются открыты. Commit/push/deploy не выполнялись.
