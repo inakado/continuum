@@ -53,6 +53,7 @@
 - `scripts/reviewer/` — локальный клиент проверяющего, тесты и сборка автономного `output/continuum-reviewer-client.zip` с инструкцией, без секретов.
 
 - `documents/exec-plans/active/` — активные execution plans.
+- `documents/exec-plans/active/2026-10-19-library-deletion.md` — удаление PDF, занятий и разделов: подтверждения, очистка хранилища и выпуск.
 - `documents/exec-plans/active/2026-09-23-content-library-rewrite.md` — активная переработка Continuum в закрытую библиотеку занятий.
 - `documents/exec-plans/active/2026-10-15-assessment-roadmap.md` — этапы классов, банка заданий, назначений, локальной проверки фото и статистики; решения, критерии готовности и журнал выполнения.
 - `documents/exec-plans/active/2026-10-18-reviewer-api-contract.md` — контракт и приёмка Э6: общая база преподавателей, ключи классов/учеников, фото, PDF/баллы, ревизии и публикация.

@@ -14,6 +14,7 @@ import type {
   UpdateSectionInput,
 } from '@continuum/shared';
 import { LessonArtifactType as DbLessonArtifactType, PublicationStatus, Role } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { createHash, randomUUID } from 'node:crypto';
 import { ObjectStorageService } from '../infra/storage/object-storage.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -51,18 +52,22 @@ export class LibraryWriteService {
     });
     if (!section) throw this.sectionNotFound();
 
-    const order = await this.prisma.lesson.aggregate({
-      where: { sectionId: section.id },
-      _max: { sortOrder: true },
-    });
-    const lesson = await this.prisma.lesson.create({
-      data: {
-        sectionId: section.id,
-        title: input.title,
-        description: input.description ?? null,
-        sortOrder: (order._max.sortOrder ?? -1) + 1,
-        createdById: teacherId,
-      },
+    const lesson = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM sections WHERE id = ${section.id}::uuid FOR UPDATE`;
+      if (!await tx.section.findFirst({ where: { id: section.id, createdById: teacherId } })) throw this.sectionNotFound();
+      const order = await tx.lesson.aggregate({
+        where: { sectionId: section.id },
+        _max: { sortOrder: true },
+      });
+      return tx.lesson.create({
+        data: {
+          sectionId: section.id,
+          title: input.title,
+          description: input.description ?? null,
+          sortOrder: (order._max.sortOrder ?? -1) + 1,
+          createdById: teacherId,
+        },
+      });
     });
 
     return {
@@ -246,6 +251,8 @@ export class LibraryWriteService {
     }
 
     const result = await this.prisma.$transaction(async (transaction) => {
+      await transaction.$queryRaw`SELECT id FROM lessons WHERE id = ${lessonId}::uuid FOR UPDATE`;
+      await this.assertOwnedLesson(teacherId, lessonId, transaction);
       const current = await transaction.lessonArtifact.aggregate({
         where: { lessonId, type: input.type as DbLessonArtifactType },
         _max: { version: true },
@@ -337,8 +344,8 @@ export class LibraryWriteService {
     };
   }
 
-  private async assertOwnedLesson(teacherId: string, lessonId: string) {
-    const lesson = await this.prisma.lesson.findFirst({
+  private async assertOwnedLesson(teacherId: string, lessonId: string, tx: Prisma.TransactionClient = this.prisma) {
+    const lesson = await tx.lesson.findFirst({
       where: { id: lessonId, createdById: teacherId },
       select: { id: true },
     });

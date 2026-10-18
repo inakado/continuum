@@ -598,6 +598,16 @@
 | `taskDiagramScenes` | `Task[]` | `@relation("TaskDiagramScene")` |
 | `taskDiagramPreviews` | `Task[]` | `@relation("TaskDiagramPreview")` |
 
+### LibraryAssetDeletion
+
+- Таблица: `library_asset_deletions`
+- Model attributes: `@@index([retryAt])`, `@@map("library_asset_deletions")`
+
+| Field | Type | Attributes |
+| --- | --- | --- |
+| `objectKey` | `String` | `@id @map("object_key")` |
+| `retryAt` | `DateTime` | `@default(now()) @map("retry_at")` |
+
 ### LessonArtifact
 
 - Таблица: `lesson_artifacts`

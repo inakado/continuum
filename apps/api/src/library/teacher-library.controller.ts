@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Inject, Param, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, Inject, Param, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import {
   CreateLessonInputSchema,
   CreateSectionInputSchema,
@@ -14,6 +14,7 @@ import {
   type SetAccessGrantInput,
   type UpdateLessonInput,
   type UpdateSectionInput,
+  DeleteLibraryInputSchema, DeleteLibraryPdfParamsSchema, type DeleteLibraryInput,
 } from '@continuum/shared';
 import { Role } from '@prisma/client';
 import type { AuthRequest } from '../auth/auth.request';
@@ -22,6 +23,8 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { LibraryReadService } from './library-read.service';
 import { LibraryWriteService } from './library-write.service';
+import { LibraryDeleteService } from './library-delete.service';
+import { assertWriteOrigin } from '../common/assert-write-origin';
 
 @Controller('teacher/library')
 @UseGuards(RolesGuard)
@@ -30,7 +33,21 @@ export class TeacherLibraryController {
   constructor(
     @Inject(LibraryReadService) private readonly reads: LibraryReadService,
     @Inject(LibraryWriteService) private readonly writes: LibraryWriteService,
+    @Inject(LibraryDeleteService) private readonly deletes: LibraryDeleteService,
   ) {}
+
+  @Delete('sections/:id')
+  deleteSection(@Req() request: AuthRequest, @Param(new ZodValidationPipe(ResourceIdParamsSchema)) params: ResourceIdParams, @Body(new ZodValidationPipe(DeleteLibraryInputSchema)) input: DeleteLibraryInput) {
+    assertWriteOrigin(request); return this.deletes.section(request.user.id, params.id, input);
+  }
+  @Delete('lessons/:id')
+  deleteLesson(@Req() request: AuthRequest, @Param(new ZodValidationPipe(ResourceIdParamsSchema)) params: ResourceIdParams, @Body(new ZodValidationPipe(DeleteLibraryInputSchema)) input: DeleteLibraryInput) {
+    assertWriteOrigin(request); return this.deletes.removeLesson(request.user.id, params.id, input);
+  }
+  @Delete('lessons/:id/artifacts/:type')
+  deletePdf(@Req() request: AuthRequest, @Param(new ZodValidationPipe(DeleteLibraryPdfParamsSchema)) params: ResourceIdParams & { type: 'pdf' | 'tasks_pdf' }, @Body(new ZodValidationPipe(DeleteLibraryInputSchema)) input: DeleteLibraryInput) {
+    assertWriteOrigin(request); return this.deletes.pdf(request.user.id, params.id, params.type, input);
+  }
 
   @Get()
   getLibrary(@Req() request: AuthRequest) {

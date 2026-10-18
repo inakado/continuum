@@ -193,11 +193,15 @@
 
 .sectionHeading {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto auto 28px;
+  grid-template-columns: 28px minmax(0, 1fr) auto auto 44px;
   gap: 9px;
   align-items: center;
   min-height: 65px;
 }
+
+.sectionHeading > button[data-library-delete] { grid-column: -2 / -1; grid-row: 1; }
+.artifactActions button[data-library-delete] { color: #a33a32; }
+.deleteLesson { margin-top: 24px; padding-top: 16px; border-top: 1px solid #e3e5e8; }
 
 .sectionToggle,
 .iconButton {

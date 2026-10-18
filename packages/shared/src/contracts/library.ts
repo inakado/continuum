@@ -121,6 +121,13 @@ export const ResourceIdParamsSchema = z.object({
   id: z.uuid(),
 });
 
+export const DeleteLibraryInputSchema = z.strictObject({
+  expectedIds: z.array(z.uuid()).max(10000).refine((ids) => new Set(ids).size === ids.length),
+});
+export const DeleteLibraryResultSchema = z.strictObject({ id: z.uuid() });
+export const DeleteLibraryPdfParamsSchema = ResourceIdParamsSchema.extend({ type: z.enum(['pdf', 'tasks_pdf']) });
+export type DeleteLibraryInput = z.infer<typeof DeleteLibraryInputSchema>;
+
 export const SetAccessGrantInputSchema = z.object({
   studentId: z.uuid(),
   gradeBand: GradeBandSchema,

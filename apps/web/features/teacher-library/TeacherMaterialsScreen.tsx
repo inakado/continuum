@@ -32,6 +32,7 @@ import {
   useUploadLessonArtifact,
 } from "./use-teacher-library";
 import styles from "./teacher-library.module.css";
+import LibraryDeleteAction from './LibraryDeleteAction';
 
 const gradeTabs: Array<{ code: GradeBand; label: string }> = [
   { code: "grade_7", label: "7 класс" },
@@ -177,6 +178,7 @@ function SectionBlock({ section, open, selectedLessonId, onToggle, onSelectLesso
             Опубликовать
           </button>
         ) : null}
+        <LibraryDeleteAction icon target={{ kind: 'section', id: section.id, expectedIds: section.lessons.map((lesson) => lesson.id) }} title={section.title} />
       </div>
 
       {open ? (
@@ -213,9 +215,10 @@ type ArtifactSlotProps = {
   lessonId: string;
   type: LessonArtifactType;
   title: string;
+  versions?: LessonArtifact[];
 };
 
-function ArtifactSlot({ artifact, lessonId, type, title }: ArtifactSlotProps) {
+function ArtifactSlot({ artifact, lessonId, type, title, versions = [] }: ArtifactSlotProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const uploadArtifact = useUploadLessonArtifact();
   const [opening, setOpening] = useState(false);
@@ -280,6 +283,7 @@ function ArtifactSlot({ artifact, lessonId, type, title }: ArtifactSlotProps) {
           {uploadArtifact.isPending ? "Загружаем…" : artifact ? "Заменить" : isInteractive ? "Загрузить пакет" : "Загрузить PDF"}
         </button>
         {artifact ? <button disabled={opening} onClick={() => void open()} type="button">{opening ? "Открываем…" : isInteractive ? "Скачать пакет" : "Открыть PDF"}</button> : null}
+        {artifact && type !== 'interactive' && <LibraryDeleteAction disabled={uploadArtifact.isPending} target={{ kind: type, id: lessonId, expectedIds: versions.filter((file) => file.type === type).map((file) => file.id) }} title={artifact.filename} />}
       </div>
       {uploadArtifact.isError ? <p className={styles.formError} role="alert">Не удалось загрузить файл.</p> : null}
     </section>
@@ -355,9 +359,10 @@ function LessonInspector({ lessonId, sectionStatus }: { lessonId: string | null;
       </div>
       {publishLesson.isError ? <p className={styles.formError} role="alert">Не удалось опубликовать занятие.</p> : null}
 
-      <ArtifactSlot artifact={latestArtifact("pdf")} lessonId={lessonId} title="Конспект PDF" type="pdf" />
+      <ArtifactSlot artifact={latestArtifact("pdf")} lessonId={lessonId} title="Конспект PDF" type="pdf" versions={query.data.artifacts} />
       <ArtifactSlot artifact={latestArtifact("interactive")} lessonId={lessonId} title="Интерактивная лекция" type="interactive" />
-      <ArtifactSlot artifact={latestArtifact("tasks_pdf")} lessonId={lessonId} title="Задачи PDF" type="tasks_pdf" />
+      <ArtifactSlot artifact={latestArtifact("tasks_pdf")} lessonId={lessonId} title="Задачи PDF" type="tasks_pdf" versions={query.data.artifacts} />
+      <div className={styles.deleteLesson}><LibraryDeleteAction target={{ kind: 'lesson', id: lessonId, expectedIds: query.data.artifacts.map((file) => file.id) }} title={query.data.title} /></div>
     </aside>
   );
 }

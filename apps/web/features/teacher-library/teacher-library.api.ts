@@ -9,6 +9,7 @@ import {
   type LessonArtifactType,
   type CreateLessonInput,
   type CreateSectionInput,
+  DeleteLibraryResultSchema,
 } from "@continuum/shared";
 import { apiRequestParsed } from "@/lib/api/client";
 
@@ -24,6 +25,10 @@ const normalizedContentType = (type: LessonArtifactType, file: File) => {
 };
 
 export const teacherLibraryApi = {
+  delete: (input: LibraryDeletion) => apiRequestParsed(
+    input.kind === 'section' ? `/teacher/library/sections/${input.id}` : input.kind === 'lesson' ? `/teacher/library/lessons/${input.id}` : `/teacher/library/lessons/${input.id}/artifacts/${input.kind}`,
+    DeleteLibraryResultSchema, { method: 'DELETE', body: { expectedIds: input.expectedIds } },
+  ),
   getLibrary: () => apiRequestParsed("/teacher/library", TeacherLibrarySchema),
   getLesson: (lessonId: string) =>
     apiRequestParsed(`/teacher/library/lessons/${lessonId}`, TeacherLessonDetailSchema),
@@ -78,3 +83,5 @@ export const teacherLibraryApi = {
       LessonArtifactViewResultSchema,
     ),
 };
+
+export type LibraryDeletion = { kind: 'section' | 'lesson' | 'pdf' | 'tasks_pdf'; id: string; expectedIds: string[] };
