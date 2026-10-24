@@ -1,5 +1,5 @@
 "use client";
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import type { AssignmentRevocationPreview } from '@continuum/shared';
 import { apiErrorMessage } from '@/lib/api/error-message';
@@ -8,12 +8,11 @@ import ui from '@/features/teacher-works/teacher-works.module.css';
 
 export default function RevokeAssignmentDialog({ id, close, onRemoved, returnFocus }: { id: string; close: () => void; onRemoved: () => void; returnFocus: (removed: boolean) => void }) {
   const preview = useRevocationPreview(id);
-  const snapshot = useRef<AssignmentRevocationPreview | null>(null);
-  if (!snapshot.current && preview.data) snapshot.current = preview.data;
+  const [data, setData] = useState<AssignmentRevocationPreview | null>(null);
+  useEffect(() => { if (!data && preview.data) setData(preview.data); }, [data, preview.data]);
   const removed = useRef(false), cancel = useRef<HTMLButtonElement>(null);
   const busy = useRef(false);
   const mutation = useRevokeAssignment(() => { removed.current = true; close(); onRemoved(); });
-  const data = snapshot.current;
   const dismiss = () => { if (!busy.current) close(); };
   function revoke() {
     if (!data || busy.current) return;

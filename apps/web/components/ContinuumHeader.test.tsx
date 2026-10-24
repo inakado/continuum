@@ -40,3 +40,15 @@ it('awaits saving and ignores a second logout while it is pending', async () => 
   expect(beforeLogout).toHaveBeenCalledOnce(); expect(state.logout).not.toHaveBeenCalled();
   pending.resolve(true); await waitFor(() => expect(state.logout).toHaveBeenCalledOnce());
 });
+
+it('uses the latest leave guard after parent props change', async () => {
+  const previous = vi.fn().mockResolvedValue(true), current = vi.fn().mockResolvedValue(false);
+  const user = userEvent.setup();
+  const view = render(<ContinuumHeader homeHref="/student" beforeLogout={previous} />);
+  view.rerender(<ContinuumHeader homeHref="/student" beforeLogout={current} />);
+  await user.click(screen.getByRole('button', { name: 'Профиль: Александр' }));
+  await user.click(screen.getByRole('menuitem', { name: 'Выйти' }));
+  await waitFor(() => expect(current).toHaveBeenCalledOnce());
+  expect(previous).not.toHaveBeenCalled();
+  expect(state.logout).not.toHaveBeenCalled();
+});

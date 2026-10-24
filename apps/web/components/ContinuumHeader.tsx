@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
 import { ChevronDown, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useAuthLogout } from "@/features/auth/useAuthLogout";
@@ -8,7 +8,7 @@ import { useAuthSession } from "@/features/auth/useAuthSession";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/DropdownMenu";
 import styles from "./continuum-header.module.css";
 
-export default function ContinuumHeader({ homeHref, beforeLogout }: { homeHref: string; beforeLogout?: () => Promise<boolean> }) {
+export default memo(function ContinuumHeader({ homeHref, beforeLogout }: { homeHref: string; beforeLogout?: () => Promise<boolean> }) {
   const session = useAuthSession();
   const logout = useAuthLogout();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -53,4 +53,4 @@ export default function ContinuumHeader({ homeHref, beforeLogout }: { homeHref: 
       </div>
     </header>
   );
-}
+});

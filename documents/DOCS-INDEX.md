@@ -43,6 +43,9 @@
 ## Каталоги
 
 - `documents/research/` — исследования внешних продуктов и источников; выводы не заменяют утверждённые требования и работающие контракты.
+- `documents/research/2026-10-25-react-performance.md` — React Doctor 0.9.18, React/browser/JS измерения до/после, разбор замечаний, две подтверждённые оптимизации и ограничения.
+- `documents/research/2026-10-24-performance-audit.md` — аудит кода, локальные измерения 30/90×30 и общего списка учеников, ограничения замеров и приоритеты небольших оптимизаций; не реализация.
+- `documents/research/2026-10-24-performance-references.md` — первичные практики React/Next/Prisma/TanStack, пример Documenso и проверка возможностей/сетевых функций React Doctor.
 - `documents/research/2026-10-21-work-progress-states.md` — UX-04: референсы Formative/Gradescope/Wayground и предложение независимых состояний теста, фото и публикаций в списках и отчёте; не реализация.
 - `documents/research/2026-10-17-question-bank-import.md` — UX-референсы Formative, Classtime и Wayground для банка и пакетного импорта; предлагаемые экраны Э2 после локального пилота.
 - `documents/research/2026-10-17-work-assignments.md` — официальные сценарии назначения и контроля выполнения Formative, Classtime и Wayground; предложение экранов Э4, не реализация.
@@ -55,6 +58,9 @@
 - `scripts/reviewer/` — локальный клиент проверяющего, тесты и сборка автономного `output/continuum-reviewer-client.zip` с инструкцией, без секретов.
 
 - `documents/exec-plans/active/` — активные execution plans.
+- `documents/exec-plans/completed/2026-10-25-session-handoff.md` — передача в новый чат: локальный пакет после выпуска 24.10, выполненные проверки, оставшаяся работа, правила UI/UX и измеримой оптимизации.
+- `documents/exec-plans/completed/2026-10-24-react-performance.md` — завершённый локальный React/JavaScript-проход: измерения, шапка, shared tree shaking, проверки и границы выпуска.
+- `documents/exec-plans/completed/2026-10-24-small-performance-improvements.md` — локально завершённые оптимизации PERF-01: поиск банка, глобальный CSS и gzip JSON, проверки и границы выпуска.
 - `documents/exec-plans/completed/2026-10-24-production-assessment-release.md` — завершённый production-выпуск накопленных изменений: точный SHA, CI, backup, 17 миграций и live smoke.
 - `documents/exec-plans/completed/2026-10-24-release-readiness.md` — завершённое локальное предрелизное ревью, исправления, security-патчи, проверки и границы выпуска.
 - `documents/exec-plans/completed/2026-10-24-statistics-wide-matrix.md` — плотная матрица на 20+ заданий, закреплённые имена/итоги, краткая подпись ученика и QA.

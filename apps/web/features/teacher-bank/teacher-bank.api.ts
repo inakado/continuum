@@ -9,7 +9,7 @@ export const teacherBankApi = {
   duplicates: (id: string) => apiRequestParsed(`${root}/imports/${id}/duplicates`, AssessmentDuplicateHintsSchema),
   remove: (id: string, input: AssessmentBankDelete) => apiRequestParsed(`${root}/tasks/${id}`, AssessmentBankDeleteResultSchema, { method: 'DELETE', body: input }),
   restore: (id: string, input: AssessmentBankRestore) => apiRequestParsed(`${root}/tasks/${id}/restore`, AssessmentBankRestoreResultSchema, { method: 'POST', body: input }),
-  list: (query: AssessmentBankQuery) => apiRequestParsed(`${root}?${queryString(query)}`, AssessmentBankListSchema),
+  list: (query: AssessmentBankQuery, signal?: AbortSignal) => apiRequestParsed(`${root}?${queryString(query)}`, AssessmentBankListSchema, { signal }),
   view: (id: string, version?: number) => apiRequestParsed(`${root}/tasks/${id}${version ? `?version=${version}` : ''}`, AssessmentTaskViewSchema),
   preview: (file: File) => apiRequestParsed(`${root}/imports/preview`, AssessmentImportPreviewSchema, { method: 'POST', body: file, contentType: 'application/zip' }),
   previewTask: (id: string, stableId: string) => apiRequestParsed(`${root}/imports/${id}/tasks/${encodeURIComponent(stableId)}`, AssessmentTaskViewSchema),

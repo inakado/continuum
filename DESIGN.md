@@ -74,4 +74,4 @@ spacing:
 
 ## Excalidraw
 
-Редактор загружается только на teacher authoring screen. Student получает статический SVG/PNG preview, поэтому тяжёлый editor runtime не входит в основной read-path.
+Excalidraw сохранён для будущего teacher authoring screen; действующего экрана редактора нет. Его runtime, CSS и asset-path script не подключаются глобально. Если такой экран появится, editor и стили загружаются в его контуре, а student получает статический SVG/PNG preview.

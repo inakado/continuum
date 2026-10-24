@@ -34,6 +34,10 @@ Worker, Redis и TeX Live не входят в целевой runtime.
 - Full build: `pnpm build`
 - Full test: `pnpm test`
 
+### Локальный профиль фронтенда
+
+`pnpm --filter web exec next analyze --output --snapshot <name>` сохраняет граф; `next analyze export --snapshot <name>` выводит JSONL без новой зависимости. Для React attribution допустим локальный `pnpm --filter web exec next build --profile --no-mangling` и отдельный `next start --port 3002 --hostname 127.0.0.1`. Это debug/profiling-сборка с overhead, не payload baseline. После профиля обязательно вернуть обычный `pnpm build:web`; profiling/debug-флаги не использовать при production-выпуске. API Origin/CORS для другого локального порта проверять отдельно, не ослаблять production-политику.
+
 ### Auth smoke
 
 ```bash
