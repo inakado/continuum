@@ -55,7 +55,7 @@
 - `scripts/reviewer/` — локальный клиент проверяющего, тесты и сборка автономного `output/continuum-reviewer-client.zip` с инструкцией, без секретов.
 
 - `documents/exec-plans/active/` — активные execution plans.
-- `documents/exec-plans/active/2026-10-24-production-assessment-release.md` — выпуск накопленных проверенных изменений: точный SHA, CI, backup, миграции и live smoke.
+- `documents/exec-plans/completed/2026-10-24-production-assessment-release.md` — завершённый production-выпуск накопленных изменений: точный SHA, CI, backup, 17 миграций и live smoke.
 - `documents/exec-plans/completed/2026-10-24-release-readiness.md` — завершённое локальное предрелизное ревью, исправления, security-патчи, проверки и границы выпуска.
 - `documents/exec-plans/completed/2026-10-24-statistics-wide-matrix.md` — плотная матрица на 20+ заданий, закреплённые имена/итоги, краткая подпись ученика и QA.
 - `documents/exec-plans/completed/2026-10-24-statistics-table-ui.md` — перенос утверждённой плотной таблицы статистики: общие балльные колонки, боковые подробности, сортировка и QA.
