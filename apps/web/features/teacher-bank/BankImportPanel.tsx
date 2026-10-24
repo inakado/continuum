@@ -4,12 +4,10 @@ import { useState } from 'react';
 import { ArrowLeft, Upload } from 'lucide-react';
 import type { AssessmentImportPreview, GradeBand } from '@continuum/shared';
 import { teacherBankApi } from './teacher-bank.api';
-import { useBankImportTask, useConfirmBankImport, usePreviewBankImport } from './use-teacher-bank';
-import BankTaskPreview from './BankTaskPreview';
-import { taskSourceLabel } from './task-source';
+import { useBankImportTask, useConfirmBankImport, usePreviewBankImport, useBankDuplicateHints } from './use-teacher-bank';
+import BankImportReview from './BankImportReview';
 import styles from './teacher-bank.module.css';
 
-const statusLabels = { new: 'Новое', changed: 'Новая версия', unchanged: 'Без изменений' };
 export default function BankImportPanel({ onClose }: { onClose: (grade?: GradeBand) => void }) {
   const [preview, setPreview] = useState<AssessmentImportPreview | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -19,6 +17,7 @@ export default function BankImportPanel({ onClose }: { onClose: (grade?: GradeBa
   const upload = usePreviewBankImport();
   const confirm = useConfirmBankImport();
   const view = useBankImportTask(preview?.id ?? null, selected);
+  const duplicates = useBankDuplicateHints(preview?.issues.length === 0 && !confirm.data ? preview.id : null);
   const busy = upload.isPending || confirm.isPending || closing;
   const counts = { new: 0, changed: 0, unchanged: 0 };
   preview?.items.forEach((item) => counts[item.status]++);
@@ -58,8 +57,7 @@ export default function BankImportPanel({ onClose }: { onClose: (grade?: GradeBa
         {preview.issues.length > 0 ? <section role="alert" className={styles.issues}><h2>Пакет не добавлен</h2><p>Исправьте файлы локально и загрузите ZIP ещё раз.</p><ul>{preview.issues.map((issue, index) => <li key={index}><code>{issue.path || 'Архив'}</code><span>{issue.message}</span></li>)}</ul></section> : <>
           <div className={styles.importSummary}><div><h2>{preview.title}</h2><p>Новых: {counts.new} · Новых версий: {counts.changed} · Без изменений: {counts.unchanged}</p></div><button className={styles.primary} disabled={busy || !preview.id || counts.new + counts.changed === 0} onClick={() => void commit()}>{confirm.isPending ? 'Добавляем…' : confirm.isError ? 'Повторить добавление' : 'Добавить в банк'}</button></div>
           <p className={styles.muted}>{counts.new + counts.changed ? 'Проверьте условия и ответы. До подтверждения банк не изменится.' : 'Этот пакет уже есть в банке. Новые версии не создадутся.'}</p>
-          <div className={styles.workspace}><ul className={styles.importList} aria-label="Задания пакета">{preview.items.map((item) => <li key={item.stableId}><button aria-pressed={selected === item.stableId} onClick={() => setSelected(item.stableId)}><strong>{item.title}</strong><span>{taskSourceLabel(item.source)}</span><small>{statusLabels[item.status]}{item.status === 'changed' ? ` · версия ${item.version}` : ''}</small></button></li>)}</ul>
-            <div className={styles.previewColumn}>{view.isPending ? <p className={styles.muted}>Загружаем условие…</p> : view.error ? <p role="alert">{view.error.message}</p> : view.data && <BankTaskPreview data={view.data} />}</div></div>
+          <BankImportReview preview={preview} selected={selected} onSelect={setSelected} view={view} duplicates={duplicates} />
         </>}
       </>}
     </>}

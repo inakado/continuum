@@ -17,6 +17,9 @@ export class StudentAttemptsController {
   @Get()
   @Header('Cache-Control', 'no-store')
   list(@Req() request: AuthRequest) { return this.reads.list(request.user.id); }
+  @Get(':id/availability')
+  @Header('Cache-Control', 'no-store')
+  availability(@Req() request: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string) { return this.reads.availability(request.user.id, id); }
   @Get(':id')
   @Header('Cache-Control', 'no-store')
   detail(@Req() request: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string) { return this.reads.detail(request.user.id, id); }

@@ -1,4 +1,4 @@
-import { AssessmentBankListSchema, AssessmentImportPreviewSchema, AssessmentImportResultSchema, AssessmentTaskViewSchema, type AssessmentBankQuery } from '@continuum/shared';
+import { AssessmentBankDeleteResultSchema, AssessmentBankRestoreResultSchema, AssessmentBankListSchema, AssessmentImportPreviewSchema, AssessmentImportResultSchema, AssessmentTaskViewSchema, AssessmentDuplicateHintsSchema, type AssessmentBankDelete, type AssessmentBankRestore, type AssessmentBankQuery } from '@continuum/shared';
 import { apiRequest, apiRequestParsed, ApiError } from '@/lib/api/client';
 
 const root = '/teacher/assessment-bank';
@@ -6,6 +6,9 @@ const base = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
 const queryString = (query: AssessmentBankQuery) => new URLSearchParams(Object.entries(query).filter(([, value]) => value !== undefined && value !== '').map(([key, value]) => [key, String(value)])).toString();
 
 export const teacherBankApi = {
+  duplicates: (id: string) => apiRequestParsed(`${root}/imports/${id}/duplicates`, AssessmentDuplicateHintsSchema),
+  remove: (id: string, input: AssessmentBankDelete) => apiRequestParsed(`${root}/tasks/${id}`, AssessmentBankDeleteResultSchema, { method: 'DELETE', body: input }),
+  restore: (id: string, input: AssessmentBankRestore) => apiRequestParsed(`${root}/tasks/${id}/restore`, AssessmentBankRestoreResultSchema, { method: 'POST', body: input }),
   list: (query: AssessmentBankQuery) => apiRequestParsed(`${root}?${queryString(query)}`, AssessmentBankListSchema),
   view: (id: string, version?: number) => apiRequestParsed(`${root}/tasks/${id}${version ? `?version=${version}` : ''}`, AssessmentTaskViewSchema),
   preview: (file: File) => apiRequestParsed(`${root}/imports/preview`, AssessmentImportPreviewSchema, { method: 'POST', body: file, contentType: 'application/zip' }),

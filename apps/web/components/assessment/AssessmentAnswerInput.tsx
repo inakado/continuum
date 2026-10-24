@@ -3,9 +3,9 @@ import type { AssessmentAnswer, PublicAssessmentItem } from '@continuum/shared';
 import AssessmentMarkdown from '@/components/assessment/AssessmentMarkdown';
 import { matchingPositionLabel, matchingPositionText } from '@/lib/assessment/matching-position';
 import { ChevronDown } from 'lucide-react';
-import styles from './student-works.module.css';
+import styles from './assessment-questions.module.css';
 
-export default function StudentAnswerInput({ item, answer, onChange }: { item: PublicAssessmentItem; answer?: AssessmentAnswer; onChange: (value: AssessmentAnswer) => void }) {
+export default function AssessmentAnswerInput({ item, answer, onChange }: { item: PublicAssessmentItem; answer?: AssessmentAnswer; onChange: (value: AssessmentAnswer) => void }) {
   if (item.type === 'extended') return null;
   if (item.type === 'short_number' || item.type === 'short_text') {
     const value = answer?.type === item.type ? answer.value : '';

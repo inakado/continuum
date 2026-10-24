@@ -142,7 +142,9 @@
 .lessonTitle:hover,
 .lessonTitle:focus-visible,
 .formatSlot a:hover,
-.formatSlot a:focus-visible {
+.formatSlot a:focus-visible,
+.formatSlot button:hover,
+.formatSlot button:focus-visible {
   color: var(--catalog-accent-hover);
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -161,9 +163,28 @@
   white-space: nowrap;
 }
 
-.formatSlot a {
+.formatSlot a,
+.formatSlot button {
   color: inherit;
   text-decoration: none;
+}
+
+.formatSlot button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.formatSlot button:disabled {
+  cursor: wait;
+  opacity: .6;
+}
+
+.fileError {
+  margin: 0 0 20px;
+  color: var(--catalog-ink);
 }
 
 .state {

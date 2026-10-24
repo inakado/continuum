@@ -73,11 +73,14 @@ model AssessmentBankTask {
   stableId        String   @map("stable_id")
   latestVersionId String?  @unique @map("latest_version_id") @db.Uuid
   createdAt       DateTime @default(now()) @map("created_at")
+  deletedAt       DateTime? @map("deleted_at")
+  lifecycleRevision Int @default(1) @map("lifecycle_revision")
   teacher         User @relation(fields: [teacherId], references: [id], onDelete: Restrict)
   latestVersion   AssessmentTaskVersion? @relation("LatestAssessmentVersion", fields: [latestVersionId], references: [id], onDelete: SetNull)
   versions        AssessmentTaskVersion[] @relation("AssessmentVersions")
 
   @@unique([teacherId, stableId])
+  @@index([teacherId, deletedAt])
   @@map("assessment_bank_tasks")
 }
 
@@ -113,6 +116,12 @@ model AssessmentWork {
   maxPoints Int @default(0) @map("max_points")
   lastRequestId String? @map("last_request_id") @db.Uuid
   lastInputHash String? @map("last_input_hash")
+  copiedFromId String? @map("copied_from_id") @db.Uuid
+  copiedFromRevision Int? @map("copied_from_revision")
+  copySkippedTaskCount Int @default(0) @map("copy_skipped_task_count")
+  archivedAt DateTime? @map("archived_at")
+  deletedAt DateTime? @map("deleted_at")
+  lifecycleRevision Int @default(1) @map("lifecycle_revision")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   teacher User @relation(fields: [teacherId], references: [id], onDelete: Restrict)
@@ -328,10 +337,29 @@ model AssessmentAssignmentRequest {
   workId String @map("work_id") @db.Uuid
   inputHash String @map("input_hash")
   result Json
+  invalidatedAt DateTime? @map("invalidated_at")
   createdAt DateTime @default(now()) @map("created_at")
   work AssessmentWork @relation(fields: [workId], references: [id], onDelete: Restrict)
   @@index([workId])
   @@map("assessment_assignment_requests")
+}
+
+// Technical deletion receipt only; no student answers or results are retained.
+model AssessmentAssignmentRevocation {
+  id String @id @db.Uuid
+  teacherId String @map("teacher_id") @db.Uuid
+  workId String @map("work_id") @db.Uuid
+  versionId String @map("version_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([teacherId])
+  @@map("assessment_assignment_revocations")
+}
+
+model AssessmentFileDeletion {
+  objectKey String @id @map("object_key")
+  retryAt DateTime @default(now()) @map("retry_at")
+  @@index([retryAt])
+  @@map("assessment_file_deletions")
 }
 
 model AssessmentBankImport {

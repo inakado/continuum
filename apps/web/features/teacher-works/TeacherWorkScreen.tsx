@@ -12,5 +12,5 @@ export default function TeacherWorkScreen({ id }: { id: string }) {
   const [reloadError, setReloadError] = useState('');
   if (work.isPending) return <WorksShell><p role="status">Загружаем работу…</p></WorksShell>;
   if (!work.data) return <WorksShell><p role="alert">{apiErrorMessage(work.error, 'Не удалось загрузить работу.')}</p><button className={styles.secondary} onClick={() => void work.refetch()}>Повторить</button></WorksShell>;
-  return <>{reloadError && <p role="alert">{reloadError}</p>}<WorkEditor key={`${id}-${generation}`} initial={work.data} onReload={() => { void work.refetch().then((result) => { if (result.error) setReloadError(apiErrorMessage(result.error)); else { setReloadError(''); setGeneration((value) => value + 1); } }); }} /></>;
+  return <>{reloadError && <p role="alert">{reloadError}</p>}<WorkEditor key={`${id}-${generation}`} initial={work.data} onReload={async () => { const result = await work.refetch(); if (result.error) { setReloadError(apiErrorMessage(result.error)); throw result.error; } setReloadError(''); setGeneration((value) => value + 1); }} /></>;
 }

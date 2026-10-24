@@ -26,20 +26,31 @@ export const AssignmentPrepareSchema = z.object({
   classes: z.array(z.object({ id: uuid, title: z.string(), grade: positive, academicYear: positive, rosterHash: z.string(), assignmentId: uuid.nullable(), students: z.array(rosterStudent) })),
 });
 export const AssignmentCreatedSchema = z.object({ versionId: uuid, versionNumber: positive, addedCount: count });
+export const AssignmentRevokeSchema = z.strictObject({ expectedRecipientsHash: z.string().regex(/^[a-f0-9]{64}$/) });
+export const AssignmentRevocationResultSchema = z.strictObject({ id: uuid, workId: uuid, versionId: uuid });
+export const AssignmentRevocationPreviewSchema = AssignmentRevocationResultSchema.extend({
+  title: z.string(), classTitle: z.string(), academicYear: positive,
+  studentCount: count, startedCount: count, completedCount: count, recipientsHash: z.string().regex(/^[a-f0-9]{64}$/),
+});
+export const StudentWorkAvailabilitySchema = z.strictObject({ id: uuid });
+export type AssignmentRevoke = z.infer<typeof AssignmentRevokeSchema>;
+export type AssignmentRevocationPreview = z.infer<typeof AssignmentRevocationPreviewSchema>;
 export const AttemptStatusSchema = z.enum(['not_started', 'in_progress', 'completed']);
-const teacherResult = z.object({ points: count, maxPoints: positive, percentage: count.max(100), correctCount: count, incorrectCount: count });
+const teacherResult = z.object({ points: count, maxPoints: positive, percentage: count.max(100), correctCount: count, incorrectCount: count, partialCount: count.optional() });
 const assignmentClass = z.object({ id: uuid, classId: uuid.nullable(), title: z.string(), academicYear: positive });
+export const WorkProgressSchema = z.strictObject({ photoTaskCount: count, publishedReviewTaskCount: count, resultReady: z.boolean() });
+export type WorkProgress = z.infer<typeof WorkProgressSchema>;
 export const AssignmentSummarySchema = z.object({
   versionId: uuid, workId: uuid, title: z.string(), versionNumber: positive, taskCount: count, maxPoints: count,
-  automaticTaskCount: count.optional(), extendedTaskCount: count.optional(),
-  classes: z.array(assignmentClass), studentCount: count, completedCount: count,
+  automaticTaskCount: count, extendedTaskCount: count,
+  classes: z.array(assignmentClass), studentCount: count, completedCount: count, allPhotosCount: count, allReviewsPublishedCount: count,
 });
 export const AssignmentListSchema = z.array(AssignmentSummarySchema);
 export const AssignmentReportSchema = AssignmentSummarySchema.extend({
   recipients: z.array(z.object({
     id: uuid, name: z.string(), login: z.string(), assignmentId: uuid, isActive: z.boolean(), deleted: z.boolean(),
     status: AttemptStatusSchema, answeredCount: count, result: teacherResult.nullable(), completedAt: z.iso.datetime().nullable(),
-    photoTaskCount: count.optional(),
+    photoTaskCount: count.optional(), progress: WorkProgressSchema,
   })),
 });
 
@@ -64,13 +75,14 @@ export const PublicAssessmentItemSchema = z.discriminatedUnion('type', [
 export const StudentAttemptStateSchema = z.strictObject({
   revision: positive, status: AttemptStatusSchema, answeredCount: count,
   startedAt: z.iso.datetime().nullable(), completedAt: z.iso.datetime().nullable(),
-  result: z.strictObject({ correctCount: count, incorrectCount: count }).nullable(),
+  result: z.strictObject({ correctCount: count, incorrectCount: count, partialCount: count.optional(), points: count.optional(), maxPoints: positive.optional() }).nullable(),
 });
 export const StudentWorkSummarySchema = StudentAttemptStateSchema.extend({
   id: uuid, title: z.string(), versionNumber: positive, taskCount: positive, assignedAt: z.iso.datetime(),
   automaticTaskCount: count.optional(), extendedTaskCount: count.optional(),
 });
-export const StudentWorkListSchema = z.array(StudentWorkSummarySchema);
+export const StudentWorkListSchema = z.array(StudentWorkSummarySchema.extend({ automaticTaskCount: count, extendedTaskCount: count, progress: WorkProgressSchema }));
+export type StudentWorkListItem = z.infer<typeof StudentWorkListSchema>[number];
 export const StudentWorkDetailSchema = StudentWorkSummarySchema.extend({
   instructions: z.string(), items: z.array(PublicAssessmentItemSchema), answers: z.record(uuid, AssessmentAnswerSchema),
 });

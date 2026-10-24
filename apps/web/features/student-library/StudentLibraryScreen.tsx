@@ -6,6 +6,7 @@ import Link from "next/link";
 import ContinuumHeader from "@/components/ContinuumHeader";
 import { StudentNavigation } from '@/features/student-works/StudentWorksShell';
 import { useStudentLibrary } from "./use-student-library";
+import { useStudentPdf } from "./use-student-pdf";
 import styles from "./student-library.module.css";
 
 const gradeTabs: Array<{ code: GradeBand; label: string }> = [
@@ -16,6 +17,7 @@ const gradeTabs: Array<{ code: GradeBand; label: string }> = [
 ];
 
 export function StudentLibraryView({ library }: { library: StudentLibrary }) {
+  const pdf = useStudentPdf();
   const initialGrade = library.gradeBands.at(-1)?.code ?? "grade_7";
   const [selectedGrade, setSelectedGrade] = useState<GradeBand>(initialGrade);
   const activeGrade = useMemo(
@@ -40,6 +42,7 @@ export function StudentLibraryView({ library }: { library: StudentLibrary }) {
       </nav>
 
       <main aria-label="Материалы по физике" className={styles.main}>
+        {pdf.error ? <p className={styles.fileError} role="alert">Не удалось открыть PDF. Нажмите на файл ещё раз.</p> : null}
         {!activeGrade ? (
           <div className={styles.empty}>
             <h2>Материалы этого класса недоступны</h2>
@@ -63,7 +66,9 @@ export function StudentLibraryView({ library }: { library: StudentLibrary }) {
                       <span className={styles.formats}>
                         <span className={styles.formatSlot}>
                           {lesson.formats.pdf ? (
-                            <Link href={`/student/lessons/${lesson.id}`}>PDF</Link>
+                            <button aria-label={`Открыть PDF: ${lesson.title} (в новой вкладке)`} disabled={Boolean(pdf.opening)} onClick={() => void pdf.open({ lessonId: lesson.id, type: "pdf" })} type="button">
+                              {pdf.opening?.lessonId === lesson.id && pdf.opening.type === "pdf" ? "PDF…" : "PDF"}
+                            </button>
                           ) : null}
                         </span>
                         <span className={styles.formatSlot}>
@@ -73,7 +78,9 @@ export function StudentLibraryView({ library }: { library: StudentLibrary }) {
                         </span>
                         <span className={styles.formatSlot}>
                           {lesson.formats.tasks ? (
-                            <Link href={`/student/lessons/${lesson.id}`}>Задачи</Link>
+                            <button aria-label={`Открыть задачи PDF: ${lesson.title} (в новой вкладке)`} disabled={Boolean(pdf.opening)} onClick={() => void pdf.open({ lessonId: lesson.id, type: "tasks_pdf" })} type="button">
+                              {pdf.opening?.lessonId === lesson.id && pdf.opening.type === "tasks_pdf" ? "Задачи…" : "Задачи"}
+                            </button>
                           ) : null}
                         </span>
                       </span>

@@ -1,7 +1,15 @@
 import { expect, it } from 'vitest';
-import { AssignmentCreateSchema, PublicAssessmentItemSchema, AttemptSaveSchema } from '../src/contracts/assessment-assignments';
+import { AssignmentCreateSchema, AssignmentRevokeSchema, PublicAssessmentItemSchema, AttemptSaveSchema, WorkProgressSchema } from '../src/contracts/assessment-assignments';
 
 const uuid = '00000000-0000-4000-8000-000000000001';
+it('requires explicit progress rather than silently converting missing counters into zeros', () => {
+  expect(WorkProgressSchema.parse({ photoTaskCount: 0, publishedReviewTaskCount: 0, resultReady: false })).toEqual({ photoTaskCount: 0, publishedReviewTaskCount: 0, resultReady: false });
+  for (const input of [{}, { photoTaskCount: 1, resultReady: true }, { photoTaskCount: -1, publishedReviewTaskCount: 0, resultReady: false }]) expect(WorkProgressSchema.safeParse(input).success).toBe(false);
+});
+it('requires an exact recipient snapshot and rejects broad or client-selected deletion scopes', () => {
+  expect(AssignmentRevokeSchema.parse({ expectedRecipientsHash: 'a'.repeat(64) })).toEqual({ expectedRecipientsHash: 'a'.repeat(64) });
+  for (const input of [{}, { expectedRecipientsHash: 'wrong' }, { expectedRecipientsHash: 'a'.repeat(64), deleteAll: true }, { expectedRecipientsHash: 'a'.repeat(64), classId: uuid }]) expect(AssignmentRevokeSchema.safeParse(input).success).toBe(false);
+});
 it('validates distinct class selections and freezes only a named draft revision or saved version', () => {
   const input = { requestId: uuid, selection: { kind: 'draft', expectedRevision: 3 }, classes: [{ id: uuid, rosterHash: 'a'.repeat(64) }] };
   expect(AssignmentCreateSchema.parse(input)).toEqual(input);

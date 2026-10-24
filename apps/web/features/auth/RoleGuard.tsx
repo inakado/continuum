@@ -25,7 +25,7 @@ export default function RoleGuard({ requiredRole, children }: RoleGuardProps) {
   useEffect(() => {
     if (sessionQuery.data?.user.role === requiredRole) { setPreviousUser(sessionQuery.data.user.id); clearAnswerDrafts(sessionQuery.data.user.id); }
   }, [requiredRole, sessionQuery.data]);
-  const preserveWork = requiredRole === 'student' && /^\/student\/works\/[^/]+$/.test(pathname ?? '') && Boolean(previousUser);
+  const preserveWork = Boolean(previousUser) && ((requiredRole === 'student' && /^\/student\/works\/[^/]+$/.test(pathname ?? '')) || (requiredRole === 'teacher' && /^\/teacher\/works\/[0-9a-f-]{36}$/i.test(pathname ?? '')));
 
   useEffect(() => {
     if (!allowBypass && !preserveWork && !sessionQuery.isPending && !sessionQuery.isError && !sessionQuery.data) {

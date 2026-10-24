@@ -10,6 +10,10 @@ export const StoredAssessmentImportSchema = z.array(StoredAssessmentTaskSchema);
 export type StoredAssessmentTask = z.infer<typeof StoredAssessmentTaskSchema>;
 export const BaselineSchema = z.record(z.string(), z.string().nullable());
 
+export function assessmentBaseline(hash: string | undefined, deletedAt?: Date | null) {
+  return hash ? (deletedAt ? `deleted:${deletedAt.toISOString()}:${hash}` : hash) : null;
+}
+
 export function mapAssessmentSummary(id: string, version: number, data: StoredAssessmentTask): AssessmentTaskSummary {
   const { task } = data;
   return { id, stableId: task.id, title: task.title, gradeBand: task.gradeBand, topicPath: task.topicPath, type: task.type, maxPoints: task.maxPoints, source: task.source, version,

@@ -43,4 +43,4 @@
 - Визуальные токены и композиции: `DESIGN.md`
 - Продуктовая модель: `PRODUCT.md`
 - Целевая frontend-архитектура: `documents/FRONTEND.md`
-- Active plan: `documents/exec-plans/active/2026-09-23-content-library-rewrite.md`
+- История реализации: `documents/exec-plans/completed/2026-10-24-library-implementation-history.md`

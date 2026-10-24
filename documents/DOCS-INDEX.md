@@ -20,7 +20,7 @@
 - `documents/ARCHITECTURE-PRINCIPLES.md` — инженерные принципы, quality guardrails и архитектурные ограничения.
 - `documents/SECURITY.md` — security invariants и эксплуатационные security-ограничения.
 - `documents/PLANS.md` — lifecycle execution plans, deferred roadmap и tech debt.
-- `documents/CONTENT.md` — целевая модель каталога, публикации и материалов занятия.
+- `documents/CONTENT.md` — действующая модель каталога, публикации и материалов занятия.
 - `documents/ASSESSMENTS.md` — классы, банк, конструктор, назначения, ответы, фотографии и локальная проверка: версии, публикация PDF/баллов, история и права.
 - `documents/REVIEWER-CLIENT.md` — пересылаемая инструкция преподавателю и агенту: ключ классов/учеников в общей базе, подключение Mac/Keychain, фото, PDF/баллы, публикация и конфликты.
 - `documents/ASSESSMENT-PACKAGE.md` — подготовка пакета v1: поля, ключи, Markdown, лимиты импорта и пробный пакет; читать перед адаптацией TeX.
@@ -43,25 +43,58 @@
 ## Каталоги
 
 - `documents/research/` — исследования внешних продуктов и источников; выводы не заменяют утверждённые требования и работающие контракты.
+- `documents/research/2026-10-21-work-progress-states.md` — UX-04: референсы Formative/Gradescope/Wayground и предложение независимых состояний теста, фото и публикаций в списках и отчёте; не реализация.
 - `documents/research/2026-10-17-question-bank-import.md` — UX-референсы Formative, Classtime и Wayground для банка и пакетного импорта; предлагаемые экраны Э2 после локального пилота.
 - `documents/research/2026-10-17-work-assignments.md` — официальные сценарии назначения и контроля выполнения Formative, Classtime и Wayground; предложение экранов Э4, не реализация.
 - `documents/research/2026-10-18-solution-photos.md` — сценарии файлового ответа Formative, Gradescope и Classroom и адаптация загрузки фото к существующему ученическому экрану.
 - `documents/research/2026-10-18-reviewer-access.md` — сравнение API keys, OAuth, MCP и Agent Auth для локальной проверки с двух компьютеров; совместимость Better Auth и границы безопасности.
 - `examples/assessment-package/pilot-v1/` — шесть реальных задач, манифест и изображения для проверки формата; учительские ключи внутри, не ученический контент.
 - `examples/assessment-package/extended-v1/` — развёрнутая задача Школково №14449 из пользовательских скриншотов, максимум 2 балла, без серверных критериев.
+- `examples/assessment-package/ege-v1/` — две задачи пилота с явными правилами ЕГЭ 0/1/2; пример обновления версий без изменения старых назначений.
 - `scripts/assessments/` — локальная сборка ZIP и PDF-предпросмотра пробного пакета, без серверного TeX.
 - `scripts/reviewer/` — локальный клиент проверяющего, тесты и сборка автономного `output/continuum-reviewer-client.zip` с инструкцией, без секретов.
 
 - `documents/exec-plans/active/` — активные execution plans.
+- `documents/exec-plans/active/2026-10-24-production-assessment-release.md` — выпуск накопленных проверенных изменений: точный SHA, CI, backup, миграции и live smoke.
+- `documents/exec-plans/completed/2026-10-24-release-readiness.md` — завершённое локальное предрелизное ревью, исправления, security-патчи, проверки и границы выпуска.
+- `documents/exec-plans/completed/2026-10-24-statistics-wide-matrix.md` — плотная матрица на 20+ заданий, закреплённые имена/итоги, краткая подпись ученика и QA.
+- `documents/exec-plans/completed/2026-10-24-statistics-table-ui.md` — перенос утверждённой плотной таблицы статистики: общие балльные колонки, боковые подробности, сортировка и QA.
+- `documents/exec-plans/completed/2026-10-24-assessment-statistics.md` — отдельный раздел статистики: распределения учеников по баллам, сравнение классов, ответы, референсы и проверки.
+- `documents/exec-plans/completed/2026-10-24-bank-duplicate-hints.md` — UX-15.A: быстрые неблокирующие совпадения импорта, сравнение, индексы, проверки и ограничения.
+- `documents/exec-plans/completed/2026-10-24-teacher-ux-followups.md` — четыре небольших UX-доработки teacher UI и визуальный проход, проверки и границы.
+- `documents/exec-plans/completed/2026-10-24-shared-search.md` — единое поле поиска семи учительских контекстов, фокус/очистка, каскад CSS и регрессионные проверки.
+- `documents/exec-plans/completed/2026-10-24-bank-search-focus.md` — единый контур фокуса и очистка поиска банка, причина браузерного конфликта, референсы и QA.
+- `documents/exec-plans/completed/2026-10-24-bank-source-filters.md` — фильтры ЕГЭ/не ЕГЭ и provider в банке, URL, пагинация, экспорт и локальные проверки.
+- `documents/exec-plans/completed/2026-10-24-task-classification.md` — классификация ЕГЭ/не ЕГЭ и происхождения, совместимость прежних пакетов, инструкция автору и локальные проверки.
+- `documents/exec-plans/completed/2026-10-24-ege-scoring.md` — явные правила ЕГЭ в пакете и общем оценщике, совместимость снимков и частичные результаты; локальная реализация и проверки.
+- `documents/exec-plans/completed/2026-10-24-student-work-preview.md` — UX-08: существующий просмотр с ученическим навигатором, локальными пробными ответами/фото и серверной проверкой без записи; проверки и ограничения.
+- `documents/exec-plans/completed/2026-10-24-teacher-safe-leave.md` — UX-01: сохранение перед уходом/выходом, история браузера и восстановление входа преподавателя; локальные проверки и ограничения.
+- `documents/exec-plans/completed/2026-10-24-student-pdf-open.md` — прямое открытие PDF из ученического каталога, регрессия и ограничения локальной S3/mobile QA.
+- `documents/exec-plans/completed/2026-10-21-concurrent-writes.md` — конфликты сериализации назначения и массового создания: ограниченные повторы транзакций и проверенная идемпотентность.
+- `documents/exec-plans/completed/2026-10-21-work-progress.md` — UX-04: независимые состояния теста/фото/публикации, пакетная read-проекция, три существующих экрана, локальная QA и ограничения общего API-suite.
+- `documents/exec-plans/completed/2026-10-21-bank-undo.md` — UX-10: отмена удаления задачи, lifecycle revision, безопасные повторы, импорт и локальные проверки.
+- `documents/exec-plans/completed/2026-10-21-confirmations.md` — UX-14: единые подтверждения в обеих ролях, ожидание запроса, ошибки/повторы, граница с UX-01 и локальная QA.
+- `documents/exec-plans/completed/2026-10-21-assignment-revocation.md` — UX-03: подтверждаемый отзыв назначения с удалением ответов выбранного класса, безопасными повторами, очисткой S3 и локальными проверками.
+- `documents/exec-plans/completed/2026-10-21-work-lifecycle.md` — UX-02: удаление неиспользованных черновиков, архив/восстановление, защита истории, безопасные повторы и локальные проверки.
+- `documents/exec-plans/completed/2026-10-21-work-copy.md` — UX-06: независимая копия сохранённой работы с пропуском удалённых задач, без назначений и результатов; локальные проверки и ограничения выпуска.
+- `documents/exec-plans/completed/2026-10-21-small-ux.md` — локально реализованные меню профиля, URL-фильтры банка и исправление ФИО без изменения логина и прежних результатов.
+- `documents/exec-plans/completed/2026-10-19-bank-deletion.md` — удаление задач из банка с сохранением работ, исправление тёмного поля preview и локальная проверка.
 - `documents/exec-plans/completed/2026-10-19-library-deletion.md` — завершённое удаление PDF, занятий и разделов: подтверждения, очистка хранилища и проверенный production-выпуск.
-- `documents/exec-plans/active/2026-09-23-content-library-rewrite.md` — активная переработка Continuum в закрытую библиотеку занятий.
-- `documents/exec-plans/active/2026-10-15-assessment-roadmap.md` — этапы классов, банка заданий, назначений, локальной проверки фото и статистики; решения, критерии готовности и журнал выполнения.
-- `documents/exec-plans/active/2026-10-18-reviewer-api-contract.md` — контракт и приёмка Э6: общая база преподавателей, ключи классов/учеников, фото, PDF/баллы, ревизии и публикация.
-- `documents/exec-plans/deferred-roadmap.md` — отложенные future items, которые не являются техдолгом.
-- `documents/exec-plans/tech-debt-tracker.md` — техдолг и engineering debt.
+- `documents/exec-plans/completed/2026-10-24-library-implementation-history.md` — история перехода к библиотеке; невыполненные расширения перенесены в deferred roadmap.
+- `documents/exec-plans/active/2026-10-15-assessment-roadmap.md` — только оставшиеся выпуск, приёмка и отложенный ученический разбор; без журнала выполненных этапов.
+- `documents/exec-plans/active/2026-10-18-reviewer-api-contract.md` — оставшаяся пользовательская приёмка локального агента на двух физических компьютерах.
+- `documents/exec-plans/deferred-roadmap.md` — только будущие UX/LIB-улучшения и измеримый performance-этап PERF-01: основания, порядок, критерии и источники.
+- `documents/exec-plans/tech-debt-tracker.md` — только открытый инженерный долг: complexity budget, остаточная low-зависимость и известное ограничение offline-ввода.
 - `documents/ops/TROUBLESHOOTING.md` — повторяемые dev/run/build/test сбои и проверенная диагностика.
 - `documents/generated/db-schema.md` — срез текущей БД-модели.
 - `documents/generated/api-routes.md` — сгенерированный каталог HTTP routes из Nest controllers.
 - `deploy/README.md` — production deploy runbook.
 
-История удалённой LMS и завершённых инициатив хранится в Git, а не в действующей документации.
+История удалённой LMS хранится в Git; завершённые инициативы — в `completed`, отдельно от текущих SoR и backlog.
+
+## История завершённых этапов
+
+- `documents/exec-plans/completed/2026-10-24-assessment-implementation-history.md` — Э0–Э6, учительская статистика и прежний журнал дорожной карты; исторический срез 24.10.2026.
+- `documents/exec-plans/completed/2026-10-24-reviewer-implementation-history.md` — контракт, решения и реализация локальной проверки; исторический срез 24.10.2026.
+- `documents/exec-plans/completed/2026-10-24-ux-roadmap-history.md` — исходный UX-01–15, выполненные пункты и исключения пользователя; исторический срез 24.10.2026.
+- `documents/exec-plans/completed/2026-10-24-resolved-debt-history.md` — закрытые интерфейсные и конкурентные дефекты; исторический срез 24.10.2026.

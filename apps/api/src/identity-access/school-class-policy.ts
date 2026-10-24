@@ -2,6 +2,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type { PrismaService } from '../prisma/prisma.service';
 import type { GradeBand } from '@prisma/client';
+import { isTransactionWriteConflict, retryTransaction } from '../prisma/transaction-retry';
 
 export const classGradeBand = (grade: number): GradeBand => grade >= 10 ? 'grade_10_11' : grade === 9 ? 'grade_9' : grade === 8 ? 'grade_8' : 'grade_7';
 
@@ -42,12 +43,13 @@ export async function managedStudent(tx: Prisma.TransactionClient, id: string) {
 
 // Archive, transfer and batch creation serialize against one another; no partial rosters.
 export async function classTransaction<T>(prisma: PrismaService, write: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
-  for (let attempt = 0; ; attempt++) {
-    try {
-      return await prisma.$transaction(write, { isolationLevel: 'Serializable', timeout: 30000 });
-    } catch (error) {
-      if ((hasDbCode(error, 'P2034') || isLoginConflict(error)) && attempt < 2) continue;
-      throw error;
-    }
+  try {
+    return await retryTransaction(
+      () => prisma.$transaction(write, { isolationLevel: 'Serializable', timeout: 30000 }),
+      (error) => isTransactionWriteConflict(error) || isLoginConflict(error),
+    );
+  } catch (error) {
+    if (isTransactionWriteConflict(error)) throw new ConflictException({ code: 'TRANSACTION_CONFLICT', message: 'Данные изменяются одновременно с другим действием. Повторите запрос.' });
+    throw error;
   }
 }

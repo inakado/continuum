@@ -1,32 +1,42 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, expect, it, vi } from 'vitest';
 import ContinuumHeader from './ContinuumHeader';
 
-const logout = vi.hoisted(() => vi.fn());
-const session = vi.hoisted(() => ({ role: 'student' }));
-vi.mock('@/features/auth/useAuthLogout', () => ({ useAuthLogout: () => logout }));
-vi.mock('@/features/auth/useAuthSession', () => ({ useAuthSession: () => ({ data: { user: { name: 'Ученик', role: session.role } } }) }));
-afterEach(() => { cleanup(); logout.mockClear(); session.role = 'student'; });
+const state = vi.hoisted(() => ({ role: 'teacher', logout: vi.fn() }));
+vi.mock('@/features/auth/useAuthSession', () => ({ useAuthSession: () => ({ data: { user: { role: state.role, name: 'Александр' } } }) }));
+vi.mock('@/features/auth/useAuthLogout', () => ({ useAuthLogout: () => state.logout }));
+beforeEach(() => { state.role = 'teacher'; state.logout.mockReset(); });
 
-it('does not sign out until the work permits leaving, and preserves the session on cancellation', async () => {
-  let permit!: (value: boolean) => void;
-  const beforeLogout = vi.fn(() => new Promise<boolean>((resolve) => { permit = resolve; }));
-  render(<ContinuumHeader homeHref="/student" beforeLogout={beforeLogout} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Профиль: Ученик' }));
-  fireEvent.click(screen.getByRole('menuitem', { name: 'Выйти' }));
-  expect(logout).not.toHaveBeenCalled();
-  await act(async () => { permit(false); });
-  expect(logout).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('menuitem', { name: 'Выйти' }));
-  await act(async () => { permit(true); });
-  expect(logout).toHaveBeenCalledOnce();
+it('opens by keyboard, navigates the teacher menu and returns focus on Escape', async () => {
+  const user = userEvent.setup(); render(<ContinuumHeader homeHref="/teacher" />);
+  const trigger = screen.getByRole('button', { name: 'Профиль: Александр' });
+  trigger.focus(); await user.keyboard('{Enter}');
+  const agent = await screen.findByRole('menuitem', { name: 'Подключение агента' });
+  await waitFor(() => expect(agent).toHaveFocus());
+  await user.keyboard('{ArrowDown}'); expect(screen.getByRole('menuitem', { name: 'Выйти' })).toHaveFocus();
+  await user.keyboard('{Escape}'); await waitFor(() => expect(trigger).toHaveFocus());
+  expect(screen.queryByRole('menu')).not.toBeInTheDocument();
 });
-it('offers reviewer access only in the teacher profile menu', () => {
-  const first = render(<ContinuumHeader homeHref="/student" />);
-  fireEvent.click(screen.getByRole('button', { name: 'Профиль: Ученик' }));
-  expect(screen.queryByRole('menuitem', { name: 'Подключение агента' })).toBeNull();
-  first.unmount(); session.role = 'teacher';
-  render(<ContinuumHeader homeHref="/teacher" />);
-  fireEvent.click(screen.getByRole('button', { name: 'Профиль: Ученик' }));
-  expect(screen.getByRole('menuitem', { name: 'Подключение агента' }).getAttribute('href')).toBe('/teacher/reviewer-access');
+it('keeps the student menu role-specific and dismisses outside', async () => {
+  state.role = 'student'; const user = userEvent.setup(); render(<ContinuumHeader homeHref="/student" />);
+  await user.click(screen.getByRole('button', { name: 'Профиль: Александр' }));
+  expect(screen.queryByRole('menuitem', { name: 'Подключение агента' })).not.toBeInTheDocument();
+  fireEvent.pointerDown(document.body, { pointerType: 'mouse' });
+  await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+});
+it('honours a cancelled leave guard and does not sign out', async () => {
+  const beforeLogout = vi.fn().mockResolvedValue(false), user = userEvent.setup();
+  render(<ContinuumHeader homeHref="/student" beforeLogout={beforeLogout} />);
+  await user.click(screen.getByRole('button', { name: 'Профиль: Александр' }));
+  await user.click(screen.getByRole('menuitem', { name: 'Выйти' }));
+  await waitFor(() => expect(beforeLogout).toHaveBeenCalledOnce());
+  expect(state.logout).not.toHaveBeenCalled();
+});
+it('awaits saving and ignores a second logout while it is pending', async () => {
+  const pending = Promise.withResolvers<boolean>(), beforeLogout = vi.fn(() => pending.promise), user = userEvent.setup();
+  render(<ContinuumHeader homeHref="/student" beforeLogout={beforeLogout} />);
+  for (let i = 0; i < 2; i++) { await user.click(screen.getByRole('button', { name: 'Профиль: Александр' })); await user.click(screen.getByRole('menuitem', { name: 'Выйти' })); }
+  expect(beforeLogout).toHaveBeenCalledOnce(); expect(state.logout).not.toHaveBeenCalled();
+  pending.resolve(true); await waitFor(() => expect(state.logout).toHaveBeenCalledOnce());
 });

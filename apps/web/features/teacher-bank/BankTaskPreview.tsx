@@ -2,7 +2,7 @@
 
 import type { AssessmentTaskView } from '@continuum/shared';
 import BankMarkdown from '@/components/assessment/AssessmentMarkdown';
-import { pointsLabel, taskSourceDetails, taskSourceLabel, taskTypeLabels } from './task-source';
+import { pointsLabel, taskGradingLabel, taskSourceDetails, taskSourceLabel, taskTypeLabels } from './task-source';
 import { matchingPositionLabel, matchingPositionText } from '@/lib/assessment/matching-position';
 import styles from './teacher-bank.module.css';
 
@@ -29,6 +29,6 @@ export default function BankTaskPreview({ data, compact = false, hideAnswers = f
       {task.type === 'short_number' && <p className={styles.muted}>Допустимая погрешность: {task.grading.absoluteTolerance}</p>}
       {data.solution && <BankMarkdown text={data.solution} images={images} />}
     </div></details>}
-    {!hideAnswers && <details className={styles.details}><summary>Источник и сведения</summary><dl>{taskSourceDetails(task.source).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}<div><dt>ID в банке</dt><dd><code>{task.id}</code></dd></div><div><dt>Версия</dt><dd>{data.version}</dd></div></dl></details>}
+    {!hideAnswers && <details className={styles.details}><summary>Источник и сведения</summary><dl><div><dt>Тип задания</dt><dd>{taskTypeLabels[task.type]}</dd></div><div><dt>Правило оценивания</dt><dd>{taskGradingLabel(task)}</dd></div>{taskSourceDetails(task.source).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}<div><dt>ID в банке</dt><dd><code>{task.id}</code></dd></div><div><dt>Версия</dt><dd>{data.version}</dd></div></dl></details>}
   </article>;
 }

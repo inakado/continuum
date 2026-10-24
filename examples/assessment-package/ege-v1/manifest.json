@@ -1,0 +1,9 @@
+{
+  "format": "continuum-assessment-package",
+  "version": 1,
+  "title": "ЕГЭ: частичные баллы — обновление двух задач пилота",
+  "tasks": [
+    "shkolkovo-14139",
+    "shkolkovo-17846"
+  ]
+}

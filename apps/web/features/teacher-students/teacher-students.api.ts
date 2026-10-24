@@ -8,10 +8,12 @@ import {
   SchoolClassesSchema, SchoolClassSchema, BulkCreateStudentsResultSchema, StudentClassResultSchema, ResetStudentPasswordResultSchema,
   type SchoolClassInput, type UpdateSchoolClassInput, type BulkCreateStudentsInput,
   DeletedSchoolClassResultSchema, DeletedStudentResultSchema,
+  type UpdateStudentNamesInput,
 } from "@continuum/shared";
 import { apiRequestParsed } from "@/lib/api/client";
 
 export const teacherStudentsApi = {
+  updateNames: ({ studentId, input }: { studentId: string; input: UpdateStudentNamesInput }) => apiRequestParsed(`/teacher/students/${studentId}/names`, TeacherStudentMutationResultSchema, { method: 'PATCH', body: input }),
   deleteClass: ({ id, deleteStudents }: { id: string; deleteStudents: boolean }) => apiRequestParsed(`/teacher/classes/${id}`, DeletedSchoolClassResultSchema, { method: "DELETE", body: { deleteStudents } }),
   deleteStudent: (id: string) => apiRequestParsed(`/teacher/students/${id}`, DeletedStudentResultSchema, { method: "DELETE" }),
   getClasses: () => apiRequestParsed("/teacher/classes", SchoolClassesSchema),

@@ -22,6 +22,7 @@ export const teacherBankQueryKeys = {
   list: (query: object) => ['teacher-assessment-bank', 'list', query] as const,
   task: (id: string, version?: number) => ['teacher-assessment-bank', 'task', id, version ?? 'latest'] as const,
   importTask: (id: string, stableId: string) => ['teacher-assessment-bank', 'import', id, stableId] as const,
+  duplicates: (id: string) => ['teacher-assessment-bank', 'duplicates', id] as const,
 } as const;
 
 export const teacherWorkQueryKeys = {
@@ -29,6 +30,7 @@ export const teacherWorkQueryKeys = {
   list: () => ['teacher-assessment-works', 'list'] as const,
   detail: (id: string) => ['teacher-assessment-works', 'detail', id] as const,
   preview: (id: string, version?: number) => ['teacher-assessment-works', 'preview', id, version ?? 'draft'] as const,
+  previews: (id: string) => ['teacher-assessment-works', 'preview', id] as const,
 } as const;
 
 export const assignmentQueryKeys = {
@@ -36,14 +38,20 @@ export const assignmentQueryKeys = {
   list: () => ['teacher-assignments', 'list'] as const,
   prepare: (id: string, version?: number) => ['teacher-assignments', 'prepare', id, version ?? 'draft'] as const,
   report: (id: string) => ['teacher-assignments', 'report', id] as const,
+  revocation: (id: string) => ['teacher-assignments', 'revocation', id] as const,
 } as const;
 export const studentWorkQueryKeys = {
   all: () => ['student-works'] as const,
   list: () => ['student-works', 'list'] as const,
   detail: (id: string) => ['student-works', 'detail', id] as const,
+  availability: (id: string) => ['student-works', 'availability', id] as const,
 } as const;
 export const solutionQueryKeys = {
   answers: (recipientId: string) => ['assessment-solutions', recipientId] as const,
+} as const;
+export const statisticsQueryKeys = {
+  report: (id: string) => ['teacher-statistics', id] as const,
+  detail: (id: string, taskId: string, recipient?: string) => ['teacher-statistics', id, 'task', taskId, recipient ?? 'condition'] as const,
 } as const;
 export const reviewerQueryKeys = {
   keys: () => ['reviewer-access', 'keys'] as const,

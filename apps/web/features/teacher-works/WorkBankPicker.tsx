@@ -20,8 +20,9 @@ export default function WorkBankPicker({ existing, grade, onClose, onAdd }: { ex
   const [viewId, setView] = useState<string | null>(null); const [mobileView, setMobileView] = useState(false);
   const [adding, setAdding] = useState(false); const [error, setError] = useState('');
   const bank = useTeacherBank(query);
-  const total = bank.data?.total ?? 0;
-  const tasks = mode === 'selected' ? [...selected.values()] : (bank.data?.tasks ?? []).map((task) => selected.get(task.id) ?? task);
+  const data = bank.data ?? { total: 0, tasks: [], topics: [], sources: [] };
+  const total = data.total;
+  const tasks = mode === 'selected' ? [...selected.values()] : data.tasks.map((task) => selected.get(task.id) ?? task);
   const currentTask = tasks.find((task) => task.id === viewId) ?? tasks[0];
   const used = new Set(existing.map((item) => item.id));
   useEffect(() => { heading.current?.focus(); }, [mode]);
@@ -53,8 +54,8 @@ export default function WorkBankPicker({ existing, grade, onClose, onAdd }: { ex
     <div className={styles.heading}><div><h1 ref={heading} tabIndex={-1}>{mode === 'selected' ? 'Выбранные задания' : 'Добавить из банка'}</h1></div>
       {mode === 'selected' && selected.size > 0 && <button className={styles.textButton} disabled={adding} onClick={clearSelection}>Сбросить выбор</button>}
     </div>
-    {mode === 'bank' && <WorkBankFilters query={query} topics={bank.data?.topics ?? []} onChange={(patch) => setQuery((previous) => ({ ...previous, ...patch, page: 1 }))} />}
-    {mode === 'bank' && bank.isPending ? <p role="status">Загружаем банк…</p> : mode === 'bank' && bank.error ? <div role="alert"><p>{apiErrorMessage(bank.error)}</p><button className={styles.secondary} onClick={() => void bank.refetch()}>Повторить</button></div> : !tasks.length ? <div className={styles.empty}>{mode === 'selected' ? <h2>Ничего не выбрано</h2> : <p>По этим фильтрам заданий нет.</p>}</div> : <div className={`${styles.picker} ${mobileView ? styles.pickerViewing : ''}`}>
+    {mode === 'bank' && <WorkBankFilters query={query} topics={data.topics} sources={data.sources} onChange={(patch) => { setQuery((previous) => ({ ...previous, ...patch, page: 1 })); setView(null); setMobileView(false); }} />}
+    {mode === 'bank' && bank.isPending ? <p role="status">Загружаем банк…</p> : mode === 'bank' && bank.error ? <div role="alert"><p>{apiErrorMessage(bank.error)}</p><button className={styles.secondary} onClick={() => void bank.refetch()}>Повторить</button></div> : !tasks.length ? <PickerEmpty reviewing={mode === 'selected'} query={query} onReset={() => { setQuery({ gradeBand: query.gradeBand, search: '', topic: '', page: 1 }); setView(null); setMobileView(false); }} /> : <div className={`${styles.picker} ${mobileView ? styles.pickerViewing : ''}`}>
       <div className={styles.pickerList}><PickerList tasks={tasks} currentId={currentTask.id} selected={selected} used={used} adding={adding} atLimit={selected.size + existing.length >= ASSESSMENT_WORK_TASK_LIMIT} onToggle={toggle} onPreview={(id) => { setView(id); setMobileView(true); }} />
         {mode === 'bank' && <div className={styles.pagination}><button className={styles.textButton} disabled={page === 1} onClick={() => setQuery({ ...query, page: page - 1 })}>Назад</button><span>{page} / {Math.max(1, Math.ceil(total / 50))}</span><button className={styles.textButton} disabled={page * 50 >= total} onClick={() => setQuery({ ...query, page: page + 1 })}>Далее</button></div>}
       </div>
@@ -62,6 +63,11 @@ export default function WorkBankPicker({ existing, grade, onClose, onAdd }: { ex
     </div>}
     <PickerSelectionBar selected={selected} reviewing={mode === 'selected'} adding={adding} error={error} onReview={() => changeMode('selected')} onAdd={() => void add()} />
   </section>;
+}
+
+function PickerEmpty({ reviewing, query, onReset }: { reviewing: boolean; query: AssessmentBankQuery; onReset: () => void }) {
+  const filtered = Boolean(query.search || query.topic || query.type || query.exam || query.source);
+  return <div className={styles.empty}>{reviewing ? <h2>Ничего не выбрано</h2> : <><p>По этим фильтрам заданий нет.</p>{filtered && <button type="button" className={styles.secondary} onClick={onReset}>Сбросить фильтры</button>}</>}</div>;
 }
 
 function PickerSelectionBar({ selected, reviewing, adding, error, onReview, onAdd }: {

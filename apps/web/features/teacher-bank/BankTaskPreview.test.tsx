@@ -1,34 +1,37 @@
-import '@testing-library/jest-dom/vitest';
-import { cleanup, render, screen, within } from '@testing-library/react';
-import { afterEach, expect, it, vi } from 'vitest';
-import type { AssessmentTaskView } from '@continuum/shared';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, expect, it } from 'vitest';
+import type { AssessmentPackageTask } from '@continuum/shared';
 import BankTaskPreview from './BankTaskPreview';
+import { taskSourceDetails } from './task-source';
 
-vi.mock('@/components/assessment/AssessmentMarkdown', () => ({ default: ({ text }: { text: string }) => <div>{text}</div> }));
+const base = { id: 'ege-test', title: 'Пример', gradeBand: 'grade_10_11' as const, topicPath: ['Магнитное поле'], source: { provider: 'Авторское' }, maxPoints: 2 };
+const options = [{ id: 'one', content: 'Первый' }, { id: 'two', content: 'Второй' }];
+const tasks: [AssessmentPackageTask, string, string][] = [
+  [{ ...base, type: 'matching', rows: options, options, grading: { policy: 'ege_physics_matching_v1', matches: { one: 'one', two: 'two' } } }, 'Соответствие', 'ЕГЭ: соответствие · 0–2 балла'],
+  [{ ...base, type: 'multiple_choice', options, grading: { policy: 'ege_physics_multiple_choice_v1', correctOptionIds: ['one', 'two'] } }, 'Несколько вариантов', 'ЕГЭ: выбор утверждений · 0–2 балла'],
+];
 afterEach(cleanup);
-
-it('labels matching positions so the answer key can be mapped to conditions', () => {
-  const data: AssessmentTaskView = {
-    id: '00000000-0000-4000-8000-000000000001', version: 1, statement: 'Установите соответствие.', solution: null, images: {},
-    task: { id: 'sample', title: 'Графики', gradeBand: 'grade_10_11', topicPath: ['МКТ'], maxPoints: 2, source: { provider: 'Авторское' }, type: 'matching', rows: [{ id: 'a', content: 'Радиус' }, { id: 'b', content: 'Сила' }], options: [{ id: '1', content: 'Увеличится' }, { id: '2', content: 'Уменьшится' }], grading: { matches: { a: '1', b: '2' } } },
-  };
-  render(<BankTaskPreview data={data} />);
-  const positions = screen.getByRole('region', { name: 'Позиции соответствия' });
-  expect(within(positions).getByText('А')).toBeVisible();
-  expect(within(positions).getByText('Б')).toBeVisible();
-  expect(within(positions).getByText('Радиус')).toBeVisible();
-  expect(within(positions).getByText('Сила')).toBeVisible();
+it('distinguishes explicit non-exam sources from unclassified legacy records', () => {
+  expect(taskSourceDetails({ provider: 'Авторское', kind: 'original', exam: 'none' })).toEqual(expect.arrayContaining([['Классификация', 'Не ЕГЭ'], ['Вид источника', 'Авторское']]));
+  expect(taskSourceDetails({ provider: 'Автор' })).toContainEqual(['Классификация', 'Не указана']);
+  expect(taskSourceDetails({ provider: 'Школково', examYear: 2026, examTaskNumber: 7 })).toContainEqual(['Классификация', 'ЕГЭ']);
+  expect(taskSourceDetails({ provider: 'Школково', examYear: 2026 })).toContainEqual(['Классификация', 'Не указана']);
 });
-
-it('uses Russian presentation labels instead of internal IDs and removes duplicate legacy labels', () => {
-  const data: AssessmentTaskView = {
-    id: '00000000-0000-4000-8000-000000000001', version: 1, statement: 'Установите соответствие.', solution: null, images: {},
-    task: { id: 'sample', title: 'Величины', gradeBand: 'grade_10_11', topicPath: ['МКТ'], maxPoints: 2, source: { provider: 'Авторское' }, type: 'matching', rows: [{ id: 'radius', content: 'А) Радиус' }, { id: 'force', content: 'Б) Сила' }], options: [{ id: 'up', content: 'Увеличится' }, { id: 'down', content: 'Уменьшится' }], grading: { matches: { radius: 'down', force: 'down' } } },
-  };
-  render(<BankTaskPreview data={data} />);
-  expect(screen.queryByText(/RADIUS|FORCE|DOWN|UP/)).not.toBeInTheDocument();
-  expect(screen.queryByText('А) Радиус')).not.toBeInTheDocument();
-  expect(screen.getByText('А — 2; Б — 2')).toBeVisible();
-  expect(screen.getByText('Радиус')).toBeVisible();
-  expect(screen.getByText('Сила')).toBeVisible();
+it('shows book classification, title and number in existing source details', () => {
+  const task: AssessmentPackageTask = { ...base, type: 'matching', rows: options, options, source: { provider: 'Автор сборника', kind: 'taskbook', exam: 'none', collection: 'Сборник задач по физике', externalId: '123' }, grading: { matches: { one: 'one', two: 'two' } } };
+  render(<BankTaskPreview data={{ id: 'task', version: 1, task, statement: 'Условие.', images: {}, solution: null }} />);
+  fireEvent.click(screen.getByText('Источник и сведения'));
+  const details = screen.getByText('Источник и сведения').parentElement!;
+  for (const text of ['Не ЕГЭ', 'Задачник', 'Название задачника', 'Автор сборника', 'Сборник задач по физике', '123']) expect(within(details).getByText(text)).toBeVisible();
+});
+it.each(tasks)('shows the task type and grading policy in existing metadata', (task, type, policy) => {
+  const data = { id: 'task', version: 2, task, statement: 'Условие.', images: {}, solution: null };
+  const view = render(<BankTaskPreview data={data} />);
+  fireEvent.click(screen.getByText('Источник и сведения'));
+  const details = screen.getByText('Источник и сведения').parentElement!;
+  expect(within(details).getByText(type)).toBeVisible();
+  expect(within(details).getByText(policy)).toBeVisible();
+  view.rerender(<BankTaskPreview data={data} hideAnswers />);
+  expect(screen.queryByText('Источник и сведения')).not.toBeInTheDocument();
+  expect(screen.queryByText(policy)).not.toBeInTheDocument();
 });

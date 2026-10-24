@@ -1,17 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ChevronDown, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useAuthLogout } from "@/features/auth/useAuthLogout";
 import { useAuthSession } from "@/features/auth/useAuthSession";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/DropdownMenu";
 import styles from "./continuum-header.module.css";
 
 export default function ContinuumHeader({ homeHref, beforeLogout }: { homeHref: string; beforeLogout?: () => Promise<boolean> }) {
   const session = useAuthSession();
   const logout = useAuthLogout();
   const [menuOpen, setMenuOpen] = useState(false);
+  const logoutPending = useRef(false);
   const displayName = session.data?.user.name || session.data?.user.login || "Профиль";
+  async function requestLogout() {
+    if (logoutPending.current) return;
+    logoutPending.current = true;
+    try { if (!beforeLogout || await beforeLogout()) await logout(); }
+    finally { logoutPending.current = false; }
+  }
 
   return (
     <header className={styles.header}>
@@ -23,26 +31,25 @@ export default function ContinuumHeader({ homeHref, beforeLogout }: { homeHref: 
         <span className={styles.subject}>Физика</span>
       </div>
       <div className={styles.profile}>
-        <button
-          aria-label={`Профиль: ${displayName}`}
-          aria-expanded={menuOpen}
-          aria-haspopup="menu"
-          className={styles.profileButton}
-          onClick={() => setMenuOpen((open) => !open)}
-          type="button"
-        >
-          <UserRound aria-hidden="true" size={24} strokeWidth={1.6} />
-          <span>{displayName}</span>
-          <ChevronDown aria-hidden="true" size={20} strokeWidth={1.6} />
-        </button>
-        {menuOpen ? (
-          <div className={styles.menu} role="menu">
-            {session.data?.user.role === 'teacher' && <Link href="/teacher/reviewer-access" role="menuitem" onClick={() => setMenuOpen(false)}>Подключение агента</Link>}
-            <button onClick={() => { void (async () => { if (!beforeLogout || await beforeLogout()) await logout(); })(); }} role="menuitem" type="button">
-              Выйти
+        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+          <DropdownMenuTrigger asChild>
+            <button
+              aria-label={`Профиль: ${displayName}`}
+              aria-expanded={menuOpen}
+              aria-haspopup="menu"
+              className={styles.profileButton}
+              type="button"
+            >
+              <UserRound aria-hidden="true" size={24} strokeWidth={1.6} />
+              <span>{displayName}</span>
+              <ChevronDown aria-hidden="true" size={20} strokeWidth={1.6} />
             </button>
-          </div>
-        ) : null}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className={styles.menu}>
+            {session.data?.user.role === 'teacher' && <DropdownMenuItem asChild className={styles.menuItem}><Link href="/teacher/reviewer-access">Подключение агента</Link></DropdownMenuItem>}
+            <DropdownMenuItem className={styles.menuItem} onSelect={() => { void requestLogout(); }}>Выйти</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );

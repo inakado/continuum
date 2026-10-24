@@ -9,6 +9,7 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 import { ObjectStorageService } from '../../src/infra/storage/object-storage.service';
 import { resolveObjectStorageConfig } from '../../src/infra/storage/object-storage.config';
 import { StoredAssessmentTaskSchema, StoredAssessmentImportSchema } from '../../src/assessment-bank/assessment-bank.mapper';
+import { ZipFile } from 'yazl';
 
 const db = new PrismaService();
 const identities = new IdentityProvisioningService(db);
@@ -77,6 +78,104 @@ afterAll(async () => {
   await db.$disconnect();
 }, 30000);
 
+it('pins explicit EGE scoring, preserves legacy results and matches preview to the student score', async () => {
+  const matching = await db.assessmentBankTask.findFirstOrThrow({ where: { teacherId: teachers[0], stableId: 'shkolkovo-14139' } });
+  const oldId = randomUUID(), worksRoot = '/teacher/assessment-works';
+  const create = async (workId: string, items: { taskId: string; version: number }[]) => {
+    await api(worksRoot, 'POST', { id: workId, title: 'Правила проверки', gradeBand: 'grade_10_11' });
+    return (await api(`${worksRoot}/${workId}`, 'PATCH', { title: 'Правила проверки', instructions: '', gradeBand: 'grade_10_11', items, expectedRevision: 1, requestId: randomUUID() })).data;
+  };
+  const assign = async (workId: string, classIds: string[]) => {
+    const prepared = (await api(`${root}/works/${workId}/prepare`)).data;
+    return (await api(`${root}/works/${workId}`, 'POST', { requestId: randomUUID(), selection: prepared.selection, classes: prepared.classes.filter((group: { id: string }) => classIds.includes(group.id)).map((group: { id: string; rosterHash: string }) => ({ id: group.id, rosterHash: group.rosterHash })) })).data;
+  };
+  const solve = async (versionId: string, learner: typeof students[number], answers: { taskId: string; answer: object }[]) => {
+    const row = await db.assessmentRecipient.findFirstOrThrow({ where: { versionId, studentId: learner.id } });
+    const path = `${studentRoot}/${row.id}`;
+    await api(`${path}/start`, 'POST', undefined, learner.cookie);
+    let revision = 1;
+    for (const item of answers) {
+      const saved = await api(`${path}/answers/${item.taskId}`, 'PATCH', { requestId: randomUUID(), expectedRevision: revision, answer: item.answer }, learner.cookie);
+      expect(saved.status).toBe(200); revision = saved.data.revision;
+    }
+    const finished = await api(`${path}/finish`, 'POST', { expectedRevision: revision }, learner.cookie);
+    expect(finished.status).toBe(200);
+    return { path, state: finished.data, row: await db.assessmentRecipient.findUniqueOrThrow({ where: { id: row.id } }) };
+  };
+  await create(oldId, [{ taskId: matching.id, version: 1 }]);
+  const oldAssigned = await assign(oldId, classes);
+  const partialMatch = { taskId: matching.id, answer: { type: 'matching', matches: { radius: '2', force: '1' } } };
+  const old = await solve(oldAssigned.versionId, students[0], [partialMatch]);
+  expect(old.state.result).toEqual({ correctCount: 0, incorrectCount: 1, partialCount: 0, points: 0, maxPoints: 2 });
+  const snapshot = await db.assessmentWorkVersion.findUniqueOrThrow({ where: { id: oldAssigned.versionId } });
+  const zip = new ZipFile();
+  for (const file of ['manifest.json', ...['shkolkovo-14139', 'shkolkovo-17846'].flatMap((id) => [`tasks/${id}/task.json`, `tasks/${id}/statement.md`])]) zip.addBuffer(await readFile(resolve(__dirname, '../../../../examples/assessment-package/ege-v1', file)), file);
+  const bytes = (async () => { const chunks: Buffer[] = []; for await (const chunk of zip.outputStream) chunks.push(Buffer.from(chunk)); return Buffer.concat(chunks); })();
+  zip.end();
+  const preview = await api('/teacher/assessment-bank/imports/preview', 'POST', await bytes);
+  expect(preview.data.issues).toEqual([]);
+  const imported = await api(`/teacher/assessment-bank/imports/${preview.data.id}/confirm`, 'POST');
+  expect(imported.status).toBe(201);
+  expect(await db.assessmentWorkVersion.findUniqueOrThrow({ where: { id: snapshot.id } })).toEqual(snapshot);
+  expect(await db.assessmentRecipient.findUniqueOrThrow({ where: { id: old.row.id } })).toEqual(old.row);
+  expect((await api(`${old.path}/finish`, 'POST', { expectedRevision: 1 }, students[0].cookie)).data).toEqual(old.state);
+  expect((await solve(oldAssigned.versionId, students[1], [partialMatch])).state.result.points).toBe(0);
+  const newId = randomUUID();
+  const detail = await create(newId, imported.data.taskIds.map((taskId: string) => ({ taskId, version: 2 })));
+  const multiple = detail.items.find((item: { task: { type: string } }) => item.task.type === 'multiple_choice');
+  const partialAnswers = [partialMatch, { taskId: multiple.id, answer: { type: 'multiple_choice', optionIds: ['1', '2'] } }];
+  for (const item of partialAnswers) expect((await api(`${worksRoot}/${newId}/check-answer`, 'POST', { ...item, source: { kind: 'draft', expectedRevision: 2 } })).data).toEqual({ correct: false, points: 1, maxPoints: 2 });
+  expect(await db.assessmentRecipient.count({ where: { version: { workId: newId } } })).toBe(0);
+  const assigned = await assign(newId, [classes[0]]);
+  const result = await solve(assigned.versionId, students[0], partialAnswers);
+  expect(result.state.result).toEqual({ correctCount: 0, incorrectCount: 0, partialCount: 2, points: 2, maxPoints: 4 });
+  const reloaded = (await api(result.path, 'GET', undefined, students[0].cookie)).data;
+  expect(reloaded.result).toEqual(result.state.result);
+  expect(JSON.stringify(reloaded.items)).not.toContain('grading');
+  expect((await api(studentRoot, 'GET', undefined, students[0].cookie)).data.find((item: { id: string }) => item.id === result.row.id).result).toEqual(result.state.result);
+  expect((await api(`${root}/${assigned.versionId}`)).data.recipients[0].result).toEqual({ ...result.state.result, percentage: 50 });
+  const exported = await fetch('http://localhost:3000/teacher/assessment-bank/export', { headers: { cookie, origin } });
+  const roundtrip = await api('/teacher/assessment-bank/imports/preview', 'POST', Buffer.from(await exported.arrayBuffer()));
+  expect(roundtrip.data.items.every((item: { status: string }) => item.status === 'unchanged')).toBe(true);
+});
+
+it('concurrent retries assign one immutable version and preserve the original request outcome', async () => {
+  const id = await work();
+  const prepared = (await api(`${root}/works/${id}/prepare`)).data;
+  const selected = prepared.classes.filter((item: { id: string }) => classes.includes(item.id));
+  const input = { requestId: randomUUID(), selection: prepared.selection, classes: selected.map((item: { id: string; rosterHash: string }) => ({ id: item.id, rosterHash: item.rosterHash })) };
+  const results = await Promise.all(Array.from({ length: 4 }, () => api(`${root}/works/${id}`, 'POST', input)));
+  expect(results.map((item) => item.status), JSON.stringify(results)).toEqual([201, 201, 201, 201]);
+  results.forEach((item) => expect(item.data).toEqual(results[0].data));
+  expect(await db.assessmentWorkVersion.count({ where: { workId: id } })).toBe(1);
+  expect(await db.assessmentAssignmentRequest.count({ where: { workId: id } })).toBe(1);
+  expect(await db.assessmentRecipient.count({ where: { versionId: results[0].data.versionId } })).toBe(results[0].data.addedCount);
+  expect((await api(`${root}/works/${id}`, 'POST', { ...input, classes: [input.classes[0]] })).status).toBe(409);
+  expect((await api(`${root}/works/${id}`, 'POST', input)).data).toEqual(results[0].data);
+});
+
+it('concurrently assigns separate classes and rejects a request key reused for another work', async () => {
+  const id = await work();
+  const prepared = (await api(`${root}/works/${id}/prepare`)).data;
+  const selected = prepared.classes.filter((item: { id: string }) => classes.includes(item.id));
+  const results = await Promise.all(selected.map((item: { id: string; rosterHash: string }) => api(`${root}/works/${id}`, 'POST', {
+    requestId: randomUUID(), selection: prepared.selection, classes: [{ id: item.id, rosterHash: item.rosterHash }],
+  })));
+  expect(results.map((item) => item.status), JSON.stringify(results)).toEqual(selected.map(() => 201));
+  expect(new Set(results.map((item) => item.data.versionId)).size).toBe(1);
+  expect(await db.assessmentWorkVersion.count({ where: { workId: id } })).toBe(1);
+
+  const ids = [await work(), await work()];
+  const requestId = randomUUID();
+  const choices = await Promise.all(ids.map((workId) => api(`${root}/works/${workId}/prepare`)));
+  const conflicting = await Promise.all(ids.map((workId, index) => api(`${root}/works/${workId}`, 'POST', {
+    requestId, selection: choices[index].data.selection, classes: [{ id: selected[0].id, rosterHash: choices[index].data.classes.find((item: { id: string }) => item.id === selected[0].id).rosterHash }],
+  })));
+  expect(conflicting.map((item) => item.status).sort(), JSON.stringify(conflicting)).toEqual([201, 409]);
+  expect(await db.assessmentWorkVersion.count({ where: { workId: { in: ids } } })).toBe(1);
+  expect(await db.assessmentAssignmentRequest.count({ where: { id: requestId } })).toBe(1);
+});
+
 it('assigns an immutable draft to two rosters once, validates ownership and isolates student content', async () => {
   const id = await work();
   const prepared = await api(`${root}/works/${id}/prepare`);
@@ -107,6 +206,39 @@ it('assigns an immutable draft to two rosters once, validates ownership and isol
   expect((await fetch(`http://localhost:3000${imageUrl}`, { headers: { cookie: students[2].cookie, origin } })).status).toBe(404);
 });
 
+it('edits shared student names without changing credentials, sessions or assigned snapshots', async () => {
+  const id = students[0].id, path = `/teacher/students/${id}/names`;
+  const profile = await db.studentProfile.findUniqueOrThrow({ where: { userId: id } });
+  const user = await db.user.findUniqueOrThrow({ where: { id } });
+  const account = await db.account.findMany({ where: { userId: id } });
+  const grants = await db.accessGrant.findMany({ where: { studentId: id } });
+  const recipients = await db.assessmentRecipient.findMany({ where: { studentId: id } });
+  expect(recipients.length).toBeGreaterThan(0);
+  const expected = { firstName: profile.firstName, lastName: profile.lastName, middleName: profile.middleName };
+  const input = { firstName: 'Пётр', lastName: 'Исправленный', middleName: 'Иванович', expected };
+  expect((await api(path, 'PATCH', input, '')).status).toBe(401);
+  expect((await api(path, 'PATCH', input, students[0].cookie)).status).toBe(403);
+  expect((await api(path, 'PATCH', input, cookie, 'https://foreign.example')).status).toBe(403);
+  expect((await api(path, 'PATCH', { ...input, login: 'change-login' })).status).toBe(400);
+  expect((await api(path, 'PATCH', { ...input, firstName: '  ' })).status).toBe(400);
+  expect((await api(`/teacher/students/${teachers[0]}/names`, 'PATCH', input)).status).toBe(403);
+  expect((await api(`/teacher/students/${randomUUID()}/names`, 'PATCH', input)).status).toBe(403);
+  expect((await api(path, 'PATCH', input, other)).status).toBe(200);
+  expect((await api(path, 'PATCH', input, other)).status).toBe(200);
+  expect((await api(path, 'PATCH', { ...input, firstName: 'Другой' })).status).toBe(409);
+  expect(await db.user.findUniqueOrThrow({ where: { id } })).toEqual({ ...user, name: 'Пётр Исправленный', updatedAt: expect.any(Date) });
+  expect(await db.studentProfile.findUniqueOrThrow({ where: { userId: id } })).toEqual({ ...profile, firstName: input.firstName, lastName: input.lastName, middleName: input.middleName, updatedAt: expect.any(Date) });
+  expect(await db.account.findMany({ where: { userId: id } })).toEqual(account);
+  expect(await db.accessGrant.findMany({ where: { studentId: id } })).toEqual(grants);
+  expect(await db.assessmentRecipient.findMany({ where: { studentId: id } })).toEqual(recipients);
+  expect((await api('/me', 'GET', undefined, students[0].cookie)).status).toBe(200);
+  const current = { firstName: input.firstName, lastName: input.lastName, middleName: input.middleName };
+  const competing = await Promise.all(['Алексей', 'Борис'].map((firstName) => api(path, 'PATCH', { ...current, firstName, expected: current })));
+  expect(competing.map((item) => item.status).sort()).toEqual([200, 409]);
+  const after = await db.studentProfile.findUniqueOrThrow({ where: { userId: id } });
+  expect((await api(path, 'PATCH', { ...expected, expected: { firstName: after.firstName, lastName: after.lastName, middleName: after.middleName } })).status).toBe(200);
+});
+
 it('resumes saved answers, checks revisions and seals results against concurrent saves and repeat finish', async () => {
   const id = await work();
   const prepared = (await api(`${root}/works/${id}/prepare`)).data;
@@ -129,7 +261,7 @@ it('resumes saved answers, checks revisions and seals results against concurrent
   const current = (await api(path, 'GET', undefined, students[0].cookie)).data;
   const finished = await api(`${path}/finish`, 'POST', { expectedRevision: current.revision }, students[0].cookie);
   expect(finished.data.status).toBe('completed');
-  expect(finished.data.result).toEqual({ correctCount: 0, incorrectCount: refs.length });
+  expect(finished.data.result).toEqual({ correctCount: 0, incorrectCount: refs.length, partialCount: 0, points: 0, maxPoints: prepared.work.maxPoints });
   expect((await api(`${path}/finish`, 'POST', { expectedRevision: current.revision }, students[0].cookie)).data).toEqual(finished.data);
   expect((await api(`${path}/answers/${target}`, 'PATCH', { ...body, expectedRevision: finished.data.revision, requestId: randomUUID() }, students[0].cookie)).status).toBe(409);
   expect((await api(`${root}/${assigned.versionId}`)).data.recipients[0].result.points).toBe(0);
@@ -168,7 +300,7 @@ it('rejects a stale draft even when frozen, assigns the chosen old version and d
   expect(saved.data).toMatchObject({ revision: 2, answeredCount: 1, status: 'in_progress', result: null });
   expect((await api(reportPath)).data.recipients[0]).toMatchObject({ status: 'in_progress', answeredCount: 1, result: null });
   expect((await api(studentRoot, 'GET', undefined, learner.cookie)).data).toEqual([expect.objectContaining({ title: 'Один ответ', taskCount: 1, result: null })]);
-  expect((await api(`${path}/finish`, 'POST', { expectedRevision: 2 }, learner.cookie)).data.result).toEqual({ correctCount: 1, incorrectCount: 0 });
+  expect((await api(`${path}/finish`, 'POST', { expectedRevision: 2 }, learner.cookie)).data.result).toEqual({ correctCount: 1, incorrectCount: 0, partialCount: 0, points: 1, maxPoints: 1 });
   expect((await api(reportPath)).data.recipients[0].result).toMatchObject({ points: 1, maxPoints: 1, percentage: 100 });
   expect((await api(root)).data.find((item: { versionId: string }) => item.versionId === assigned.data.versionId)).toMatchObject({ studentCount: 1, completedCount: 1 });
   expect((await api(`/teacher/students/${learner.id}`, 'DELETE')).status).toBe(200);
@@ -203,4 +335,50 @@ it('keeps recipients fixed, detects roster changes and preserves history through
   expect((await api(`${root}/${assigned.versionId}`)).data.recipients.some((item: { deleted: boolean }) => item.deleted)).toBe(true);
   expect((await api(`/teacher/classes/${classes[0]}`, 'DELETE', { deleteStudents: false })).status).toBe(200);
   expect((await api(`${root}/${assigned.versionId}`)).data.classes[0]).toMatchObject({ classId: null, title: classTitle('11А') });
+});
+
+it('keeps archived assignments available to students and forbids deleting any assigned version', async () => {
+  const id = await work(), workPath = `/teacher/assessment-works/${id}`;
+  const prepared = (await api(`${root}/works/${id}/prepare`)).data;
+  const selected = prepared.classes.find((item: { id: string }) => item.id === classes[1]);
+  const assigned = await api(`${root}/works/${id}`, 'POST', { requestId: randomUUID(), selection: prepared.selection, classes: [{ id: selected.id, rosterHash: selected.rosterHash }] });
+  expect(assigned.status).toBe(201);
+  const snapshot = await db.assessmentWorkVersion.findUniqueOrThrow({ where: { id: assigned.data.versionId } });
+  const recipient = await db.assessmentRecipient.findFirstOrThrow({ where: { versionId: assigned.data.versionId, studentId: students[1].id } });
+  const studentPath = `${studentRoot}/${recipient.id}`;
+  expect((await api(`${studentPath}/start`, 'POST', undefined, students[1].cookie)).status).toBe(200);
+  const started = (await api(studentPath, 'GET', undefined, students[1].cookie)).data;
+  expect((await api(`${workPath}/archive`, 'PATCH', { isArchived: true, expectedLifecycleRevision: 1 })).status).toBe(200);
+  expect((await api('/teacher/assessment-works')).data.find((row: { id: string }) => row.id === id)).toMatchObject({ isArchived: true, canDelete: false });
+  expect((await api(studentPath, 'GET', undefined, students[1].cookie)).data).toEqual(started);
+  const finished = await api(`${studentPath}/finish`, 'POST', { expectedRevision: started.revision }, students[1].cookie);
+  expect(finished.data.status).toBe('completed');
+  expect((await api(`${root}/${assigned.data.versionId}`)).status).toBe(200);
+  expect((await api(workPath, 'DELETE', { expectedRevision: 2, expectedLifecycleRevision: 2 })).status).toBe(409);
+  expect(await db.assessmentWorkVersion.findUnique({ where: { id: snapshot.id } })).toEqual(snapshot);
+  expect((await api(`${workPath}/archive`, 'PATCH', { isArchived: false, expectedLifecycleRevision: 2 })).status).toBe(200);
+  expect((await api(`${workPath}/versions`, 'POST', { expectedRevision: 2 })).data.id).toBe(snapshot.id);
+});
+
+it('serializes deletion against a real assignment without removing recipients or creating assignments on tombstones', async () => {
+  for (let i = 0; i < 3; i++) {
+    const id = await work(), workPath = `/teacher/assessment-works/${id}`;
+    const prepared = (await api(`${root}/works/${id}/prepare`)).data;
+    const selected = prepared.classes.find((item: { id: string }) => item.id === classes[1]);
+    const payload = { requestId: randomUUID(), selection: prepared.selection, classes: [{ id: selected.id, rosterHash: selected.rosterHash }] };
+    const remove = () => api(workPath, 'DELETE', { expectedRevision: 2, expectedLifecycleRevision: 1 });
+    const assign = () => api(`${root}/works/${id}`, 'POST', payload);
+    const pair = await Promise.all(i % 2 ? [assign(), remove()] : [remove(), assign()]);
+    const row = await db.assessmentWork.findUniqueOrThrow({ where: { id } });
+    if (row.deletedAt) {
+      expect(pair.map((result) => result.status).sort()).toEqual([200, 404]);
+      expect(await db.assessmentAssignment.count({ where: { version: { workId: id } } })).toBe(0);
+      expect(await db.assessmentRecipient.count({ where: { version: { workId: id } } })).toBe(0);
+      expect((await assign()).status).toBe(404);
+    } else {
+      expect(pair.map((result) => result.status).sort()).toEqual([201, 409]);
+      expect(await db.assessmentRecipient.count({ where: { version: { workId: id } } })).toBeGreaterThan(0);
+      expect((await remove()).status).toBe(409);
+    }
+  }
 });

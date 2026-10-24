@@ -12,7 +12,7 @@ export function useSolutionPhotos(recipientId: string, enabled: boolean) {
   const pending = useRef<Job[]>([]);
   const flight = useRef<Promise<boolean> | null>(null);
   const canRefresh = () => pending.current.length === 0 && !flight.current;
-  const query = useQuery({ queryKey: key, queryFn: () => solutionsApi.list(recipientId), enabled, refetchOnWindowFocus: canRefresh, refetchOnReconnect: canRefresh });
+  const query = useQuery({ queryKey: key, queryFn: () => solutionsApi.list(recipientId), enabled, refetchOnMount: 'always', refetchOnWindowFocus: canRefresh, refetchOnReconnect: canRefresh });
   const mutation = useMutation({ retry: false, networkMode: 'always', mutationFn: async () => {
     await cache.cancelQueries({ queryKey: key });
     while (pending.current.length) {
@@ -31,7 +31,7 @@ export function useSolutionPhotos(recipientId: string, enabled: boolean) {
     flight.current = mutation.mutateAsync().then(() => true, () => false).finally(() => { flight.current = null; });
     return flight.current;
   }
-  return { answers: query.data ?? [], loading: enabled && query.isPending, readError: query.error, error: mutation.error, busy: mutation.isPending,
+  return { answers: query.data ?? [], loading: enabled && query.isPending, ready: query.isSuccess && !query.isFetching, readError: query.error, error: mutation.error, busy: mutation.isPending,
     pending: pending.current.length > 0, dirty: mutation.isPending || pending.current.length > 0, reload: query.refetch, flush,
     add: (taskId: string, files: File[], replaceId?: string) => {
       if (pending.current.length) return;

@@ -82,3 +82,20 @@ it('refreshes a published review on return, but does not refetch over an upload 
   expect(await screen.findByText('1 из 2 баллов')).toBeVisible();
   act(() => focusManager.setFocused(undefined));
 });
+
+it('confirms a photo deletion, leaves it on cancellation, and retries the same photo after a failure', async () => {
+  vi.mocked(solutionsApi.remove).mockRejectedValueOnce(new TypeError('offline')).mockResolvedValue([{ ...empty, revision: 2 }]);
+  show(added);
+  fireEvent.click(await screen.findByRole('button', { name: 'Удалить фото 1' }));
+  expect(solutionsApi.remove).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
+  expect(screen.getByRole('button', { name: 'Открыть фото 1' })).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Удалить фото 1' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Удалить фото' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Не удалось выполнить действие');
+  fireEvent.click(screen.getByRole('button', { name: 'Удалить фото' }));
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  expect(solutionsApi.remove).toHaveBeenCalledTimes(2);
+  expect(vi.mocked(solutionsApi.remove).mock.calls[0]).toEqual(vi.mocked(solutionsApi.remove).mock.calls[1]);
+  expect(screen.queryByRole('button', { name: 'Открыть фото 1' })).not.toBeInTheDocument();
+});

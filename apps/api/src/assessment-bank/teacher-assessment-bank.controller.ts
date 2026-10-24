@@ -1,5 +1,5 @@
-import { BadRequestException, Controller, Delete, Get, Header, Headers, Inject, Param, ParseUUIDPipe, Post, Query, Req, Res, StreamableFile, UseGuards } from '@nestjs/common';
-import { AssessmentBankQuerySchema, type AssessmentBankQuery } from '@continuum/shared';
+import { BadRequestException, Body, Controller, Delete, Get, Header, Headers, Inject, Param, ParseUUIDPipe, Post, Query, Req, Res, StreamableFile, UseGuards } from '@nestjs/common';
+import { AssessmentBankDeleteSchema, AssessmentBankRestoreSchema, AssessmentBankQuerySchema, type AssessmentBankDelete, type AssessmentBankRestore, type AssessmentBankQuery } from '@continuum/shared';
 import { Role } from '@prisma/client';
 import { z } from 'zod';
 import type { Response } from 'express';
@@ -10,6 +10,7 @@ import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { assertWriteOrigin } from '../common/assert-write-origin';
 import { AssessmentBankReadService } from './assessment-bank-read.service';
 import { AssessmentBankWriteService } from './assessment-bank-write.service';
+import { AssessmentDuplicateReadService } from './assessment-duplicate-read.service';
 
 const VersionQuerySchema = z.object({ version: z.coerce.number().int().positive().max(100000).optional() });
 
@@ -17,7 +18,11 @@ const VersionQuerySchema = z.object({ version: z.coerce.number().int().positive(
 @UseGuards(RolesGuard)
 @Roles(Role.teacher)
 export class TeacherAssessmentBankController {
-  constructor(@Inject(AssessmentBankReadService) private readonly reads: AssessmentBankReadService, @Inject(AssessmentBankWriteService) private readonly writes: AssessmentBankWriteService) {}
+  constructor(@Inject(AssessmentBankReadService) private readonly reads: AssessmentBankReadService, @Inject(AssessmentBankWriteService) private readonly writes: AssessmentBankWriteService, @Inject(AssessmentDuplicateReadService) private readonly duplicates: AssessmentDuplicateReadService) {}
+
+  @Get('imports/:id/duplicates')
+  @Header('Cache-Control', 'no-store')
+  duplicateHints(@Req() request: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string) { return this.duplicates.hints(request.user.id, id); }
 
   @Get()
   @Header('Cache-Control', 'no-store')
@@ -26,6 +31,14 @@ export class TeacherAssessmentBankController {
   @Get('tasks/:id')
   @Header('Cache-Control', 'no-store')
   view(@Req() request: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string, @Query(new ZodValidationPipe(VersionQuerySchema)) query: z.infer<typeof VersionQuerySchema>) { return this.reads.view(request.user.id, id, query.version); }
+
+  @Delete('tasks/:id')
+  @Header('Cache-Control', 'no-store')
+  remove(@Req() request: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string, @Body(new ZodValidationPipe(AssessmentBankDeleteSchema)) input: AssessmentBankDelete) { assertWriteOrigin(request); return this.writes.remove(request.user.id, id, input); }
+
+  @Post('tasks/:id/restore')
+  @Header('Cache-Control', 'no-store')
+  restore(@Req() request: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string, @Body(new ZodValidationPipe(AssessmentBankRestoreSchema)) input: AssessmentBankRestore) { assertWriteOrigin(request); return this.writes.restore(request.user.id, id, input); }
 
   @Get('tasks/:id/images/:name')
   @Header('Cache-Control', 'no-store')

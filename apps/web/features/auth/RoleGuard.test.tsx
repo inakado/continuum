@@ -1,4 +1,6 @@
-import { screen } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
+import { authQueryKeys } from '@/lib/query/keys';
 import { usePathname, useRouter } from 'next/navigation';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { authApi } from '@/lib/auth/client';
@@ -55,5 +57,19 @@ describe('RoleGuard', () => {
 
     expect(await screen.findByText('Сервис временно недоступен')).toBeInTheDocument();
     expect(replace).not.toHaveBeenCalled();
+  });
+
+  it('preserves the mounted teacher editor when the session expires, but not for another account', async () => {
+    vi.mocked(usePathname).mockReturnValue('/teacher/works/00000000-0000-4000-8000-000000000001');
+    const owner = { user: { id: 'teacher-1', login: 'teacher1', name: 'Анна', role: 'teacher' as const } };
+    vi.mocked(authApi.getSession).mockResolvedValue(owner);
+    function Draft() { const [value, setValue] = useState(''); return <input aria-label="Черновик" value={value} onChange={(event) => setValue(event.target.value)} />; }
+    const { queryClient } = renderWithQueryClient(<RoleGuard requiredRole="teacher"><Draft /></RoleGuard>);
+    fireEvent.change(await screen.findByLabelText('Черновик'), { target: { value: 'Несохранённый ввод' } });
+    await act(async () => { queryClient.setQueryData(authQueryKeys.session(), null); });
+    expect(screen.getByLabelText('Черновик')).toHaveValue('Несохранённый ввод');
+    expect(replace).not.toHaveBeenCalled();
+    await act(async () => { queryClient.setQueryData(authQueryKeys.session(), { user: { ...owner.user, id: 'teacher-2' } }); });
+    await waitFor(() => expect(screen.getByLabelText('Черновик')).toHaveValue(''));
   });
 });

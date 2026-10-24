@@ -1,6 +1,7 @@
 "use client";
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import type { AssignmentReport } from '@continuum/shared';
 import WorksShell from '@/features/teacher-works/WorksShell';
@@ -12,50 +13,47 @@ import ui from '@/features/teacher-works/teacher-works.module.css';
 import { useAssignmentReport } from './use-assignments';
 import styles from './teacher-assignments.module.css';
 import StudentSolutionsPanel from './StudentSolutionsPanel';
+import SearchField from '@/components/ui/SearchField';
+import AssignedClasses from './AssignedClasses';
+import { useReportFilters } from './use-report-filters';
+import { useAuthSession } from '@/features/auth/useAuthSession';
+import AssignmentProgressRow from './AssignmentProgressRow';
 
-const statusLabels = { not_started: 'Не начал', in_progress: 'В работе', completed: 'Завершил' };
 const filters = [{ id: 'all', label: 'Все' }, { id: 'not_started', label: 'Не начали' }, { id: 'in_progress', label: 'В работе' }, { id: 'completed', label: 'Завершили' }] as const;
-export function AssignmentReportView({ data }: { data: AssignmentReport }) {
-  const [classId, setClass] = useState('');
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<(typeof filters)[number]['id']>('all');
-  const [page, setPage] = useState(1);
+export function AssignmentReportView({ data, onRemovedLast, userId }: { data: AssignmentReport; onRemovedLast?: () => void; userId?: string }) {
+  const context = useReportFilters(data.versionId, userId);
+  const { search, status, page, update } = context;
+  const classId = data.classes.some((item) => item.id === context.classId) ? context.classId : '';
   const [viewing, setViewing] = useState<{ id: string; name: string } | null>(null);
   const query = search.trim().toLocaleLowerCase('ru');
   const scoped = data.recipients.filter((item) => (!classId || item.assignmentId === classId) && `${item.name} ${item.login}`.toLocaleLowerCase('ru').includes(query));
-  const filtered = scoped.filter((item) => status === 'all' || item.status === status);
+  const filtered = scoped.filter((item) => data.automaticTaskCount === 0 || status === 'all' || item.status === status);
   const pages = Math.max(1, Math.ceil(filtered.length / 20));
   const activePage = Math.min(page, pages);
   const shown = filtered.slice((activePage - 1) * 20, activePage * 20);
   return <>
     <Link href="/teacher/works/assignments" className={ui.textButton}><ArrowLeft size={17} />К назначениям</Link>
     <div className={styles.heading}><div><h1>{data.title}</h1><p>Версия {data.versionNumber} · {taskCountLabel(data.taskCount)} · {pointsLabel(data.maxPoints)}</p></div>
-      <div className={styles.actions}><Link className={ui.secondary} href={`/teacher/works/${data.workId}/assign?version=${data.versionNumber}&add=1`}>Добавить учеников</Link><Link className={ui.textButton} href={`/teacher/works/${data.workId}/preview?version=${data.versionNumber}`}>Просмотреть работу</Link></div>
+      <div className={styles.actions}><Link className={ui.secondary} href={`/teacher/works/${data.workId}/assign?version=${data.versionNumber}&add=1`}>Добавить учеников</Link><Link className={ui.textButton} href={`/teacher/statistics/${data.versionId}${classId ? `?class=${classId}` : ''}`}>Статистика</Link><Link className={ui.textButton} href={`/teacher/works/${data.workId}/preview?version=${data.versionNumber}`}>Просмотреть работу</Link></div>
     </div>
-    <div className={styles.filters}><label>Класс<WorkSelect aria-label="Класс" value={classId} onChange={(event) => { setClass(event.target.value); setPage(1); }}><option value="">Все классы</option>{data.classes.map((item) => <option key={item.id} value={item.id}>{item.title} · {item.academicYear}–{item.academicYear + 1}{item.classId ? '' : ' · удалён'}</option>)}</WorkSelect></label>
-      <label>Поиск<input type="search" aria-label="Поиск ученика" placeholder="ФИО или логин" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} /></label>
+    <div className={styles.filters}><label>Класс<WorkSelect aria-label="Класс" value={classId} onChange={(event) => update({ classId: event.target.value, page: 1 })}><option value="">Все классы</option>{data.classes.map((item) => <option key={item.id} value={item.id}>{item.title} · {item.academicYear}–{item.academicYear + 1}{item.classId ? '' : ' · удалён'}</option>)}</WorkSelect></label>
+      <label>Поиск<SearchField label="Поиск ученика" placeholder="ФИО или логин" maxLength={200} value={search} onValueChange={context.changeSearch} /></label>
+      {data.automaticTaskCount > 0 && <label>Тестовая часть<WorkSelect aria-label="Тестовая часть" value={status} onChange={(event) => update({ status: event.target.value as (typeof filters)[number]['id'], page: 1 })}>{filters.map((item) => <option key={item.id} value={item.id}>{item.label} — {item.id === 'all' ? scoped.length : scoped.filter((row) => row.status === item.id).length}</option>)}</WorkSelect></label>}
     </div>
-    <div className={styles.statusFilters} aria-label="Состояние выполнения">{filters.map((item) => {
-      const count = item.id === 'all' ? scoped.length : scoped.filter((row) => row.status === item.id).length;
-      return <button key={item.id} aria-pressed={status === item.id} onClick={() => { setStatus(item.id); setPage(1); }}>{item.label} {count}</button>;
-    })}</div>
-    {data.extendedTaskCount ? <p className={styles.muted}>Состояние и результат — по тестовой части. Фотографии решений принимаются независимо.</p> : null}
-    {shown.length ? <table className={styles.reportTable}><thead><tr><th>Ученик</th><th>Класс</th><th>Состояние</th><th>Заполнено</th><th>Результат</th>{data.extendedTaskCount ? <th>Фото решений</th> : null}</tr></thead><tbody>{shown.map((item) => <tr key={item.id}>
-      <td>{item.name}{item.deleted ? <small>Учётная запись удалена</small> : !item.isActive ? <small>Учётная запись отключена</small> : null}</td>
-      <td>{data.classes.find((group) => group.id === item.assignmentId)?.title}</td>
-      <td className={item.status === 'completed' ? styles.completed : undefined}>{data.automaticTaskCount === 0 ? 'Без тестовой части' : statusLabels[item.status]}</td><td>{item.answeredCount} из {data.automaticTaskCount ?? data.taskCount}</td>
-      <td className={item.result ? styles.completed : undefined}>{item.result ? `${item.result.points} из ${item.result.maxPoints} · ${item.result.percentage}%` : '—'}</td>
-      {data.extendedTaskCount ? <td><button className={ui.textButton} onClick={() => setViewing({ id: item.id, name: item.name })}>Фото: {item.photoTaskCount ?? 0} из {data.extendedTaskCount}</button></td> : null}
-    </tr>)}</tbody></table> : <p className={ui.empty}>По этим фильтрам учеников нет.</p>}
-    <div className={styles.pagination}><span>{filtered.length ? `${(activePage - 1) * 20 + 1}–${Math.min(activePage * 20, filtered.length)} из ${filtered.length}` : '0 учеников'}</span><div><button className={ui.secondary} disabled={activePage === 1} onClick={() => setPage(activePage - 1)}>Назад</button><span>{activePage} / {pages}</span><button className={ui.secondary} disabled={activePage === pages} onClick={() => setPage(activePage + 1)}>Далее</button></div></div>
+    <AssignedClasses data={data} onRemoved={(last) => { update({ classId: '', page: 1 }, true); setViewing(null); if (last) onRemovedLast?.(); }} />
+    {data.extendedTaskCount > 0 && <p className={styles.muted}>Фото считаются по задачам. «Опубликовано» — проверки, доступные ученику.</p>}
+    {shown.length ? <table className={styles.reportTable}><thead><tr><th scope="col">Ученик</th><th scope="col">Класс</th>{data.automaticTaskCount > 0 && <th scope="col">Тестовая часть</th>}{data.extendedTaskCount > 0 && <><th scope="col">Решения</th><th scope="col">Проверка</th></>}</tr></thead><tbody>{shown.map((item) => <AssignmentProgressRow key={item.id} item={item} data={data} onSolutions={() => setViewing({ id: item.id, name: item.name })} />)}</tbody></table> : <p className={ui.empty}>По этим фильтрам учеников нет.</p>}
+    <div className={styles.pagination}><span>{filtered.length ? `${(activePage - 1) * 20 + 1}–${Math.min(activePage * 20, filtered.length)} из ${filtered.length}` : '0 учеников'}</span><div><button className={ui.secondary} disabled={activePage === 1} onClick={() => update({ page: activePage - 1 })}>Назад</button><span>{activePage} / {pages}</span><button className={ui.secondary} disabled={activePage === pages} onClick={() => update({ page: activePage + 1 })}>Далее</button></div></div>
     {viewing && <StudentSolutionsPanel key={viewing.id} id={viewing.id} name={viewing.name} close={() => setViewing(null)} />}
   </>;
 }
 
 export default function AssignmentReportScreen({ id }: { id: string }) {
   const query = useAssignmentReport(id);
+  const session = useAuthSession();
+  const router = useRouter();
   return <WorksShell>{query.isPending ? <p role="status">Загружаем выполнение…</p> : null}
     {query.error && <div role="alert" className={ui.error}><p>{apiErrorMessage(query.error)}</p><button className={ui.secondary} onClick={() => void query.refetch()}>Повторить</button></div>}
-    {query.data && <AssignmentReportView data={query.data} />}
+    {query.data && <AssignmentReportView key={`${session.data?.user.id}:${id}`} data={query.data} userId={session.data?.user.id} onRemovedLast={() => router.replace('/teacher/works/assignments')} />}
   </WorksShell>;
 }

@@ -1,8 +1,7 @@
 "use client";
 
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
-import type { ReactNode } from "react";
-import Button from "./Button";
+import { useRef, type ReactNode } from "react";
 import styles from "./alert-dialog.module.css";
 
 type AlertDialogProps = {
@@ -15,6 +14,9 @@ type AlertDialogProps = {
   onConfirm: () => void | Promise<void>;
   confirmDisabled?: boolean;
   destructive?: boolean;
+  busy?: boolean;
+  error?: string;
+  returnFocus?: () => void;
 };
 
 export default function AlertDialog({
@@ -27,32 +29,36 @@ export default function AlertDialog({
   onConfirm,
   confirmDisabled = false,
   destructive = false,
+  busy = false,
+  error,
+  returnFocus,
 }: AlertDialogProps) {
+  const cancel = useRef<HTMLButtonElement>(null);
   return (
-    <AlertDialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
+    <AlertDialogPrimitive.Root open={open} onOpenChange={(value) => { if (!busy) onOpenChange(value); }}>
       <AlertDialogPrimitive.Portal>
         <AlertDialogPrimitive.Overlay className={styles.overlay} />
-        <AlertDialogPrimitive.Content className={styles.content}>
+        <AlertDialogPrimitive.Content className={styles.content} aria-busy={busy} onOpenAutoFocus={(event) => { event.preventDefault(); cancel.current?.focus(); }} onCloseAutoFocus={(event) => { if (returnFocus) { event.preventDefault(); returnFocus(); } }} onEscapeKeyDown={(event) => { if (busy) event.preventDefault(); }}>
           <AlertDialogPrimitive.Title className={styles.title}>{title}</AlertDialogPrimitive.Title>
           {description ? (
             <AlertDialogPrimitive.Description className={styles.description}>
               {description}
             </AlertDialogPrimitive.Description>
           ) : null}
+          {error && <p className={styles.error} role="alert">{error}</p>}
           <div className={styles.actions}>
             <AlertDialogPrimitive.Cancel asChild>
-              <Button variant="secondary" className={styles.cancelButton}>
+              <button ref={cancel} type="button" disabled={busy}>
                 {cancelText}
-              </Button>
+              </button>
             </AlertDialogPrimitive.Cancel>
-            <AlertDialogPrimitive.Action asChild onClick={onConfirm} disabled={confirmDisabled}>
-              <Button
-                variant={destructive ? "danger" : "primary"}
+            <AlertDialogPrimitive.Action asChild onClick={(event) => { event.preventDefault(); if (!busy && !confirmDisabled) void onConfirm(); }}>
+              <button type="button"
                 className={`${styles.confirmButton} ${destructive ? styles.confirmButtonDanger : ""}`}
-                disabled={confirmDisabled}
+                disabled={confirmDisabled || busy}
               >
-                {confirmText}
-              </Button>
+                {busy ? "Выполняем…" : confirmText}
+              </button>
             </AlertDialogPrimitive.Action>
           </div>
         </AlertDialogPrimitive.Content>

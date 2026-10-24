@@ -29,3 +29,6 @@ coverage/
 # Docker volumes (later)
 .docker/
 volumes/
+
+# Generated previews, exports and local QA (may include pupil data)
+/output/

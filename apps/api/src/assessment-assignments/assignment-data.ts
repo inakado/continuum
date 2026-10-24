@@ -8,9 +8,10 @@ export const answersSchema = z.record(z.uuid(), AssessmentAnswerSchema);
 export const inputHash = (input: object) => createHash('sha256').update(JSON.stringify(input)).digest('hex');
 export const json = (input: object): Prisma.InputJsonValue => JSON.parse(JSON.stringify(input)) as Prisma.InputJsonValue;
 export const attemptStatus = (row: { startedAt: Date | null; completedAt: Date | null }) => row.completedAt ? 'completed' as const : row.startedAt ? 'in_progress' as const : 'not_started' as const;
-export function attemptState(row: Pick<AssessmentRecipient, 'revision' | 'startedAt' | 'completedAt' | 'answeredCount' | 'correctCount' | 'incorrectCount'>) {
+export function attemptState(row: Pick<AssessmentRecipient, 'revision' | 'startedAt' | 'completedAt' | 'answeredCount' | 'correctCount' | 'incorrectCount' | 'points'>, snapshot: WorkSnapshot) {
+  const automatic = snapshot.items.filter((item) => item.data.task.type !== 'extended');
   return { revision: row.revision, status: attemptStatus(row), answeredCount: row.answeredCount, startedAt: row.startedAt?.toISOString() ?? null, completedAt: row.completedAt?.toISOString() ?? null,
-    result: row.completedAt ? { correctCount: row.correctCount!, incorrectCount: row.incorrectCount! } : null };
+    result: row.completedAt ? { correctCount: row.correctCount!, incorrectCount: row.incorrectCount!, partialCount: automatic.length - row.correctCount! - row.incorrectCount!, points: row.points!, maxPoints: automatic.reduce((sum, item) => sum + item.data.task.maxPoints, 0) } : null };
 }
 export type WorkSnapshot = z.infer<typeof WorkSnapshotSchema>;
 export function publicItem(recipientId: string, item: WorkSnapshot['items'][number]): PublicAssessmentItem {

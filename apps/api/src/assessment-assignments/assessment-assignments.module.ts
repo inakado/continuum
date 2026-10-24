@@ -12,8 +12,12 @@ import { StudentAttemptsController } from './student-attempts.controller';
 import { SolutionsController } from './solutions.controller';
 import { SolutionReadService } from './solution-read.service';
 import { SolutionWriteService } from './solution-write.service';
+import { AssignmentRevocationService } from './assignment-revocation.service';
+import { AssessmentFileCleanupService } from './assessment-file-cleanup.service';
+import { StatisticsReadService } from './statistics-read.service';
+import { TeacherStatisticsController } from './teacher-statistics.controller';
 
 @Module({ imports: [PrismaModule, ObjectStorageModule, AssessmentWorksModule],
-  controllers: [TeacherAssignmentsController, StudentAttemptsController, SolutionsController],
-  providers: [AssignmentRosterService, AssignmentReadService, AssignmentWriteService, StudentAttemptReadService, StudentAttemptWriteService, SolutionReadService, SolutionWriteService] })
+  controllers: [TeacherAssignmentsController, StudentAttemptsController, SolutionsController, TeacherStatisticsController],
+  providers: [AssignmentRosterService, AssignmentReadService, AssignmentWriteService, StudentAttemptReadService, StudentAttemptWriteService, SolutionReadService, SolutionWriteService, AssignmentRevocationService, AssessmentFileCleanupService, StatisticsReadService] })
 export class AssessmentAssignmentsModule {}

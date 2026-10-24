@@ -16,7 +16,7 @@ export default function TeacherWorkPreviewScreen({ workId, version }: { workId: 
     {query.error && <div role="alert"><p>{apiErrorMessage(query.error)}</p><button className={ui.secondary} onClick={() => void query.refetch()}>Повторить</button></div>}
     {query.data && <><div className={styles.heading}><h1>{query.data.title}</h1><p>{version ? `Версия ${version}` : 'Текущая сохранённая редакция'}</p></div>
       {query.data.instructions && <p className={ui.instructions}>{query.data.instructions}</p>}
-      <WorkPreview id={workId} revision={query.data.revision} items={query.data.items} dirty={false} readOnly />
+      <WorkPreview key={`${workId}:${version ?? 'draft'}`} id={workId} revision={query.data.revision} items={query.data.items} dirty={false} readOnly versionNumber={version} />
     </>}
   </WorksShell>;
 }

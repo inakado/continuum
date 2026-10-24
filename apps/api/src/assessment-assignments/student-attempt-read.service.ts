@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ObjectStorageService } from '../infra/storage/object-storage.service';
 import { WorkSnapshotSchema } from '../assessment-works/assessment-works-read.service';
 import { answersSchema, attemptState, publicItem } from './assignment-data';
+import { progressScope, readWorkProgress } from './work-progress';
 
 @Injectable()
 export class StudentAttemptReadService {
@@ -16,18 +17,24 @@ export class StudentAttemptReadService {
   }
   async list(studentId: string) {
     const rows = await this.db.assessmentRecipient.findMany({ where: { studentId }, orderBy: { createdAt: 'desc' }, select: {
-      id: true, revision: true, createdAt: true, startedAt: true, completedAt: true, answeredCount: true, correctCount: true, incorrectCount: true,
+      id: true, revision: true, createdAt: true, startedAt: true, completedAt: true, answeredCount: true, correctCount: true, incorrectCount: true, points: true,
       version: { select: { number: true, data: true } },
     } });
-    return rows.map((row) => {
-      const snapshot = WorkSnapshotSchema.parse(row.version.data);
-      return { id: row.id, title: snapshot.title, versionNumber: row.version.number, taskCount: snapshot.items.length, automaticTaskCount: snapshot.items.filter((item) => item.data.task.type !== 'extended').length, extendedTaskCount: snapshot.items.filter((item) => item.data.task.type === 'extended').length, assignedAt: row.createdAt.toISOString(), ...attemptState(row) };
+    const prepared = rows.map((row) => ({ row, snapshot: WorkSnapshotSchema.parse(row.version.data) }));
+    const progress = await readWorkProgress(this.db, prepared.map(({ row, snapshot }) => progressScope(row, snapshot)));
+    return prepared.map(({ row, snapshot }) => {
+      return { id: row.id, title: snapshot.title, versionNumber: row.version.number, taskCount: snapshot.items.length, automaticTaskCount: snapshot.items.filter((item) => item.data.task.type !== 'extended').length, extendedTaskCount: snapshot.items.filter((item) => item.data.task.type === 'extended').length, assignedAt: row.createdAt.toISOString(), ...attemptState(row, snapshot), progress: progress.get(row.id)! };
     });
+  }
+  async availability(studentId: string, id: string) {
+    const row = await this.db.assessmentRecipient.findFirst({ where: { id, studentId }, select: { id: true } });
+    if (!row) throw new NotFoundException('Работа больше недоступна.');
+    return row;
   }
   async detail(studentId: string, id: string) {
     const row = await this.owned(studentId, id);
     const snapshot = WorkSnapshotSchema.parse(row.version.data);
-    return { id: row.id, title: snapshot.title, versionNumber: row.version.number, taskCount: snapshot.items.length, automaticTaskCount: snapshot.items.filter((item) => item.data.task.type !== 'extended').length, extendedTaskCount: snapshot.items.filter((item) => item.data.task.type === 'extended').length, assignedAt: row.createdAt.toISOString(), ...attemptState(row),
+    return { id: row.id, title: snapshot.title, versionNumber: row.version.number, taskCount: snapshot.items.length, automaticTaskCount: snapshot.items.filter((item) => item.data.task.type !== 'extended').length, extendedTaskCount: snapshot.items.filter((item) => item.data.task.type === 'extended').length, assignedAt: row.createdAt.toISOString(), ...attemptState(row, snapshot),
       instructions: snapshot.instructions, answers: answersSchema.parse(row.answers), items: snapshot.items.map((item) => publicItem(row.id, item)) };
   }
   async image(studentId: string, id: string, taskId: string, name: string) {

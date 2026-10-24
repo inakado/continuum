@@ -2,8 +2,8 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { PublicAssessmentItem } from '@continuum/shared';
-import StudentAnswerInput from './StudentAnswerInput';
-import styles from './student-works.module.css';
+import AssessmentAnswerInput from './AssessmentAnswerInput';
+import styles from './assessment-questions.module.css';
 
 afterEach(cleanup);
 
@@ -13,7 +13,7 @@ it.each(['single_choice', 'multiple_choice'] as const)('keeps the %s control in 
     options: [{ id: 'one', content: 'Все ионы имеют отрицательный заряд.' }, { id: 'two', content: 'Длинный ответ.\n\nВторой абзац ответа.' }],
   };
   const onChange = vi.fn();
-  render(<StudentAnswerInput item={item} onChange={onChange} />);
+  render(<AssessmentAnswerInput item={item} onChange={onChange} />);
   const control = screen.getByRole(type === 'single_choice' ? 'radio' : 'checkbox', { name: 'Вариант 1: Ионы' });
   expect(control.parentElement).toHaveClass(styles.choiceControl);
   expect(control.closest('label')).toHaveTextContent('1Все ионы имеют отрицательный заряд.');
@@ -27,10 +27,10 @@ it.each(['single_choice', 'multiple_choice'] as const)('keeps the %s control in 
 it('clears a single selected answer and describes signed decimal input without changing its value', () => {
   const onChange = vi.fn();
   const item: PublicAssessmentItem = { id: 'one', type: 'single_choice', title: 'Выбор', statement: 'Условие', maxPoints: 1, images: {}, options: [{ id: 'a', content: 'Первый' }, { id: 'b', content: 'Второй' }] };
-  const view = render(<StudentAnswerInput item={item} answer={{ type: 'single_choice', optionId: 'a' }} onChange={onChange} />);
+  const view = render(<AssessmentAnswerInput item={item} answer={{ type: 'single_choice', optionId: 'a' }} onChange={onChange} />);
   fireEvent.click(screen.getByRole('button', { name: 'Очистить ответ' }));
   expect(onChange).toHaveBeenCalledWith({ type: 'single_choice', optionId: null });
-  view.rerender(<StudentAnswerInput item={{ id: 'number', type: 'short_number', title: 'Число', statement: '', maxPoints: 1, images: {}, unit: 'Па' }} onChange={onChange} />);
+  view.rerender(<AssessmentAnswerInput item={{ id: 'number', type: 'short_number', title: 'Число', statement: '', maxPoints: 1, images: {}, unit: 'Па' }} onChange={onChange} />);
   const input = screen.getByRole('textbox');
   expect(input).toHaveAccessibleDescription(/минус, запятую или точку/);
   fireEvent.change(input, { target: { value: '-2,5' } });

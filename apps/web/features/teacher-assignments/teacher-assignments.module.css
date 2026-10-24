@@ -2,9 +2,9 @@
 .heading h1 { margin: 0; color: #090d13; font-size: 32px; line-height: 1.2; letter-spacing: -.025em; overflow-wrap: anywhere; }
 .heading p, .muted { color: #626b78; font-size: 14px; line-height: 1.5; }
 .actions { display: flex; align-items: center; flex-wrap: wrap; gap: 20px; }
-.tabs, .statusFilters { display: flex; gap: 32px; border-bottom: 1px solid #dfe2e5; margin-bottom: 24px; overflow-x: auto; }
-.tabs a, .statusFilters button { display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 8px 0; border: 0; border-bottom: 3px solid transparent; background: transparent; color: #626b78; font: inherit; font-size: 14px; text-decoration: none; white-space: nowrap; cursor: pointer; }
-.tabs a[aria-current], .statusFilters button[aria-pressed="true"] { border-bottom-color: #0b6b4f; color: #0b6b4f; font-weight: 600; }
+.tabs { display: flex; gap: 32px; border-bottom: 1px solid #dfe2e5; margin-bottom: 24px; overflow-x: auto; }
+.tabs a { display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 8px 0; border: 0; border-bottom: 3px solid transparent; background: transparent; color: #626b78; font: inherit; font-size: 14px; text-decoration: none; white-space: nowrap; cursor: pointer; }
+.tabs a[aria-current] { border-bottom-color: #0b6b4f; color: #0b6b4f; font-weight: 600; }
 .workInfo { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 24px; border-bottom: 1px solid #dfe2e5; padding: 10px 0 28px; }
 .workInfo h2 { margin: 0 0 10px; font-size: 23px; overflow-wrap: anywhere; }
 .workInfo p { margin: 0; color: #626b78; font-size: 14px; }
@@ -24,16 +24,26 @@
 .roster span { color: #626b78; font-size: 12px; }
 .confirmBar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; margin-top: 24px; padding: 20px 0 6px; border-top: 1px solid #dfe2e5; font-size: 15px; }
 .filters { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 24px; margin-bottom: 20px; }
+.filters label { min-width: 0; max-width: 100%; }
 .filters label:first-child { width: 280px; }
-.filters label:last-child { width: 440px; max-width: 100%; }
+.filters label:nth-child(2) { flex: 1 1 240px; max-width: 440px; }
+.filters label:last-child { width: 240px; }
 .reportTable th:first-child, .reportTable td:first-child { padding-left: 0; }
 .reportTable td { padding: 17px 12px; border-bottom: 1px solid #dfe2e5; font-variant-numeric: tabular-nums; }
-.reportTable td:first-child { width: 39%; overflow-wrap: anywhere; }
-.reportTable td:nth-child(2) { width: 10%; }
-.reportTable td:nth-child(3) { width: 18%; }
-.reportTable td:nth-child(4) { width: 14%; }
+.reportTable td:first-child { width: 30%; overflow-wrap: anywhere; }
+.reportTable td:nth-child(2) { width: 12%; }
+.reportTable td { vertical-align: top; }
+.reportTable td[data-label="Решения"] { padding-top: 7px; padding-bottom: 7px; }
+.reportTable td[data-label="Решения"] button { min-height: 44px; text-align: left; }
 .reportTable small { display: block; color: #626b78; margin-top: 5px; font-size: 12px; }
 .completed { color: #0b6b4f; font-weight: 500; }
+.assignedClasses { margin: 0 0 24px; border-bottom: 1px solid #dfe2e5; font-size: 14px; }
+.assignedClasses summary { padding: 0 0 16px; cursor: pointer; color: #626b78; }
+.assignedClasses ul { margin: 0; padding: 0; list-style: none; }
+.assignedClasses li { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px 20px; padding: 10px 0; border-top: 1px solid #dfe2e5; }
+.assignedClasses small { margin-left: 12px; color: #626b78; font-size: inherit; }
+.revokeButton { min-height: 44px; padding: 4px 0; border: 0; background: transparent; color: #a33e35; font: inherit; cursor: pointer; }
+.revokeButton:hover { text-decoration: underline; }
 .pagination { display: flex; justify-content: space-between; align-items: center; gap: 24px; margin: 20px 0; font-size: 13px; color: #626b78; }
 .pagination > div { display: flex; align-items: center; gap: 16px; }
 .assignmentList { list-style: none; margin: 0; padding: 0; border-top: 1px solid #dfe2e5; }
@@ -43,26 +53,29 @@
 .assignmentList strong { font-size: 17px; overflow-wrap: anywhere; }
 .assignmentList p { margin: 6px 0 0; font-size: 13px; color: #626b78; }
 .assignmentList span { font-size: 14px; color: #626b78; }
+.assignmentIdentity { min-width: 0; flex: 1 1 260px; }
+.assignmentProgress { display: grid; gap: 6px; line-height: 1.5; }
 @media (max-width: 760px) {
   .heading h1 { font-size: 28px; }
   .workInfo { align-items: flex-start; }
   .workActions, .workActions label { width: 100%; }
-  .tabs, .statusFilters { gap: 24px; }
+  .tabs { gap: 24px; }
   .classTable th:nth-child(3), .classTable td:nth-child(3) { display: none; }
   .classTable td, .classTable th { padding: 12px 6px; }
   .classTable th:first-child, .classTable td:first-child { width: 32px; padding-left: 0; }
   .classTable td:last-child button { font-size: 12px; gap: 4px; }
   .classTable td:nth-child(4) { font-size: 12px; }
   .roster { grid-template-columns: minmax(0, 1fr); }
-  .filters, .filters label:first-child, .filters label:last-child { width: 100%; }
+  .filters, .filters label, .filters label:first-child, .filters label:last-child { width: 100%; }
+  .filters label:nth-child(2) { flex: none; max-width: none; }
   .filters { gap: 16px; }
+  .filters input, .filters select { font-size: 16px; }
   .reportTable thead { position: absolute; width: 1px; height: 1px; clip-path: inset(50%); overflow: hidden; }
-  .reportTable tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) max-content; gap: 12px; padding: 18px 0; border-bottom: 1px solid #dfe2e5; }
+  .reportTable tbody tr { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 18px 0; border-bottom: 1px solid #dfe2e5; }
   .reportTable tbody td { display: block; width: auto; padding: 0; border: 0; font-size: 14px; }
   .reportTable td:first-child { grid-column: 1 / -1; width: auto; font-size: 15px; }
   .reportTable td:nth-child(2) { width: auto; color: #626b78; }
-  .reportTable td:nth-child(3) { width: auto; text-align: right; }
-  .reportTable td:nth-child(4) { width: auto; }
-  .reportTable td:nth-child(4)::before { content: 'Заполнено: '; color: #626b78; }
-  .reportTable td:last-child { text-align: right; }
+  .reportTable td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 4px; font-size: 12px; color: #626b78; }
+  .reportTable td[data-label="Класс"]::before { display: none; }
+  .reportTable td[data-label="Решения"] { padding: 0; }
 }

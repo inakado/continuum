@@ -5,8 +5,10 @@ import { solutionPhotoPolicy, type SolutionAnswer } from '@continuum/shared';
 import SolutionPhotoList from '@/components/assessment/SolutionPhotoList';
 import type { StudentSolutionPhotos } from './use-solution-photos';
 import styles from './student-works.module.css';
+import { useConfirmation } from '@/components/ui/useConfirmation';
 
 export default function StudentSolutionUpload({ taskId, controller, disabled }: { taskId: string; controller: StudentSolutionPhotos; disabled: boolean }) {
+  const confirmation = useConfirmation();
   const input = useRef<HTMLInputElement>(null);
   const replaceId = useRef<string | undefined>(undefined);
   const [dragging, setDragging] = useState(false);
@@ -29,7 +31,7 @@ export default function StudentSolutionUpload({ taskId, controller, disabled }: 
     <input ref={input} type="file" aria-label="Выбрать фотографии решения" className={styles.srOnly} tabIndex={-1} accept="image/jpeg,image/png,image/webp" multiple disabled={blocked} onChange={(event) => { choose(Array.from(event.target.files ?? []), replaceId.current); event.target.value = ''; }} />
     {answer && <SolutionPhotoList photos={answer.photos} actions={answer.locked ? undefined : (id, index) => <>
       <button type="button" className={styles.textButton} disabled={blocked} aria-label={`Заменить фото ${index + 1}`} onClick={() => picker(id)}>Заменить</button>
-      <button type="button" className={styles.textButton} disabled={blocked} aria-label={`Удалить фото ${index + 1}`} onClick={() => { if (window.confirm(`Удалить фото ${index + 1} из решения?`)) controller.remove(taskId, id); }}>Удалить</button>
+      <button type="button" className={styles.textButton} disabled={blocked} aria-label={`Удалить фото ${index + 1}`} onClick={() => confirmation.ask({ title: 'Удалить фотографию?', description: `Фото ${index + 1} будет удалено из решения. При необходимости его можно загрузить заново.`, confirmText: 'Удалить фото', destructive: true }, async () => { controller.remove(taskId, id); if (!await controller.flush()) throw new Error('Не удалось удалить фото. Проверьте соединение и повторите попытку.'); })}>Удалить</button>
     </>} />}
     {!answer?.locked && <>
       <div className={`${styles.photoDrop} ${dragging ? styles.photoDropActive : ''}`} aria-busy={controller.busy} onDragOver={(event) => { event.preventDefault(); if (!blocked) setDragging(true); }} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false); }} onDrop={(event) => { event.preventDefault(); choose(Array.from(event.dataTransfer.files)); }}>
@@ -38,6 +40,7 @@ export default function StudentSolutionUpload({ taskId, controller, disabled }: 
       <p className={styles.answerHint}>После загрузки фото сразу доступны преподавателю. До проверки их можно заменить.</p>
     </>}
     {error && <p role="alert" className={styles.error}>{error}</p>}
+    {confirmation.dialog}
   </section>;
 }
 

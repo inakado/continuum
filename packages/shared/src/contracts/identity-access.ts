@@ -35,6 +35,19 @@ export const SetStudentActiveInputSchema = z.object({
   isActive: z.boolean(),
 });
 
+const StudentNamesSchema = z.strictObject({
+  firstName: z.string().max(100).nullable(),
+  lastName: z.string().max(100).nullable(),
+  middleName: z.string().max(100).nullable(),
+});
+export const UpdateStudentNamesInputSchema = z.strictObject({
+  firstName: z.string().trim().min(1).max(100),
+  lastName: z.string().trim().min(1).max(100),
+  middleName: z.string().trim().min(1).max(100).nullable(),
+  expected: StudentNamesSchema,
+});
+export type UpdateStudentNamesInput = z.infer<typeof UpdateStudentNamesInputSchema>;
+
 export const TeacherStudentMutationResultSchema = z.object({
   id: z.uuid(),
   isActive: z.boolean(),

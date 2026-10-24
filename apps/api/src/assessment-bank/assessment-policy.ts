@@ -7,4 +7,6 @@ export const assessmentPolicy = {
   imagePixels: 40_000_000,
   previewTtlMs: 30 * 60 * 1000,
   pageSize: 50,
+  duplicateMatches: 5,
+  duplicateTimeoutMs: 1500,
 } as const;

@@ -1,10 +1,13 @@
 import { BadRequestException, ConflictException, Inject, Injectable } from '@nestjs/common';
 import { AssignmentCreatedSchema, type AssignmentCreate } from '@continuum/shared';
 import { PrismaService } from '../prisma/prisma.service';
+import { isTransactionWriteConflict, retryTransaction } from '../prisma/transaction-retry';
 import { AssessmentWorksReadService } from '../assessment-works/assessment-works-read.service';
 import { AssessmentWorksWriteService } from '../assessment-works/assessment-works-write.service';
 import { AssignmentRosterService } from './assignment-roster.service';
 import { inputHash, json } from './assignment-data';
+
+export const isAssignmentWriteConflict = isTransactionWriteConflict;
 
 @Injectable()
 export class AssignmentWriteService {
@@ -14,12 +17,10 @@ export class AssignmentWriteService {
     @Inject(AssignmentRosterService) private readonly roster: AssignmentRosterService) {}
 
   async assign(teacherId: string, workId: string, input: AssignmentCreate) {
-    for (let attempt = 0; ; attempt++) {
-      try { return await this.assignOnce(teacherId, workId, input); }
-      catch (error) {
-        if (typeof error === 'object' && error && 'code' in error && error.code === 'P2034' && attempt < 2) continue;
-        throw error;
-      }
+    try { return await retryTransaction(() => this.assignOnce(teacherId, workId, input)); }
+    catch (error) {
+      if (!isAssignmentWriteConflict(error)) throw error;
+      throw new ConflictException('Работа изменяется одновременно с другим действием. Обновите список и повторите назначение.');
     }
   }
   private assignOnce(teacherId: string, workId: string, input: AssignmentCreate) {
@@ -30,6 +31,7 @@ export class AssignmentWriteService {
       const hash = inputHash(input);
       if (previous) {
         if (previous.workId !== workId || previous.inputHash !== hash) throw new ConflictException('Ключ назначения уже использован с другими данными.');
+        if (previous.invalidatedAt) throw new ConflictException('Назначения этой работы изменились после отзыва. Проверьте получателей и назначьте работу заново.');
         return AssignmentCreatedSchema.parse(previous.result);
       }
       if (input.selection.kind === 'draft' && current.revision !== input.selection.expectedRevision) throw new ConflictException('Работа изменилась. Проверьте актуальную редакцию перед назначением.');

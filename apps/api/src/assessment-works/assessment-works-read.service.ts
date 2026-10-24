@@ -1,18 +1,19 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { z } from 'zod';
-import { AssessmentWorkReferenceSchema, GradeBandSchema, type AssessmentWorkReference } from '@continuum/shared';
+import { AssessmentWorkReferenceSchema, GradeBandSchema, type AssessmentWorkReference, type AssessmentWorkAnswerCheck } from '@continuum/shared';
 import type { AssessmentWork, AssessmentWorkVersion, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { mapAssessmentView, StoredAssessmentTaskSchema } from '../assessment-bank/assessment-bank.mapper';
+import { gradeAssessmentAnswer, validateAssessmentAnswer } from '../common/assessment-grading';
 
 export const WorkReferencesSchema = z.array(AssessmentWorkReferenceSchema);
 const StoredWorkItemSchema = z.object({ taskId: z.uuid(), version: z.number().int().positive(), data: StoredAssessmentTaskSchema });
 export const WorkSnapshotSchema = z.object({ title: z.string(), instructions: z.string(), gradeBand: GradeBandSchema, items: z.array(StoredWorkItemSchema).min(1) });
 type StoredWorkItem = z.infer<typeof StoredWorkItemSchema>;
-type WorkSummaryRow = Pick<AssessmentWork, 'id' | 'title' | 'gradeBand' | 'revision' | 'taskCount' | 'maxPoints' | 'updatedAt'>;
-const workSummary = (row: WorkSummaryRow) => ({ id: row.id, title: row.title, gradeBand: row.gradeBand, revision: row.revision, taskCount: row.taskCount, maxPoints: row.maxPoints, updatedAt: row.updatedAt.toISOString() });
+type WorkSummaryRow = Pick<AssessmentWork, 'id' | 'title' | 'gradeBand' | 'revision' | 'taskCount' | 'maxPoints' | 'updatedAt' | 'archivedAt' | 'lifecycleRevision'>;
+const workSummary = (row: WorkSummaryRow) => ({ id: row.id, title: row.title, gradeBand: row.gradeBand, revision: row.revision, taskCount: row.taskCount, maxPoints: row.maxPoints, updatedAt: row.updatedAt.toISOString(), isArchived: Boolean(row.archivedAt), lifecycleRevision: row.lifecycleRevision });
 const taskView = (item: StoredWorkItem) => mapAssessmentView(item.taskId, item.version, item.data, `/teacher/assessment-bank/tasks/${item.taskId}/images`);
-export const workDetail = (row: AssessmentWork, items: StoredWorkItem[]) => ({ ...workSummary(row), instructions: row.instructions, items: items.map(taskView) });
+export const workDetail = (row: AssessmentWork, items: StoredWorkItem[]) => ({ ...workSummary(row), instructions: row.instructions, items: items.map(taskView), copySkippedTaskCount: row.copySkippedTaskCount });
 export function workVersion(row: AssessmentWorkVersion) {
   const snapshot = WorkSnapshotSchema.parse(row.data);
   return { id: row.id, workId: row.workId, number: row.number, revision: row.revision, createdAt: row.createdAt.toISOString(), ...snapshot, items: snapshot.items.map(taskView), maxPoints: snapshot.items.reduce((sum, item) => sum + item.data.task.maxPoints, 0) };
@@ -22,7 +23,7 @@ export function workVersion(row: AssessmentWorkVersion) {
 export class AssessmentWorksReadService {
   constructor(@Inject(PrismaService) private readonly db: PrismaService) {}
   async owned(teacherId: string, id: string, client: Prisma.TransactionClient = this.db) {
-    const row = await client.assessmentWork.findFirst({ where: { id, teacherId } });
+    const row = await client.assessmentWork.findFirst({ where: { id, teacherId, deletedAt: null } });
     if (!row) throw new NotFoundException('Работа не найдена.');
     return row;
   }
@@ -37,8 +38,8 @@ export class AssessmentWorksReadService {
     });
   }
   async list(teacherId: string) {
-    const rows = await this.db.assessmentWork.findMany({ where: { teacherId }, select: { id: true, title: true, gradeBand: true, revision: true, taskCount: true, maxPoints: true, updatedAt: true }, orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }] });
-    return rows.map(workSummary);
+    const rows = await this.db.assessmentWork.findMany({ where: { teacherId, deletedAt: null }, select: { id: true, title: true, gradeBand: true, revision: true, taskCount: true, maxPoints: true, updatedAt: true, archivedAt: true, lifecycleRevision: true, _count: { select: { versions: { where: { assignments: { some: {} } } } } } }, orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }] });
+    return rows.map((row) => ({ ...workSummary(row), canDelete: row._count.versions === 0 }));
   }
   async detail(teacherId: string, id: string) {
     return this.db.$transaction(async (tx) => {
@@ -51,5 +52,24 @@ export class AssessmentWorksReadService {
     const row = await this.db.assessmentWorkVersion.findUnique({ where: { workId_number: { workId: id, number } } });
     if (!row) throw new NotFoundException('Версия работы не найдена.');
     return workVersion(row);
+  }
+  async checkAnswer(teacherId: string, id: string, input: AssessmentWorkAnswerCheck) {
+    const item = await this.db.$transaction(async (tx) => {
+      const work = await this.owned(teacherId, id, tx);
+      if (input.source.kind === 'version') {
+        const version = await tx.assessmentWorkVersion.findUnique({ where: { workId_number: { workId: id, number: input.source.number } } });
+        if (!version) throw new NotFoundException('Версия работы не найдена.');
+        return WorkSnapshotSchema.parse(version.data).items.find((entry) => entry.taskId === input.taskId);
+      }
+      if (work.revision !== input.source.expectedRevision) throw new ConflictException('Работа изменилась. Обновите предпросмотр и повторите проверку.');
+      const ref = WorkReferencesSchema.parse(work.items).find((entry) => entry.taskId === input.taskId);
+      return ref ? (await this.resolve(teacherId, [ref], tx))[0] : undefined;
+    });
+    if (!item) throw new BadRequestException('Задание не входит в работу.');
+    const task = item.data.task;
+    if (task.type === 'extended') throw new BadRequestException('Развёрнутые решения проверяются отдельно.');
+    validateAssessmentAnswer(input.answer, task);
+    const points = gradeAssessmentAnswer(task, input.answer);
+    return { correct: points === task.maxPoints, points, maxPoints: task.maxPoints };
   }
 }

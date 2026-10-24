@@ -108,7 +108,7 @@ it('imports an extended task, receives several photos, isolates access and keeps
   expect((await fetch(photoUrl, { headers: { cookie: otherStudent, origin } })).status).toBe(404);
   expect((await fetch(photoUrl, { headers: { origin } })).status).toBe(401);
   const finish = await api(`/student/assessment-works/${work.id}/finish`, 'POST', { expectedRevision: 1 }, student);
-  expect(finish.data.result).toEqual({ correctCount: 0, incorrectCount: 1 });
+  expect(finish.data.result).toEqual({ correctCount: 0, incorrectCount: 1, partialCount: 0, points: 0, maxPoints: 1 });
   const report = await api(`/teacher/assessment-assignments/${work.versionId}`);
   expect(report.data.recipients[0]).toMatchObject({ photoTaskCount: 1, result: { maxPoints: 1 } });
   const secondId = randomUUID();

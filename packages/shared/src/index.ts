@@ -9,4 +9,5 @@ export * from './assessment-markdown';
 export * from './contracts/assessment-works';
 export * from './contracts/assessment-assignments';
 export * from './contracts/assessment-solutions';
+export * from './contracts/assessment-statistics';
 export * from './contracts/reviewer';

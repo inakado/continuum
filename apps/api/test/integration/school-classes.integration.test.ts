@@ -101,7 +101,7 @@ describe('school classes: real PostgreSQL, HTTP and Better Auth', () => {
   it('creates only one batch under concurrent requests and rejects invalid payloads before writing', async () => {
     const body = { requestId: randomUUID(), newClass: { title: title('9А'), grade: 9, academicYear: 2026 }, students: names };
     const results = await Promise.all([api('/teacher/classes/students', 'POST', body), api('/teacher/classes/students', 'POST', body)]);
-    expect(results.map((item) => item.status)).toEqual([201, 201]);
+    expect(results.map((item) => item.status), JSON.stringify(results.map(({ status, data }) => ({ status, error: data.message })))).toEqual([201, 201]);
     expect(results.filter((item) => item.data.credentials !== null)).toHaveLength(1);
     expect(await prisma.studentProfile.count({ where: { provisioningBatchId: body.requestId } })).toBe(2);
     expect((await api('/teacher/classes/students', 'POST', { ...body, requestId: randomUUID(), students: [{ firstName: '', lastName: 'Петров' }] })).status).toBe(400);
@@ -109,6 +109,14 @@ describe('school classes: real PostgreSQL, HTTP and Better Auth', () => {
     expect((await api('/teacher/classes/students', 'POST', { ...body, requestId: randomUUID() })).status).toBe(409);
     expect(await prisma.schoolClass.count({ where: { teacherId: teacherIds[0], title: title('9А') } })).toBe(1);
     expect((await api('/teacher/classes', 'POST', body.newClass, otherCookie)).status).toBe(409);
+    // Reusing a key concurrently with different content must commit exactly one payload.
+    const requestId = randomUUID();
+    const conflict = await Promise.all(['9В', '9Г'].map((value) => api('/teacher/classes/students', 'POST', {
+      requestId, newClass: { ...body.newClass, title: title(value) }, students: names,
+    })));
+    expect(conflict.map((item) => item.status).sort()).toEqual([201, 409]);
+    expect(await prisma.studentProfile.count({ where: { provisioningBatchId: requestId } })).toBe(2);
+    expect(await prisma.schoolClass.count({ where: { title: { in: [title('9В'), title('9Г')] } } })).toBe(1);
   }, 30000);
 
   it('opens the grade library by default and can remove a pupil or delete a class', async () => {
@@ -135,11 +143,18 @@ describe('school classes: real PostgreSQL, HTTP and Better Auth', () => {
   }, 30000);
 
   it('allocates surname logins safely for concurrent different batches', async () => {
-    const results = await Promise.all(['10А', '10Б'].map((value) => api('/teacher/classes/students', 'POST', {
-      requestId: randomUUID(), newClass: { title: title(value), grade: 10, academicYear: 2026 }, students: names,
-    })));
-    expect(results.map((item) => item.status)).toEqual([201, 201]);
+    const bodies = Array.from({ length: 6 }, (_, index) => ({
+      requestId: randomUUID(), newClass: { title: title(`10-${index}`), grade: 10, academicYear: 2026 }, students: names,
+    }));
+    const results = await Promise.all(bodies.map((body) => api('/teacher/classes/students', 'POST', body)));
+    expect(results.map((item) => item.status), JSON.stringify(results.map(({ status, data }) => ({ status, error: data.message })))).toEqual(bodies.map(() => 201));
     const logins = results.flatMap((item) => item.data.credentials.map((entry: { login: string }) => entry.login));
-    expect(new Set(logins).size).toBe(4);
+    expect(new Set(logins).size).toBe(12);
+    const replays = await Promise.all(bodies.map((body) => api('/teacher/classes/students', 'POST', body)));
+    replays.forEach((replay, index) => {
+      expect(replay.status).toBe(201);
+      expect(replay.data).toMatchObject({ classId: results[index].data.classId, credentials: null, replayed: true });
+      expect(replay.data.studentIds.sort()).toEqual(results[index].data.studentIds.sort());
+    });
   }, 30000);
 });

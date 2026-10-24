@@ -21,7 +21,10 @@ import StudentSolutionUpload from './StudentSolutionUpload';
 import { useSolutionPhotos } from './use-solution-photos';
 import type { StudentSolutionPhotos } from './use-solution-photos';
 import StudentPhotoFeedback from './StudentPhotoFeedback';
+import StudentWorkUnavailable from './StudentWorkUnavailable';
+import { isWorkUnavailable, useWorkAvailability } from './use-work-availability';
 import styles from './student-works.module.css';
+import { useConfirmation } from '@/components/ui/useConfirmation';
 
 function SaveStatus({ attempt }: { attempt: ReturnType<typeof useStudentAttempt> }) {
   const text = !attempt.online ? 'Нет сети' : attempt.error ? 'Не сохранено' : attempt.saving ? 'Сохраняем…' : attempt.dirty ? 'Есть изменения' : 'Сохранено';
@@ -38,19 +41,21 @@ function FinishBar({ attempt, count, mixed, disabled, open }: { attempt: ReturnT
   return <div className={styles.finishBar}><span>Сохранено ответов: {attempt.state.answeredCount} из {count}</span><button className={styles.secondary} disabled={disabled} onClick={open}>{attempt.finishing ? 'Завершаем…' : mixed ? 'Завершить тестовую часть' : 'Завершить работу'}</button></div>;
 }
 
-function SaveError({ error, onReload, retry }: { error: Error | null; onReload: () => void; retry?: () => void }) {
+function SaveError({ error, onReload, retry }: { error: Error | null; onReload: () => Promise<void>; retry?: () => void }) {
+  const confirmation = useConfirmation();
   if (!error) return null;
   const conflict = error instanceof ApiError && error.status === 409;
   return <div className={styles.error} role="alert"><p>{apiErrorMessage(error, 'Не удалось подтвердить сохранение. Проверьте соединение и повторите попытку.')}</p>
-    {conflict ? <button className={styles.secondary} onClick={() => { if (window.confirm('Загрузить сохранённые ответы? Несохранённые изменения этой вкладки будут потеряны.')) onReload(); }}>Загрузить сохранённую работу</button> : retry ? <button className={styles.secondary} onClick={retry}>Повторить сохранение</button> : null}
+    {conflict ? <button className={styles.secondary} onClick={() => confirmation.ask({ title: 'Загрузить сохранённые ответы?', description: 'Несохранённые изменения этой вкладки будут заменены ответами с сервера.', confirmText: 'Загрузить ответы', destructive: true }, onReload)}>Загрузить сохранённую работу</button> : retry ? <button className={styles.secondary} onClick={retry}>Повторить сохранение</button> : null}
+    {confirmation.dialog}
   </div>;
 }
 
 function WorkResult({ result, mixed = false }: { result: StudentWorkDetail['result']; mixed?: boolean }) {
-  return <div className={styles.result}><h2>{mixed ? 'Тестовая часть завершена' : 'Работа завершена'}</h2><p>Верно: {result?.correctCount} · Неверно: {result?.incorrectCount}</p>{!mixed && <Link className={styles.textButton} href="/student/works">К списку работ</Link>}</div>;
+  return <div className={styles.result}><h2>{mixed ? 'Тестовая часть завершена' : 'Работа завершена'}</h2>{!result?.partialCount && <p>Верно: {result?.correctCount} · Неверно: {result?.incorrectCount}</p>}{result?.points !== undefined && result.maxPoints !== undefined && <p data-score={result.points === result.maxPoints ? 'correct' : result.points > 0 ? 'partial' : 'incorrect'}>Баллы: {result.points} из {result.maxPoints}</p>}{!mixed && <Link className={styles.textButton} href="/student/works">К списку работ</Link>}</div>;
 }
 
-function StudentWorkPlayer({ initial, onReload, reloadError }: { initial: StudentWorkDetail; onReload: () => void; reloadError: Error | null }) {
+function StudentWorkPlayer({ initial, onReload, reloadError, onUnavailable, entry }: { initial: StudentWorkDetail; onReload: () => Promise<void>; reloadError: Error | null; onUnavailable: () => void; entry?: 'solutions' | 'result' }) {
   const attempt = useStudentAttempt(initial);
   const hasExtended = initial.items.some((item) => item.type === 'extended');
   const automaticCount = initial.items.filter((item) => item.type !== 'extended').length;
@@ -63,6 +68,7 @@ function StudentWorkPlayer({ initial, onReload, reloadError }: { initial: Studen
   const leave = useStudentLeave(attempt.dirty || photos.dirty, async () => (await attempt.flush()) && (await photos.flush()), () => { draft.discard(); attempt.discard(); photos.discard(); });
   const { state } = attempt;
   const error = attempt.error ?? attempt.finishError ?? photos.error ?? photos.readError;
+  useEffect(() => { if (isWorkUnavailable(error)) onUnavailable(); }, [error, onUnavailable]);
   const expired = (error instanceof ApiError && error.status === 401) || session.data === null;
   const blocked = attempt.finishing || leave.leaving || expired || Boolean(draft.candidate);
   return <StudentWorksShell beforeLeave={leave.request}>
@@ -79,26 +85,29 @@ function StudentWorkPlayer({ initial, onReload, reloadError }: { initial: Studen
       {draft.candidate && <StudentDraftNotice draft={draft.candidate} work={initial} compatible={draft.compatible} restore={() => draft.restore(attempt.change)} discard={draft.discard} />}
       <SaveError error={attempt.error ?? attempt.finishError} onReload={onReload} retry={attempt.error ? attempt.retry : undefined} />
       <StudentPhotoFeedback photos={photos} />
-      <StudentWorkQuestions work={initial} answers={attempt.answers} disabled={blocked || photos.busy} onChange={attempt.change} requestedTask={requestedTask} solutions={photos.answers} automaticCompleted={state.status === 'completed'} renderExtended={(id) => <StudentSolutionUpload key={id} taskId={id} controller={photos} disabled={blocked} />} />
+      <StudentWorkQuestions work={initial} answers={attempt.answers} disabled={blocked || photos.busy} onChange={attempt.change} requestedTask={requestedTask} solutions={photos.answers} entry={entry} solutionsLoading={!photos.ready} automaticCompleted={state.status === 'completed'} renderExtended={(id) => <StudentSolutionUpload key={id} taskId={id} controller={photos} disabled={blocked} />} />
       <FinishBar attempt={attempt} count={automaticCount} mixed={hasExtended} disabled={attempt.dirty || blocked || photos.dirty} open={() => setReview(true)} />
       <StudentFinishReview open={review} close={() => setReview(false)} work={initial} answers={attempt.answers} disabled={attempt.dirty || blocked} onTask={(id) => setRequestedTask((previous) => ({ id, request: (previous?.request ?? 0) + 1 }))} onFinish={() => void attempt.finish()} />
     </>}
   </StudentWorksShell>;
 }
 
-export default function StudentWorkScreen({ id }: { id: string }) {
-  return <StudentWorkSession key={id} id={id} />;
+export default function StudentWorkScreen({ id, entry }: { id: string; entry?: 'solutions' | 'result' }) {
+  return <StudentWorkSession key={id} id={id} entry={entry} />;
 }
 
-function StudentWorkSession({ id }: { id: string }) {
-  const query = useQuery({ queryKey: studentWorkQueryKeys.detail(id), queryFn: () => studentWorksApi.detail(id), staleTime: 0, refetchOnMount: 'always', refetchOnWindowFocus: false, refetchOnReconnect: false });
+function StudentWorkSession({ id, entry }: { id: string; entry?: 'solutions' | 'result' }) {
+  const availability = useWorkAvailability(id);
+  const query = useQuery({ queryKey: studentWorkQueryKeys.detail(id), queryFn: () => studentWorksApi.detail(id), enabled: !availability.unavailable, staleTime: 0, refetchOnMount: 'always', refetchOnWindowFocus: false, refetchOnReconnect: false });
   const [ready, setReady] = useState(false);
   useEffect(() => {
     if (query.isSuccess && query.isFetchedAfterMount && !query.isFetching) setReady(true);
   }, [query.isSuccess, query.isFetchedAfterMount, query.isFetching]);
   const [generation, setGeneration] = useState(0);
   const start = useMutation({ mutationFn: () => studentWorksApi.start(id), onSuccess: () => query.refetch() });
-  if (ready && query.data && query.data.status !== 'not_started') return <StudentWorkPlayer key={`${id}-${generation}`} initial={query.data} reloadError={query.error} onReload={() => { void query.refetch().then((result) => { if (!result.error) setGeneration((value) => value + 1); }); }} />;
+  useEffect(() => { if (isWorkUnavailable(query.error) || isWorkUnavailable(start.error)) availability.markUnavailable(); }, [query.error, start.error, availability.markUnavailable]);
+  if (availability.unavailable || isWorkUnavailable(query.error) || isWorkUnavailable(start.error)) return <StudentWorkUnavailable id={id} />;
+  if (ready && query.data && query.data.status !== 'not_started') return <StudentWorkPlayer key={`${id}-${generation}`} initial={query.data} entry={entry} reloadError={query.error} onUnavailable={availability.markUnavailable} onReload={async () => { const result = await query.refetch(); if (result.error) throw result.error; setGeneration((value) => value + 1); }} />;
   return <StudentWorksShell><Link href="/student/works" className={styles.textButton}>К работам</Link>
     {!ready && !query.error && <p role="status">Загружаем работу…</p>}
     {query.error && <div role="alert" className={styles.error}><p>{apiErrorMessage(query.error)}</p>{query.error instanceof ApiError && query.error.status === 401 ? <Link href={`/login?returnTo=${encodeURIComponent(`/student/works/${id}`)}`} className={styles.secondary}>Войти и вернуться</Link> : <button className={styles.secondary} onClick={() => void query.refetch()}>Повторить</button>}</div>}

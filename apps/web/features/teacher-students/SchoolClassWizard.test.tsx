@@ -38,6 +38,16 @@ describe("bulk student workflow", () => {
     expect(mutation.mutateAsync.mock.calls[0][0]).toEqual(mutation.mutateAsync.mock.calls[1][0]);
     expect(screen.queryByRole("button", { name: /Скачать/ })).not.toBeInTheDocument();
   });
+  it('keeps the uncertain request on cancellation of the close confirmation', async () => {
+    start(); mutation.mutateAsync.mockRejectedValueOnce(new TypeError('Соединение прервано'));
+    fireEvent.click(screen.getByRole('button', { name: 'Создать класс и учеников' }));
+    await screen.findByText('Соединение прервано');
+    fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
+    expect(screen.getByRole('alertdialog')).toHaveAccessibleDescription(/Результат запроса ещё не подтверждён/);
+    fireEvent.click(screen.getByRole('button', { name: 'Вернуться' }));
+    expect(screen.getByRole('button', { name: 'Повторить запрос' })).toBeVisible();
+    expect(mutation.mutateAsync).toHaveBeenCalledOnce();
+  });
   it("permits correction after a definite validation conflict", async () => {
     start(); mutation.mutateAsync.mockRejectedValueOnce(new ApiError(409, "Класс уже есть", "CLASS_TITLE_TAKEN"));
     fireEvent.click(screen.getByRole("button", { name: "Создать класс и учеников" }));

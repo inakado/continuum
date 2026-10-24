@@ -5,6 +5,8 @@ import {
   SetStudentActiveInputSchema,
   SetStudentClassInputSchema,
   ResetStudentPasswordInputSchema,
+  UpdateStudentNamesInputSchema,
+  type UpdateStudentNamesInput,
   type CreateTeacherStudentInput,
   type ResourceIdParams,
   type SetStudentActiveInput,
@@ -17,6 +19,7 @@ import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { IdentityAccessReadService } from './identity-access-read.service';
 import { IdentityAccessWriteService } from './identity-access-write.service';
 import { SchoolClassesWriteService } from './school-classes-write.service';
+import { assertWriteOrigin } from '../common/assert-write-origin';
 
 @Controller('teacher/students')
 @UseGuards(RolesGuard)
@@ -48,6 +51,14 @@ export class TeacherStudentsController {
     @Body(new ZodValidationPipe(SetStudentActiveInputSchema)) input: SetStudentActiveInput,
   ) {
     return this.writes.setStudentActive(request.user.id, params.id, input);
+  }
+
+  @Patch(':id/names')
+  @Header('Cache-Control', 'no-store')
+  updateNames(@Req() request: AuthRequest, @Param(new ZodValidationPipe(ResourceIdParamsSchema)) params: ResourceIdParams,
+    @Body(new ZodValidationPipe(UpdateStudentNamesInputSchema)) input: UpdateStudentNamesInput) {
+    assertWriteOrigin(request);
+    return this.writes.updateStudentNames(params.id, input);
   }
 
   @Patch(':id/class')

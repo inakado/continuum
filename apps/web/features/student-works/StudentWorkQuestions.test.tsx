@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { useState } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import type { StudentWorkDetail } from '@continuum/shared';
+import type { StudentWorkDetail, SolutionAnswer } from '@continuum/shared';
 import StudentWorkQuestions, { studentAnswerState } from './StudentWorkQuestions';
 
 const work: StudentWorkDetail = {
@@ -16,6 +16,21 @@ function Example({ data = work }: { data?: StudentWorkDetail }) {
   return <StudentWorkQuestions work={data} answers={answers} disabled={false} onChange={(id, answer) => setAnswers((previous) => ({ ...previous, [id]: answer }))} />;
 }
 afterEach(() => { cleanup(); vi.restoreAllMocks(); sessionStorage.clear(); });
+
+it('opens a task without photos from the list action and preserves manual navigation on later refreshes', () => {
+  const extended = ['ext-1', 'ext-2'].map((id) => ({ id, title: id, type: 'extended' as const, statement: `Условие ${id}`, images: {}, maxPoints: 2 }));
+  const data = { ...work, taskCount: 2, items: extended };
+  const answers: SolutionAnswer[] = [{ taskId: 'ext-1', title: 'ext-1', maxPoints: 2, revision: 1, locked: false, publishedReview: null, photos: [{ id: 'photo', sizeBytes: 1, contentType: 'image/png', createdAt: '2026-10-21T00:00:00Z', url: '/photo' }] }];
+  history.replaceState({}, '', `/student/works/${work.id}?view=solutions`);
+  const view = render(<StudentWorkQuestions work={data} answers={{}} disabled={false} onChange={vi.fn()} entry="solutions" solutions={answers} solutionsLoading renderExtended={(id) => <p>Фото {id}</p>} />);
+  expect(screen.getByText('Условие ext-1')).toBeVisible();
+  view.rerender(<StudentWorkQuestions work={data} answers={{}} disabled={false} onChange={vi.fn()} entry="solutions" solutions={answers} renderExtended={(id) => <p>Фото {id}</p>} />);
+  expect(screen.getByText('Условие ext-2')).toBeVisible();
+  expect(location.search).toBe('');
+  fireEvent.click(screen.getByRole('button', { name: 'Назад' }));
+  view.rerender(<StudentWorkQuestions work={data} answers={{}} disabled={false} onChange={vi.fn()} entry="solutions" solutions={[...answers]} />);
+  expect(screen.getByText('Условие ext-1')).toBeVisible();
+});
 
 it('renders only one question, allows skipping and keeps unsaved inputs when switching', () => {
   render(<Example />);

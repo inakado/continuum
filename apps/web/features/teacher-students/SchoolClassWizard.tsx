@@ -8,8 +8,10 @@ import StudentSelect from "./StudentSelect";
 import { useBulkCreateStudents } from "./use-teacher-students";
 import styles from "./school-classes.module.css";
 import { ApiError } from "@/lib/api/client";
+import { useConfirmation } from '@/components/ui/useConfirmation';
 
 export function SchoolClassWizard({ classes, initialClassId = "new", onClose }: { classes: SchoolClass[]; initialClassId?: string; onClose: (classId?: string) => void }) {
+  const confirmation = useConfirmation();
   const [step, setStep] = useState(0);
   const [classId, setClassId] = useState(initialClassId);
   const [title, setTitle] = useState("");
@@ -47,9 +49,10 @@ export function SchoolClassWizard({ classes, initialClassId = "new", onClose }: 
     finally { create.reset(); }
   }
   function close() {
-    if (request.current && !result && !window.confirm("Результат запроса ещё не подтверждён. Лучше повторить его, чтобы не создать учеников дважды. Всё равно закрыть?")) return;
-    if (result?.credentials && !window.confirm("Доступы сохранены? После закрытия пароли больше не будут показаны.")) return;
-    onClose(result?.classId);
+    const finish = () => onClose(result?.classId);
+    if (request.current && !result) confirmation.ask({ title: 'Закрыть создание учеников?', description: 'Результат запроса ещё не подтверждён. Лучше вернуться и повторить тот же запрос: дубликатов не будет. После закрытия повторно показать пароли может быть невозможно.', confirmText: 'Всё равно закрыть', cancelText: 'Вернуться', destructive: true }, finish);
+    else if (result?.credentials) confirmation.ask({ title: 'Закрыть доступы?', description: 'Сохраните логины и пароли перед закрытием. Повторно посмотреть пароли нельзя — только сбросить.', confirmText: 'Доступы сохранены', cancelText: 'Вернуться' }, finish);
+    else finish();
   }
   function edit(index: number, field: keyof RosterStudent, value: string) {
     request.current = null;
@@ -92,5 +95,6 @@ export function SchoolClassWizard({ classes, initialClassId = "new", onClose }: 
       </button>
     </div></div>}
     {step === 2 && result && (result.credentials ? <StudentCredentials credentials={result.credentials} classTitle={classTitle} onDone={close} /> : <section className={styles.notice}><h2>Ученики уже созданы</h2><p>Повторный запрос не создал дубликаты. Пароли повторно не выдаются. Если доступы не сохранились, сбросьте пароли нужным ученикам в списке.</p><button className={styles.primary} onClick={close}>К списку учеников</button></section>)}
+    {confirmation.dialog}
   </div>;
 }

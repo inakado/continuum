@@ -12,6 +12,7 @@ type DialogProps = {
   children: ReactNode;
   className?: string;
   overlayClassName?: string;
+  onCloseAutoFocus?: DialogPrimitive.DialogContentProps['onCloseAutoFocus'];
 };
 
 export default function Dialog({
@@ -22,12 +23,13 @@ export default function Dialog({
   children,
   className = "",
   overlayClassName = "",
+  onCloseAutoFocus,
 }: DialogProps) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className={`${styles.overlay} ${overlayClassName}`} />
-        <DialogPrimitive.Content className={`${styles.content} ${className}`}>
+        <DialogPrimitive.Content className={`${styles.content} ${className}`} onCloseAutoFocus={onCloseAutoFocus}>
           {title ? <DialogPrimitive.Title className={styles.title}>{title}</DialogPrimitive.Title> : null}
           {description ? (
             <DialogPrimitive.Description className={styles.description}>

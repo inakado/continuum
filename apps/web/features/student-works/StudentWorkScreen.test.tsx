@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { StudentWorkDetail } from '@continuum/shared';
 import StudentWorkScreen from './StudentWorkScreen';
 import { studentWorksApi } from './student-works.api';
@@ -12,7 +12,7 @@ import { solutionsApi } from '@/lib/assessment/solutions.api';
 vi.mock('@/components/ContinuumHeader', () => ({ default: () => null }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('@/features/auth/useAuthSession', () => ({ useAuthSession: () => ({ data: { user: { id: 'student', login: 'student1' } } }) }));
-vi.mock('./student-works.api', () => ({ studentWorksApi: { detail: vi.fn(), start: vi.fn(), save: vi.fn(), finish: vi.fn() } }));
+vi.mock('./student-works.api', () => ({ studentWorksApi: { detail: vi.fn(), start: vi.fn(), save: vi.fn(), finish: vi.fn(), availability: vi.fn(), list: vi.fn() } }));
 vi.mock('@/lib/assessment/solutions.api', () => ({ solutionsApi: { list: vi.fn(), upload: vi.fn(), remove: vi.fn() } }));
 const id = '00000000-0000-4000-8000-000000000001';
 const taskId = '00000000-0000-4000-8000-000000000002';
@@ -26,6 +26,49 @@ function show(cache = new QueryClient({ defaultOptions: { queries: { retry: fals
   return render(<QueryClientProvider client={cache}><StudentWorkScreen id={id} /></QueryClientProvider>);
 }
 afterEach(() => { cleanup(); vi.resetAllMocks(); vi.restoreAllMocks(); localStorage.clear(); sessionStorage.clear(); });
+beforeEach(() => { vi.mocked(studentWorksApi.availability).mockResolvedValue({ id }); });
+
+it('shows saved points without verbal labels when a work has partial scores', async () => {
+  vi.mocked(studentWorksApi.detail).mockResolvedValue({ ...started, ...completed, result: { correctCount: 0, partialCount: 1, incorrectCount: 0, points: 1, maxPoints: 2 } });
+  show();
+  expect(await screen.findByText('Баллы: 1 из 2')).toBeVisible();
+  expect(screen.getByText('Баллы: 1 из 2')).toHaveAttribute('data-score', 'partial');
+  expect(screen.queryByText(/Частично|Верно:|Неверно:/)).not.toBeInTheDocument();
+  expect(studentWorksApi.finish).not.toHaveBeenCalled();
+});
+
+it('removes the player and cached answers when an open work is no longer available', async () => {
+  const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  vi.mocked(studentWorksApi.detail).mockResolvedValue(started);
+  show(cache);
+  const input = await screen.findByRole('textbox', { name: 'Ответ: Давление' });
+  fireEvent.change(input, { target: { value: '7' } });
+  vi.mocked(studentWorksApi.availability).mockRejectedValue(new ApiError(404, 'Недоступна'));
+  await cache.invalidateQueries({ queryKey: studentWorkQueryKeys.availability(id) });
+  expect(await screen.findByRole('heading', { name: 'Работа больше недоступна' })).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Работа больше недоступна' })).toHaveFocus();
+  expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  expect(screen.queryByText(initial.instructions)).not.toBeInTheDocument();
+  expect(cache.getQueryData(studentWorkQueryKeys.detail(id))).toBeUndefined();
+  expect(screen.getByRole('link', { name: 'К работам' })).toHaveAttribute('href', '/student/works');
+});
+
+it('does not hide an open work or its input merely because the availability check is offline', async () => {
+  vi.mocked(studentWorksApi.detail).mockResolvedValue(started);
+  vi.mocked(studentWorksApi.availability).mockRejectedValue(new TypeError('offline'));
+  show();
+  expect(await screen.findByRole('textbox', { name: 'Ответ: Давление' })).toBeEnabled();
+  expect(screen.queryByRole('heading', { name: 'Работа больше недоступна' })).not.toBeInTheDocument();
+});
+
+it('hides a revoked work after a save returns 404, rather than retaining a retryable editor', async () => {
+  vi.mocked(studentWorksApi.detail).mockResolvedValue(started);
+  vi.mocked(studentWorksApi.save).mockRejectedValue(new ApiError(404, 'Недоступна'));
+  show();
+  fireEvent.change(await screen.findByRole('textbox', { name: 'Ответ: Давление' }), { target: { value: '8' } });
+  expect(await screen.findByRole('heading', { name: 'Работа больше недоступна' })).toBeVisible();
+  expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+});
 
 it('groups the instructions, saving policy and start action before the first attempt', async () => {
   vi.mocked(studentWorksApi.detail).mockResolvedValue(initial);
@@ -66,7 +109,6 @@ it('starts explicitly, saves an answer before finishing and restores the final r
   vi.mocked(studentWorksApi.start).mockResolvedValue(started);
   vi.mocked(studentWorksApi.save).mockResolvedValue(saved);
   vi.mocked(studentWorksApi.finish).mockResolvedValue(completed);
-  vi.spyOn(window, 'confirm').mockReturnValue(true);
   const first = show();
   fireEvent.click(await screen.findByRole('button', { name: 'Начать работу' }));
   const input = await screen.findByRole('textbox', { name: 'Ответ: Давление' });
@@ -99,12 +141,15 @@ it('restores a saved unfinished answer on a fresh visit without finishing it aut
 it('keeps unsaved answers on screen if an explicitly requested conflict reload fails', async () => {
   vi.mocked(studentWorksApi.detail).mockResolvedValueOnce(started).mockRejectedValue(new TypeError('Failed to fetch'));
   vi.mocked(studentWorksApi.save).mockRejectedValue(new ApiError(409, 'Ответы изменились в другой вкладке.'));
-  vi.spyOn(window, 'confirm').mockReturnValue(true);
   show();
   fireEvent.change(await screen.findByRole('textbox', { name: 'Ответ: Давление' }), { target: { value: '7' } });
   fireEvent.click(await screen.findByRole('button', { name: 'Загрузить сохранённую работу' }));
+  expect(studentWorksApi.detail).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Загрузить ответы' }));
   await waitFor(() => expect(studentWorksApi.detail).toHaveBeenCalledTimes(2));
   await screen.findByText('Не удалось загрузить сохранённую работу. Изменения этой вкладки сохранены на экране.');
+  expect(screen.getByRole('alertdialog')).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
   expect(screen.getByRole('textbox', { name: 'Ответ: Давление' })).toHaveValue('7');
   expect(screen.getByRole('button', { name: 'Завершить работу' })).toBeDisabled();
 });

@@ -130,6 +130,36 @@ it('lets both teachers use the common roster but limits each agent to selected s
   expect((await api(`/reviewer/v1/solutions/${solutions[0]}`, 'GET', undefined, individual.key)).status).toBe(404);
   expect((await api(`/teacher/reviewer-access/keys/${keyId}`, 'DELETE', undefined, '', colleague)).status).toBe(404);
 });
+it('searches immutable assigned titles after the draft is renamed, including case-insensitive matches and class names', async () => {
+  await db.assessmentWork.update({ where: { id: workIds[0] }, data: { title: 'Другое название черновика' } });
+  try {
+    const bySnapshot = await api(`/reviewer/v1/assignments?query=${encodeURIComponent('проверка api')}`);
+    expect(bySnapshot.status).toBe(200);
+    expect(bySnapshot.data.items).toEqual(expect.arrayContaining([expect.objectContaining({ id: assignmentId, title: 'Проверка API' })]));
+    const byDraft = await api(`/reviewer/v1/assignments?query=${encodeURIComponent('Другое название черновика')}`);
+    expect(byDraft.data.items).toEqual([]);
+    const byClass = await api(`/reviewer/v1/assignments?query=${encodeURIComponent('11 Проверка')}`);
+    expect(byClass.data.items).toEqual(expect.arrayContaining([expect.objectContaining({ id: assignmentId })]));
+  } finally {
+    await db.assessmentWork.update({ where: { id: workIds[0] }, data: { title: 'Проверка API' } });
+  }
+});
+
+it('reports received photo tasks independently of automatic completion and private review drafts', async () => {
+  const outsideAnswer = await db.assessmentSolutionAnswer.create({ data: { recipientId: outsideRecipientId, taskId: taskIds[1] } });
+  await db.assessmentSolutionPhoto.createMany({ data: [
+    { id: randomUUID(), answerId: outsideAnswer.id, objectKey: `reviewer-integration/${randomUUID()}`, contentHash: 'a'.repeat(64), contentType: 'image/png', sizeBytes: 1 },
+    { id: randomUUID(), answerId: outsideAnswer.id, objectKey: `reviewer-integration/${randomUUID()}`, contentHash: 'a'.repeat(64), contentType: 'image/png', sizeBytes: 1, confirmedAt: new Date(), removedAt: new Date() },
+  ] });
+  const list = await api('/student/assessment-works', 'GET', undefined, '', student);
+  expect(list.data.find((row: { id: string }) => row.id === recipientId)).toMatchObject({ automaticTaskCount: 0, extendedTaskCount: 2,
+    progress: { photoTaskCount: 2, publishedReviewTaskCount: 0, resultReady: false } });
+  const recipient = await db.assessmentRecipient.findUniqueOrThrow({ where: { id: recipientId } });
+  const overview = await api('/teacher/assessment-assignments', 'GET', undefined, '', teacher);
+  expect(overview.data.find((row: { versionId: string }) => row.versionId === recipient.versionId)).toMatchObject({ studentCount: 2, completedCount: 0, allPhotosCount: 1, allReviewsPublishedCount: 0 });
+  const execution = await api(`/teacher/assessment-assignments/${recipient.versionId}`, 'GET', undefined, '', teacher);
+  expect(execution.data.recipients.find((row: { id: string }) => row.id === outsideRecipientId).progress.photoTaskCount).toBe(1);
+});
 
 it('downloads actual photos/images and publishes only complete current reviews; two clients cannot overwrite drafts or publish stale photo sets', async () => {
   const id = solutions[0];
@@ -176,6 +206,12 @@ it('downloads actual photos/images and publishes only complete current reviews; 
   expect(correction.status).toBe(200);
   const publicAnswers = (await api(`/assessment-solutions/${recipientId}`, 'GET', undefined, '', student)).data;
   expect(publicAnswers.find((row: { taskId: string }) => row.taskId === taskId).publishedReview.points).toBe(0);
+  const progress = { photoTaskCount: 2, publishedReviewTaskCount: 1, resultReady: false };
+  const listed = await api('/student/assessment-works', 'GET', undefined, '', student);
+  expect(listed.data.find((row: { id: string }) => row.id === recipientId).progress).toEqual(progress);
+  const recipient = await db.assessmentRecipient.findUniqueOrThrow({ where: { id: recipientId } });
+  const execution = await api(`/teacher/assessment-assignments/${recipient.versionId}`, 'GET', undefined, '', teacher);
+  expect(execution.data.recipients.find((row: { id: string }) => row.id === recipientId).progress).toEqual(progress);
 }, 30000);
 
 it('serializes photo upload against publication and never publishes a mismatched revision', async () => {
@@ -213,6 +249,22 @@ it('rechecks current class membership on reads and writes while explicit student
   expect((await api(`/reviewer/v1/solutions/${solutions[0]}`, 'GET', undefined, individual.key)).status).toBe(404);
   await db.user.update({ where: { id: studentId }, data: { isActive: true } });
   await db.studentProfile.update({ where: { userId: studentId }, data: { classId } });
+});
+
+it('makes an extended-only result ready only after all exact reviews are published', async () => {
+  for (const id of solutions) {
+    const detail = (await api(`/reviewer/v1/solutions/${id}`)).data;
+    const answer = await db.assessmentSolutionAnswer.findUniqueOrThrow({ where: { id }, include: { review: true } });
+    if (answer.review?.publishedRevision != null) continue;
+    const reportId = await report(id, detail.sourceRevision);
+    const draft = (await api(`/reviewer/v1/solutions/${id}/draft`, 'PUT', { requestId: randomUUID(), sourceRevision: detail.sourceRevision, expectedReviewRevision: detail.review.revision, points: 0, reportId })).data;
+    expect((await api('/reviewer/v1/publications', 'POST', { requestId: randomUUID(), items: [{ reviewId: draft.id, reviewRevision: draft.revision, sourceRevision: detail.sourceRevision, expectedPublishedRevision: null }] })).status).toBe(201);
+  }
+  const list = await api('/student/assessment-works', 'GET', undefined, '', student);
+  expect(list.data.find((row: { id: string }) => row.id === recipientId)).toMatchObject({ status: 'in_progress', progress: { photoTaskCount: 2, publishedReviewTaskCount: 2, resultReady: true } });
+  const recipient = await db.assessmentRecipient.findUniqueOrThrow({ where: { id: recipientId } });
+  const overview = await api('/teacher/assessment-assignments', 'GET', undefined, '', teacher);
+  expect(overview.data.find((row: { versionId: string }) => row.versionId === recipient.versionId)).toMatchObject({ completedCount: 0, allPhotosCount: 1, allReviewsPublishedCount: 1 });
 });
 
 it('revokes one device without affecting another, and denies expired/inactive identities', async () => {

@@ -1,0 +1,41 @@
+"use client";
+
+import { useCallback, useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { z } from 'zod';
+import { readReportSearch, reportSearchKey, writeReportSearch } from '@/lib/assessment/report-search';
+
+const statusSchema = z.enum(['all', 'not_started', 'in_progress', 'completed']);
+function readReportFilters(params: URLSearchParams) {
+  return {
+    classId: z.string().uuid().catch('').parse(params.get('class')),
+    status: statusSchema.catch('all').parse(params.get('status')),
+    page: z.coerce.number().int().min(1).max(1_000_000).catch(1).parse(params.get('page')),
+  };
+}
+type ReportFilters = ReturnType<typeof readReportFilters>;
+function reportFilterParams(filters: ReportFilters) {
+  const params = new URLSearchParams();
+  if (filters.classId) params.set('class', filters.classId);
+  if (filters.status !== 'all') params.set('status', filters.status);
+  if (filters.page !== 1) params.set('page', String(filters.page));
+  return params.toString();
+}
+export function useReportFilters(versionId: string, userId?: string) {
+  const params = useSearchParams();
+  const filters = readReportFilters(new URLSearchParams(params.toString()));
+  const key = reportSearchKey(userId, versionId);
+  const [search, setSearch] = useState('');
+  useEffect(() => { setSearch(readReportSearch(key)); }, [key]);
+  const update = useCallback((patch: Partial<ReportFilters>, replace = false) => {
+    const query = reportFilterParams({ ...readReportFilters(new URLSearchParams(window.location.search)), ...patch });
+    const url = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
+    if (url !== `${window.location.pathname}${window.location.search}${window.location.hash}`) {
+      window.history[replace ? 'replaceState' : 'pushState'](null, '', url);
+    }
+  }, []);
+  return { ...filters, search, update, changeSearch: (value: string) => {
+    const next = value.slice(0, 200);
+    setSearch(next); writeReportSearch(key, next); update({ page: 1 }, true);
+  } };
+}

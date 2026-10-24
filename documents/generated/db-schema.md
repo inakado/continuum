@@ -58,7 +58,7 @@
 ### AssessmentBankTask
 
 - Таблица: `assessment_bank_tasks`
-- Model attributes: `@@unique([teacherId, stableId])`, `@@map("assessment_bank_tasks")`
+- Model attributes: `@@unique([teacherId, stableId])`, `@@index([teacherId, deletedAt])`, `@@map("assessment_bank_tasks")`
 
 | Field | Type | Attributes |
 | --- | --- | --- |
@@ -67,6 +67,8 @@
 | `stableId` | `String` | `@map("stable_id")` |
 | `latestVersionId` | `String?` | `@unique @map("latest_version_id") @db.Uuid` |
 | `createdAt` | `DateTime` | `@default(now()) @map("created_at")` |
+| `deletedAt` | `DateTime?` | `@map("deleted_at")` |
+| `lifecycleRevision` | `Int` | `@default(1) @map("lifecycle_revision")` |
 | `teacher` | `User` | `@relation(fields: [teacherId], references: [id], onDelete: Restrict)` |
 | `latestVersion` | `AssessmentTaskVersion?` | `@relation("LatestAssessmentVersion", fields: [latestVersionId], references: [id], onDelete: SetNull)` |
 | `versions` | `AssessmentTaskVersion[]` | `@relation("AssessmentVersions")` |
@@ -110,6 +112,12 @@
 | `maxPoints` | `Int` | `@default(0) @map("max_points")` |
 | `lastRequestId` | `String?` | `@map("last_request_id") @db.Uuid` |
 | `lastInputHash` | `String?` | `@map("last_input_hash")` |
+| `copiedFromId` | `String?` | `@map("copied_from_id") @db.Uuid` |
+| `copiedFromRevision` | `Int?` | `@map("copied_from_revision")` |
+| `copySkippedTaskCount` | `Int` | `@default(0) @map("copy_skipped_task_count")` |
+| `archivedAt` | `DateTime?` | `@map("archived_at")` |
+| `deletedAt` | `DateTime?` | `@map("deleted_at")` |
+| `lifecycleRevision` | `Int` | `@default(1) @map("lifecycle_revision")` |
 | `createdAt` | `DateTime` | `@default(now()) @map("created_at")` |
 | `updatedAt` | `DateTime` | `@updatedAt @map("updated_at")` |
 | `teacher` | `User` | `@relation(fields: [teacherId], references: [id], onDelete: Restrict)` |
@@ -361,8 +369,32 @@
 | `workId` | `String` | `@map("work_id") @db.Uuid` |
 | `inputHash` | `String` | `@map("input_hash")` |
 | `result` | `Json` |  |
+| `invalidatedAt` | `DateTime?` | `@map("invalidated_at")` |
 | `createdAt` | `DateTime` | `@default(now()) @map("created_at")` |
 | `work` | `AssessmentWork` | `@relation(fields: [workId], references: [id], onDelete: Restrict)` |
+
+### AssessmentAssignmentRevocation
+
+- Таблица: `assessment_assignment_revocations`
+- Model attributes: `@@index([teacherId])`, `@@map("assessment_assignment_revocations")`
+
+| Field | Type | Attributes |
+| --- | --- | --- |
+| `id` | `String` | `@id @db.Uuid` |
+| `teacherId` | `String` | `@map("teacher_id") @db.Uuid` |
+| `workId` | `String` | `@map("work_id") @db.Uuid` |
+| `versionId` | `String` | `@map("version_id") @db.Uuid` |
+| `createdAt` | `DateTime` | `@default(now()) @map("created_at")` |
+
+### AssessmentFileDeletion
+
+- Таблица: `assessment_file_deletions`
+- Model attributes: `@@index([retryAt])`, `@@map("assessment_file_deletions")`
+
+| Field | Type | Attributes |
+| --- | --- | --- |
+| `objectKey` | `String` | `@id @map("object_key")` |
+| `retryAt` | `DateTime` | `@default(now()) @map("retry_at")` |
 
 ### AssessmentBankImport
 

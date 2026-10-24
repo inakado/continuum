@@ -102,3 +102,18 @@ it('clears the password after a failed request without losing chosen targets', a
   expect(screen.getByLabelText('Ваш пароль')).toHaveValue('');
   expect(screen.getByLabelText(/11А · 2026/)).toBeChecked();
 });
+
+it('requires confirmation to revoke the selected key and retains errors for a safe retry', async () => {
+  vi.mocked(reviewerApi.revokeKey).mockRejectedValueOnce(new ApiError(503, 'Нет соединения')).mockResolvedValue({ ok: true });
+  show([{ ...entry, scopes: [...entry.scopes] }]);
+  fireEvent.click(await screen.findByRole('button', { name: 'Отозвать' }));
+  expect(screen.getByRole('alertdialog')).toHaveAccessibleDescription(/Мой Mac.*потеряет доступ/);
+  fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
+  expect(reviewerApi.revokeKey).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Отозвать' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Отозвать ключ' }));
+  await waitFor(() => expect(screen.getByRole('alertdialog')).toHaveTextContent('Нет соединения'));
+  fireEvent.click(screen.getByRole('button', { name: 'Отозвать ключ' }));
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  expect(vi.mocked(reviewerApi.revokeKey).mock.calls.map((call) => call[0])).toEqual([id, id]);
+});

@@ -12,8 +12,11 @@ import StudentCredentials from "./StudentCredentials";
 import SingleStudentForm from "./SingleStudentForm";
 import StudentSelect from "./StudentSelect";
 import DeleteClassPanel from "./DeleteClassPanel";
+import StudentNamesForm from "./StudentNamesForm";
 import styles from "./teacher-students.module.css";
 import ui from "./school-classes.module.css";
+import { useConfirmation } from '@/components/ui/useConfirmation';
+import SearchField from '@/components/ui/SearchField';
 
 const grades: Array<{ code: GradeBand; short: string; label: string }> = [
   { code: "grade_7", short: "7", label: "7 класс" },
@@ -27,9 +30,24 @@ type StudentRowsProps = {
   onSetActive: (student: TeacherStudent) => void;
   onSetAccess: (student: TeacherStudent, gradeBand: GradeBand, enabled: boolean) => void;
   onSetClass?: (student: TeacherStudent, classId: string | null) => void;
-  onResetPassword?: (student: TeacherStudent) => void;
-  onDelete?: (student: TeacherStudent) => void;
+  onResetPassword?: (student: TeacherStudent, returnFocus?: () => void) => void;
+  onDelete?: (student: TeacherStudent, returnFocus?: () => void) => void;
 };
+function StudentActions({ student, busy, onSetActive, onSetClass, onResetPassword, onDelete }: Pick<StudentRowsProps, 'busy' | 'onSetActive' | 'onSetClass' | 'onResetPassword' | 'onDelete'> & { student: TeacherStudent }) {
+  const [editing, setEditing] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const confirming = useRef(false);
+  return <div className={styles.rowActions}><DropdownMenu>
+    <DropdownMenuTrigger asChild><button ref={trigger} disabled={busy} aria-label={`Действия: ${student.name}`} type="button"><MoreHorizontal size={19} aria-hidden="true" /></button></DropdownMenuTrigger>
+    <DropdownMenuContent className={styles.studentMenu} align="end" onCloseAutoFocus={(event) => { if (editing || confirming.current) event.preventDefault(); confirming.current = false; }}>
+      <DropdownMenuItem onSelect={() => setEditing(true)}>Изменить данные</DropdownMenuItem>
+      {onResetPassword && <DropdownMenuItem onSelect={() => { confirming.current = true; onResetPassword(student, () => trigger.current?.focus()); }}>Сбросить пароль</DropdownMenuItem>}
+      {onSetClass && student.classId && <DropdownMenuItem onSelect={() => onSetClass(student, null)}>Убрать из класса</DropdownMenuItem>}
+      <DropdownMenuItem onSelect={() => onSetActive(student)}>{student.isActive ? "Отключить" : "Активировать"}</DropdownMenuItem>
+      {onDelete && <DropdownMenuItem className={styles.deleteItem} onSelect={() => { confirming.current = true; onDelete(student, () => trigger.current?.focus()); }}>Удалить ученика</DropdownMenuItem>}
+    </DropdownMenuContent>
+  </DropdownMenu>{editing && <StudentNamesForm student={student} onClose={() => setEditing(false)} returnFocus={() => trigger.current?.focus()} />}</div>;
+}
 export function StudentRows({ students, busy, classes = [], onSetActive, onSetAccess, onSetClass, onResetPassword, onDelete }: StudentRowsProps) {
   if (!students.length) return <p className={styles.empty}>Ученики не найдены. Добавьте ученика или измените фильтр.</p>;
   return <ol className={styles.students}>{students.map((student, index) => <li key={student.id}>
@@ -42,16 +60,12 @@ export function StudentRows({ students, busy, classes = [], onSetActive, onSetAc
       const enabled = student.gradeBands.includes(grade.code);
       return <button aria-label={`${grade.label}: ${enabled ? "доступ выдан" : "доступ закрыт"}`} aria-pressed={enabled} disabled={busy} key={grade.code} onClick={() => onSetAccess(student, grade.code, !enabled)} type="button">{grade.short}</button>;
     })}</div>
-    <div className={styles.rowActions}><DropdownMenu><DropdownMenuTrigger asChild><button disabled={busy} aria-label={`Действия: ${student.name}`} type="button"><MoreHorizontal size={19} aria-hidden="true" /></button></DropdownMenuTrigger><DropdownMenuContent className={styles.studentMenu} align="end">
-      {onResetPassword && <DropdownMenuItem onSelect={() => onResetPassword(student)}>Сбросить пароль</DropdownMenuItem>}
-      {onSetClass && student.classId && <DropdownMenuItem onSelect={() => onSetClass(student, null)}>Убрать из класса</DropdownMenuItem>}
-      <DropdownMenuItem onSelect={() => onSetActive(student)}>{student.isActive ? "Отключить" : "Активировать"}</DropdownMenuItem>
-      {onDelete && <DropdownMenuItem className={styles.deleteItem} onSelect={() => onDelete(student)}>Удалить ученика</DropdownMenuItem>}
-    </DropdownMenuContent></DropdownMenu></div>
+    <StudentActions student={student} busy={busy} onSetActive={onSetActive} onSetClass={onSetClass} onResetPassword={onResetPassword} onDelete={onDelete} />
   </li>)}</ol>;
 }
 
 export default function TeacherStudentsScreen() {
+  const confirmation = useConfirmation();
   const students = useTeacherStudents();
   const classes = useSchoolClasses();
   const setActive = useSetStudentActive();
@@ -81,7 +95,6 @@ export default function TeacherStudentsScreen() {
 
   async function resetPassword(student: TeacherStudent) {
     if (resetRequest.current?.studentId !== student.id) {
-      if (!window.confirm(`Сбросить пароль ученика «${student.name}»? Все его сеансы будут завершены.`)) return;
       resetRequest.current = { studentId: student.id, requestId: crypto.randomUUID() };
     }
     setPasswordError("");
@@ -90,17 +103,17 @@ export default function TeacherStudentsScreen() {
       resetRequest.current = null;
       if (result.credential) setCredential(result.credential);
       else setPasswordError("Пароль уже был сброшен. Если доступы не сохранились, выполните новый сброс.");
-    } catch (reason) { setPasswordError(reason instanceof Error ? reason.message : "Не удалось сбросить пароль. Повторите запрос."); }
+    }
     finally { reset.reset(); }
   }
   function changeFilter(value: string) { setFilter(value); setEditingClass(false); setDeletingClass(false); }
 
   return <div className={styles.page}>
     <ContinuumHeader homeHref="/teacher" />
-    <nav aria-label="Разделы учителя" className={styles.teacherNav}><Link href="/teacher/materials">Материалы</Link><Link aria-current="page" href="/teacher/students">Ученики и доступы</Link><Link href="/teacher/bank">Банк заданий</Link><Link href="/teacher/works">Работы</Link></nav>
+    <nav aria-label="Разделы учителя" className={styles.teacherNav}><Link href="/teacher/materials">Материалы</Link><Link aria-current="page" href="/teacher/students">Ученики и доступы</Link><Link href="/teacher/bank">Банк заданий</Link><Link href="/teacher/works">Работы</Link><Link href="/teacher/statistics">Статистика</Link></nav>
     <main className={styles.main}>
       {mode === "bulk" ? <SchoolClassWizard classes={schoolClasses} initialClassId={selected && !selected.isArchived ? selected.id : "new"} onClose={(id) => { setMode("list"); if (id) changeFilter(id); }} /> : credential ?
-        <StudentCredentials credentials={[credential]} classTitle={selected?.title ?? "Ученик"} onDone={() => { if (window.confirm("Доступы сохранены? После закрытия пароль больше не будет показан.")) setCredential(null); }} /> : mode === "single" ?
+        <StudentCredentials credentials={[credential]} classTitle={selected?.title ?? "Ученик"} onDone={() => confirmation.ask({ title: 'Закрыть доступы?', description: 'Сохраните логин и пароль перед закрытием. Повторно посмотреть пароль нельзя — только сбросить.', confirmText: 'Доступы сохранены', cancelText: 'Вернуться' }, () => setCredential(null))} /> : mode === "single" ?
         <SingleStudentForm onClose={() => setMode("list")} /> : <div className={ui.workspace}>
         <div className={ui.sectionHeading}><div className={styles.intro}><h1>Ученики и доступы</h1><p>Классы, учётные записи и доступ к материалам</p></div><div className={ui.actions}>
           <button className={ui.secondary} onClick={() => setMode("single")}>Добавить ученика</button>
@@ -116,11 +129,11 @@ export default function TeacherStudentsScreen() {
               {archivedClasses.map((item) => <option key={item.id} value={item.id}>{item.title} · {item.academicYear}–{item.academicYear + 1} · Архив</option>)}
             </optgroup>}
           </StudentSelect></label>
-          <label>Поиск<input type="search" placeholder="ФИО или логин" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+          <label>Поиск<SearchField label="Поиск" placeholder="ФИО или логин" value={search} onValueChange={setSearch} /></label>
         </div>
         {selected && <div className={ui.classHeading}><div><h2>{selected.title}{selected.isArchived ? " · Архив" : ""}</h2><p>{selected.grade} класс · {selected.academicYear}–{selected.academicYear + 1} · Учеников: {selected.studentCount}</p></div><div className={ui.actions}>
           <button className={ui.back} onClick={() => setEditingClass(!editingClass)}>{editingClass ? "Отменить" : "Изменить класс"}</button>
-          <button className={ui.back} disabled={busy} onClick={() => { if (selected.isArchived || window.confirm("Архивировать класс? Ученики и их доступы сохранятся, добавление в этот класс будет недоступно.")) updateClass.mutate({ id: selected.id, input: { isArchived: !selected.isArchived } }); }}>{selected.isArchived ? "Восстановить" : "В архив"}</button>
+          <button className={ui.back} disabled={busy} onClick={() => { if (selected.isArchived) updateClass.mutate({ id: selected.id, input: { isArchived: false } }); else confirmation.ask({ title: 'Архивировать класс?', description: `«${selected.title}» перейдёт в архив. Ученики и их доступы сохранятся, добавление в этот класс будет недоступно. Класс можно восстановить.`, confirmText: 'В архив' }, () => updateClass.mutateAsync({ id: selected.id, input: { isArchived: true } })); }}>{selected.isArchived ? "Восстановить" : "В архив"}</button>
           <button className={ui.dangerLink} disabled={busy} onClick={() => { setDeletingClass(!deletingClass); setEditingClass(false); }}>Удалить класс</button>
         </div></div>}
         {deletingClass && selected && <DeleteClassPanel key={selected.id} schoolClass={selected} busy={busy} onCancel={() => setDeletingClass(false)} onConfirm={(deleteStudents) => deleteClass.mutate({ id: selected.id, deleteStudents }, { onSuccess: () => changeFilter("all") })} />}
@@ -131,9 +144,10 @@ export default function TeacherStudentsScreen() {
         {error && <p className={ui.error} role="alert">{error.message}</p>}{passwordError && <p className={ui.error} role="alert">{passwordError}</p>}
         {students.isPending || classes.isPending ? <p className={styles.empty}>Загружаем учеников и классы…</p> : students.isError || classes.isError ? <div className={ui.notice} role="alert">Не удалось загрузить данные. <button className={ui.back} onClick={() => { void students.refetch(); void classes.refetch(); }}>Повторить</button></div> : <section className={styles.roster}>
           <div className={styles.rosterHeading}><h2>Ученики</h2><span>Всего: {roster.length}</span></div>
-          <StudentRows students={roster} classes={schoolClasses} busy={busy} onDelete={(student) => { if (window.confirm(`Удалить ученика «${student.name}»? Учётная запись, пароль и доступы будут удалены без восстановления.`)) deleteStudent.mutate(student.id); }} onSetClass={(student, classId) => setClass.mutate({ studentId: student.id, classId })} onResetPassword={(student) => void resetPassword(student)} onSetActive={(student) => setActive.mutate({ studentId: student.id, input: { isActive: !student.isActive } })} onSetAccess={(student, gradeBand, enabled) => setAccess.mutate({ studentId: student.id, gradeBand, enabled })} />
+          <StudentRows students={roster} classes={schoolClasses} busy={busy} onDelete={(student, returnFocus) => confirmation.ask({ title: 'Удалить ученика?', description: `«${student.name}»: учётная запись, пароль и доступы будут удалены без восстановления.`, confirmText: 'Удалить ученика', destructive: true, returnFocus }, () => deleteStudent.mutateAsync(student.id))} onSetClass={(student, classId) => setClass.mutate({ studentId: student.id, classId })} onResetPassword={(student, returnFocus) => confirmation.ask({ title: 'Сбросить пароль?', description: `«${student.name}»: прежний пароль перестанет работать, все сеансы ученика будут завершены. Новый пароль нужно будет сохранить и передать ученику.`, confirmText: 'Сбросить пароль', destructive: true, returnFocus }, () => resetPassword(student))} onSetActive={(student) => setActive.mutate({ studentId: student.id, input: { isActive: !student.isActive } })} onSetAccess={(student, gradeBand, enabled) => setAccess.mutate({ studentId: student.id, gradeBand, enabled })} />
         </section>}
       </div>}
     </main>
+    {confirmation.dialog}
   </div>;
 }
