@@ -35,6 +35,8 @@ test('reuse requires both successful gates in the trusted repository and workflo
   assert.equal(trustedRun(run, [jobs[0], { ...jobs[1], conclusion: 'skipped' }], 'inakado/continuum'), false);
   assert.equal(trustedRun({ ...run, path: '.github/workflows/other.yml' }, jobs, 'inakado/continuum'), false);
   assert.equal(trustedRun({ ...run, head_repository: { full_name: 'attacker/fork' } }, jobs, 'inakado/continuum'), false);
+  assert.equal(trustedRun({ ...run, head_sha: 'a'.repeat(40) }, jobs, 'inakado/continuum', 'a'.repeat(40)), true);
+  assert.equal(trustedRun({ ...run, head_sha: 'b'.repeat(40) }, jobs, 'inakado/continuum', 'a'.repeat(40)), false);
 });
 test('unrelated or expired artifacts never skip quality checks even if the API returns them', () => {
   const fp = 'a'.repeat(64);

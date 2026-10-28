@@ -15,7 +15,7 @@ const revision = call('git', ['rev-parse', requested], { stdio: 'pipe', encoding
 call('git', ['merge-base', '--is-ancestor', revision, 'origin/main']);
 const runs = json(`repos/${repository}/actions/workflows/ci.yml/runs?head_sha=${revision}&per_page=20`).workflow_runs;
 const gate = runs.find(run => ['push', 'workflow_dispatch'].includes(run.event));
-if (!gate || !trustedRun(gate, json(`repos/${repository}/actions/runs/${gate.id}/jobs?per_page=100`).jobs, repository)) {
+if (!gate || !trustedRun(gate, json(`repos/${repository}/actions/runs/${gate.id}/jobs?per_page=100`).jobs, repository, revision)) {
   throw Error('The latest main CI for this exact revision must finish quality and security successfully');
 }
 const fp = fingerprint(revision);

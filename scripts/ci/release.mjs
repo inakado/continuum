@@ -18,8 +18,9 @@ export function docsOnly(base, head = 'HEAD') {
   return paths.length > 0 && paths.every(isDocumentation);
 }
 const api = path => JSON.parse(execFileSync('gh', ['api', path], { encoding: 'utf8' }));
-export function trustedRun(run, jobs, repository) {
+export function trustedRun(run, jobs, repository, revision) {
   return run.conclusion === 'success' && run.path === '.github/workflows/ci.yml'
+    && (!revision || run.head_sha === revision)
     && run.head_repository?.full_name === repository && run.repository?.full_name === repository
     && ['pull_request', 'push', 'workflow_dispatch'].includes(run.event)
     && ['quality', 'security'].every(name => jobs.some(job => job.name === name && job.conclusion === 'success'));
