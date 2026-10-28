@@ -3,20 +3,21 @@ name: Deploy Production
 on:
   workflow_dispatch:
     inputs:
-      deploy_ref:
-        description: Branch to deploy
-        required: true
-        default: main
+      deploy_sha:
+        description: Full main commit SHA with successful CI (empty = main)
+        required: false
       migrations_approved:
-        description: Allow prisma migrate deploy during the maintenance window
-        required: true
-        type: choice
-        options:
-          - 'no'
-          - 'yes'
+        description: Approve new migrations (not required when schema is unchanged)
+        type: boolean
+        default: false
+      backup_confirmed:
+        description: Fresh provider backup confirmed before new migrations
+        type: boolean
+        default: false
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: deploy-production
@@ -26,52 +27,34 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: production
-
     steps:
-      - name: Ensure migrations are approved
-        if: ${{ github.event.inputs.migrations_approved != 'yes' }}
-        run: |
-          echo "Production migrations require explicit approval."
-          exit 1
-
-      - name: Deploy to VPS via SSH
-        uses: appleboy/ssh-action@v1.2.0
-        env:
-          DEPLOY_REF: ${{ github.event.inputs.deploy_ref }}
-          MIGRATIONS_APPROVED: ${{ github.event.inputs.migrations_approved }}
-          APP_DIR: ${{ secrets.APP_DIR }}
-          APP_DOMAIN: ${{ secrets.APP_DOMAIN }}
-          AUTH_SMOKE_LOGIN: ${{ secrets.AUTH_SMOKE_LOGIN }}
-          AUTH_SMOKE_PASSWORD: ${{ secrets.AUTH_SMOKE_PASSWORD }}
+      - uses: actions/checkout@v4
         with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          envs: DEPLOY_REF,MIGRATIONS_APPROVED,APP_DIR,APP_DOMAIN,AUTH_SMOKE_LOGIN,AUTH_SMOKE_PASSWORD
-          script_stop: true
-          script: |
-            set -eu
-
-            if [ -z "${APP_DIR:-}" ] || [ -z "${APP_DOMAIN:-}" ]; then
-              echo "APP_DIR and APP_DOMAIN secrets are required"
-              exit 1
-            fi
-
-            cd "$APP_DIR"
-            if [ -n "$(git status --short)" ]; then
-              echo "Working tree must be clean before deploy"
-              exit 1
-            fi
-
-            previous_head="$(git rev-parse HEAD)"
-            git fetch --all --prune
-            git checkout "$DEPLOY_REF"
-            git merge --ff-only "origin/$DEPLOY_REF"
-
-            PREVIOUS_HEAD="$previous_head" \
-            MIGRATIONS_APPROVED="$MIGRATIONS_APPROVED" \
-            APP_DOMAIN="$APP_DOMAIN" \
-            AUTH_SMOKE_LOGIN="$AUTH_SMOKE_LOGIN" \
-            AUTH_SMOKE_PASSWORD="$AUTH_SMOKE_PASSWORD" \
-            AUTH_SMOKE_PROTECTED_PATH="/me" \
-              ./deploy/scripts/deploy-on-vps.sh
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+      - name: Deliver verified artifacts (no build)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_SHA: ${{ inputs.deploy_sha }}
+          MIGRATIONS_APPROVED: ${{ inputs.migrations_approved && 'yes' || 'no' }}
+          BACKUP_CONFIRMED: ${{ inputs.backup_confirmed && 'yes' || 'no' }}
+        run: |
+          set -euo pipefail
+          : "${DEPLOY_HOST:?Configure production SSH secrets or use the same CLI locally}"
+          : "${DEPLOY_USER:?DEPLOY_USER required}"
+          : "${DEPLOY_SSH_KEY:?DEPLOY_SSH_KEY required}"
+          : "${DEPLOY_KNOWN_HOSTS:?Pinned SSH host key required}"
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_release
+          chmod 600 ~/.ssh/id_release
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf 'Host *\n  IdentityFile ~/.ssh/id_release\n  IdentitiesOnly yes\n  StrictHostKeyChecking yes\n' > ~/.ssh/config
+          export SSH_TARGET="$DEPLOY_USER@$DEPLOY_HOST"
+          node deploy/scripts/release.mjs ${DEPLOY_SHA:+"$DEPLOY_SHA"}

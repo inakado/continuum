@@ -9,6 +9,7 @@
 - Modular Monolith: NestJS API, Next.js web, PostgreSQL и S3-compatible object storage.
 - Один API-процесс без отдельного worker и Redis после удаления legacy LaTeX pipeline.
 - Better Auth отвечает за login/password и DB-backed sessions.
+- Production получает готовые CI API image и standalone web. Fingerprint исходников и provenance/checksums связывают проверки с поставляемым пакетом; VPS не устанавливает зависимости и не пересобирает приложение. Данные PostgreSQL/S3 отделены от текущей и предыдущей исполняемой сборки.
 - Shared Zod-контракты являются единственным transport-контрактом между API и web.
 - Локальные авторские инструменты не являются частью production runtime.
 

@@ -32,3 +32,10 @@ volumes/
 
 # Generated previews, exports and local QA (may include pupil data)
 /output/
+
+# Prepared deployment artifacts and runtime pointers (no application data)
+/release-bundle/
+/deploy/releases/
+/deploy/runtime/
+/deploy/current
+__pycache__/
