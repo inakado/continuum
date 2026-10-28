@@ -27,7 +27,7 @@ export class SchoolClassesWriteService {
     try {
       return await classTransaction(this.prisma, async (tx) => {
         await managedClass(tx, id, false);
-        const item = await tx.schoolClass.update({ where: { id }, data: input, include: { _count: { select: { students: true } } } });
+        const item = await tx.schoolClass.update({ where: { id }, data: input, include: { _count: { select: { students: { where: { deletedAt: null } } } } } });
         return { ...item, studentCount: item._count.students };
       });
     } catch (error) { this.classConflict(error); }
@@ -132,21 +132,12 @@ export class SchoolClassesWriteService {
     throw error;
   }
 
-  async deleteStudent(_teacherId: string, id: string) {
-    return classTransaction(this.prisma, async (tx) => {
-      await managedStudent(tx, id);
-      await tx.studentPasswordReset.deleteMany({ where: { studentId: id } });
-      await tx.user.delete({ where: { id } });
-      return { id };
-    });
-  }
-
   async deleteClass(_teacherId: string, id: string, deleteStudents: boolean) {
     return classTransaction(this.prisma, async (tx) => {
       await managedClass(tx, id, false);
       let deletedStudentsCount = 0;
       if (deleteStudents) {
-        const students = await tx.studentProfile.findMany({ where: { classId: id }, select: { userId: true } });
+        const students = await tx.studentProfile.findMany({ where: { classId: id, deletedAt: null }, select: { userId: true } });
         const userIds = students.map((student) => student.userId);
         await tx.studentPasswordReset.deleteMany({ where: { studentId: { in: userIds } } });
         const result = await tx.user.deleteMany({ where: { id: { in: userIds }, role: 'student' } });

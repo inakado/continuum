@@ -22,7 +22,26 @@ it('shows book classification, title and number in existing source details', () 
   render(<BankTaskPreview data={{ id: 'task', version: 1, task, statement: 'Условие.', images: {}, solution: null }} />);
   fireEvent.click(screen.getByText('Источник и сведения'));
   const details = screen.getByText('Источник и сведения').parentElement!;
-  for (const text of ['Не ЕГЭ', 'Задачник', 'Название задачника', 'Автор сборника', 'Сборник задач по физике', '123']) expect(within(details).getByText(text)).toBeVisible();
+  for (const text of ['Не ЕГЭ', 'Задачник', 'Автор / составитель', 'Название задачника', 'Номер задачи в задачнике', 'Автор сборника', 'Сборник задач по физике', '123']) expect(within(details).getByText(text)).toBeVisible();
+});
+it('renders the subsection name, local number and source ID with distinct labels', () => {
+  const task: AssessmentPackageTask = { ...base, type: 'extended', source: { provider: 'Школково', kind: 'platform', exam: 'ege', collection: '22.05 Кинематика. Равноускоренное. Прямолинейное', sectionCode: '22.05', taskNumber: 25, externalId: '86767', examYear: 2026, examTaskNumber: 22 } };
+  render(<BankTaskPreview data={{ id: 'task', version: 1, task, statement: 'Условие.', images: {}, solution: null }} />);
+  fireEvent.click(screen.getByText('Источник и сведения'));
+  const details = screen.getByText('Источник и сведения').parentElement!;
+  for (const text of ['Подраздел источника', task.source.collection!, 'Номер задачи в подразделе', '25', 'ID / номер в источнике', '86767', 'Код подраздела', '22.05', 'Год формата ЕГЭ']) expect(within(details).getByText(text)).toBeVisible();
+  expect(within(details).queryByText('Подборка')).not.toBeInTheDocument();
+});
+it.each(['platform', 'taskbook', 'original'] as const)('shows the subject hierarchy independently of exam and source kind: %s', (kind) => {
+  const task: AssessmentPackageTask = { ...base, type: 'extended', topicPath: ['Механика', 'Кинематика', 'Баллистика'], source: { provider: 'Пример источника', kind, exam: 'none', ...(kind === 'taskbook' ? { collection: 'Сборник задач по физике' } : {}) } };
+  const view = render(<BankTaskPreview data={{ id: 'task', version: 1, task, statement: 'Условие.', images: {}, solution: null }} />);
+  fireEvent.click(screen.getByText('Источник и сведения'));
+  const details = screen.getByText('Источник и сведения').parentElement!;
+  for (const [label, value] of [['Раздел', 'Механика'], ['Подраздел', 'Кинематика'], ['Тема', 'Баллистика']]) expect(within(details).getByText(label).nextElementSibling).toHaveTextContent(value);
+  expect(within(details).getByText('Не ЕГЭ')).toBeVisible();
+  view.rerender(<BankTaskPreview data={{ id: 'task', version: 1, task: { ...task, topicPath: ['Механика'] }, statement: 'Условие.', images: {}, solution: null }} />);
+  expect(within(details).queryByText('Подраздел', { exact: true })).not.toBeInTheDocument();
+  expect(within(details).queryByText('Тема', { exact: true })).not.toBeInTheDocument();
 });
 it.each(tasks)('shows the task type and grading policy in existing metadata', (task, type, policy) => {
   const data = { id: 'task', version: 2, task, statement: 'Условие.', images: {}, solution: null };

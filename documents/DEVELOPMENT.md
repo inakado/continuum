@@ -25,6 +25,8 @@ Worker, Redis и TeX Live не входят в целевой runtime.
 
 ## Verification Commands
 
+- Security gate: `pnpm audit --audit-level=high` (обычный вывод, без `--ignore` и `--json`; ошибка registry не считается успешной проверкой).
+- Trivy filesystem gate: HIGH/CRITICAL, ненулевой exit при обнаружении; без `ignore-unfixed`. Для локального воспроизведения использовать версию из закреплённого Trivy action и исходники будущего checkout без ignored-файлов.
 - Документация: `pnpm docs:check`
 - Shared contracts: `pnpm --filter @continuum/shared typecheck && pnpm --filter @continuum/shared test`
 - Frontend boundaries: `pnpm lint:boundaries`
@@ -33,6 +35,14 @@ Worker, Redis и TeX Live не входят в целевой runtime.
 - Web + shared: `pnpm build:web`
 - Full build: `pnpm build`
 - Full test: `pnpm test`
+
+### Локальный профиль фронтенда
+
+`pnpm --filter web exec next analyze --output --snapshot <name>` сохраняет граф; `next analyze export --snapshot <name>` выводит JSONL без новой зависимости. Для React attribution допустим локальный `pnpm --filter web exec next build --profile --no-mangling` и отдельный `next start --port 3002 --hostname 127.0.0.1`. Это debug/profiling-сборка с overhead, не payload baseline. После профиля обязательно вернуть обычный `pnpm build:web`; profiling/debug-флаги не использовать при production-выпуске. API Origin/CORS для другого локального порта проверять отдельно, не ослаблять production-политику.
+
+### Локальный кэш сборок
+
+Turbo хранит архивы результатов в `.turbo/cache`. В `turbo.json` из build outputs исключены `.next/cache/**`, `.next/dev/**` и `.next/diagnostics/**`: внутренние кэши Next.js, dev-артефакты и профили не копируются в каждый архив production-сборки. Сам кэш Turbo может накапливать результаты разных сборок; при необходимости его можно очистить командой `rm -rf .turbo/cache`, когда Turbo не выполняет задачи. Следующий запуск пересоздаст кэш. Файлы работающего dev-сервера в `.next/dev` при такой очистке сохраняются.
 
 ### Auth smoke
 

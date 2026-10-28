@@ -1,5 +1,5 @@
 import { BadRequestException, Body, Controller, Delete, Get, Header, Headers, Inject, Param, ParseUUIDPipe, Post, Query, Req, Res, StreamableFile, UseGuards } from '@nestjs/common';
-import { AssessmentBankDeleteSchema, AssessmentBankRestoreSchema, AssessmentBankQuerySchema, type AssessmentBankDelete, type AssessmentBankRestore, type AssessmentBankQuery } from '@continuum/shared';
+import { AssessmentBankBulkDeleteSchema, AssessmentBankBulkRestoreSchema, type AssessmentBankBulkDelete, type AssessmentBankBulkRestore, AssessmentBankDeleteSchema, AssessmentBankRestoreSchema, AssessmentBankQuerySchema, type AssessmentBankDelete, type AssessmentBankRestore, type AssessmentBankQuery } from '@continuum/shared';
 import { Role } from '@prisma/client';
 import { z } from 'zod';
 import type { Response } from 'express';
@@ -31,6 +31,14 @@ export class TeacherAssessmentBankController {
   @Get('tasks/:id')
   @Header('Cache-Control', 'no-store')
   view(@Req() request: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string, @Query(new ZodValidationPipe(VersionQuerySchema)) query: z.infer<typeof VersionQuerySchema>) { return this.reads.view(request.user.id, id, query.version); }
+
+  @Post('tasks/bulk-delete')
+  @Header('Cache-Control', 'no-store')
+  removeMany(@Req() request: AuthRequest, @Body(new ZodValidationPipe(AssessmentBankBulkDeleteSchema)) input: AssessmentBankBulkDelete) { assertWriteOrigin(request); return this.writes.removeMany(request.user.id, input); }
+
+  @Post('tasks/bulk-restore')
+  @Header('Cache-Control', 'no-store')
+  restoreMany(@Req() request: AuthRequest, @Body(new ZodValidationPipe(AssessmentBankBulkRestoreSchema)) input: AssessmentBankBulkRestore) { assertWriteOrigin(request); return this.writes.restoreMany(request.user.id, input); }
 
   @Delete('tasks/:id')
   @Header('Cache-Control', 'no-store')

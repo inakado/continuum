@@ -48,11 +48,6 @@ export const useDeleteSchoolClass = () => {
   const refresh = useRefreshStudents();
   return useMutation({ mutationFn: teacherStudentsApi.deleteClass, onSuccess: refresh });
 };
-export const useDeleteStudent = () => {
-  const refresh = useRefreshStudents();
-  return useMutation({ mutationFn: teacherStudentsApi.deleteStudent, onSuccess: refresh });
-};
-
 export const useUpdateStudentNames = () => {
   const refresh = useRefreshStudents();
   return useMutation({ mutationFn: teacherStudentsApi.updateNames, onSuccess: refresh, onError: refresh, retry: false });

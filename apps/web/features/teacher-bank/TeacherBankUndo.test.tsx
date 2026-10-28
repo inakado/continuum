@@ -24,7 +24,7 @@ beforeEach(() => {
 });
 it('keeps both undo actions in an empty bank and returns to the original filters and task', async () => {
   const removed = new Set<string>();
-  vi.mocked(teacherBankApi.list).mockImplementation(async () => ({ tasks: tasks.filter((task) => !removed.has(task.id)), total: tasks.length - removed.size, topics: ['МКТ'], pageSize: 50 }));
+  vi.mocked(teacherBankApi.list).mockImplementation(async () => ({ tasks: tasks.filter((task) => !removed.has(task.id)), total: tasks.length - removed.size, topics: ['МКТ'], topicPaths: [['МКТ']], pageSize: 50 }));
   vi.mocked(teacherBankApi.view).mockImplementation(async (id) => ({ id, version: 1, lifecycleRevision: 1, task: tasks.find((task) => task.id === id), statement: '', solution: null, images: {} } as AssessmentTaskView));
   vi.mocked(teacherBankApi.remove).mockImplementation(async (id) => { removed.add(id); return { id, version: 1, deletionRevision: 2 }; });
   vi.mocked(teacherBankApi.restore).mockImplementation(async (id) => { removed.delete(id); return { id }; });

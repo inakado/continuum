@@ -28,17 +28,19 @@ const data: AssignmentReport = { versionId: id(1), workId: id(2), title: 'МКТ
     { id: id(11), name: 'Всё заполнил', login: 'second', assignmentId: id(3), isActive: true, deleted: false, status: 'in_progress', answeredCount: 6, result: null, completedAt: null, progress: { photoTaskCount: 0, publishedReviewTaskCount: 0, resultReady: false } },
     { id: id(12), name: 'Завершивший', login: 'third', assignmentId: id(5), isActive: true, deleted: false, status: 'completed', answeredCount: 6, result: { points: 8, maxPoints: 9, percentage: 89, correctCount: 5, incorrectCount: 1 }, completedAt: '2026-10-17T00:00:00Z', progress: { photoTaskCount: 0, publishedReviewTaskCount: 0, resultReady: true } },
   ] };
-it('uses five clearly labeled mixed-work columns without calling unpublished reviews checked', () => {
+it('labels both work parts and counts only published reviews', () => {
   render(<AssignmentReportView data={{ ...data, taskCount: 9, extendedTaskCount: 3, recipients: data.recipients.map((item) => ({ ...item, progress: { photoTaskCount: 2, publishedReviewTaskCount: 1, resultReady: false } })) }} />);
-  expect(screen.getAllByRole('columnheader').map((item) => item.textContent)).toEqual(['Ученик', 'Класс', 'Тестовая часть', 'Решения', 'Проверка']);
-  expect(screen.getAllByText('Опубликовано: 1 из 3')).toHaveLength(3);
+  expect(screen.getAllByRole('columnheader').map((item) => item.textContent)).toEqual(['Ученик', 'Класс', 'Тестовая часть', 'Развёрнутая часть', 'Проверка решений']);
+  expect(screen.getAllByText('Проверено: 1 из 3')).toHaveLength(3);
   expect(screen.getByRole('combobox', { name: 'Тестовая часть' })).toBeVisible();
+  expect(screen.getAllByRole('button', { name: /^Открыть решения:/ })).toHaveLength(3);
+  expect(screen.queryByText(/Фото считаются|не файлами|а не файлам/)).not.toBeInTheDocument();
 });
 it('hides an absent test part and ignores its old URL filter for extended-only work', () => {
   history.replaceState({}, '', '/teacher/works/assignments/test?status=completed');
   render(<AssignmentReportView data={{ ...data, automaticTaskCount: 0, extendedTaskCount: 6 }} />);
   expect(screen.queryByRole('combobox', { name: 'Тестовая часть' })).not.toBeInTheDocument();
-  expect(screen.getAllByRole('columnheader').map((item) => item.textContent)).toEqual(['Ученик', 'Класс', 'Решения', 'Проверка']);
+  expect(screen.getAllByRole('columnheader').map((item) => item.textContent)).toEqual(['Ученик', 'Класс', 'Развёрнутая часть', 'Проверка решений']);
   expect(screen.getByRole('row', { name: /Всё заполнил/ })).toBeVisible();
 });
 it('separates completion from filled answers and filters by class/status without treating missing results as zero', () => {
@@ -126,4 +128,53 @@ it('isolates search by teacher and report and keeps typing usable when storage i
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'second' } });
   expect(screen.getByText('Всё заполнил')).toBeVisible();
   expect(screen.getByRole('searchbox')).toHaveValue('second');
+});
+
+it('filters photos independently from test completion, with counts scoped by the other filters', () => {
+  const report = { ...data, extendedTaskCount: 2, recipients: [
+    { ...data.recipients[0], name: 'Без фотографий' },
+    { ...data.recipients[1], name: 'Фото частично', progress: { photoTaskCount: 1, publishedReviewTaskCount: 0, resultReady: false } },
+    { ...data.recipients[2], name: 'Все фото', progress: { photoTaskCount: 2, publishedReviewTaskCount: 1, resultReady: false } },
+    { ...data.recipients[2], id: id(13), name: 'Все опубликованы', progress: { photoTaskCount: 2, publishedReviewTaskCount: 2, resultReady: true } },
+  ] };
+  render(<AssignmentReportView data={report} />);
+  const photos = screen.getByRole('combobox', { name: 'Развёрнутая часть' });
+  fireEvent.change(photos, { target: { value: 'awaiting_review' } });
+  expect(screen.getByText('Фото частично')).toBeVisible();
+  expect(screen.getByText('Все фото')).toBeVisible();
+  expect(screen.queryByText('Все опубликованы')).not.toBeInTheDocument();
+  expect(screen.queryByText('Без фотографий')).not.toBeInTheDocument();
+  expect(location.search).toContain('photos=awaiting_review');
+  const status = screen.getByRole('combobox', { name: 'Тестовая часть' });
+  expect(within(status).getByRole('option', { name: 'Завершили — 1' })).toBeInTheDocument();
+  fireEvent.change(status, { target: { value: 'completed' } });
+  expect(within(photos).getByRole('option', { name: 'Все — 2' })).toBeInTheDocument();
+  expect(screen.getByText('Все фото')).toBeVisible();
+  expect(screen.queryByText('Фото частично')).not.toBeInTheDocument();
+  fireEvent.change(photos, { target: { value: 'none' } });
+  expect(screen.getByText('По этим фильтрам учеников нет.')).toBeVisible();
+  fireEvent.change(status, { target: { value: 'all' } });
+  expect(screen.getByText('Без фотографий')).toBeVisible();
+  fireEvent.change(photos, { target: { value: 'partial' } });
+  expect(screen.getByText('Фото частично')).toBeVisible();
+  fireEvent.change(photos, { target: { value: 'uploaded' } });
+  expect(screen.getByText('Все фото')).toBeVisible();
+  expect(screen.getByText('Все опубликованы')).toBeVisible();
+  fireEvent.change(photos, { target: { value: 'published' } });
+  expect(screen.getByText('Все опубликованы')).toBeVisible();
+  expect(screen.queryByText('Все фото')).not.toBeInTheDocument();
+});
+
+it('resets the page on photo filtering, restores URL state and ignores photos for automatic-only work', () => {
+  history.replaceState({}, '', '/teacher/works/assignments/test?photos=none&page=2');
+  const recipients = Array.from({ length: 25 }, (_, n) => ({ ...data.recipients[0], id: id(100 + n), name: `Ученик ${n + 1}` }));
+  const view = render(<AssignmentReportView data={{ ...data, recipients, extendedTaskCount: 2 }} />);
+  expect(screen.getByText('21–25 из 25')).toBeVisible();
+  expect(screen.getByRole('combobox', { name: 'Развёрнутая часть' })).toHaveValue('none');
+  fireEvent.change(screen.getByRole('combobox', { name: 'Развёрнутая часть' }), { target: { value: 'partial' } });
+  expect(location.search).not.toContain('page=');
+  view.unmount();
+  render(<AssignmentReportView data={data} />);
+  expect(screen.queryByRole('combobox', { name: 'Развёрнутая часть' })).not.toBeInTheDocument();
+  expect(screen.getByText('Всё заполнил')).toBeVisible();
 });

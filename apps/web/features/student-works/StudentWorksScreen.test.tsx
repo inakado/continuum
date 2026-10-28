@@ -23,7 +23,7 @@ it('shows saved points in the list when partial scoring is present', async () =>
 });
 it('shows independent automatic/photo/published progress and opens missing solutions', async () => {
   show();
-  expect(await screen.findByText('Фото: 2 из 3 задач · Проверено: 1 из 3')).toBeVisible();
+  expect(await screen.findByText('Развёрнутая часть: 2 из 3 заданий · Проверено: 1 из 3')).toBeVisible();
   expect(screen.getByText(/Тестовая часть завершена · Верно 1 из 2/)).toBeVisible();
   expect(screen.getByRole('link', { name: /Добавить решения/ })).toHaveAttribute('href', '/student/works/work?view=solutions');
 });
@@ -41,5 +41,5 @@ it('opens published results and hides the absent automatic part', async () => {
 it('does not show photo counters for an automatic-only result', async () => {
   show({ ...work, extendedTaskCount: 0, taskCount: 2, progress: { photoTaskCount: 0, publishedReviewTaskCount: 0, resultReady: true } });
   expect(await screen.findByRole('link', { name: /Посмотреть результат/ })).toBeVisible();
-  expect(screen.queryByText(/Фото:/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Развёрнутая часть:/)).not.toBeInTheDocument();
 });

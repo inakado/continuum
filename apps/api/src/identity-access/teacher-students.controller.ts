@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Header, Inject, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import {
+  StudentsBulkDeleteSchema, StudentsBulkRestoreSchema, type StudentsBulkDelete, type StudentsBulkRestore,
   CreateTeacherStudentInputSchema,
   ResourceIdParamsSchema,
   SetStudentActiveInputSchema,
@@ -21,11 +22,14 @@ import { IdentityAccessWriteService } from './identity-access-write.service';
 import { SchoolClassesWriteService } from './school-classes-write.service';
 import { assertWriteOrigin } from '../common/assert-write-origin';
 
+import { StudentLifecycleService } from './student-lifecycle.service';
+
 @Controller('teacher/students')
 @UseGuards(RolesGuard)
 @Roles(Role.teacher)
 export class TeacherStudentsController {
   constructor(
+    @Inject(StudentLifecycleService) private readonly lifecycle: StudentLifecycleService,
     @Inject(IdentityAccessReadService) private readonly reads: IdentityAccessReadService,
     @Inject(IdentityAccessWriteService) private readonly writes: IdentityAccessWriteService,
     @Inject(SchoolClassesWriteService) private readonly classes: SchoolClassesWriteService,
@@ -74,8 +78,20 @@ export class TeacherStudentsController {
     return this.classes.resetPassword(request.user.id, params.id, input.requestId);
   }
 
+  @Post('bulk-delete')
+  @Header('Cache-Control', 'no-store')
+  removeMany(@Req() request: AuthRequest, @Body(new ZodValidationPipe(StudentsBulkDeleteSchema)) input: StudentsBulkDelete) {
+    assertWriteOrigin(request); return this.lifecycle.removeMany(input);
+  }
+
+  @Post('bulk-restore')
+  @Header('Cache-Control', 'no-store')
+  restoreMany(@Req() request: AuthRequest, @Body(new ZodValidationPipe(StudentsBulkRestoreSchema)) input: StudentsBulkRestore) {
+    assertWriteOrigin(request); return this.lifecycle.restoreMany(input);
+  }
+
   @Delete(':id')
   deleteStudent(@Req() request: AuthRequest, @Param(new ZodValidationPipe(ResourceIdParamsSchema)) params: ResourceIdParams) {
-    return this.classes.deleteStudent(request.user.id, params.id);
+    assertWriteOrigin(request); return this.lifecycle.removeOne(params.id);
   }
 }

@@ -27,7 +27,7 @@ export class IdentityAccessWriteService {
   async updateStudentNames(studentId: string, input: UpdateStudentNamesInput): Promise<TeacherStudentMutationResult> {
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM users WHERE id = ${studentId}::uuid FOR UPDATE`;
-      const student = await tx.user.findFirst({ where: { id: studentId, role: Role.student }, include: { studentProfile: true } });
+      const student = await tx.user.findFirst({ where: { id: studentId, role: Role.student, studentProfile: { is: { deletedAt: null } } }, include: { studentProfile: true } });
       if (!student?.studentProfile) throw new ForbiddenException({ code: 'STUDENT_NOT_MANAGED', message: 'Ученик не найден.' });
       const { firstName, lastName, middleName } = input;
       const names = { firstName, lastName, middleName };
@@ -69,11 +69,12 @@ export class IdentityAccessWriteService {
     input: SetStudentActiveInput,
   ): Promise<TeacherStudentMutationResult> {
     return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${studentId}::uuid FOR UPDATE`;
       const student = await tx.user.findFirst({
         where: {
           id: studentId,
           role: Role.student,
-          studentProfile: { isNot: null },
+          studentProfile: { is: { deletedAt: null } },
         },
         select: { id: true },
       });

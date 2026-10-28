@@ -1,6 +1,6 @@
 "use client";
 import { worksListHref } from './use-works-filters';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Check, Eye, Plus } from 'lucide-react';
 import { ASSESSMENT_WORK_TASK_LIMIT, type AssessmentWorkDetail, type GradeBand } from '@continuum/shared';
@@ -21,6 +21,10 @@ function CopyNotice({ count = 0 }: { count?: number }) {
   return count > 0 ? <p className={styles.copyNotice} role="note">При создании копии пропущено заданий: {count}. Они удалены из банка.</p> : null;
 }
 export default function WorkEditor({ initial, onReload }: { initial: AssessmentWorkDetail; onReload: () => Promise<void> }) {
+  const titleInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('from') === 'import') { titleInput.current?.focus(); titleInput.current?.select(); }
+  }, []);
   const editor = useWorkDraft(initial);
   const leave = useSaveBeforeLeave(editor.dirty, editor.flush, editor.discard);
   const { draft } = editor;
@@ -36,7 +40,7 @@ export default function WorkEditor({ initial, onReload }: { initial: AssessmentW
     {picking ? <WorkBankPicker existing={draft.items} grade={draft.gradeBand} onClose={() => setPicking(false)} onAdd={(items) => { editor.change({ items: [...draft.items, ...items.filter((item) => !draft.items.some((current) => current.id === item.id))] }); setPicking(false); }} /> : <>
       <button className={styles.textButton} onClick={() => { void leave.request().then((allowed) => { if (allowed) router.push(worksListHref(new URLSearchParams(window.location.search))); }); }}><ArrowLeft size={17} />К работам</button>
       <CopyNotice count={initial.copySkippedTaskCount} />
-      <div className={styles.editorHeading}><div>{preview ? <h1>{draft.title}</h1> : <input className={styles.titleInput} aria-label="Название работы" maxLength={200} value={draft.title} onChange={(event) => { editor.change({ title: event.target.value }); }} />}
+      <div className={styles.editorHeading}><div>{preview ? <h1>{draft.title}</h1> : <input ref={titleInput} className={styles.titleInput} aria-label="Название работы" maxLength={200} value={draft.title} onChange={(event) => { editor.change({ title: event.target.value }); }} />}
         <div className={styles.meta}>{preview ? workGrades[draft.gradeBand] : <WorkSelect aria-label="Параллель работы" value={draft.gradeBand} onChange={(event) => { editor.change({ gradeBand: event.target.value as GradeBand }); }}>{Object.entries(workGrades).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</WorkSelect>}<span>· {workStateLabel(initial.isArchived)}</span>{!preview && <button className={styles.textButton} onClick={() => setInstructions(!instructionsOpen)}>{instructionsOpen ? 'Скрыть инструкцию' : draft.instructions ? 'Инструкция' : 'Добавить инструкцию'}</button>}</div>
       </div><span className={styles.saveStatus} role="status">{editor.saving ? 'Сохраняем…' : editor.error ? 'Не сохранено' : !draft.title.trim() ? 'Введите название' : editor.dirty ? 'Есть изменения' : <><Check size={17} />Сохранено</>}</span></div>
       {instructionsOpen && !preview && <label className={styles.instructionField}>Инструкция ученику<textarea maxLength={10000} value={draft.instructions} onChange={(event) => { editor.change({ instructions: event.target.value }); }} /></label>}

@@ -1,23 +1,9 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Script from "next/script";
-import "@fontsource/inter/300.css";
-import "@fontsource/inter/400.css";
-import "@fontsource/inter/500.css";
-import "@fontsource/inter/600.css";
-import "@fontsource/inter/700.css";
-import "@fontsource/onest/300.css";
-import "@fontsource/onest/400.css";
-import "@fontsource/onest/500.css";
-import "@fontsource/onest/600.css";
-import "@fontsource/onest/700.css";
+import "medeo-font/sans.css";
 import "@fontsource/unbounded/300.css";
-import "@fontsource/unbounded/400.css";
-import "@fontsource/unbounded/500.css";
-import "@fontsource/unbounded/600.css";
-import "@fontsource/unbounded/700.css";
 import "./globals.css";
-import "@excalidraw/excalidraw/index.css";
 import ThemeHydration from "@/components/ThemeHydration";
 import QueryProvider from "@/lib/query/query-provider";
 
@@ -56,9 +42,6 @@ export default function RootLayout({
     document.documentElement.dataset.theme = "light";
   }
 })();`}
-        </Script>
-        <Script id="excalidraw-asset-path" strategy="beforeInteractive">
-          {`window.EXCALIDRAW_ASSET_PATH = "/vendor/excalidraw/";`}
         </Script>
         <ThemeHydration />
         <QueryProvider>{children}</QueryProvider>

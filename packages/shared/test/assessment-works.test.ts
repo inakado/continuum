@@ -37,3 +37,13 @@ it('requires both revisions and rejects untrusted deletion options', () => {
   expect(AssessmentWorkDeleteSchema.parse({ expectedRevision: 3, expectedLifecycleRevision: 2 })).toEqual({ expectedRevision: 3, expectedLifecycleRevision: 2 });
   for (const invalid of [{ expectedRevision: 1 }, { expectedRevision: 0, expectedLifecycleRevision: 1 }, { expectedRevision: 1, expectedLifecycleRevision: 0 }, { expectedRevision: 1, expectedLifecycleRevision: 1, cascade: true }]) expect(AssessmentWorkDeleteSchema.safeParse(invalid).success).toBe(false);
 });
+
+it('creates an empty or atomically seeded work with the same reference rules as updates', async () => {
+  const { AssessmentWorkCreateSchema } = await import('../src/contracts/assessment-works');
+  const base = { id, title: 'Из пакета', gradeBand: 'grade_10_11' };
+  expect(AssessmentWorkCreateSchema.parse(base)).toEqual(base);
+  expect(AssessmentWorkCreateSchema.parse({ ...base, items: input.items }).items).toEqual(input.items);
+  for (const items of [[...input.items, ...input.items], [{ taskId: id }], [{ taskId: id, version: 0 }], [{ ...input.items[0], statement: 'untrusted' }], Array.from({ length: 501 }, (_, index) => ({ taskId: `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`, version: 1 }))]) {
+    expect(AssessmentWorkCreateSchema.safeParse({ ...base, items }).success).toBe(false);
+  }
+});

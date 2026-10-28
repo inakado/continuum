@@ -1,19 +1,27 @@
 "use client";
 
-import { ChevronDown } from 'lucide-react';
+import { X } from 'lucide-react';
 import SearchField from '@/components/ui/SearchField';
 import type { AssessmentBankQuery } from '@continuum/shared';
+import BankTopicPicker from './BankTopicPicker';
+import BankExtraFilters from './BankExtraFilters';
 import { taskTypeLabels } from './task-source';
-import styles from './teacher-bank.module.css';
+import { topicLabel } from './bank-topics';
+import styles from './bank-filters.module.css';
 
-export default function BankFilters({ query, topics, sources, onChange }: { query: AssessmentBankQuery; topics: string[]; sources: string[]; onChange: (patch: Partial<AssessmentBankQuery>, replace?: boolean) => void }) {
-  const providers = [...new Set([...sources, ...(query.source ? [query.source] : [])])];
-  const availableTopics = [...new Set([...topics, ...(query.topic ? [query.topic] : [])])];
-  return <div className={styles.filters}>
-    <SearchField className={styles.search} label="Поиск по условию или названию" placeholder="Поиск по условию или названию" maxLength={200} value={query.search} onValueChange={(search) => onChange({ search }, true)} />
-    <label className={styles.select}><span className={styles.srOnly}>Тема</span><select value={query.topic} onChange={(event) => onChange({ topic: event.target.value })}><option value="">Все темы</option>{availableTopics.map((value) => <option key={value} value={value}>{value}</option>)}</select><ChevronDown size={17} aria-hidden="true" /></label>
-    <label className={styles.select}><span className={styles.srOnly}>Тип задания</span><select value={query.type ?? ''} onChange={(event) => onChange({ type: event.target.value as AssessmentBankQuery['type'] || undefined })}><option value="">Все типы</option>{Object.entries(taskTypeLabels).map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select><ChevronDown size={17} aria-hidden="true" /></label>
-    <label className={styles.select}><span className={styles.srOnly}>ЕГЭ / не ЕГЭ</span><select value={query.exam ?? ''} onChange={(event) => onChange({ exam: event.target.value as AssessmentBankQuery['exam'] || undefined })}><option value="">ЕГЭ и не ЕГЭ</option><option value="ege">ЕГЭ</option><option value="none">Не ЕГЭ</option></select><ChevronDown size={17} aria-hidden="true" /></label>
-    <label className={styles.select}><span className={styles.srOnly}>Источник</span><select value={query.source ?? ''} onChange={(event) => onChange({ source: event.target.value || undefined })}><option value="">Все источники</option>{providers.map((value) => <option key={value} value={value}>{value}</option>)}</select><ChevronDown size={17} aria-hidden="true" /></label>
-  </div>;
+export default function BankFilters({ query, topicPaths = [], sources = [], onChange }: {
+  query: AssessmentBankQuery; topicPaths?: string[][]; sources?: string[];
+  onChange: (patch: Partial<AssessmentBankQuery>, replace?: boolean) => void;
+}) {
+  const selected = query.topicPath ?? (query.topic ? [query.topic] : []);
+  const chips: { key: string; label: string; clear: Partial<AssessmentBankQuery> }[] = [];
+  if (selected.length) chips.push({ key: 'topic', label: topicLabel(selected), clear: { topicPath: undefined, topic: '' } });
+  if (query.type) chips.push({ key: 'type', label: taskTypeLabels[query.type], clear: { type: undefined } });
+  if (query.exam) chips.push({ key: 'exam', label: query.exam === 'ege' ? 'ЕГЭ' : 'Не ЕГЭ', clear: { exam: undefined } });
+  if (query.source) chips.push({ key: 'source', label: query.source, clear: { source: undefined } });
+  return <div className={styles.root}><div className={styles.toolbar}>
+    <div className={styles.field}><span className={styles.label}>Поиск задач</span><SearchField label="Поиск по условию, названию или теме" placeholder="Условие, название или тема" maxLength={200} value={query.search} onValueChange={(search) => onChange({ search }, true)} /></div>
+    <BankTopicPicker paths={topicPaths} value={selected} onChange={(topicPath) => onChange({ topicPath, topic: '' })} />
+    <BankExtraFilters query={query} sources={sources} onChange={onChange} />
+  </div>{(chips.length > 0 || query.search) && <div className={styles.chips} aria-label="Применённые фильтры">{chips.map((chip) => <button key={chip.key} type="button" aria-label={`Сбросить ${chip.label}`} onClick={() => onChange(chip.clear)}><span>{chip.label}</span><X size={13} aria-hidden="true" /></button>)}<button className={styles.reset} type="button" onClick={() => onChange({ search: '', topic: '', topicPath: undefined, type: undefined, exam: undefined, source: undefined })}>Сбросить всё</button></div>}</div>;
 }

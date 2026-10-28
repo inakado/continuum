@@ -16,3 +16,12 @@ it('requires exact content and lifecycle revisions for deletion and undo', () =>
   expect(AssessmentBankRestoreSchema.safeParse({ expectedVersion: 1, expectedDeletionRevision: 2, extra: true }).success).toBe(false);
   expect(AssessmentBankDeleteResultSchema.safeParse({ id: '00000000-0000-4000-8000-000000000001', version: 1, deletionRevision: 2 }).success).toBe(true);
 });
+
+it('keeps pinned ordered import references and still reads old confirm receipts', async () => {
+  const { AssessmentImportResultSchema } = await import('../src/contracts/assessment-bank');
+  const old = { added: 0, updated: 0, unchanged: 1, taskIds: ['00000000-0000-4000-8000-000000000001'] };
+  expect(AssessmentImportResultSchema.parse(old)).toEqual(old);
+  const receipt = { ...old, items: [{ taskId: old.taskIds[0], version: 2 }], gradeBands: ['grade_10_11'] };
+  expect(AssessmentImportResultSchema.parse(receipt)).toEqual(receipt);
+  expect(AssessmentImportResultSchema.safeParse({ ...receipt, items: [{ taskId: old.taskIds[0] }] }).success).toBe(false);
+});

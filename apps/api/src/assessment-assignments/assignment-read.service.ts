@@ -10,7 +10,7 @@ const reportInclude = {
   assignments: { orderBy: { createdAt: 'asc' }, select: { id: true, classId: true, classTitle: true, academicYear: true } },
   recipients: { orderBy: [{ studentName: 'asc' }, { id: 'asc' }], select: {
     id: true, studentName: true, studentLogin: true, studentId: true, assignmentId: true, answeredCount: true,
-    startedAt: true, completedAt: true, points: true, correctCount: true, incorrectCount: true, student: { select: { isActive: true } },
+    startedAt: true, completedAt: true, points: true, correctCount: true, incorrectCount: true, student: { select: { isActive: true, studentProfile: { select: { deletedAt: true } } } },
   } },
 } satisfies Prisma.AssessmentWorkVersionInclude;
 type ReportRow = Prisma.AssessmentWorkVersionGetPayload<{ include: typeof reportInclude }>;
@@ -64,7 +64,7 @@ export class AssignmentReadService {
       allPhotosCount: base.extendedTaskCount ? row.recipients.filter((item) => progress.get(item.id)!.photoTaskCount === base.extendedTaskCount).length : 0,
       allReviewsPublishedCount: base.extendedTaskCount ? row.recipients.filter((item) => progress.get(item.id)!.publishedReviewTaskCount === base.extendedTaskCount).length : 0,
       recipients: row.recipients.map((item) => ({ id: item.id, name: item.studentName, login: item.studentLogin, assignmentId: item.assignmentId,
-      deleted: item.studentId === null, isActive: item.student?.isActive ?? false, status: attemptStatus(item), answeredCount: item.answeredCount, completedAt: item.completedAt?.toISOString() ?? null,
+      deleted: item.studentId === null || Boolean(item.student?.studentProfile?.deletedAt), isActive: item.student?.isActive ?? false, status: attemptStatus(item), answeredCount: item.answeredCount, completedAt: item.completedAt?.toISOString() ?? null,
       photoTaskCount: progress.get(item.id)!.photoTaskCount, progress: progress.get(item.id)!,
       result: item.completedAt && automaticMaxPoints > 0 ? { points: item.points!, maxPoints: automaticMaxPoints, percentage: Math.round(100 * item.points! / automaticMaxPoints), correctCount: item.correctCount!, incorrectCount: item.incorrectCount!, partialCount: base.automaticTaskCount - item.correctCount! - item.incorrectCount! } : null,
     })) };

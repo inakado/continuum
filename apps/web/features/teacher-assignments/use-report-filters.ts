@@ -3,6 +3,7 @@
 import { useCallback, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { z } from 'zod';
+import { photoFilterSchema } from './report-photo-filters';
 import { readReportSearch, reportSearchKey, writeReportSearch } from '@/lib/assessment/report-search';
 
 const statusSchema = z.enum(['all', 'not_started', 'in_progress', 'completed']);
@@ -10,6 +11,7 @@ function readReportFilters(params: URLSearchParams) {
   return {
     classId: z.string().uuid().catch('').parse(params.get('class')),
     status: statusSchema.catch('all').parse(params.get('status')),
+    photos: photoFilterSchema.catch('all').parse(params.get('photos')),
     page: z.coerce.number().int().min(1).max(1_000_000).catch(1).parse(params.get('page')),
   };
 }
@@ -18,6 +20,7 @@ function reportFilterParams(filters: ReportFilters) {
   const params = new URLSearchParams();
   if (filters.classId) params.set('class', filters.classId);
   if (filters.status !== 'all') params.set('status', filters.status);
+  if (filters.photos !== 'all') params.set('photos', filters.photos);
   if (filters.page !== 1) params.set('page', String(filters.page));
   return params.toString();
 }

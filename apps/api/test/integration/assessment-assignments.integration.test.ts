@@ -303,8 +303,11 @@ it('rejects a stale draft even when frozen, assigns the chosen old version and d
   expect((await api(`${path}/finish`, 'POST', { expectedRevision: 2 }, learner.cookie)).data.result).toEqual({ correctCount: 1, incorrectCount: 0, partialCount: 0, points: 1, maxPoints: 1 });
   expect((await api(reportPath)).data.recipients[0].result).toMatchObject({ points: 1, maxPoints: 1, percentage: 100 });
   expect((await api(root)).data.find((item: { versionId: string }) => item.versionId === assigned.data.versionId)).toMatchObject({ studentCount: 1, completedCount: 1 });
-  expect((await api(`/teacher/students/${learner.id}`, 'DELETE')).status).toBe(200);
+  const removedLearner = await api(`/teacher/students/${learner.id}`, 'DELETE');
+  expect(removedLearner.status).toBe(200);
   expect((await api(reportPath)).data.recipients[0]).toMatchObject({ deleted: true, status: 'completed', result: { points: 1, maxPoints: 1, percentage: 100 } });
+  expect((await api('/teacher/students/bulk-restore', 'POST', { items: [removedLearner.data] })).status).toBe(201);
+  expect((await api(reportPath)).data.recipients[0]).toMatchObject({ deleted: false, status: 'completed', result: { points: 1, maxPoints: 1, percentage: 100 } });
   expect((await api(`/teacher/classes/${classId}`, 'DELETE', { deleteStudents: false })).status).toBe(200);
   expect((await api(reportPath)).data.classes[0]).toMatchObject({ classId: null, title: classTitle('10В') });
 });

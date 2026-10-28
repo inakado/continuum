@@ -1,18 +1,19 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import '@testing-library/jest-dom/vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render as baseRender, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
 import TeacherStudentsScreen from './TeacherStudentsScreen';
 import { ApiError } from '@/lib/api/client';
 
 const state = vi.hoisted(() => ({ remove: vi.fn(), reset: vi.fn(), archive: vi.fn() }));
+vi.mock('./teacher-students.api', () => ({ teacherStudentsApi: { removeMany: state.remove, restoreMany: vi.fn() } }));
 vi.mock('@/components/ContinuumHeader', () => ({ default: () => null }));
 vi.mock('./use-teacher-students', () => {
   const mutation = () => ({ mutate: vi.fn(), isPending: false, error: null });
   return {
     useTeacherStudents: () => ({ data: { students: [{ id: 'pupil', name: 'Иванов Иван', login: 'ivanov', classId: 'class', isActive: true, gradeBands: [] }] } }),
     useSchoolClasses: () => ({ data: { classes: [{ id: 'class', title: '11А', grade: 11, academicYear: 2026, isArchived: false, studentCount: 1 }] } }),
-    useDeleteStudent: () => ({ ...mutation(), mutateAsync: state.remove }),
     useResetStudentPassword: () => ({ ...mutation(), mutateAsync: state.reset, reset: vi.fn() }),
     useUpdateSchoolClass: () => ({ ...mutation(), mutateAsync: state.archive }),
     useSetStudentActive: mutation, useSetStudentAccess: mutation, useSetStudentClass: mutation, useDeleteSchoolClass: mutation,
@@ -26,7 +27,7 @@ async function action(name: string) {
 }
 it('cancels deletion without a write and restores focus to the pupil menu', async () => {
   render(<TeacherStudentsScreen />); await action('Удалить ученика');
-  expect(screen.getByRole('alertdialog')).toHaveAccessibleDescription(/Иванов Иван.*без восстановления/);
+  expect(screen.getByRole('alertdialog')).toHaveAccessibleDescription(/Выбрано: 1.*можно отменить/);
   expect(screen.getByRole('button', { name: 'Отмена' })).toHaveFocus();
   fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
   expect(state.remove).not.toHaveBeenCalled();
@@ -55,3 +56,5 @@ it('archives only after confirming the selected class', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'В архив' }));
   await waitFor(() => expect(state.archive).toHaveBeenCalledWith({ id: 'class', input: { isArchived: true } }));
 });
+
+function render(ui: Parameters<typeof baseRender>[0]) { return baseRender(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>{ui}</QueryClientProvider>); }

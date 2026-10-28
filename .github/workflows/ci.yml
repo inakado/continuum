@@ -79,8 +79,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Dependency audit (high+, temporary allowlist)
-        run: pnpm audit --audit-level=high --ignore GHSA-3ppc-4f35-3m26
+      - name: Dependency audit (high+)
+        run: pnpm audit --audit-level=high
 
       - name: Trivy filesystem scan
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
@@ -88,5 +88,4 @@ jobs:
           scan-type: fs
           scan-ref: .
           severity: HIGH,CRITICAL
-          ignore-unfixed: true
           exit-code: '1'

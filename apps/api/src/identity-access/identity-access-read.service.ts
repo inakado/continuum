@@ -8,7 +8,7 @@ type ManagedStudentRecord = {
   login: string;
   name: string;
   isActive: boolean;
-  studentProfile: { firstName: string | null; lastName: string | null; middleName: string | null; classId: string | null } | null;
+  studentProfile: { lifecycleRevision: number; firstName: string | null; lastName: string | null; middleName: string | null; classId: string | null } | null;
   accessGrants: Array<{ gradeBand: GradeBand }>;
 };
 
@@ -20,6 +20,7 @@ export class IdentityAccessReadService {
     const students = await this.prisma.user.findMany({
       where: {
         role: Role.student,
+        studentProfile: { is: { deletedAt: null } },
       },
       orderBy: [{ isActive: 'desc' }, { login: 'asc' }],
       select: {
@@ -27,7 +28,7 @@ export class IdentityAccessReadService {
         login: true,
         name: true,
         isActive: true,
-        studentProfile: { select: { firstName: true, lastName: true, middleName: true, classId: true } },
+        studentProfile: { select: { lifecycleRevision: true, firstName: true, lastName: true, middleName: true, classId: true } },
         accessGrants: {
           where: { grantedById: teacherId },
           orderBy: { gradeBand: 'asc' },
@@ -42,6 +43,7 @@ export class IdentityAccessReadService {
   private mapStudent(student: ManagedStudentRecord): TeacherStudent {
     return {
       id: student.id,
+      lifecycleRevision: student.studentProfile?.lifecycleRevision,
       login: student.login,
       name: student.name,
       firstName: student.studentProfile?.firstName ?? null,

@@ -1,13 +1,13 @@
 .photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 20px; padding: 0; margin: 20px 0; list-style: none; }
 .photos li { min-width: 0; }
-.thumbnail { display: block; width: 100%; padding: 0; border: 1px solid #dfe2e5; border-radius: 2px; background: #f8f9f9; cursor: zoom-in; }
+.thumbnail { display: block; width: 100%; padding: 0; border: 1px solid var(--catalog-border); border-radius: var(--catalog-control-radius); background: #f8f9f9; cursor: zoom-in; }
 .thumbnail img { display: block; width: 100%; height: 160px; object-fit: contain; }
-.thumbnail:focus-visible { outline: 2px solid #0b6b4f; outline-offset: 3px; }
-.caption { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; font-size: 13px; color: #626b78; margin-top: 4px; }
+.thumbnail:focus-visible { outline: 2px solid var(--catalog-accent); outline-offset: 3px; }
+.caption { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; font-size: 13px; color: var(--catalog-muted); margin-top: 4px; }
 .caption > span { margin-right: auto; }
-.viewer { width: min(1000px, calc(100vw - 32px)); border-radius: 2px; background: #fff; box-shadow: none; }
+.viewer { width: min(1000px, calc(100vw - 32px)); border-radius: var(--catalog-control-radius); background: #fff; box-shadow: none; }
 .viewerHeading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .photoOverlay { background: rgba(9, 13, 19, .45); backdrop-filter: none; -webkit-backdrop-filter: none; }
 .fullPhoto { display: block; width: 100%; height: auto; max-height: 75dvh; object-fit: contain; }
-.close { display: block; margin-left: auto; min-height: 44px; padding: 8px 0; border: 0; background: transparent; color: #0b6b4f; font: inherit; cursor: pointer; }
-.close:focus-visible { outline: 2px solid #0b6b4f; outline-offset: 3px; }
+.close { display: block; margin-left: auto; min-height: 44px; padding: 8px 0; border: 0; background: transparent; color: var(--catalog-accent); font: inherit; cursor: pointer; }
+.close:focus-visible { outline: 2px solid var(--catalog-accent); outline-offset: 3px; }

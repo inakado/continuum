@@ -15,11 +15,24 @@ export class AssessmentWorksWriteService {
   }
   async create(teacherId: string, input: AssessmentWorkCreate) {
     return this.db.$transaction(async (tx) => {
-      await tx.assessmentWork.createMany({ data: [{ ...input, teacherId, items: [] }], skipDuplicates: true });
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${teacherId}::uuid FOR UPDATE`;
+      const existing = await tx.assessmentWork.findUnique({ where: { id: input.id } });
+      if (existing) {
+        if (existing.teacherId !== teacherId || existing.deletedAt) throw new NotFoundException('Работа не найдена.');
+        return workDetail(existing, await this.reads.resolve(teacherId, WorkReferencesSchema.parse(existing.items), tx));
+      }
+      const refs = input.items ?? [];
+      if (refs.length) {
+        const available = await tx.assessmentBankTask.count({ where: { teacherId, deletedAt: null, id: { in: refs.map((ref) => ref.taskId) } } });
+        if (available !== refs.length) throw new BadRequestException('Не все задания доступны в вашем банке. Обновите список перед созданием работы.');
+      }
+      const items = await this.reads.resolve(teacherId, refs, tx);
+      await tx.assessmentWork.createMany({ data: [{ id: input.id, title: input.title, gradeBand: input.gradeBand, teacherId,
+        items: json(refs), taskCount: items.length, maxPoints: items.reduce((sum, item) => sum + item.data.task.maxPoints, 0) }], skipDuplicates: true });
       const row = await tx.assessmentWork.findFirst({ where: { id: input.id, teacherId, deletedAt: null } });
       if (!row) throw new NotFoundException('Работа не найдена.');
-      return workDetail(row, await this.reads.resolve(teacherId, WorkReferencesSchema.parse(row.items), tx));
-    });
+      return workDetail(row, items);
+    }, { timeout: 30000 });
   }
   async update(teacherId: string, id: string, input: AssessmentWorkUpdate) {
     const hash = createHash('sha256').update(JSON.stringify(input)).digest('hex');

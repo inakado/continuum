@@ -19,10 +19,10 @@
 
 .brand {
   color: var(--catalog-heading);
-  font-family: var(--font-inter), Inter, system-ui, sans-serif;
-  font-size: 30px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
+  font-family: var(--font-logo), sans-serif;
+  font-size: 24px;
+  font-weight: 300;
+  letter-spacing: 0.04em;
   line-height: 1;
   text-decoration: none;
   text-transform: uppercase;
@@ -67,7 +67,7 @@
   min-width: 240px;
   max-width: calc(100vw - 40px);
   padding: 6px;
-  border: 1px solid #dfe2e5;
+  border: 1px solid var(--catalog-border);
   border-radius: 0;
   background: #fff;
   box-shadow: none;
@@ -89,7 +89,7 @@
 }
 
 .menu .menuItem[data-highlighted] {
-  background: #f3f7f5;
+  background: var(--catalog-hover);
   color: var(--catalog-accent);
 }
 
@@ -102,7 +102,8 @@
   }
 
   .brand {
-    font-size: 20px;
+    font-size: 17px;
+    letter-spacing: 0.02em;
   }
 
   .divider {

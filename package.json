@@ -62,7 +62,7 @@
       "hono": "4.13.11",
       "valibot@^1.0.0": "1.4.2",
       "mermaid": "11.16.1",
-      "qs": "6.16.0",
+      "qs": "6.16.1",
       "vitest": "4.1.12",
       "baseline-browser-mapping": "2.11.0",
       "brace-expansion@^1.0.0": "1.1.21",
@@ -76,11 +76,6 @@
       "argon2",
       "prisma"
     ],
-    "auditConfig": {
-      "ignoreCves": [
-        "GHSA-3ppc-4f35-3m26"
-      ]
-    },
     "ignoredBuiltDependencies": [
       "sharp",
       "msgpackr-extract"

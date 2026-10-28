@@ -1,3 +1,4 @@
+import { StudentsBulkDeleteSchema, StudentsBulkRestoreSchema, StudentsBulkDeletionSchema, StudentsBulkRestoredSchema, type StudentsBulkDelete, type StudentsBulkRestore } from '@continuum/shared';
 import {
   SetAccessGrantResultSchema,
   TeacherStudentMutationResultSchema,
@@ -7,15 +8,16 @@ import {
   type SetStudentActiveInput,
   SchoolClassesSchema, SchoolClassSchema, BulkCreateStudentsResultSchema, StudentClassResultSchema, ResetStudentPasswordResultSchema,
   type SchoolClassInput, type UpdateSchoolClassInput, type BulkCreateStudentsInput,
-  DeletedSchoolClassResultSchema, DeletedStudentResultSchema,
+  DeletedSchoolClassResultSchema,
   type UpdateStudentNamesInput,
 } from "@continuum/shared";
 import { apiRequestParsed } from "@/lib/api/client";
 
 export const teacherStudentsApi = {
+  removeMany: (input: StudentsBulkDelete) => apiRequestParsed('/teacher/students/bulk-delete', StudentsBulkDeletionSchema, { method: 'POST', body: StudentsBulkDeleteSchema.parse(input) }),
+  restoreMany: (input: StudentsBulkRestore) => apiRequestParsed('/teacher/students/bulk-restore', StudentsBulkRestoredSchema, { method: 'POST', body: StudentsBulkRestoreSchema.parse(input) }),
   updateNames: ({ studentId, input }: { studentId: string; input: UpdateStudentNamesInput }) => apiRequestParsed(`/teacher/students/${studentId}/names`, TeacherStudentMutationResultSchema, { method: 'PATCH', body: input }),
   deleteClass: ({ id, deleteStudents }: { id: string; deleteStudents: boolean }) => apiRequestParsed(`/teacher/classes/${id}`, DeletedSchoolClassResultSchema, { method: "DELETE", body: { deleteStudents } }),
-  deleteStudent: (id: string) => apiRequestParsed(`/teacher/students/${id}`, DeletedStudentResultSchema, { method: "DELETE" }),
   getClasses: () => apiRequestParsed("/teacher/classes", SchoolClassesSchema),
   createClass: (input: SchoolClassInput) => apiRequestParsed("/teacher/classes", SchoolClassSchema, { method: "POST", body: input }),
   updateClass: ({ id, input }: { id: string; input: UpdateSchoolClassInput }) => apiRequestParsed(`/teacher/classes/${id}`, SchoolClassSchema, { method: "PATCH", body: input }),

@@ -6,6 +6,8 @@ import SolutionPhotoList from '@/components/assessment/SolutionPhotoList';
 import type { StudentSolutionPhotos } from './use-solution-photos';
 import styles from './student-works.module.css';
 import { useConfirmation } from '@/components/ui/useConfirmation';
+import StudentPhotoQueue from './StudentPhotoQueue';
+import StudentPhotoFeedback from './StudentPhotoFeedback';
 
 export default function StudentSolutionUpload({ taskId, controller, disabled }: { taskId: string; controller: StudentSolutionPhotos; disabled: boolean }) {
   const confirmation = useConfirmation();
@@ -39,6 +41,8 @@ export default function StudentSolutionUpload({ taskId, controller, disabled }: 
       </div>
       <p className={styles.answerHint}>После загрузки фото сразу доступны преподавателю. До проверки их можно заменить.</p>
     </>}
+    <StudentPhotoQueue items={controller.uploads.filter((item) => item.taskId === taskId)} />
+    <StudentPhotoFeedback photos={controller} taskId={taskId} />
     {error && <p role="alert" className={styles.error}>{error}</p>}
     {confirmation.dialog}
   </section>;

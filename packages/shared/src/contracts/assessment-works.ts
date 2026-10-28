@@ -1,20 +1,21 @@
 import { z } from 'zod';
 import { GradeBandSchema } from './library';
-import { AssessmentTaskViewSchema } from './assessment-bank';
+import { AssessmentTaskViewSchema, AssessmentTaskReferenceSchema } from './assessment-bank';
 import { AssessmentAnswerSchema, AssignmentSelectionSchema } from './assessment-assignments';
 
 export const ASSESSMENT_WORK_TASK_LIMIT = 500;
-export const AssessmentWorkReferenceSchema = z.strictObject({ taskId: z.uuid(), version: z.number().int().positive() });
+export const AssessmentWorkReferenceSchema = AssessmentTaskReferenceSchema;
+const workItems = z.array(AssessmentWorkReferenceSchema).max(ASSESSMENT_WORK_TASK_LIMIT)
+  .refine((items) => new Set(items.map((item) => item.taskId)).size === items.length, 'Задание уже включено в работу.');
 const fields = {
   title: z.string().trim().min(1).max(200),
   instructions: z.string().max(10000),
   gradeBand: GradeBandSchema,
 };
-export const AssessmentWorkCreateSchema = z.strictObject({ id: z.uuid(), title: fields.title, gradeBand: fields.gradeBand });
+export const AssessmentWorkCreateSchema = z.strictObject({ id: z.uuid(), title: fields.title, gradeBand: fields.gradeBand, items: workItems.optional() });
 export const AssessmentWorkUpdateSchema = z.strictObject({
   ...fields, requestId: z.uuid(), expectedRevision: z.number().int().positive(),
-  items: z.array(AssessmentWorkReferenceSchema).max(ASSESSMENT_WORK_TASK_LIMIT)
-    .refine((items) => new Set(items.map((item) => item.taskId)).size === items.length, 'Задание уже включено в работу.'),
+  items: workItems,
 });
 export const AssessmentWorkFreezeSchema = z.strictObject({ expectedRevision: z.number().int().positive() });
 export const AssessmentWorkAnswerCheckSchema = z.strictObject({ taskId: z.uuid(), source: AssignmentSelectionSchema, answer: AssessmentAnswerSchema.nullable() });

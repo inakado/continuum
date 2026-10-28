@@ -2,7 +2,7 @@
   min-height: 100vh;
   position: relative;
   color: var(--text-primary);
-  background: var(--surface-0);
+  background: #080d17;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -22,10 +22,11 @@
   position: fixed;
   inset: 0;
   z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 75% 30%, #263b65, #080d17 75%);
 }
 
-.background canvas,
-.background .grainient-container {
+.background canvas {
   width: 100% !important;
   height: 100% !important;
   display: block;
@@ -35,8 +36,8 @@
   position: fixed;
   inset: 0;
   z-index: 1;
-  background: radial-gradient(60% 60% at 50% 40%, rgba(248, 250, 252, 0.12), transparent 70%),
-    linear-gradient(180deg, rgba(2, 6, 23, 0.3), rgba(2, 6, 23, 0.16));
+  background: radial-gradient(ellipse at center, rgb(6 10 20 / 54%), rgb(6 10 20 / 12%) 75%);
+  pointer-events: none;
 }
 
 .center {
@@ -70,7 +71,8 @@
 }
 
 .formInput {
-  --control-bg: rgba(255, 255, 255, 0.72);
+  --control-bg: rgba(255, 255, 255, 0.94);
+  --text-primary: #0f172a;
   --control-border: transparent;
   --control-border-width: 0px;
   --control-radius: 999px;
@@ -78,18 +80,18 @@
   padding: 14px 18px;
   padding-right: 56px;
   box-shadow: none;
-  backdrop-filter: var(--glass-filter);
-  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .formInput::placeholder {
-  color: rgba(15, 23, 42, 0.6);
+  color: #566074;
 }
 
 .formInput:focus-visible {
-  outline: 2px solid rgba(15, 23, 42, 0.45);
+  outline: 2px solid #dce3ef;
   outline-offset: 2px;
-  --control-bg: rgba(255, 255, 255, 0.82);
+  --control-bg: #ffffff;
   box-shadow: none;
 }
 
@@ -126,12 +128,12 @@
 .formInput:-webkit-autofill:active {
   -webkit-text-fill-color: #0f172a;
   transition: background-color 9999s ease-out 0s;
-  box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.72) inset;
+  box-shadow: 0 0 0 1000px #f4f6fa inset;
   border: none;
 }
 
 .formInput:-moz-autofill {
-  box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.72) inset;
+  box-shadow: 0 0 0 1000px #f4f6fa inset;
   -moz-text-fill-color: #0f172a;
 }
 
@@ -146,36 +148,44 @@
 }
 
 .submitButton {
-  border: 1px solid rgba(248, 250, 252, 0.35);
-  background: rgba(248, 250, 252, 0.14);
-  color: rgba(248, 250, 252, 0.92);
+  border: 1px solid #a1aabb;
+  background: #252e3c;
+  color: #f4f6fb;
+  margin-top: 8px;
+  min-height: 48px;
   padding: 12px 18px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  text-transform: none;
   cursor: pointer;
-  backdrop-filter: blur(10px) saturate(140%);
-  -webkit-backdrop-filter: blur(10px) saturate(140%);
   transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
 }
 
 .submitButton:hover:not(:disabled) {
-  background: rgba(248, 250, 252, 0.22);
-  border-color: rgba(248, 250, 252, 0.5);
+  background: #323d4d;
+  border-color: #c5cddb;
   transform: translateY(-1px);
 }
 
 .submitButton:focus-visible {
-  outline: 1px solid rgba(248, 250, 252, 0.65);
+  outline: 2px solid #dce3ef;
   outline-offset: 3px;
 }
 
 .submitButton:disabled {
-  opacity: 0.6;
+  color: #a2adbf;
+  background: rgb(12 20 35 / 78%);
+  border-color: #4e5b72;
   cursor: not-allowed;
   transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .submitButton, .revealButton { transition: none; }
+  .submitButton:hover:not(:disabled) { transform: none; }
 }
 
 @media (max-width: 640px) {

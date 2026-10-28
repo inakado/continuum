@@ -9,6 +9,7 @@ const studentId = '123e4567-e89b-12d3-a456-426614174000';
 
 const makeService = () => {
   const tx = {
+    $queryRaw: vi.fn().mockResolvedValue([]),
     user: { findFirst: vi.fn(), update: vi.fn() },
     session: { deleteMany: vi.fn() },
   };

@@ -1,48 +1,17 @@
 "use client";
 
-import { memo, useEffect, useReducer, useRef } from "react";
+import { useEffect, useReducer, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from '@tanstack/react-query';
 import { authQueryKeys } from '@/lib/query/keys';
 import { clearAnswerDrafts } from '@/lib/assessment/answer-draft';
 import Input from "@/components/ui/Input";
-import Grainient from "@/components/Grainient";
+import IridescenceBackdrop from "./IridescenceBackdrop";
 import { useTheme } from "@/components/useTheme";
 import { authApi } from "@/lib/auth/client";
 import { ApiError } from "@/lib/api/client";
 import { Eye, EyeOff } from "lucide-react";
 import styles from "./unified-login.module.css";
-
-const GrainientBackdrop = memo(function GrainientBackdrop() {
-  return (
-    <div className={styles.background} aria-hidden="true">
-      <Grainient
-        color1="#000000"
-        color2="#ffffff"
-        color3="#000000"
-        timeSpeed={0.25}
-        colorBalance={0}
-        warpStrength={4}
-        warpFrequency={12}
-        warpSpeed={2}
-        warpAmplitude={45}
-        blendAngle={86}
-        blendSoftness={0.2}
-        rotationAmount={500}
-        noiseScale={2.15}
-        grainAmount={0.15}
-        grainScale={1.2}
-        grainAnimated={false}
-        contrast={1.55}
-        gamma={1.3}
-        saturation={1}
-        centerX={0.01}
-        centerY={0}
-        zoom={1}
-      />
-    </div>
-  );
-});
 
 export default function UnifiedLoginScreen() {
   const router = useRouter();
@@ -130,7 +99,7 @@ export default function UnifiedLoginScreen() {
     <div
       className={`${styles.page} ${theme === "dark" ? styles.pageDark : styles.pageLight} glass-scope`}
     >
-      <GrainientBackdrop />
+      <IridescenceBackdrop />
       <div className={styles.scrim} aria-hidden="true" />
       <div className={styles.center}>
         <div className={styles.brand}>Континуум</div>
