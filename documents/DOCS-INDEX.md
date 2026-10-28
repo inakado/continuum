@@ -65,7 +65,7 @@
 - `documents/research/2026-10-28-project-ux-audit.md` — аудит готовности пилота, UI/UX обеих ролей, выполненной уборки, проверок и приоритетов roadmap.
 - `documents/research/2026-10-28-lms-ux-evidence.md` — официальные механики Classroom/Canvas/Moodle/Gradescope для проверки готовности пилота и UX-пробелов.
 - `documents/exec-plans/active/` — активные execution plans.
-- `documents/exec-plans/active/2026-10-28-production-release.md` — разрешённый выпуск согласованного UI/UX и security-пакета: настоящий CI, резервные копии БД/S3 и проверка сохранности.
+- `documents/exec-plans/completed/2026-10-28-production-release.md` — проверенный production-выпуск согласованного UI/UX и security-пакета: настоящий CI, восстановление backup БД/S3, сохранность и публичный upload/readback фото.
 - `documents/exec-plans/completed/2026-10-28-auth-security-update.md` — исправление high/critical обновлением Better Auth без исключений, совместимость старых сессий/ключей и локальная проверка quality/security gates.
 - `documents/exec-plans/completed/2026-10-28-pilot-ux-audit.md` — аудит готовности ученического пилота, UI/UX, документации и гигиены.
 - `documents/exec-plans/completed/2026-10-28-bulk-delete-undo.md` — массовое удаление задач/учеников и обратимое восстановление.
