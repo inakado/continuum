@@ -10,12 +10,14 @@ export type AssessmentMarkdownNode =
 export const assessmentImagePath = /^images\/[A-Za-z0-9][A-Za-z0-9._-]{0,119}\.(?:png|jpe?g|webp)$/;
 const markdown = new Marked({ gfm: true, breaks: false });
 markdown.use({ extensions: [
-  { name: 'assessmentBlockMath', level: 'block', start: (src) => src.indexOf('$$'), tokenizer(src) {
-    const match = /^\$\$([\s\S]+?)\$\$(?:\n|$)/.exec(src);
+  { name: 'assessmentBlockMath', level: 'block', tokenizer(src) {
+    const match = /^\$\$(?!\$)((?:\\.|[^$])+?)\$\$(?!\$)(?:\n|$)/.exec(src);
     if (match) return { type: 'assessmentMath', raw: match[0], text: match[1], display: true };
   } },
   { name: 'assessmentInlineMath', level: 'inline', start: (src) => src.indexOf('$'), tokenizer(src) {
-    const match = /^\$(?!\$)((?:\\.|[^$\n])+?)\$/.exec(src);
+    const display = /^\$\$(?!\$)((?:\\.|[^$\n])+?)\$\$(?!\$)/.exec(src);
+    if (display) return { type: 'assessmentMath', raw: display[0], text: display[1], display: true };
+    const match = /^\$(?!\$)((?:\\.|[^$\n])+?)\$(?!\$)/.exec(src);
     if (match) return { type: 'assessmentMath', raw: match[0], text: match[1], display: false };
   } },
 ] });
@@ -45,7 +47,8 @@ function nodes(tokens: Token[], depth = 0): AssessmentMarkdownNode[] {
       }
       case 'text': case 'escape': {
         const text = token as Tokens.Text;
-        return text.tokens ? children(text.tokens) : [{ kind: 'text', value: text.text }];
+        if (token.type === 'text' && !text.tokens && text.raw.includes('$')) throw new Error('Проверьте парность разделителей формул $…$ и $$…$$. Литерал $ запишите как \\$ .');
+        return text.tokens ? children(text.tokens) : [{ kind: 'text', value: token.type === 'text' ? text.text.replace(/(^|\s)---(?=\s|$)/g, '$1—') : text.text }];
       }
       case 'paragraph': return [element('p', children((token as Tokens.Paragraph).tokens))];
       case 'heading': return [element('h3', children((token as Tokens.Heading).tokens))];

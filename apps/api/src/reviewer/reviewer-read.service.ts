@@ -6,6 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ObjectStorageService } from '../infra/storage/object-storage.service';
 import { WorkSnapshotSchema } from '../assessment-works/assessment-works-read.service';
 import { ReviewerAuthService, unavailable, type ReviewerPrincipal } from './reviewer-auth.service';
+import { applyAssessmentPresentations } from '../common/assessment-presentation';
 
 export const solutionInclude = Prisma.validator<Prisma.AssessmentSolutionAnswerInclude>()({ recipient: { include: { version: true } }, photos: { where: { confirmedAt: { not: null }, removedAt: null }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }, review: { include: { versions: { orderBy: { revision: 'desc' }, take: 1 } } } });
 export type SolutionRow = Prisma.AssessmentSolutionAnswerGetPayload<{ include: typeof solutionInclude }>;
@@ -63,7 +64,9 @@ export class ReviewerReadService {
   }
   async detail(principal: ReviewerPrincipal, id: string) {
     const row = await this.owned(principal, id);
-    const { item, number } = solutionTask(row);
+    const original = solutionTask(row);
+    const [item] = await applyAssessmentPresentations(this.db, [original.item]);
+    const number = original.number;
     return { id, assignmentId: row.recipient.assignmentId, recipientId: row.recipientId, versionId: row.recipient.versionId, taskId: row.taskId, number, title: item.data.task.title, statement: item.data.statement, maxPoints: item.data.task.maxPoints, source: `${item.data.task.source.provider}${item.data.task.source.externalId ? ` №${item.data.task.source.externalId}` : ''}`, sourceRevision: row.revision, locked: Boolean(row.lockedAt), review: latestReview(row), publishedRevision: row.review?.publishedRevision ?? null,
       photos: row.photos.map((photo) => ({ id: photo.id, contentType: photo.contentType, sizeBytes: photo.sizeBytes, sha256: photo.contentHash, downloadPath: `/reviewer/v1/solutions/${id}/photos/${photo.id}?sourceRevision=${row.revision}` })),
       images: item.data.images.map((image) => ({ name: image.path, downloadPath: `/reviewer/v1/solutions/${id}/images/${encodeURIComponent(image.path.slice('images/'.length))}` })) };
@@ -77,7 +80,8 @@ export class ReviewerReadService {
   }
   async image(principal: ReviewerPrincipal, id: string, name: string) {
     const row = await this.owned(principal, id);
-    const image = solutionTask(row).item.data.images.find((item) => item.path === `images/${name}`);
+    const [item] = await applyAssessmentPresentations(this.db, [solutionTask(row).item]);
+    const image = item.data.images.find((item) => item.path === `images/${name}`);
     if (!image) throw unavailable();
     return this.stream(image.key, image.contentType);
   }

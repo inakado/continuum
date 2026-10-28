@@ -50,6 +50,7 @@ export const solutionQueryKeys = {
   answers: (recipientId: string) => ['assessment-solutions', recipientId] as const,
 } as const;
 export const statisticsQueryKeys = {
+  all: () => ['teacher-statistics'] as const,
   report: (id: string) => ['teacher-statistics', id] as const,
   detail: (id: string, taskId: string, recipient?: string) => ['teacher-statistics', id, 'task', taskId, recipient ?? 'condition'] as const,
 } as const;

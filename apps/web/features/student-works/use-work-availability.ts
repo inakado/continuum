@@ -11,5 +11,5 @@ export function useWorkAvailability(id: string) {
   const query = useQuery({ queryKey: studentWorkQueryKeys.availability(id), queryFn: () => studentWorksApi.availability(id), enabled: !missing,
     retry: false, staleTime: 0, refetchInterval: (state) => isWorkUnavailable(state.state.error) ? false : 10000,
     refetchOnWindowFocus: 'always', refetchOnReconnect: 'always', refetchIntervalInBackground: false });
-  return { unavailable: missing || isWorkUnavailable(query.error), markUnavailable: useCallback(() => setMissing(true), []) };
+  return { unavailable: missing || isWorkUnavailable(query.error), presentationRevision: query.data?.presentationRevision, checkedAt: query.dataUpdatedAt, markUnavailable: useCallback(() => setMissing(true), []) };
 }

@@ -6,6 +6,7 @@ import { ObjectStorageService } from '../infra/storage/object-storage.service';
 import { WorkSnapshotSchema } from '../assessment-works/assessment-works-read.service';
 import { answersSchema, attemptState, publicItem } from './assignment-data';
 import { progressScope, readWorkProgress } from './work-progress';
+import { applyAssessmentPresentations, assessmentPresentationRevision } from '../common/assessment-presentation';
 
 @Injectable()
 export class StudentAttemptReadService {
@@ -27,20 +28,22 @@ export class StudentAttemptReadService {
     });
   }
   async availability(studentId: string, id: string) {
-    const row = await this.db.assessmentRecipient.findFirst({ where: { id, studentId }, select: { id: true } });
+    const row = await this.db.assessmentRecipient.findFirst({ where: { id, studentId }, select: { id: true, version: { select: { data: true } } } });
     if (!row) throw new NotFoundException('Работа больше недоступна.');
-    return row;
+    return { id: row.id, presentationRevision: await assessmentPresentationRevision(this.db, WorkSnapshotSchema.parse(row.version.data).items.map((item) => item.taskId)) };
   }
   async detail(studentId: string, id: string) {
     const row = await this.owned(studentId, id);
     const snapshot = WorkSnapshotSchema.parse(row.version.data);
-    return { id: row.id, title: snapshot.title, versionNumber: row.version.number, taskCount: snapshot.items.length, automaticTaskCount: snapshot.items.filter((item) => item.data.task.type !== 'extended').length, extendedTaskCount: snapshot.items.filter((item) => item.data.task.type === 'extended').length, assignedAt: row.createdAt.toISOString(), ...attemptState(row, snapshot),
-      instructions: snapshot.instructions, answers: answersSchema.parse(row.answers), items: snapshot.items.map((item) => publicItem(row.id, item)) };
+    return { id: row.id, presentationRevision: await assessmentPresentationRevision(this.db, snapshot.items.map((item) => item.taskId)), title: snapshot.title, versionNumber: row.version.number, taskCount: snapshot.items.length, automaticTaskCount: snapshot.items.filter((item) => item.data.task.type !== 'extended').length, extendedTaskCount: snapshot.items.filter((item) => item.data.task.type === 'extended').length, assignedAt: row.createdAt.toISOString(), ...attemptState(row, snapshot),
+      instructions: snapshot.instructions, answers: answersSchema.parse(row.answers), items: (await applyAssessmentPresentations(this.db, snapshot.items)).map((item) => publicItem(row.id, item)) };
   }
   async image(studentId: string, id: string, taskId: string, name: string) {
     const row = await this.owned(studentId, id);
     const snapshot = WorkSnapshotSchema.parse(row.version.data);
-    const image = snapshot.items.find((item) => item.taskId === taskId)?.data.images.find((item) => item.path === `images/${name}`);
+    const original = snapshot.items.find((item) => item.taskId === taskId);
+    const [item] = await applyAssessmentPresentations(this.db, original ? [original] : []);
+    const image = item?.data.images.find((item) => item.path === `images/${name}`);
     if (!image) throw new NotFoundException('Рисунок недоступен.');
     const object = await this.storage.getObjectStream(image.key);
     if (!(object.stream instanceof Readable)) throw new Error('Хранилище вернуло неподдерживаемый поток.');

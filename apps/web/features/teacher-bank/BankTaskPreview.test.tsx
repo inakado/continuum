@@ -11,6 +11,15 @@ const tasks: [AssessmentPackageTask, string, string][] = [
   [{ ...base, type: 'multiple_choice', options, grading: { policy: 'ege_physics_multiple_choice_v1', correctOptionIds: ['one', 'two'] } }, 'Несколько вариантов', 'ЕГЭ: выбор утверждений · 0–2 балла'],
 ];
 afterEach(cleanup);
+it.each(tasks)('keeps the actual choices and matching rows in condition-only comparison: %s', (task) => {
+  render(<BankTaskPreview compact conditionOnly data={{ id: 'task', version: 1, task, statement: 'Условие для сравнения.', images: {}, solution: null }} />);
+  expect(screen.getByText('Условие для сравнения.')).toBeVisible();
+  expect(screen.getByRole('region', { name: 'Варианты ответа' })).toHaveTextContent('Первый');
+  if (task.type === 'matching') expect(screen.getByRole('region', { name: 'Позиции соответствия' })).toHaveTextContent('Второй');
+  expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  expect(screen.queryByText('Ответ и проверка')).not.toBeInTheDocument();
+  expect(screen.queryByText('Источник и сведения')).not.toBeInTheDocument();
+});
 it('distinguishes explicit non-exam sources from unclassified legacy records', () => {
   expect(taskSourceDetails({ provider: 'Авторское', kind: 'original', exam: 'none' })).toEqual(expect.arrayContaining([['Классификация', 'Не ЕГЭ'], ['Вид источника', 'Авторское']]));
   expect(taskSourceDetails({ provider: 'Автор' })).toContainEqual(['Классификация', 'Не указана']);

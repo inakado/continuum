@@ -6,7 +6,7 @@ import { Readable } from 'node:stream';
 import { ObjectStorageService } from '../infra/storage/object-storage.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { assessmentPolicy } from './assessment-policy';
-import { StoredAssessmentImportSchema, StoredAssessmentTaskSchema, mapAssessmentSummary, mapAssessmentView } from './assessment-bank.mapper';
+import { StoredAssessmentImportSchema, StoredAssessmentTaskSchema, mapAssessmentSummary, mapAssessmentView, type StoredAssessmentTask } from './assessment-bank.mapper';
 
 @Injectable()
 export class AssessmentBankReadService {
@@ -70,6 +70,12 @@ export class AssessmentBankReadService {
     const rows = await this.prisma.assessmentBankTask.findMany({ where: await this.where(teacherId, query), include: { latestVersion: true }, orderBy: { stableId: 'asc' }, take: ASSESSMENT_PACKAGE_TASK_LIMIT + 1 });
     if (!rows.length || rows.length > ASSESSMENT_PACKAGE_TASK_LIMIT) throw new BadRequestException('Для экспорта выберите фильтрами от 1 до 500 заданий.');
     const entries = rows.flatMap((row) => row.latestVersion ? [StoredAssessmentTaskSchema.parse(row.latestVersion.data)] : []);
+    return this.archive(entries);
+  }
+  async exportTask(teacherId: string, id: string) {
+    return this.archive([(await this.getStored(teacherId, id)).data]);
+  }
+  private async archive(entries: StoredAssessmentTask[]) {
     const files = 1 + entries.reduce((count, entry) => count + 2 + (entry.solution !== null ? 1 : 0) + entry.images.length, 0);
     if (files > assessmentPolicy.files) throw new BadRequestException('Слишком много файлов. Сузьте фильтры экспорта.');
     const zip = new ZipFile();

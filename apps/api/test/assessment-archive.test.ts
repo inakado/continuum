@@ -29,6 +29,18 @@ describe('assessment archive boundary', () => {
     const second = await parseAssessmentArchive(await zip({ ...files, 'tasks/sample/task.json': JSON.stringify(task, null, 2) }));
     expect(first.tasks[0].hash).toBe(second.tasks[0].hash);
   });
+  it('accepts the legacy display formula inside prose without changing saved content', async () => {
+    const statement = 'Согласно закону $$x = 18 + 32t - 6t^2,$$ где $t$ — время, найдите $a_x$.';
+    await expect(parseAssessmentArchive(await zip({ ...files, 'tasks/sample/statement.md': statement }))).resolves.toMatchObject({ tasks: [{ statement }] });
+  });
+  it.each(['statement.md', 'solution.md'])('reports the exact file with unmatched math: %s', async (name) => {
+    await expect(parseAssessmentArchive(await zip({ ...files, [`tasks/sample/${name}`]: 'Ошибка $x' }))).rejects.toMatchObject({ issues: [{ path: `tasks/sample/${name}`, message: expect.stringContaining('разделителей формул') }] });
+  });
+  it.each(['options', 'rows'] as const)('validates math in %s content before saving', async (field) => {
+    const matching = { ...task, type: 'matching', rows: [{ id: 'a', content: 'A' }, { id: 'b', content: 'B' }], options: [{ id: 'one', content: '1' }, { id: 'two', content: '2' }], grading: { matches: { a: 'one', b: 'two' } } };
+    matching[field][0].content = 'Ошибка $$x$';
+    await expect(parseAssessmentArchive(await zip({ ...files, 'tasks/sample/task.json': JSON.stringify(matching) }))).rejects.toMatchObject({ issues: [{ path: `tasks/sample/task.json/${field}/0/content`, message: expect.stringContaining('разделителей формул') }] });
+  });
   it.each([
     ['raw HTML', '<script>alert(1)</script>'],
     ['remote image', '![x](https://example.com/x.png)'],

@@ -1,19 +1,20 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, type RefObject } from 'react';
 import { useBulkDelete } from '@/features/teacher-bulk-actions/use-bulk-delete';
 import { SelectionCheckbox } from '@/features/teacher-bulk-actions/BulkActionBar';
 import { teacherBankQueryKeys } from '@/lib/query/keys';
 import Link from 'next/link';
 import { ArrowLeft, ChevronLeft, ChevronRight, Maximize2, Minimize2, Upload } from 'lucide-react';
-import type { AssessmentBankQuery, GradeBand } from '@continuum/shared';
-import ContinuumHeader from '@/components/ContinuumHeader';
+import type { AssessmentBankQuery, AssessmentTaskView, GradeBand } from '@continuum/shared';
+import TeacherChrome from '@/features/teacher-shell/TeacherChrome';
 import { useTeacherBank, useTeacherBankTask } from './use-teacher-bank';
 import { teacherBankApi } from './teacher-bank.api';
 import BankTaskPreview from './BankTaskPreview';
 import BankImportPanel from './BankImportPanel';
 import BankFilters from './BankFilters';
 import BankTaskActions from './BankTaskActions';
+import BankTaskCorrection from './BankTaskCorrection';
 import BankDeletionNotice, { type BankDeletion } from './BankDeletionNotice';
 import { bankFilterParams, readBankFilters, useBankContextCorrection, useBankFilters } from './use-bank-filters';
 import { pointsLabel, taskSourceLabel, taskTypeLabels } from './task-source';
@@ -24,6 +25,7 @@ export default function TeacherBankScreen() {
   const filters = useBankFilters();
   const { gradeBand, search, topic, topicPath, type, exam, source, page, taskId } = filters;
   const [expanded, setExpanded] = useState(false);
+  const [correction, setCorrection] = useState<{ task: AssessmentTaskView; trigger: RefObject<HTMLButtonElement | null> } | null>(null);
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState('');
@@ -49,8 +51,7 @@ export default function TeacherBankScreen() {
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Не удалось экспортировать задания.'); }
     finally { setExporting(false); }
   }
-  return <div className={styles.page}><ContinuumHeader homeHref="/teacher" />
-    <nav aria-label="Разделы учителя" className={styles.teacherNav}><Link href="/teacher/materials">Материалы</Link><Link href="/teacher/students">Ученики и доступы</Link><Link href="/teacher/bank" aria-current="page">Банк заданий</Link><Link href="/teacher/works">Работы</Link><Link href="/teacher/statistics">Статистика</Link></nav>
+  return <div className={styles.page}><TeacherChrome active="bank" />
     <main className={styles.main}>{importing ? <BankImportPanel onClose={(grade) => { setImporting(false); changeFilters({ gradeBand: grade ?? gradeBand, search: '', topic: '', topicPath: undefined, type: undefined, exam: undefined, source: undefined }); }} /> : <>
       <div className={styles.heading}><div><h1>Банк заданий</h1><p>Задания для проверочных работ</p></div><div className={styles.actions}><button className={styles.primary} onClick={() => setImporting(true)}><Upload size={18} aria-hidden="true" />Загрузить пакет</button><button className={styles.textButton} title="Экспортировать задания по текущим фильтрам" disabled={exporting || !bank.data?.total} onClick={() => void exportBank()}>{exporting ? 'Экспортируем…' : 'Экспорт'}</button></div></div>
       <nav aria-label="Параллели" className={styles.grades}>{grades.map((grade) => <button key={grade.code} aria-current={gradeBand === grade.code ? 'page' : undefined} onClick={() => changeFilters({ gradeBand: grade.code, topic: '', topicPath: undefined, source: undefined })}>{grade.label}</button>)}</nav>
@@ -64,11 +65,11 @@ export default function TeacherBankScreen() {
           {bank.data && bank.data.total > bank.data.pageSize && <div className={styles.pagination}><button className={styles.textButton} disabled={page === 1} onClick={() => filters.update({ page: page - 1, taskId: null })}>Назад</button><span>Страница {page} из {Math.ceil(bank.data.total / bank.data.pageSize)}</span><button className={styles.textButton} disabled={page * bank.data.pageSize >= bank.data.total} onClick={() => filters.update({ page: page + 1, taskId: null })}>Далее</button></div>}
         </section>
         <section className={styles.previewColumn} aria-label="Просмотр задания">
-          <div className={styles.previewToolbar}><button className={`${styles.textButton} ${styles.mobileBack}`} onClick={() => filters.update({ taskId: null })}><ArrowLeft size={17} />К списку</button><button className={`${styles.textButton} ${styles.expandButton}`} aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? <Minimize2 size={16} aria-hidden="true" /> : <Maximize2 size={16} aria-hidden="true" />}{expanded ? 'Вернуть список' : 'Развернуть задание'}</button><BankTaskActions task={view.data} query={bankFilterParams(filters)} onDeleted={(deletion) => { setDeletions((items) => [...items, deletion]); filters.update({ page: Math.max(1, page - Number(tasks.length === 1)), taskId: null }, true); }} /></div>
+          <div className={styles.previewToolbar}><button className={`${styles.textButton} ${styles.mobileBack}`} onClick={() => filters.update({ taskId: null })}><ArrowLeft size={17} />К списку</button><button className={`${styles.textButton} ${styles.expandButton}`} aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? <Minimize2 size={16} aria-hidden="true" /> : <Maximize2 size={16} aria-hidden="true" />}{expanded ? 'Вернуть список' : 'Развернуть задание'}</button><BankTaskActions task={view.data} onCorrect={(task, trigger) => setCorrection({ task, trigger })} query={bankFilterParams(filters)} onDeleted={(deletion) => { setDeletions((items) => [...items, deletion]); filters.update({ page: Math.max(1, page - Number(tasks.length === 1)), taskId: null }, true); }} /></div>
           <div key={selected.id} className={styles.condition} role="region" aria-label="Условие выбранного задания" aria-busy={view.isPending} tabIndex={0}>{view.isPending ? <p className={styles.muted}>Загружаем условие…</p> : view.error ? <div role="alert"><p>{view.error.message}</p><button type="button" className={styles.textButton} onClick={() => void view.refetch()}>Повторить загрузку условия</button></div> : view.data && <BankTaskPreview data={view.data} />}</div>
           <div className={styles.previewFooter}><span>Версия {view.data?.version ?? selected.version}</span><div><button className={styles.textButton} disabled={index <= 0} onClick={() => filters.update({ taskId: tasks[index - 1].id })}><ChevronLeft size={19} />Предыдущая</button><button className={styles.textButton} disabled={index >= tasks.length - 1} onClick={() => filters.update({ taskId: tasks[index + 1].id })}>Следующая<ChevronRight size={19} /></button></div></div>
         </section>
       </div>}
-    </>}</main>{bulk.dialog}
+    </>}</main>{bulk.dialog}{correction && <BankTaskCorrection task={correction.task} trigger={correction.trigger} onClose={() => setCorrection(null)} />}
   </div>;
 }

@@ -1,12 +1,25 @@
 import { AssessmentBankBulkDeleteSchema, AssessmentBankBulkRestoreSchema, AssessmentBankBulkDeletionSchema, AssessmentBankBulkRestoredSchema, type AssessmentBankBulkDelete, type AssessmentBankBulkRestore } from '@continuum/shared';
 import { AssessmentBankDeleteResultSchema, AssessmentBankRestoreResultSchema, AssessmentBankListSchema, AssessmentImportPreviewSchema, AssessmentImportResultSchema, AssessmentTaskViewSchema, AssessmentDuplicateHintsSchema, type AssessmentBankDelete, type AssessmentBankRestore, type AssessmentBankQuery } from '@continuum/shared';
 import { apiRequest, apiRequestParsed, ApiError } from '@/lib/api/client';
+import { AssessmentBankCorrectionSchema, type AssessmentBankCorrection } from '@continuum/shared';
 
 const root = '/teacher/assessment-bank';
 const base = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
 const queryString = (query: AssessmentBankQuery) => new URLSearchParams(Object.entries(query).filter(([, value]) => value !== undefined && value !== '').map(([key, value]) => [key, Array.isArray(value) ? JSON.stringify(value) : String(value)])).toString();
+async function download(path: string, name: string) {
+  const response = await fetch(`${base}${path}`, { credentials: 'include', cache: 'no-store' });
+  if (!response.ok) {
+    const error: { message?: string } = await response.json().catch(() => ({}));
+    throw new ApiError(response.status, error.message || 'Не удалось экспортировать задания.');
+  }
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement('a'); link.href = url; link.download = name; link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 export const teacherBankApi = {
+  exportTask: (id: string) => download(`${root}/tasks/${id}/export`, 'continuum-task.zip'),
+  correct: (id: string, input: AssessmentBankCorrection) => apiRequestParsed(`${root}/tasks/${id}/correct`, AssessmentImportResultSchema, { method: 'POST', body: AssessmentBankCorrectionSchema.parse(input) }),
   removeMany: (input: AssessmentBankBulkDelete) => apiRequestParsed(`${root}/tasks/bulk-delete`, AssessmentBankBulkDeletionSchema, { method: 'POST', body: AssessmentBankBulkDeleteSchema.parse(input) }),
   restoreMany: (input: AssessmentBankBulkRestore) => apiRequestParsed(`${root}/tasks/bulk-restore`, AssessmentBankBulkRestoredSchema, { method: 'POST', body: AssessmentBankBulkRestoreSchema.parse(input) }),
   duplicates: (id: string) => apiRequestParsed(`${root}/imports/${id}/duplicates`, AssessmentDuplicateHintsSchema),
@@ -18,14 +31,5 @@ export const teacherBankApi = {
   previewTask: (id: string, stableId: string) => apiRequestParsed(`${root}/imports/${id}/tasks/${encodeURIComponent(stableId)}`, AssessmentTaskViewSchema),
   confirm: (id: string) => apiRequestParsed(`${root}/imports/${id}/confirm`, AssessmentImportResultSchema, { method: 'POST' }),
   discard: (id: string) => apiRequest(`${root}/imports/${id}`, { method: 'DELETE' }),
-  async export(query: AssessmentBankQuery) {
-    const response = await fetch(`${base}${root}/export?${queryString(query)}`, { credentials: 'include', cache: 'no-store' });
-    if (!response.ok) {
-      const error: { message?: string } = await response.json().catch(() => ({}));
-      throw new ApiError(response.status, error.message || 'Не удалось экспортировать задания.');
-    }
-    const url = URL.createObjectURL(await response.blob());
-    const link = document.createElement('a'); link.href = url; link.download = 'continuum-assessments.zip'; link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  },
+  export: (query: AssessmentBankQuery) => download(`${root}/export?${queryString(query)}`, 'continuum-assessments.zip'),
 };

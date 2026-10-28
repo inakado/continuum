@@ -86,8 +86,13 @@ export async function parseAssessmentArchive(bytes: Buffer) {
       const statement = text(`${prefix}statement.md`);
       if (!statement.trim()) fail(`${prefix}statement.md`, 'Условие не может быть пустым.');
       const solution = files.has(`${prefix}solution.md`) ? text(`${prefix}solution.md`) : null;
-      const fragments = [statement, ...(solution ? [solution] : []), ...('options' in task ? task.options.map((option) => option.content) : []), ...('rows' in task ? task.rows.map((row) => row.content) : [])];
-      const refs = new Set(fragments.flatMap((fragment) => assessmentMarkdownImages(parseAssessmentMarkdown(fragment))));
+      const fragments = [{ path: 'statement.md', text: statement }, ...(solution ? [{ path: 'solution.md', text: solution }] : []),
+        ...('options' in task ? task.options.map((option, index) => ({ path: `task.json/options/${index}/content`, text: option.content })) : []),
+        ...('rows' in task ? task.rows.map((row, index) => ({ path: `task.json/rows/${index}/content`, text: row.content })) : [])];
+      const refs = new Set(fragments.flatMap((fragment) => {
+        try { return assessmentMarkdownImages(parseAssessmentMarkdown(fragment.text)); }
+        catch (error) { return fail(`${prefix}${fragment.path}`, error instanceof Error ? error.message : 'Некорректный Markdown.'); }
+      }));
       const images: ArchiveImage[] = [];
       for (const path of [...refs].sort()) {
         const image = files.get(`${prefix}${path}`);

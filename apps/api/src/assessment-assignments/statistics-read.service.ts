@@ -7,6 +7,7 @@ import { mapAssessmentSummary, mapAssessmentView } from '../assessment-bank/asse
 import { answersSchema } from './assignment-data';
 import { SolutionReadService } from './solution-read.service';
 import { buildStatistics, statisticsStudent, type StatisticsSolution } from './statistics-aggregate';
+import { applyAssessmentPresentations } from '../common/assessment-presentation';
 
 const include = {
   assignments: { orderBy: { createdAt: 'asc' }, select: { id: true, classId: true, classTitle: true, academicYear: true } },
@@ -62,7 +63,8 @@ export class StatisticsReadService {
       const snapshot = WorkSnapshotSchema.parse(row.data);
       const item = snapshot.items.find((entry) => entry.taskId === taskId);
       if (!item) throw new NotFoundException('Задание не входит в эту версию работы.');
-      const view = mapAssessmentView(item.taskId, item.version, item.data, `/teacher/assessment-bank/tasks/${item.taskId}/images`);
+      const [display] = await applyAssessmentPresentations(tx, [item]);
+      const view = mapAssessmentView(item.taskId, item.version, display.data, `/teacher/assessment-bank/tasks/${item.taskId}/images`, display.presentationVersion);
       if (!recipientId) return { item: view, student: null };
       const recipient = await tx.assessmentRecipient.findFirst({ where: { id: recipientId, versionId: id }, select: recipientFields });
       if (!recipient) throw new NotFoundException('Ученик не входит в это назначение.');

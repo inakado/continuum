@@ -14,10 +14,10 @@ export function attemptState(row: Pick<AssessmentRecipient, 'revision' | 'starte
     result: row.completedAt ? { correctCount: row.correctCount!, incorrectCount: row.incorrectCount!, partialCount: automatic.length - row.correctCount! - row.incorrectCount!, points: row.points!, maxPoints: automatic.reduce((sum, item) => sum + item.data.task.maxPoints, 0) } : null };
 }
 export type WorkSnapshot = z.infer<typeof WorkSnapshotSchema>;
-export function publicItem(recipientId: string, item: WorkSnapshot['items'][number]): PublicAssessmentItem {
+export function publicItem(recipientId: string, item: WorkSnapshot['items'][number] & { presentationVersion?: number }): PublicAssessmentItem {
   const task = item.data.task;
   const base = { id: item.taskId, title: task.title, maxPoints: task.maxPoints, statement: item.data.statement,
-    images: Object.fromEntries(item.data.images.map((image) => [image.path, `/student/assessment-works/${recipientId}/items/${item.taskId}/images/${encodeURIComponent(image.path.slice('images/'.length))}`])) };
+    images: Object.fromEntries(item.data.images.map((image) => [image.path, `/student/assessment-works/${recipientId}/items/${item.taskId}/images/${encodeURIComponent(image.path.slice('images/'.length))}?presentation=${item.presentationVersion ?? item.version}`])) };
   switch (task.type) {
     case 'short_number': return { ...base, type: task.type, ...(task.unit ? { unit: task.unit } : {}) };
     case 'short_text': case 'extended': return { ...base, type: task.type };

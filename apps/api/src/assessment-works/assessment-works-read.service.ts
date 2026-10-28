@@ -5,6 +5,7 @@ import type { AssessmentWork, AssessmentWorkVersion, Prisma } from '@prisma/clie
 import { PrismaService } from '../prisma/prisma.service';
 import { mapAssessmentView, StoredAssessmentTaskSchema } from '../assessment-bank/assessment-bank.mapper';
 import { gradeAssessmentAnswer, validateAssessmentAnswer } from '../common/assessment-grading';
+import { applyAssessmentPresentations } from '../common/assessment-presentation';
 
 export const WorkReferencesSchema = z.array(AssessmentWorkReferenceSchema);
 const StoredWorkItemSchema = z.object({ taskId: z.uuid(), version: z.number().int().positive(), data: StoredAssessmentTaskSchema });
@@ -12,11 +13,11 @@ export const WorkSnapshotSchema = z.object({ title: z.string(), instructions: z.
 type StoredWorkItem = z.infer<typeof StoredWorkItemSchema>;
 type WorkSummaryRow = Pick<AssessmentWork, 'id' | 'title' | 'gradeBand' | 'revision' | 'taskCount' | 'maxPoints' | 'updatedAt' | 'archivedAt' | 'lifecycleRevision'>;
 const workSummary = (row: WorkSummaryRow) => ({ id: row.id, title: row.title, gradeBand: row.gradeBand, revision: row.revision, taskCount: row.taskCount, maxPoints: row.maxPoints, updatedAt: row.updatedAt.toISOString(), isArchived: Boolean(row.archivedAt), lifecycleRevision: row.lifecycleRevision });
-const taskView = (item: StoredWorkItem) => mapAssessmentView(item.taskId, item.version, item.data, `/teacher/assessment-bank/tasks/${item.taskId}/images`);
+const taskView = (item: StoredWorkItem & { presentationVersion?: number }) => mapAssessmentView(item.taskId, item.version, item.data, `/teacher/assessment-bank/tasks/${item.taskId}/images`, item.presentationVersion);
 export const workDetail = (row: AssessmentWork, items: StoredWorkItem[]) => ({ ...workSummary(row), instructions: row.instructions, items: items.map(taskView), copySkippedTaskCount: row.copySkippedTaskCount });
-export function workVersion(row: AssessmentWorkVersion) {
+export function workVersion(row: AssessmentWorkVersion, items?: StoredWorkItem[]) {
   const snapshot = WorkSnapshotSchema.parse(row.data);
-  return { id: row.id, workId: row.workId, number: row.number, revision: row.revision, createdAt: row.createdAt.toISOString(), ...snapshot, items: snapshot.items.map(taskView), maxPoints: snapshot.items.reduce((sum, item) => sum + item.data.task.maxPoints, 0) };
+  return { id: row.id, workId: row.workId, number: row.number, revision: row.revision, createdAt: row.createdAt.toISOString(), ...snapshot, items: (items ?? snapshot.items).map(taskView), maxPoints: snapshot.items.reduce((sum, item) => sum + item.data.task.maxPoints, 0) };
 }
 
 @Injectable()
@@ -44,14 +45,14 @@ export class AssessmentWorksReadService {
   async detail(teacherId: string, id: string) {
     return this.db.$transaction(async (tx) => {
       const row = await this.owned(teacherId, id, tx);
-      return workDetail(row, await this.resolve(teacherId, WorkReferencesSchema.parse(row.items), tx));
+      return workDetail(row, await applyAssessmentPresentations(tx, await this.resolve(teacherId, WorkReferencesSchema.parse(row.items), tx)));
     });
   }
   async version(teacherId: string, id: string, number: number) {
     await this.owned(teacherId, id);
     const row = await this.db.assessmentWorkVersion.findUnique({ where: { workId_number: { workId: id, number } } });
     if (!row) throw new NotFoundException('Версия работы не найдена.');
-    return workVersion(row);
+    return workVersion(row, await applyAssessmentPresentations(this.db, WorkSnapshotSchema.parse(row.data).items));
   }
   async checkAnswer(teacherId: string, id: string, input: AssessmentWorkAnswerCheck) {
     const item = await this.db.$transaction(async (tx) => {
