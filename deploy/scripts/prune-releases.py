@@ -23,11 +23,27 @@ def retained_states(root):
     return states
 
 
-def prune(root):
+def clean_temporary(root):
+    # Вызывается под deploy.lock: активная сборка не может очищаться параллельно.
+    for name in ['releases', 'runtime']:
+        if (root/name).is_symlink():
+            raise ValueError('Deployment directories must not be symlinks')
+    for folder in (root/'releases').glob('.prepare-*'):
+        if folder.is_dir() and not folder.is_symlink() and re.fullmatch(r'\.prepare-[A-Za-z0-9]{6}', folder.name):
+            shutil.rmtree(folder)
+    for name in ['candidate.json', 'applied.json', 'release.json']:
+        (root/'runtime'/name).unlink(missing_ok=True)
+
+
+def prune(root, temporary_only=False):
     root = Path(root).resolve()
-    if root != (Path.cwd()/'deploy').resolve():
+    if (Path.cwd()/'deploy').is_symlink() or root != (Path.cwd()/'deploy').resolve():
         raise ValueError('Run cleanup from the application checkout only')
+    if temporary_only:
+        clean_temporary(root)
+        return
     states = retained_states(root)
+    clean_temporary(root)
     keep_images = {s['apiImageId'] for s in states}
     keep_web = {s.get('fingerprint') for s in states}
     for folder in (root/'releases').iterdir():
@@ -45,4 +61,6 @@ def prune(root):
 
 
 if __name__ == '__main__':
-    prune(sys.argv[1])
+    if len(sys.argv) < 2 or sys.argv[2:] not in [[], ['--temporary-only']]:
+        raise SystemExit('Usage: prune-releases.py APP_DIR/deploy [--temporary-only]')
+    prune(sys.argv[1], temporary_only=sys.argv[2:] == ['--temporary-only'])
