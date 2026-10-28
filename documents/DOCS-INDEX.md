@@ -122,4 +122,4 @@
 
 - `documents/exec-plans/completed/2026-10-28-steel-ui.md` — единые токены стального акцента, состояния действий, визуальные проверки обеих ролей и точный откат.
 
-- `documents/exec-plans/active/2026-10-28-cached-vps-release.md` — Git-доставка, изолированная сборка с кешем VPS и выпуск без передачи Docker-архива.
+- `documents/exec-plans/completed/2026-10-28-cached-vps-release.md` — Git-доставка, изолированная сборка с кешем VPS и выпуск без передачи Docker-архива.
