@@ -70,7 +70,7 @@ node deploy/scripts/release.mjs <40-character-main-sha>
 
 Клиент проверяет свежий успешный CI точного main revision и отметку проверенного fingerprint, затем вызывает SSH. На VPS выполняются только `git fetch` изменений и сборка с существующим кешем. Полный проект, зависимости и Docker-архив через компьютер оператора не передаются.
 
-API собирается Docker BuildKit. Web собирается из `git archive HEAD` в отдельном временном каталоге; `pnpm install --prefer-offline --frozen-lockfile --prod=false` использует pnpm store, сохраняется один Next cache. Работающий `.next` не перезаписывается. Из сборки сохраняются standalone web и image с неизменяемым тегом fingerprint; временные исходники и `node_modules` удаляются. Runtime переключается только после успешной сборки и проверки истории миграций. При ошибке активации возвращается прежний API/web без reset БД.
+API собирается Docker BuildKit. Web собирается из `git archive HEAD` в отдельном временном каталоге; `pnpm install --prefer-offline --frozen-lockfile --prod=false` использует pnpm store, сохраняется один Next cache. Работающий `.next` не перезаписывается. Ресурсы `public` копируются с раскрытием symlink; перед переключением проверяются MathJax и отсутствие внешних/нерабочих ссылок. Из сборки сохраняются standalone web и image с неизменяемым тегом fingerprint; временные исходники и `node_modules` удаляются. Runtime переключается только после успешной сборки и проверки истории миграций. При ошибке активации возвращается прежний API/web без reset БД.
 
 CI собирает API для тестового quality-контекста; VPS — production runtime. Это осознанный компромисс вместо передачи полного Docker-архива. Main не повторяет уже выполненный полный quality CI.
 

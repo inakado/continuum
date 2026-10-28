@@ -72,7 +72,7 @@ if [ ! -d "$prepared" ]; then
   NEXT_PUBLIC_API_BASE_URL="https://$APP_DOMAIN/api" pnpm --dir "$stage/source" build:web
   mv "$stage/source/apps/web/.next/standalone" "$stage/web"
   cp -a "$stage/source/apps/web/.next/static" "$stage/web/apps/web/.next/static"
-  cp -a "$stage/source/apps/web/public" "$stage/web/apps/web/public"
+  cp -aL "$stage/source/apps/web/public" "$stage/web/apps/web/public"
   if [ -d "$stage/source/apps/web/.next/cache" ]; then
     mkdir -p "$APP_DIR/deploy/cache"
     rm -rf "$APP_DIR/deploy/cache/next"
@@ -87,7 +87,7 @@ if [ ! -d "$prepared" ]; then
 fi
 cp "$prepared/release.json" "$state/candidate.json"
 python3 deploy/scripts/release_state.py prepared "$state/candidate.json" "$fingerprint" "$image" "$(docker image inspect "$image" --format '{{.Id}}')" "https://$APP_DOMAIN/api"
-[ -f "$prepared/web/apps/web/server.js" ]
+python3 deploy/scripts/release_state.py assets "$prepared/web/apps/web"
 if [ "${PREPARE_ONLY:-no}" = yes ]; then echo "Prepared $fingerprint; runtime unchanged"; exit 0; fi
 export CONTINUUM_API_IMAGE="$image"
 rollback() {

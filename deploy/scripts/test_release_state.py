@@ -1,8 +1,31 @@
 import unittest
-from release_state import pending_migrations, prepared
+import tempfile
+from pathlib import Path
+from release_state import assets, pending_migrations, prepared
 
 
 class ReleaseStateTests(unittest.TestCase):
+    def test_public_assets_must_survive_temporary_source_removal(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            web = root/'web'
+            vendor = web/'public/vendor'
+            vendor.mkdir(parents=True)
+            (web/'server.js').touch()
+            source = root/'temporary-source'
+            source.mkdir()
+            (source/'tex-chtml.js').touch()
+            link = vendor/'mathjax'
+            link.symlink_to(source)
+            with self.assertRaises(ValueError): assets(web)
+            (source/'tex-chtml.js').unlink()
+            source.rmdir()
+            with self.assertRaises(ValueError): assets(web)
+            link.unlink()
+            link.mkdir()
+            (link/'tex-chtml.js').touch()
+            assets(web)
+
     def test_rejects_wrong_prepared_runtime_before_activation(self):
         fp = 'a'*64
         image = 'continuum-release-api:'+fp
