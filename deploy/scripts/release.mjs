@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { chmodSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { findRelease, fingerprint, trustedRun } from '../../scripts/ci/release.mjs';
@@ -24,7 +24,7 @@ if (!artifact) throw Error('No unexpired verified release. Run CI manually; buil
 const target = process.env.SSH_TARGET || 'continuum-vps';
 if (!/^[a-zA-Z0-9_.@-]+$/.test(target) || target.startsWith('-')) throw Error('Invalid SSH target');
 const prefix = process.env.DEPLOY_USER === 'deploy' ? 'bash -s --' : 'sudo -iu deploy bash -s --';
-const remote = script => call('ssh', ['-o', 'BatchMode=yes', target, `${prefix} ${revision} ${fp}`], { input: script, stdio: ['pipe', 'inherit', 'inherit'] });
+const remote = script => call('ssh', ['-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes', target, `${prefix} ${revision} ${fp}`], { input: script, stdio: ['pipe', 'inherit', 'inherit'] });
 const temp = mkdtempSync(join(tmpdir(), 'continuum-release-'));
 const prepare = process.env.PREPARE_ONLY === 'yes' ? 'yes' : 'no';
 let incoming = false;
@@ -32,7 +32,9 @@ try {
   call('gh', ['run', 'download', String(artifact.runId), '--repo', repository, '--name', artifact.name, '--dir', temp]);
   remote('set -euo pipefail\nmkdir -p "/home/deploy/continuum-incoming/$2"\n');
   incoming = true;
-  call('scp', ['--', ...['api-image.tar.gz', 'web.tar.gz', 'release.json', 'SHA256SUMS'].map(name => join(temp, name)), `${target}:/home/deploy/continuum-incoming/${fp}/`]);
+  const files = ['api-image.tar.gz', 'web.tar.gz', 'release.json', 'SHA256SUMS'].map(name => join(temp, name));
+  for (const file of files) chmodSync(file, 0o644);
+  call('scp', ['-p', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes', '--', ...files, `${target}:/home/deploy/continuum-incoming/${fp}/`]);
   const migrations = process.env.MIGRATIONS_APPROVED === 'yes' ? 'yes' : 'no';
   const backup = process.env.BACKUP_CONFIRMED === 'yes' ? 'yes' : 'no';
   remote(`set -euo pipefail
