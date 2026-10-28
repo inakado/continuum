@@ -21,9 +21,11 @@
 
 ## Проверки и прогресс
 
-В работе. Исходный CI: PR + main, полный повторный build; VPS снова выполняет install/build.
+Реализация завершена и проверена полным CI. Исходный CI повторял полный build в PR, main и на VPS. Первая production-активация и фактические замеры повторного использования выполняются при выпуске; результат фиксируется в чате без отдельного отчётного релиза.
 
 - Реализованы fingerprint с явным docs allowlist, provenance двух gates, artifact TTL 1 день, standalone-пакет, installer без install/build, проверка миграций/checksums и возврат runtime, retention двух сборок и cache 4 ГБ.
 - Локально: 4 Node + 6 Python regression tests, shell/JS/Python/YAML syntax, docs:check, web build/typecheck/boundaries; отдельный standalone HTTP startup проверил login, security headers и 4 статических файла. БД и S3 не менялись.
 - По решению владельца оставляем штатные backup Beget, дополнительную схему резервирования и обращение в поддержку не создаём. В панели VPS видны копии 19/22.10; S3 закрыт, versioning не включён, настройки доступа не менялись. Это проверка существующей конфигурации, не результат тестового восстановления provider backup.
 - Основания: [Next standalone](https://nextjs.org/docs/app/api-reference/config/next-config-js/output), [GitHub artifacts/retention](https://docs.github.com/en/actions/tutorials/store-and-share-data), [Beget backup/snapshot](https://beget.com/ru/kb/how-to/other/backup-i-snapshot-v-chyom-raznica).
+
+- Реальный [CI 40621979012](https://github.com/inakado/continuum/actions/runs/40621979012) прошёл за 3 мин 11 с: quality и security успешны, готовый пакет опубликован. CI выявил избыточную область `NEXT_PUBLIC_API_BASE_URL`; production URL ограничен build/package, два существующих upload/panel теста проходят без изменения ожиданий.
