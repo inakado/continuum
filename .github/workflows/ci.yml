@@ -20,7 +20,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: postgresql://continuum:continuum@localhost:5432/continuum
-      NEXT_PUBLIC_API_BASE_URL: https://vl-physics.ru/api
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
@@ -59,6 +58,8 @@ jobs:
         run: pnpm build:backend
       - name: Build web and shared
         if: steps.scope.outputs.docs_only != 'true' && steps.release.outputs.reused != 'true'
+        env:
+          NEXT_PUBLIC_API_BASE_URL: https://vl-physics.ru/api
         run: pnpm build:web
       - name: Typecheck and test
         if: steps.scope.outputs.docs_only != 'true' && steps.release.outputs.reused != 'true'
@@ -69,6 +70,8 @@ jobs:
           python3 -m unittest discover -s deploy/scripts -p 'test_*.py'
       - name: Package the checked release
         if: steps.scope.outputs.docs_only != 'true' && steps.release.outputs.reused != 'true'
+        env:
+          NEXT_PUBLIC_API_BASE_URL: https://vl-physics.ru/api
         run: bash scripts/ci/package-release.sh release-bundle
       - name: Retain release for one day
         if: steps.scope.outputs.docs_only != 'true' && steps.release.outputs.reused != 'true'
