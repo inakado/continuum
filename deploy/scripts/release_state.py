@@ -29,13 +29,24 @@ def pending_migrations(release, applied):
     return sorted(set(expected) - done)
 
 
+def assets(web):
+    web = Path(web).resolve()
+    for name in ['server.js', 'public/vendor/mathjax/tex-chtml.js']:
+        if not (web/name).is_file():
+            raise ValueError(f'Нет ресурса standalone: {name}')
+    for item in (web/'public').rglob('*'):
+        if item.is_symlink() and (not item.exists() or not item.resolve().is_relative_to(web)):
+            raise ValueError(f'Ресурс public зависит от внешнего каталога: {item}')
+
 
 if __name__ == '__main__':
     command, file, *args = sys.argv[1:]
-    release = json.loads(Path(file).read_text())
+    release = json.loads(Path(file).read_text()) if command != 'assets' else None
     if command == 'migrations':
         print('\n'.join(pending_migrations(release, json.loads(Path(args[0]).read_text()))))
     elif command == 'prepared':
         prepared(release, *args)
+    elif command == 'assets':
+        assets(file)
     else:
         raise SystemExit('Unknown command')
