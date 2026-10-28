@@ -32,14 +32,14 @@ it('labels both work parts and counts only published reviews', () => {
   render(<AssignmentReportView data={{ ...data, taskCount: 9, extendedTaskCount: 3, recipients: data.recipients.map((item) => ({ ...item, progress: { photoTaskCount: 2, publishedReviewTaskCount: 1, resultReady: false } })) }} />);
   expect(screen.getAllByRole('columnheader').map((item) => item.textContent)).toEqual(['Ученик', 'Класс', 'Тестовая часть', 'Развёрнутая часть', 'Проверка решений']);
   expect(screen.getAllByText('Проверено: 1 из 3')).toHaveLength(3);
-  expect(screen.getByRole('combobox', { name: 'Тестовая часть' })).toBeVisible();
+  expect(screen.getByRole('group', { name: 'Тестовая часть' })).toBeVisible();
   expect(screen.getAllByRole('button', { name: /^Открыть решения:/ })).toHaveLength(3);
   expect(screen.queryByText(/Фото считаются|не файлами|а не файлам/)).not.toBeInTheDocument();
 });
 it('hides an absent test part and ignores its old URL filter for extended-only work', () => {
   history.replaceState({}, '', '/teacher/works/assignments/test?status=completed');
   render(<AssignmentReportView data={{ ...data, automaticTaskCount: 0, extendedTaskCount: 6 }} />);
-  expect(screen.queryByRole('combobox', { name: 'Тестовая часть' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('group', { name: 'Тестовая часть' })).not.toBeInTheDocument();
   expect(screen.getAllByRole('columnheader').map((item) => item.textContent)).toEqual(['Ученик', 'Класс', 'Развёрнутая часть', 'Проверка решений']);
   expect(screen.getByRole('row', { name: /Всё заполнил/ })).toBeVisible();
 });
@@ -52,25 +52,23 @@ it('separates completion from filled answers and filters by class/status without
   expect(screen.getByText('8 из 9 · 89%')).toBeVisible();
   fireEvent.change(screen.getByRole('combobox', { name: 'Класс' }), { target: { value: id(3) } });
   expect(screen.queryByText('Завершивший')).not.toBeInTheDocument();
-  fireEvent.change(screen.getByRole('combobox', { name: 'Тестовая часть' }), { target: { value: 'in_progress' } });
+  fireEvent.click(screen.getByRole('button', { name: /^В работе \d+$/ }));
   expect(screen.getByText('Всё заполнил')).toBeVisible();
   expect(screen.queryByText('first')).not.toBeInTheDocument();
 });
 
-it('uses one status select next to search, updates counts within class/search scope and allows clearing the filter', () => {
+it('exposes status counts in the class/search scope and allows clearing an empty filter', () => {
   render(<AssignmentReportView data={data} />);
-  const status = screen.getByRole('combobox', { name: 'Тестовая часть' });
-  expect(status).toHaveValue('all');
-  expect(within(status).getByRole('option', { name: 'Все — 3' })).toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: /^Все 3$/ })).not.toBeInTheDocument();
+  const statuses = screen.getByRole('group', { name: 'Тестовая часть' });
+  expect(within(statuses).getByRole('button', { name: 'Все 3' })).toHaveAttribute('aria-pressed', 'true');
   fireEvent.change(screen.getByRole('combobox', { name: 'Класс' }), { target: { value: id(3) } });
-  expect(within(status).getByRole('option', { name: 'Все — 2' })).toBeInTheDocument();
-  expect(within(status).getByRole('option', { name: 'Завершили — 0' })).toBeInTheDocument();
+  expect(within(statuses).getByRole('button', { name: 'Все 2' })).toBeVisible();
+  expect(within(statuses).getByRole('button', { name: 'Завершили 0' })).toBeEnabled();
   fireEvent.change(screen.getByRole('searchbox', { name: 'Поиск ученика' }), { target: { value: 'second' } });
-  expect(within(status).getByRole('option', { name: 'Все — 1' })).toBeInTheDocument();
-  fireEvent.change(status, { target: { value: 'completed' } });
+  expect(within(statuses).getByRole('button', { name: 'Все 1' })).toBeVisible();
+  fireEvent.click(within(statuses).getByRole('button', { name: 'Завершили 0' }));
   expect(screen.getByText('По этим фильтрам учеников нет.')).toBeVisible();
-  fireEvent.change(status, { target: { value: 'all' } });
+  fireEvent.click(within(statuses).getByRole('button', { name: 'Все 1' }));
   expect(screen.getByText('Всё заполнил')).toBeVisible();
   expect(screen.queryByText('По этим фильтрам учеников нет.')).not.toBeInTheDocument();
 });
@@ -80,7 +78,7 @@ it('resets pagination when the status selection changes', () => {
   render(<AssignmentReportView data={{ ...data, recipients, studentCount: 25, completedCount: 0 }} />);
   fireEvent.click(screen.getByRole('button', { name: 'Далее' }));
   expect(screen.getByText('21–25 из 25')).toBeVisible();
-  fireEvent.change(screen.getByRole('combobox', { name: 'Тестовая часть' }), { target: { value: 'not_started' } });
+  fireEvent.click(screen.getByRole('button', { name: /^Не начали \d+$/ }));
   expect(screen.getByText('1–20 из 25')).toBeVisible();
   expect(screen.getByRole('button', { name: 'Назад' })).toBeDisabled();
 });
@@ -91,13 +89,13 @@ it('restores filters, page and private search on remount; Back/Forward restores 
   const view = render(<AssignmentReportView data={report} userId="teacher-a" />);
   fireEvent.change(screen.getByRole('combobox', { name: 'Класс' }), { target: { value: id(3) } });
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Ученик' } });
-  fireEvent.change(screen.getByRole('combobox', { name: 'Тестовая часть' }), { target: { value: 'not_started' } });
+  fireEvent.click(screen.getByRole('button', { name: /^Не начали \d+$/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Далее' }));
   expect(location.search).toContain('page=2');
   expect(decodeURIComponent(location.href)).not.toContain('Ученик');
   view.unmount(); render(<AssignmentReportView data={report} userId="teacher-a" />);
   expect(screen.getByRole('combobox', { name: 'Класс' })).toHaveValue(id(3));
-  expect(screen.getByRole('combobox', { name: 'Тестовая часть' })).toHaveValue('not_started');
+  expect(screen.getByRole('button', { name: /^Не начали \d+$/ })).toHaveAttribute('aria-pressed', 'true');
   expect(screen.getByRole('searchbox')).toHaveValue('Ученик');
   expect(screen.getByText('21–25 из 25')).toBeVisible();
   act(() => history.back()); await waitFor(() => expect(screen.getByText('1–20 из 25')).toBeVisible());
@@ -108,8 +106,31 @@ it('ignores invalid filters, removed classes and an out-of-range page', () => {
   history.replaceState({}, '', `/teacher/works/assignments/test?class=${id(99)}&status=invalid&page=10000000000000000`);
   render(<AssignmentReportView data={data} />);
   expect(screen.getByRole('combobox', { name: 'Класс' })).toHaveValue('');
-  expect(screen.getByRole('combobox', { name: 'Тестовая часть' })).toHaveValue('all');
+  expect(screen.getByRole('button', { name: /^Все \d+$/ })).toHaveAttribute('aria-pressed', 'true');
   expect(screen.getByText('1–3 из 3')).toBeVisible();
+});
+
+it('hides a redundant single-class filter and normalizes its old URL while preserving other filters and page', () => {
+  history.replaceState({}, '', `/teacher/works/assignments/test?class=${id(3)}&status=not_started&photos=none&page=2`);
+  const recipients = Array.from({ length: 25 }, (_, n) => ({ ...data.recipients[0], id: id(100 + n), name: `Ученик ${n + 1}` }));
+  render(<AssignmentReportView data={{ ...data, classes: data.classes.slice(0, 1), recipients, studentCount: 25, completedCount: 0, extendedTaskCount: 2 }} />);
+  expect(screen.queryByRole('combobox', { name: 'Класс' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /^Управлять назначением:/ })).toHaveTextContent('11А · 25 учеников');
+  expect(screen.getByText('21–25 из 25')).toBeVisible();
+  expect(location.search).not.toContain('class=');
+  expect(location.search).toContain('status=not_started');
+  expect(location.search).toContain('photos=none');
+  expect(location.search).toContain('page=2');
+});
+
+it('keeps assignment metadata outside the filters and independent of the displayed students', () => {
+  render(<AssignmentReportView data={data} />);
+  const summary = screen.getByRole('button', { name: /^Управлять назначением:/ });
+  expect(summary).toHaveTextContent('11А, 11Б · 3 ученика');
+  fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'second' } });
+  expect(screen.getByText('1–1 из 1')).toBeVisible();
+  expect(summary).toHaveTextContent('11А, 11Б · 3 ученика');
+  expect(screen.queryByText(/^Назначенные классы:/)).not.toBeInTheDocument();
 });
 
 it('isolates search by teacher and report and keeps typing usable when storage is blocked', () => {
@@ -145,15 +166,15 @@ it('filters photos independently from test completion, with counts scoped by the
   expect(screen.queryByText('Все опубликованы')).not.toBeInTheDocument();
   expect(screen.queryByText('Без фотографий')).not.toBeInTheDocument();
   expect(location.search).toContain('photos=awaiting_review');
-  const status = screen.getByRole('combobox', { name: 'Тестовая часть' });
-  expect(within(status).getByRole('option', { name: 'Завершили — 1' })).toBeInTheDocument();
-  fireEvent.change(status, { target: { value: 'completed' } });
+  const status = screen.getByRole('group', { name: 'Тестовая часть' });
+  expect(within(status).getByRole('button', { name: 'Завершили 1' })).toBeVisible();
+  fireEvent.click(within(status).getByRole('button', { name: /^Завершили \d+$/ }));
   expect(within(photos).getByRole('option', { name: 'Все — 2' })).toBeInTheDocument();
   expect(screen.getByText('Все фото')).toBeVisible();
   expect(screen.queryByText('Фото частично')).not.toBeInTheDocument();
   fireEvent.change(photos, { target: { value: 'none' } });
   expect(screen.getByText('По этим фильтрам учеников нет.')).toBeVisible();
-  fireEvent.change(status, { target: { value: 'all' } });
+  fireEvent.click(within(status).getByRole('button', { name: /^Все \d+$/ }));
   expect(screen.getByText('Без фотографий')).toBeVisible();
   fireEvent.change(photos, { target: { value: 'partial' } });
   expect(screen.getByText('Фото частично')).toBeVisible();

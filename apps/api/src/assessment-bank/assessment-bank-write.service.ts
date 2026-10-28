@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AssessmentArchiveError, parseAssessmentArchive } from './assessment-archive';
 import { assessmentBaseline, BaselineSchema, StoredAssessmentImportSchema, type StoredAssessmentTask } from './assessment-bank.mapper';
 import { assessmentPolicy } from './assessment-policy';
+import { validateAssessmentCorrection, type BankCorrection } from './assessment-correction';
 
 const json = (value: object): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 
@@ -120,27 +121,33 @@ export class AssessmentBankWriteService {
       throw error;
     }
   }
-  async confirm(teacherId: string, id: string) {
+  async confirm(teacherId: string, id: string, correction?: BankCorrection) {
     const result = await this.prisma.$transaction(async (tx) => {
       await this.lock(tx, teacherId);
       const preview = await tx.assessmentBankImport.findFirst({ where: { id, teacherId } });
       if (!preview) throw new NotFoundException('Проверка пакета не найдена.');
-      if (preview.result) return AssessmentImportResultSchema.parse(preview.result);
+      if (preview.result) {
+        const saved = AssessmentImportResultSchema.parse(preview.result);
+        if (correction && (saved.correction?.taskId !== correction.taskId || saved.correction.sourceVersion !== correction.expectedVersion)) throw new ConflictException('Этот пакет уже подтверждён другим действием. Загрузите исправление заново.');
+        return saved;
+      }
       if (preview.expiresAt.getTime() <= Date.now()) throw new GoneException('Срок предпросмотра истёк. Загрузите пакет повторно.');
       const entries = StoredAssessmentImportSchema.parse(preview.data);
+      if (correction) await validateAssessmentCorrection(tx, teacherId, correction, entries);
       const baseline = BaselineSchema.parse(preview.baseline);
       if (entries.some((entry) => !(entry.task.id in baseline))) throw new ConflictException('Загрузка пакета ещё не завершена.');
       const current = await tx.assessmentBankTask.findMany({ where: { teacherId, stableId: { in: entries.map((entry) => entry.task.id) } }, select: { id: true, stableId: true, deletedAt: true, latestVersion: { select: { contentHash: true, version: true } } } });
       const byId = new Map(current.map((row) => [row.stableId, row]));
-      const result = { added: 0, updated: 0, unchanged: 0, taskIds: [] as string[], items: [] as { taskId: string; version: number }[], gradeBands: [...new Set(entries.map((entry) => entry.task.gradeBand))] };
+      const result = { added: 0, updated: 0, unchanged: 0, taskIds: [] as string[], items: [] as { taskId: string; version: number }[], gradeBands: [...new Set(entries.map((entry) => entry.task.gradeBand))],
+        ...(correction ? { correction: { taskId: correction.taskId, sourceVersion: correction.expectedVersion } } : {}) };
       for (const entry of entries) {
         const previous = byId.get(entry.task.id);
         if (assessmentBaseline(previous?.latestVersion?.contentHash, previous?.deletedAt) !== baseline[entry.task.id]) throw new ConflictException('Банк изменился после проверки. Загрузите пакет повторно, чтобы увидеть актуальные изменения.');
-        const reused = await this.reuseVersion(tx, previous, entry.hash);
+        const reused = correction ? null : await this.reuseVersion(tx, previous, entry.hash);
         if (reused) { result[reused.status]++; result.taskIds.push(reused.id); result.items.push({ taskId: reused.id, version: reused.version }); continue; }
         const bankTask = previous ?? await tx.assessmentBankTask.create({ data: { teacherId, stableId: entry.task.id } });
         const version = await tx.assessmentTaskVersion.create({ data: {
-          taskId: bankTask.id, version: (previous?.latestVersion?.version ?? 0) + 1, contentHash: entry.hash, data: json(entry), title: entry.task.title, gradeBand: entry.task.gradeBand, type: entry.task.type, topicPath: entry.task.topicPath,
+          taskId: bankTask.id, version: (previous?.latestVersion?.version ?? 0) + 1, contentHash: entry.hash, isPresentationCorrection: Boolean(correction), data: json(entry), title: entry.task.title, gradeBand: entry.task.gradeBand, type: entry.task.type, topicPath: entry.task.topicPath,
           searchText: [entry.task.id, entry.task.title, entry.statement, ...entry.task.topicPath, ...Object.values(entry.task.source), ...('options' in entry.task ? entry.task.options.map((option) => option.content) : [])].join(' '),
         } });
         await tx.assessmentBankTask.update({ where: { id: bankTask.id }, data: { latestVersionId: version.id, deletedAt: null, ...(previous ? { lifecycleRevision: { increment: 1 } } : {}) } });

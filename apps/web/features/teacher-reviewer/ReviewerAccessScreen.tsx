@@ -1,7 +1,6 @@
 "use client";
 import { useState } from 'react';
-import Link from 'next/link';
-import ContinuumHeader from '@/components/ContinuumHeader';
+import TeacherChrome from '@/features/teacher-shell/TeacherChrome';
 import { apiErrorMessage } from '@/lib/api/error-message';
 import { keyStatus, targetSummary } from './reviewer-labels';
 import { useReviewerAccess, useReviewerKeyCreation } from './use-reviewer-access';
@@ -18,8 +17,7 @@ export default function ReviewerAccessScreen() {
   function closeCreation() { creation.clear(); setCreating(false); }
   const ready = !targets.isPending && !targets.error;
   return <div className={styles.page}>
-    <ContinuumHeader homeHref="/teacher" beforeLogout={async () => { closeCreation(); return true; }} />
-    <nav className={styles.nav} aria-label="Разделы учителя"><Link href="/teacher/materials">Материалы</Link><Link href="/teacher/students">Ученики и доступы</Link><Link href="/teacher/bank">Банк заданий</Link><Link href="/teacher/works">Работы</Link><Link href="/teacher/statistics">Статистика</Link></nav>
+    <TeacherChrome beforeLogout={async () => { closeCreation(); return true; }} />
     <main className={styles.main}>
       <div className={styles.heading}><h1>Подключение агента</h1>{!creating && !creation.secret && <button type="button" className={styles.primary} disabled={!ready} onClick={() => setCreating(true)}>Подключить компьютер</button>}</div>
       {targets.isPending && <p role="status">Загружаем классы и учеников…</p>}

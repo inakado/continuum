@@ -12,6 +12,10 @@
 }
 
 .item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
   border: var(--border-width-thin) solid transparent;
   border-radius: calc(var(--radius-control) - 4px);
   background: transparent;
@@ -23,6 +27,8 @@
   cursor: pointer;
   user-select: none;
 }
+
+.item > svg { display: block; flex-shrink: 0; }
 
 .item[data-highlighted] {
   border-color: var(--glass-border);

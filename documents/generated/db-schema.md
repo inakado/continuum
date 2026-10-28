@@ -76,7 +76,7 @@
 ### AssessmentTaskVersion
 
 - Таблица: `assessment_task_versions`
-- Model attributes: `@@unique([taskId, version])`, `@@index([gradeBand, type])`, `@@map("assessment_task_versions")`
+- Model attributes: `@@unique([taskId, version])`, `@@index([gradeBand, type])`, `@@index([taskId, isPresentationCorrection, version], map: "assessment_task_presentation_idx")`, `@@map("assessment_task_versions")`
 
 | Field | Type | Attributes |
 | --- | --- | --- |
@@ -84,6 +84,7 @@
 | `taskId` | `String` | `@map("task_id") @db.Uuid` |
 | `version` | `Int` |  |
 | `contentHash` | `String` | `@map("content_hash")` |
+| `isPresentationCorrection` | `Boolean` | `@default(false) @map("is_presentation_correction")` |
 | `data` | `Json` |  |
 | `title` | `String` |  |
 | `gradeBand` | `GradeBand` | `@map("grade_band")` |

@@ -28,6 +28,31 @@ function show(cache = new QueryClient({ defaultOptions: { queries: { retry: fals
 afterEach(() => { cleanup(); vi.resetAllMocks(); vi.restoreAllMocks(); localStorage.clear(); sessionStorage.clear(); });
 beforeEach(() => { vi.mocked(studentWorksApi.availability).mockResolvedValue({ id }); });
 
+it('refreshes corrected text without resetting a pending answer or focus', async () => {
+  const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  vi.mocked(studentWorksApi.detail).mockResolvedValue({ ...started, presentationRevision: 'a'.repeat(64) });
+  vi.mocked(studentWorksApi.availability).mockResolvedValue({ id, presentationRevision: 'a'.repeat(64) });
+  vi.mocked(studentWorksApi.save).mockReturnValue(new Promise(() => {}));
+  show(cache);
+  const input = await screen.findByRole('textbox', { name: 'Ответ: Давление' });
+  input.focus(); fireEvent.change(input, { target: { value: '7' } });
+  vi.mocked(studentWorksApi.detail).mockResolvedValue({ ...started, presentationRevision: 'b'.repeat(64), items: [{ ...initial.items[0], statement: 'Исправленное условие газа.' }] });
+  vi.mocked(studentWorksApi.availability).mockResolvedValue({ id, presentationRevision: 'b'.repeat(64) });
+  await cache.invalidateQueries({ queryKey: studentWorkQueryKeys.availability(id) });
+  await screen.findByText('Исправленное условие газа.');
+  expect(input).toHaveValue('7'); expect(input).toHaveFocus();
+  expect(studentWorksApi.start).not.toHaveBeenCalled(); expect(studentWorksApi.finish).not.toHaveBeenCalled();
+});
+
+it('does not loop detail reads when the availability response is older than the detail', async () => {
+  vi.mocked(studentWorksApi.detail).mockResolvedValue({ ...started, presentationRevision: 'b'.repeat(64) });
+  vi.mocked(studentWorksApi.availability).mockResolvedValue({ id, presentationRevision: 'a'.repeat(64) });
+  show(); await screen.findByRole('textbox', { name: 'Ответ: Давление' });
+  await waitFor(() => expect(studentWorksApi.detail).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(screen.getByRole('textbox', { name: 'Ответ: Давление' })).toBeEnabled());
+  expect(studentWorksApi.detail).toHaveBeenCalledTimes(2);
+});
+
 it('shows saved points without verbal labels when a work has partial scores', async () => {
   vi.mocked(studentWorksApi.detail).mockResolvedValue({ ...started, ...completed, result: { correctCount: 0, partialCount: 1, incorrectCount: 0, points: 1, maxPoints: 2 } });
   show();

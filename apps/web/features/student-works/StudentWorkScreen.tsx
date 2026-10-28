@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import type { StudentWorkDetail } from '@continuum/shared';
@@ -100,6 +100,12 @@ export default function StudentWorkScreen({ id, entry }: { id: string; entry?: '
 function StudentWorkSession({ id, entry }: { id: string; entry?: 'solutions' | 'result' }) {
   const availability = useWorkAvailability(id);
   const query = useQuery({ queryKey: studentWorkQueryKeys.detail(id), queryFn: () => studentWorksApi.detail(id), enabled: !availability.unavailable, staleTime: 0, refetchOnMount: 'always', refetchOnWindowFocus: false, refetchOnReconnect: false });
+  const presentationCheck = useRef(0);
+  useEffect(() => {
+    if (!availability.presentationRevision || !query.data?.presentationRevision || availability.presentationRevision === query.data.presentationRevision || query.isFetching || presentationCheck.current === availability.checkedAt) return;
+    presentationCheck.current = availability.checkedAt;
+    void query.refetch();
+  }, [availability.presentationRevision, availability.checkedAt, query.data?.presentationRevision, query.isFetching, query.refetch]);
   const [ready, setReady] = useState(false);
   useEffect(() => {
     if (query.isSuccess && query.isFetchedAfterMount && !query.isFetching) setReady(true);

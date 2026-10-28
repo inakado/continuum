@@ -59,7 +59,10 @@ export const AssessmentImportResultSchema = z.object({
   added: z.number(), updated: z.number(), unchanged: z.number(), taskIds: z.array(z.uuid()),
   items: z.array(AssessmentTaskReferenceSchema).max(ASSESSMENT_PACKAGE_TASK_LIMIT).optional(),
   gradeBands: z.array(GradeBandSchema).min(1).max(4).optional(),
+  correction: z.strictObject({ taskId: z.uuid(), sourceVersion: z.number().int().positive() }).optional(),
 });
+export const AssessmentBankCorrectionSchema = z.strictObject({ importId: z.uuid(), expectedVersion: z.number().int().positive().max(100000) });
+export type AssessmentBankCorrection = z.infer<typeof AssessmentBankCorrectionSchema>;
 export const AssessmentBankDeleteSchema = z.strictObject({ expectedVersion: z.number().int().positive().max(100000), expectedLifecycleRevision: z.number().int().positive().max(2147483646) });
 export const AssessmentBankDeleteResultSchema = z.strictObject({ id: z.uuid(), version: z.number().int().positive(), deletionRevision: z.number().int().positive() });
 export const AssessmentBankRestoreSchema = z.strictObject({ expectedVersion: z.number().int().positive().max(100000), expectedDeletionRevision: z.number().int().positive().max(2147483646) });

@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { AssessmentBankQuery, AssessmentBankDelete, AssessmentBankDeletion } from '@continuum/shared';
-import { teacherBankQueryKeys } from '@/lib/query/keys';
+import type { AssessmentBankQuery, AssessmentBankDelete, AssessmentBankDeletion, AssessmentBankCorrection } from '@continuum/shared';
+import { teacherBankQueryKeys, teacherWorkQueryKeys, statisticsQueryKeys } from '@/lib/query/keys';
 import { teacherBankApi } from './teacher-bank.api';
 
 export function useTeacherBank(query: AssessmentBankQuery) {
@@ -22,6 +22,11 @@ export const useTeacherBankTask = (id: string | null, version?: number) => useQu
 export const useBankImportTask = (id: string | null, stableId: string | null) => useQuery({ queryKey: teacherBankQueryKeys.importTask(id ?? '', stableId ?? ''), queryFn: () => teacherBankApi.previewTask(id!, stableId!), enabled: Boolean(id && stableId), gcTime: 0, retry: false });
 export const useBankDuplicateHints = (id: string | null) => useQuery({ queryKey: teacherBankQueryKeys.duplicates(id ?? ''), queryFn: () => teacherBankApi.duplicates(id!), enabled: Boolean(id), gcTime: 0, retry: false, refetchOnWindowFocus: false });
 export const usePreviewBankImport = () => useMutation({ mutationFn: teacherBankApi.preview, retry: false, gcTime: 0 });
+export function useCorrectBankTask() {
+  const cache = useQueryClient();
+  return useMutation({ mutationFn: ({ id, ...input }: AssessmentBankCorrection & { id: string }) => teacherBankApi.correct(id, input), retry: false,
+    onSuccess: async () => { await Promise.all([teacherBankQueryKeys.all(), teacherWorkQueryKeys.all(), statisticsQueryKeys.all()].map((queryKey) => cache.invalidateQueries({ queryKey }))); } });
+}
 export function useConfirmBankImport() {
   const cache = useQueryClient();
   return useMutation({ mutationFn: teacherBankApi.confirm, retry: false, onSuccess: () => cache.invalidateQueries({ queryKey: teacherBankQueryKeys.all() }) });

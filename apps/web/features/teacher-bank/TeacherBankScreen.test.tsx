@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import '@testing-library/jest-dom/vitest';
 import { act, cleanup, fireEvent, render as baseRender, screen, within, waitFor } from '@testing-library/react';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
 import TeacherBankScreen from './TeacherBankScreen';
 
 const state = vi.hoisted(() => ({ query: {} as Record<string, unknown>, viewedId: '', empty: false, viewError: false, refetch: vi.fn() }));
@@ -20,6 +21,7 @@ beforeEach(() => {
   }
 });
 vi.mock('@/components/ContinuumHeader', () => ({ default: () => null }));
+vi.mock('./BankTaskCorrection', () => ({ default: ({ task, onClose }: { task: { task: { title: string } }; onClose: () => void }) => <div role="dialog" aria-label="Исправить условие"><p>{task.task.title}</p><button onClick={onClose}>Закрыть исправление</button></div> }));
 vi.mock('@/components/assessment/AssessmentMarkdown', () => ({ default: ({ text }: { text: string }) => <div>{text}</div> }));
 vi.mock('./use-teacher-bank', () => {
   const source = { provider: 'Школково', externalId: '11121', taskNumber: 86, sectionCode: '7.05', examYear: 2026, examTaskNumber: 7 };
@@ -27,10 +29,22 @@ vi.mock('./use-teacher-bank', () => {
   return {
     useRemoveBankTask: () => ({ isPending: false, error: null, reset: vi.fn(), mutate: vi.fn() }),
     useTeacherBank: (query: Record<string, unknown>) => { state.query = query; return { data: { tasks: state.empty ? [] : tasks, total: state.empty ? 0 : 2, topics: ['МКТ', 'Механика', 'Баллистика'], topicPaths: [['МКТ'], ['Механика', 'Кинематика', 'Баллистика']], sources: ['Авторское', 'Школково'], pageSize: 50 }, isPending: false }; },
-    useTeacherBankTask: (id: string) => { state.viewedId = id; return { error: state.viewError ? new Error('Ошибка условия') : null, refetch: state.refetch, data: { id, version: 1, task: { ...tasks[id === tasks[1].id ? 1 : 0], type: 'short_number', grading: { answer: '4.83', absoluteTolerance: 0 }, unit: 'Па' }, statement: 'Найдите давление.', solution: null, images: {} } }; },
+    useTeacherBankTask: (id: string) => { state.viewedId = id; return { error: state.viewError ? new Error('Ошибка условия') : null, refetch: state.refetch, data: { id, version: 1, lifecycleRevision: 1, task: { ...tasks[id === tasks[1].id ? 1 : 0], type: 'short_number', grading: { answer: '4.83', absoluteTolerance: 0 }, unit: 'Па' }, statement: 'Найдите давление.', solution: null, images: {} } }; },
   };
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+it('keeps the correction dialog when the task no longer matches the bank search', async () => {
+  const user = userEvent.setup(); render(<TeacherBankScreen />);
+  await user.click(screen.getByRole('button', { name: 'Действия с заданием' }));
+  await user.click(await screen.findByRole('menuitem', { name: 'Исправить условие' }));
+  expect(screen.getByRole('dialog', { name: 'Исправить условие' })).toHaveTextContent('Давление газа');
+  state.empty = true;
+  fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'исправленная фраза' } });
+  expect(screen.getByRole('heading', { name: 'Ничего не найдено' })).toBeInTheDocument();
+  expect(screen.getByRole('dialog', { name: 'Исправить условие' })).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Закрыть исправление' }));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+});
 it('retries only the selected task without losing its URL context', () => {
   state.viewError = true;
   history.replaceState({}, '', '/teacher/bank?exam=ege&source=Школково&task=00000000-0000-4000-8000-000000000001');

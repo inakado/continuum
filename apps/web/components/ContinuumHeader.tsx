@@ -31,7 +31,7 @@ export default memo(function ContinuumHeader({ homeHref, beforeLogout }: { homeH
         <span className={styles.subject}>Физика</span>
       </div>
       <div className={styles.profile}>
-        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+        <DropdownMenu modal={false} open={menuOpen} onOpenChange={setMenuOpen}>
           <DropdownMenuTrigger asChild>
             <button
               aria-label={`Профиль: ${displayName}`}

@@ -7,8 +7,7 @@ import { teacherStudentsQueryKeys } from '@/lib/query/keys';
 import { teacherStudentsApi } from './teacher-students.api';
 import { MoreHorizontal } from "lucide-react";
 import type { GradeBand, SchoolClass, StudentCredential, TeacherStudent } from "@continuum/shared";
-import Link from "next/link";
-import ContinuumHeader from "@/components/ContinuumHeader";
+import TeacherChrome from '@/features/teacher-shell/TeacherChrome';
 import { useSchoolClasses, useSetStudentAccess, useSetStudentActive, useSetStudentClass, useTeacherStudents, useUpdateSchoolClass, useResetStudentPassword, useDeleteSchoolClass } from "./use-teacher-students";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/DropdownMenu";
 import { SchoolClassWizard } from "./SchoolClassWizard";
@@ -120,8 +119,7 @@ export default function TeacherStudentsScreen() {
   function changeFilter(value: string) { setFilter(value); setEditingClass(false); setDeletingClass(false); }
 
   return <div className={styles.page}>
-    <ContinuumHeader homeHref="/teacher" />
-    <nav aria-label="Разделы учителя" className={styles.teacherNav}><Link href="/teacher/materials">Материалы</Link><Link aria-current="page" href="/teacher/students">Ученики и доступы</Link><Link href="/teacher/bank">Банк заданий</Link><Link href="/teacher/works">Работы</Link><Link href="/teacher/statistics">Статистика</Link></nav>
+    <TeacherChrome active="students" />
     <main className={styles.main}>
       {mode === "bulk" ? <SchoolClassWizard classes={schoolClasses} initialClassId={selected && !selected.isArchived ? selected.id : "new"} onClose={(id) => { setMode("list"); if (id) changeFilter(id); }} /> : credential ?
         <StudentCredentials credentials={[credential]} classTitle={selected?.title ?? "Ученик"} onDone={() => confirmation.ask({ title: 'Закрыть доступы?', description: 'Сохраните логин и пароль перед закрытием. Повторно посмотреть пароль нельзя — только сбросить.', confirmText: 'Доступы сохранены', cancelText: 'Вернуться' }, () => setCredential(null))} /> : mode === "single" ?

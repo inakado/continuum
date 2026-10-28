@@ -4,6 +4,8 @@ import type { Prisma } from '@prisma/client';
 import type { AssessmentWorkCopy, AssessmentWorkCreate, AssessmentWorkUpdate } from '@continuum/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { AssessmentWorksReadService, workDetail, workVersion, WorkReferencesSchema } from './assessment-works-read.service';
+import { WorkSnapshotSchema } from './assessment-works-read.service';
+import { applyAssessmentPresentations } from '../common/assessment-presentation';
 
 const json = (value: object): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 @Injectable()
@@ -19,7 +21,7 @@ export class AssessmentWorksWriteService {
       const existing = await tx.assessmentWork.findUnique({ where: { id: input.id } });
       if (existing) {
         if (existing.teacherId !== teacherId || existing.deletedAt) throw new NotFoundException('Работа не найдена.');
-        return workDetail(existing, await this.reads.resolve(teacherId, WorkReferencesSchema.parse(existing.items), tx));
+        return workDetail(existing, await applyAssessmentPresentations(tx, await this.reads.resolve(teacherId, WorkReferencesSchema.parse(existing.items), tx)));
       }
       const refs = input.items ?? [];
       if (refs.length) {
@@ -31,7 +33,7 @@ export class AssessmentWorksWriteService {
         items: json(refs), taskCount: items.length, maxPoints: items.reduce((sum, item) => sum + item.data.task.maxPoints, 0) }], skipDuplicates: true });
       const row = await tx.assessmentWork.findFirst({ where: { id: input.id, teacherId, deletedAt: null } });
       if (!row) throw new NotFoundException('Работа не найдена.');
-      return workDetail(row, items);
+      return workDetail(row, await applyAssessmentPresentations(tx, items));
     }, { timeout: 30000 });
   }
   async update(teacherId: string, id: string, input: AssessmentWorkUpdate) {
@@ -41,7 +43,7 @@ export class AssessmentWorksWriteService {
       const row = await this.lock(tx, teacherId, id);
       if (row.lastRequestId === input.requestId) {
         if (row.lastInputHash !== hash) throw new ConflictException('Ключ запроса уже использован для других изменений.');
-        return workDetail(row, await this.reads.resolve(teacherId, WorkReferencesSchema.parse(row.items), tx));
+        return workDetail(row, await applyAssessmentPresentations(tx, await this.reads.resolve(teacherId, WorkReferencesSchema.parse(row.items), tx)));
       }
       if (row.revision !== input.expectedRevision) throw new ConflictException('Работа изменена в другой вкладке. Загрузите актуальную версию, прежде чем продолжать.');
       const previous = new Set(WorkReferencesSchema.parse(row.items).map((item) => `${item.taskId}@${item.version}`));
@@ -50,7 +52,7 @@ export class AssessmentWorksWriteService {
       if (removed) throw new BadRequestException('Выбранное задание удалено из банка. Обновите список и выберите другое.');
       const items = await this.reads.resolve(teacherId, input.items, tx);
       const updated = await tx.assessmentWork.update({ where: { id }, data: { title: input.title, instructions: input.instructions, gradeBand: input.gradeBand, items: json(input.items), taskCount: items.length, maxPoints: items.reduce((sum, item) => sum + item.data.task.maxPoints, 0), revision: { increment: 1 }, lastRequestId: input.requestId, lastInputHash: hash } });
-      return workDetail(updated, items);
+      return workDetail(updated, await applyAssessmentPresentations(tx, items));
     }, { timeout: 30000 });
   }
   async copy(teacherId: string, id: string, input: AssessmentWorkCopy) {
@@ -61,7 +63,7 @@ export class AssessmentWorksWriteService {
       if (existing) {
         if (existing.teacherId !== teacherId || existing.copiedFromId !== id || existing.copiedFromRevision !== input.expectedRevision) throw new ConflictException('Ключ копирования уже использован. Обновите список работ.');
         if (existing.deletedAt) throw new GoneException('Эта копия уже удалена. Создайте новую копию из списка работ.');
-        return workDetail(existing, await this.reads.resolve(teacherId, WorkReferencesSchema.parse(existing.items), tx));
+        return workDetail(existing, await applyAssessmentPresentations(tx, await this.reads.resolve(teacherId, WorkReferencesSchema.parse(existing.items), tx)));
       }
       if (source.revision !== input.expectedRevision) throw new ConflictException('Работа изменилась. Список обновлён — проверьте её перед копированием.');
       const sourceRefs = WorkReferencesSchema.parse(source.items);
@@ -79,7 +81,7 @@ export class AssessmentWorksWriteService {
       }], skipDuplicates: true });
       const row = await tx.assessmentWork.findUniqueOrThrow({ where: { id: input.id } });
       if (row.teacherId !== teacherId || row.copiedFromId !== id || row.copiedFromRevision !== input.expectedRevision) throw new ConflictException('Ключ копирования уже использован. Обновите список работ.');
-      return workDetail(row, items);
+      return workDetail(row, await applyAssessmentPresentations(tx, items));
     }, { timeout: 30000 });
   }
   async freeze(teacherId: string, id: string, expectedRevision: number) {
@@ -88,12 +90,12 @@ export class AssessmentWorksWriteService {
   async freezeInTransaction(tx: Prisma.TransactionClient, teacherId: string, id: string, expectedRevision: number) {
       const row = await this.lock(tx, teacherId, id);
       const existing = await tx.assessmentWorkVersion.findUnique({ where: { workId_revision: { workId: id, revision: expectedRevision } } });
-      if (existing) return workVersion(existing);
+      if (existing) return workVersion(existing, await applyAssessmentPresentations(tx, WorkSnapshotSchema.parse(existing.data).items));
       if (row.revision !== expectedRevision) throw new ConflictException('Работа изменилась. Сначала сохраните и проверьте актуальный состав.');
       const items = await this.reads.resolve(teacherId, WorkReferencesSchema.parse(row.items), tx);
       if (!items.length) throw new BadRequestException('Добавьте хотя бы одно задание.');
       const last = await tx.assessmentWorkVersion.aggregate({ where: { workId: id }, _max: { number: true } });
       const version = await tx.assessmentWorkVersion.create({ data: { workId: id, number: (last._max.number ?? 0) + 1, revision: row.revision, data: json({ title: row.title, instructions: row.instructions, gradeBand: row.gradeBand, items }) } });
-      return workVersion(version);
+      return workVersion(version, await applyAssessmentPresentations(tx, items));
   }
 }

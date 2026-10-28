@@ -17,8 +17,7 @@ import {
   Plus,
   Upload,
 } from "lucide-react";
-import Link from "next/link";
-import ContinuumHeader from "@/components/ContinuumHeader";
+import TeacherChrome from '@/features/teacher-shell/TeacherChrome';
 import { teacherLibraryApi } from "./teacher-library.api";
 import {
   useCreateLesson,
@@ -409,13 +408,7 @@ export default function TeacherMaterialsScreen() {
 
   return (
     <div className={styles.page}>
-      <ContinuumHeader homeHref="/teacher" />
-      <nav aria-label="Разделы учителя" className={styles.teacherNav}>
-        <Link aria-current="page" href="/teacher/materials">Материалы</Link>
-        <Link href="/teacher/students">Ученики и доступы</Link>
-        <Link href="/teacher/bank">Банк заданий</Link>
-        <Link href="/teacher/works">Работы</Link><Link href="/teacher/statistics">Статистика</Link>
-      </nav>
+      <TeacherChrome active="materials" />
       <nav aria-label="Классы" className={styles.gradeNav}>
         {gradeTabs.map((grade) => (
           <button

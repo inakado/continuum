@@ -1,4 +1,11 @@
 import { expect, it } from 'vitest';
+import { AssessmentBankCorrectionSchema } from '../src/contracts/assessment-bank';
+
+it('requires a preview and a concrete version for corrections and forbids extra fields', () => {
+  const input = { importId: '00000000-0000-4000-8000-000000000001', expectedVersion: 1 };
+  expect(AssessmentBankCorrectionSchema.parse(input)).toEqual(input);
+  for (const bad of [{ ...input, expectedVersion: 0 }, { ...input, expectedVersion: '1' }, { expectedVersion: 1 }, { ...input, grading: {} }]) expect(AssessmentBankCorrectionSchema.safeParse(bad).success).toBe(false);
+});
 import { AssessmentBankDeleteSchema, AssessmentBankRestoreSchema, AssessmentBankDeleteResultSchema, AssessmentBankQuerySchema } from '../src/contracts/assessment-bank';
 
 it('validates exam and exact provider filters', () => {

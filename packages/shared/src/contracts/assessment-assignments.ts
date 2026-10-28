@@ -32,7 +32,7 @@ export const AssignmentRevocationPreviewSchema = AssignmentRevocationResultSchem
   title: z.string(), classTitle: z.string(), academicYear: positive,
   studentCount: count, startedCount: count, completedCount: count, recipientsHash: z.string().regex(/^[a-f0-9]{64}$/),
 });
-export const StudentWorkAvailabilitySchema = z.strictObject({ id: uuid });
+export const StudentWorkAvailabilitySchema = z.strictObject({ id: uuid, presentationRevision: z.string().regex(/^[a-f0-9]{64}$/).optional() });
 export type AssignmentRevoke = z.infer<typeof AssignmentRevokeSchema>;
 export type AssignmentRevocationPreview = z.infer<typeof AssignmentRevocationPreviewSchema>;
 export const AttemptStatusSchema = z.enum(['not_started', 'in_progress', 'completed']);
@@ -84,6 +84,7 @@ export const StudentWorkSummarySchema = StudentAttemptStateSchema.extend({
 export const StudentWorkListSchema = z.array(StudentWorkSummarySchema.extend({ automaticTaskCount: count, extendedTaskCount: count, progress: WorkProgressSchema }));
 export type StudentWorkListItem = z.infer<typeof StudentWorkListSchema>[number];
 export const StudentWorkDetailSchema = StudentWorkSummarySchema.extend({
+  presentationRevision: z.string().regex(/^[a-f0-9]{64}$/).optional(),
   instructions: z.string(), items: z.array(PublicAssessmentItemSchema), answers: z.record(uuid, AssessmentAnswerSchema),
 });
 export type AssignmentSelection = z.infer<typeof AssignmentSelectionSchema>;

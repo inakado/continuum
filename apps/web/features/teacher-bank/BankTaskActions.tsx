@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState } from 'react';
+import { useRef, useState, type RefObject } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { MoreHorizontal, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Trash2, FilePenLine } from 'lucide-react';
 import type { AssessmentTaskView } from '@continuum/shared';
 import type { BankDeletion } from './BankDeletionNotice';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/DropdownMenu';
@@ -10,16 +10,18 @@ import { apiErrorMessage } from '@/lib/api/error-message';
 import { useRemoveBankTask } from './use-teacher-bank';
 import styles from './teacher-bank.module.css';
 
-export default function BankTaskActions({ task, query, onDeleted }: { task?: AssessmentTaskView; query: string; onDeleted: (deletion: BankDeletion) => void }) {
+export default function BankTaskActions({ task, query, onDeleted, onCorrect }: { task?: AssessmentTaskView; query: string; onDeleted: (deletion: BankDeletion) => void; onCorrect: (task: AssessmentTaskView, trigger: RefObject<HTMLButtonElement | null>) => void }) {
   const [menu, setMenu] = useState(false);
+  const correcting = useRef(false);
   const [snapshot, setSnapshot] = useState<{ id: string; expectedVersion: number; expectedLifecycleRevision: number; title: string; query: string } | null>(null);
   const trigger = useRef<HTMLButtonElement>(null), cancel = useRef<HTMLButtonElement>(null);
   const remove = useRemoveBankTask((receipt) => { if (snapshot) onDeleted({ ...receipt, title: snapshot.title, query: snapshot.query }); setSnapshot(null); });
   const close = () => { if (!remove.isPending) setSnapshot(null); };
   return <>
-    <DropdownMenu open={menu} onOpenChange={setMenu}>
+    <DropdownMenu open={menu} onOpenChange={(open) => { if (open) correcting.current = false; setMenu(open); }}>
       <DropdownMenuTrigger asChild><button ref={trigger} className={styles.taskActionsTrigger} type="button" aria-label="Действия с заданием" disabled={!task?.lifecycleRevision || remove.isPending}><MoreHorizontal size={20} aria-hidden="true" /></button></DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className={styles.taskMenu} onCloseAutoFocus={(event) => { if (snapshot) event.preventDefault(); }}>
+      <DropdownMenuContent align="end" className={styles.taskMenu} onCloseAutoFocus={(event) => { if (snapshot || correcting.current) event.preventDefault(); }}>
+        <DropdownMenuItem onSelect={() => { if (task) { correcting.current = true; onCorrect(task, trigger); } }}><FilePenLine size={16} aria-hidden="true" />Исправить условие</DropdownMenuItem>
         <DropdownMenuItem className={styles.deleteItem} onSelect={() => { if (task?.lifecycleRevision) { remove.reset(); setSnapshot({ id: task.id, expectedVersion: task.version, expectedLifecycleRevision: task.lifecycleRevision, title: task.task.title, query }); } }}><Trash2 size={16} aria-hidden="true" />Удалить из банка</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

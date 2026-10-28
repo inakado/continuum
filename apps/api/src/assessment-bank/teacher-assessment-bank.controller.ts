@@ -11,6 +11,7 @@ import { assertWriteOrigin } from '../common/assert-write-origin';
 import { AssessmentBankReadService } from './assessment-bank-read.service';
 import { AssessmentBankWriteService } from './assessment-bank-write.service';
 import { AssessmentDuplicateReadService } from './assessment-duplicate-read.service';
+import { AssessmentBankCorrectionSchema, type AssessmentBankCorrection } from '@continuum/shared';
 
 const VersionQuerySchema = z.object({ version: z.coerce.number().int().positive().max(100000).optional() });
 
@@ -47,6 +48,21 @@ export class TeacherAssessmentBankController {
   @Post('tasks/:id/restore')
   @Header('Cache-Control', 'no-store')
   restore(@Req() request: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string, @Body(new ZodValidationPipe(AssessmentBankRestoreSchema)) input: AssessmentBankRestore) { assertWriteOrigin(request); return this.writes.restore(request.user.id, id, input); }
+
+  @Post('tasks/:id/correct')
+  @Header('Cache-Control', 'no-store')
+  correct(@Req() request: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string, @Body(new ZodValidationPipe(AssessmentBankCorrectionSchema)) input: AssessmentBankCorrection) {
+    assertWriteOrigin(request);
+    return this.writes.confirm(request.user.id, input.importId, { taskId: id, expectedVersion: input.expectedVersion });
+  }
+
+  @Get('tasks/:id/export')
+  @Header('Cache-Control', 'no-store')
+  async exportTask(@Req() request: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string, @Res({ passthrough: true }) response: Response) {
+    const bytes = await this.reads.exportTask(request.user.id, id);
+    response.setHeader('Content-Disposition', 'attachment; filename="continuum-task.zip"');
+    return new StreamableFile(bytes, { type: 'application/zip' });
+  }
 
   @Get('tasks/:id/images/:name')
   @Header('Cache-Control', 'no-store')

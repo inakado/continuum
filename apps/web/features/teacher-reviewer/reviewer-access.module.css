@@ -1,6 +1,4 @@
 .page { min-height: 100vh; background: #fff; color: var(--catalog-ink); }
-.nav { display: flex; gap: 40px; height: 64px; padding: 0 48px; border-bottom: 1px solid var(--catalog-border); overflow-x: auto; }
-.nav a { display: flex; align-items: center; white-space: nowrap; color: #353b49; text-decoration: none; font-size: 15px; }
 .main { max-width: 1600px; margin: 0 auto; padding: 40px 48px 64px; }
 .heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 32px; }
 .heading h1 { margin: 0; color: var(--catalog-heading); font-size: 32px; line-height: 1.2; letter-spacing: -.025em; text-wrap: balance; }
@@ -51,7 +49,6 @@
 .page select { appearance: none; padding-right: 40px; }
 .selectWrap > svg { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; }
 @media (max-width: 700px) {
-  .nav { gap: 28px; padding: 0 20px; height: 58px; }
   .main { padding: 28px 20px 48px; }
   .heading { flex-direction: column; gap: 16px; }
   .heading h1 { font-size: 28px; }

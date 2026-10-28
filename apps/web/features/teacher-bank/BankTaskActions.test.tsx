@@ -12,7 +12,7 @@ const receipt = { id: task.id, version: 3, deletionRevision: 8 };
 const onDeleted = vi.fn();
 function setup() {
   const cache = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
-  return render(<QueryClientProvider client={cache}><BankTaskActions task={task} query="search=газ" onDeleted={onDeleted} /></QueryClientProvider>);
+  return render(<QueryClientProvider client={cache}><BankTaskActions task={task} query="search=газ" onDeleted={onDeleted} onCorrect={vi.fn()} /></QueryClientProvider>);
 }
 async function open() {
   const user = userEvent.setup();

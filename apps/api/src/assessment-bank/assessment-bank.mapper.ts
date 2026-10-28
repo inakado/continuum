@@ -19,7 +19,7 @@ export function mapAssessmentSummary(id: string, version: number, data: StoredAs
   return { id, stableId: task.id, title: task.title, gradeBand: task.gradeBand, topicPath: task.topicPath, type: task.type, maxPoints: task.maxPoints, source: task.source, version,
     excerpt: data.statement.replace(/!\[[^\]]*\]\([^)]*\)/g, '').replace(/\$\$[\s\S]*?\$\$|\$[^$]*\$/g, '…').replace(/\s+/g, ' ').slice(0, 160) };
 }
-export function mapAssessmentView(id: string, version: number, data: StoredAssessmentTask, imageBase: string): AssessmentTaskView {
+export function mapAssessmentView(id: string, version: number, data: StoredAssessmentTask, imageBase: string, imageVersion = version): AssessmentTaskView {
   return { id, version, task: data.task, statement: data.statement, solution: data.solution,
-    images: Object.fromEntries(data.images.map((image) => [image.path, `${imageBase}/${encodeURIComponent(image.path.slice('images/'.length))}?version=${version}`])) };
+    images: Object.fromEntries(data.images.map((image) => [image.path, `${imageBase}/${encodeURIComponent(image.path.slice('images/'.length))}?version=${imageVersion}`])) };
 }
