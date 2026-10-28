@@ -150,3 +150,15 @@ it('moves a task by the drag handle and renumbers the persisted references', asy
   await waitFor(() => expect(teacherWorksApi.update).toHaveBeenCalled(), { timeout: 1500 });
   expect(vi.mocked(teacherWorksApi.update).mock.calls[0][1].items.map((item) => item.taskId)).toEqual([initial.items[1].id, initial.items[2].id, initial.items[0].id]);
 });
+
+it('opens the existing editor with title focus after creating from an import', () => {
+  const previous = location.href;
+  history.replaceState({}, '', `/teacher/works/${initial.id}?from=import`);
+  setup();
+  const title = screen.getByRole('textbox', { name: 'Название работы' }) as HTMLInputElement;
+  expect(title).toHaveFocus();
+  expect(title.selectionStart).toBe(0); expect(title.selectionEnd).toBe(initial.title.length);
+  expect(titles()).toEqual(['Давление', 'Температура', 'Объём']);
+  expect(teacherWorksApi.freeze).not.toHaveBeenCalled();
+  history.replaceState({}, '', previous);
+});

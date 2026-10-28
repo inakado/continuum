@@ -39,3 +39,13 @@ it('restores direct links and remounts, uses replace for search and supports Bac
   hook.unmount(); const restored = renderHook(() => useBankFilters());
   expect(restored.result.current.search).toBe('газ ');
 });
+
+it('round-trips a complete topic path and rejects malformed paths independently', () => {
+  const path = ['Механика', 'Кинематика', 'Графики'];
+  const params = new URLSearchParams({ topicPath: JSON.stringify(path), exam: 'ege', source: 'Школково' });
+  const filters = readBankFilters(params);
+  expect(filters.topicPath).toEqual(path);
+  expect(readBankFilters(new URLSearchParams(bankFilterParams(filters)))).toEqual(filters);
+  params.set('topicPath', '["Механика", ""]');
+  expect(readBankFilters(params)).toMatchObject({ topicPath: undefined, exam: 'ege', source: 'Школково' });
+});

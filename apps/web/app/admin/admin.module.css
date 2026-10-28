@@ -14,7 +14,7 @@
 .main h1 {
   margin: 0;
   color: var(--catalog-heading);
-  font-family: var(--font-inter), Inter, system-ui, sans-serif;
+  font-family: var(--font-ui), system-ui, sans-serif;
   font-size: 40px;
   font-weight: 700;
   letter-spacing: -0.04em;

@@ -11,6 +11,7 @@ export function readBankFilters(params: URLSearchParams) {
     gradeBand: fields.gradeBand.catch('grade_10_11').parse(params.get('grade') ?? undefined) ?? 'grade_10_11' as GradeBand,
     search: (params.get('search') ?? '').slice(0, 200),
     topic: (params.get('topic') ?? '').slice(0, 200),
+    topicPath: fields.topicPath.catch(undefined).parse(params.get('topicPath') ?? undefined),
     type: fields.type.catch(undefined).parse(params.get('type') ?? undefined),
     exam: fields.exam.catch(undefined).parse(params.get('exam') ?? undefined),
     source: fields.source.catch(undefined).parse(params.get('source') ?? undefined),
@@ -23,7 +24,8 @@ export function bankFilterParams(filters: BankFilters) {
   const params = new URLSearchParams();
   if (filters.gradeBand !== 'grade_10_11') params.set('grade', filters.gradeBand);
   if (filters.search) params.set('search', filters.search);
-  if (filters.topic) params.set('topic', filters.topic);
+  if (filters.topicPath) params.set('topicPath', JSON.stringify(filters.topicPath));
+  else if (filters.topic) params.set('topic', filters.topic);
   if (filters.type) params.set('type', filters.type);
   if (filters.exam) params.set('exam', filters.exam);
   if (filters.source) params.set('source', filters.source);

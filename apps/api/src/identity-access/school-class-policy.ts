@@ -34,7 +34,7 @@ export async function managedClass(tx: Prisma.TransactionClient, id: string, wri
 
 export async function managedStudent(tx: Prisma.TransactionClient, id: string) {
   const student = await tx.user.findFirst({
-    where: { id, role: 'student', studentProfile: { isNot: null } },
+    where: { id, role: 'student', studentProfile: { is: { deletedAt: null } } },
     select: { id: true, name: true, login: true },
   });
   if (!student) throw new NotFoundException({ code: 'STUDENT_NOT_FOUND', message: 'Ученик не найден.' });

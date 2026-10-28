@@ -54,7 +54,7 @@ export default function WorkBankPicker({ existing, grade, onClose, onAdd }: { ex
     <div className={styles.heading}><div><h1 ref={heading} tabIndex={-1}>{mode === 'selected' ? 'Выбранные задания' : 'Добавить из банка'}</h1></div>
       {mode === 'selected' && selected.size > 0 && <button className={styles.textButton} disabled={adding} onClick={clearSelection}>Сбросить выбор</button>}
     </div>
-    {mode === 'bank' && <WorkBankFilters query={query} topics={data.topics} sources={data.sources} onChange={(patch) => { setQuery((previous) => ({ ...previous, ...patch, page: 1 })); setView(null); setMobileView(false); }} />}
+    {mode === 'bank' && <WorkBankFilters query={query} topicPaths={bank.data?.topicPaths ?? []} sources={data.sources} onChange={(patch) => { setQuery((previous) => ({ ...previous, ...patch, page: 1 })); setView(null); setMobileView(false); }} />}
     {mode === 'bank' && bank.isPending ? <p role="status">Загружаем банк…</p> : mode === 'bank' && bank.error ? <div role="alert"><p>{apiErrorMessage(bank.error)}</p><button className={styles.secondary} onClick={() => void bank.refetch()}>Повторить</button></div> : !tasks.length ? <PickerEmpty reviewing={mode === 'selected'} query={query} onReset={() => { setQuery({ gradeBand: query.gradeBand, search: '', topic: '', page: 1 }); setView(null); setMobileView(false); }} /> : <div className={`${styles.picker} ${mobileView ? styles.pickerViewing : ''}`}>
       <div className={styles.pickerList}><PickerList tasks={tasks} currentId={currentTask.id} selected={selected} used={used} adding={adding} atLimit={selected.size + existing.length >= ASSESSMENT_WORK_TASK_LIMIT} onToggle={toggle} onPreview={(id) => { setView(id); setMobileView(true); }} />
         {mode === 'bank' && <div className={styles.pagination}><button className={styles.textButton} disabled={page === 1} onClick={() => setQuery({ ...query, page: page - 1 })}>Назад</button><span>{page} / {Math.max(1, Math.ceil(total / 50))}</span><button className={styles.textButton} disabled={page * 50 >= total} onClick={() => setQuery({ ...query, page: page + 1 })}>Далее</button></div>}
@@ -66,7 +66,7 @@ export default function WorkBankPicker({ existing, grade, onClose, onAdd }: { ex
 }
 
 function PickerEmpty({ reviewing, query, onReset }: { reviewing: boolean; query: AssessmentBankQuery; onReset: () => void }) {
-  const filtered = Boolean(query.search || query.topic || query.type || query.exam || query.source);
+  const filtered = Boolean(query.search || query.topic || query.topicPath?.length || query.type || query.exam || query.source);
   return <div className={styles.empty}>{reviewing ? <h2>Ничего не выбрано</h2> : <><p>По этим фильтрам заданий нет.</p>{filtered && <button type="button" className={styles.secondary} onClick={onReset}>Сбросить фильтры</button>}</>}</div>;
 }
 
@@ -86,7 +86,7 @@ function PickerPreview({ task, onBack }: { task: AssessmentTaskSummary; onBack: 
   const detail = useTeacherBankTask(task.id, task.version);
   return <div className={styles.pickerDetail}>
     <button className={`${styles.textButton} ${styles.mobileBack}`} onClick={onBack}><ArrowLeft size={16} />К списку</button>
-    {detail.isPending ? <p role="status">Загружаем условие…</p> : detail.error ? <div role="alert"><p>{apiErrorMessage(detail.error)}</p><button className={styles.textButton} onClick={() => void detail.refetch()}>Повторить загрузку условия</button></div> : detail.data && <BankTaskPreview data={detail.data} />}
+    <div key={`${task.id}:${task.version}`} className={styles.pickerCondition} role="region" aria-label="Условие выбранного задания" aria-busy={detail.isPending} tabIndex={0}>{detail.isPending ? <p role="status">Загружаем условие…</p> : detail.error ? <div role="alert"><p>{apiErrorMessage(detail.error)}</p><button className={styles.textButton} onClick={() => void detail.refetch()}>Повторить загрузку условия</button></div> : detail.data && <BankTaskPreview data={detail.data} />}</div>
   </div>;
 }
 
@@ -94,7 +94,7 @@ function PickerList({ tasks, currentId, selected, used, adding, atLimit, onToggl
   tasks: AssessmentTaskSummary[]; currentId: string; selected: ReadonlyMap<string, AssessmentTaskSummary>; used: ReadonlySet<string>;
   adding: boolean; atLimit: boolean; onToggle: (task: AssessmentTaskSummary) => void; onPreview: (id: string) => void;
 }) {
-  return <ul aria-label="Выбор заданий из банка">{tasks.map((task) => {
+  return <ul className={styles.pickerTasks} aria-label="Выбор заданий из банка" tabIndex={0}>{tasks.map((task) => {
     const inWork = used.has(task.id);
     const checked = inWork || selected.has(task.id);
     return <li key={task.id} className={currentId === task.id ? styles.pickerActive : ''}>

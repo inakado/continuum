@@ -299,7 +299,7 @@ export class LibraryWriteService {
       where: {
         id: input.studentId,
         role: Role.student,
-        studentProfile: { isNot: null },
+        studentProfile: { is: { deletedAt: null } },
       },
       select: { id: true },
     });

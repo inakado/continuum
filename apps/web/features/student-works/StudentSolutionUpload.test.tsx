@@ -6,6 +6,7 @@ import type { SolutionAnswer } from '@continuum/shared';
 import { solutionsApi } from '@/lib/assessment/solutions.api';
 import StudentSolutionUpload from './StudentSolutionUpload';
 import { useSolutionPhotos } from './use-solution-photos';
+import StudentPhotoFeedback from './StudentPhotoFeedback';
 
 vi.mock('@/lib/assessment/solutions.api', () => ({ solutionsApi: { list: vi.fn(), upload: vi.fn(), remove: vi.fn() } }));
 const id = '00000000-0000-4000-8000-000000000001';
@@ -14,7 +15,7 @@ const added: SolutionAnswer = { ...empty, revision: 1, photos: [{ id, contentTyp
 function Harness() {
   const controller = useSolutionPhotos(id, true);
   return <><StudentSolutionUpload taskId={id} controller={controller} disabled={false} />
-    {controller.error && <button onClick={() => void controller.flush()}>Повторить</button>}
+    {controller.error && <button onClick={() => void controller.flush()}>Повторить</button>}<StudentPhotoFeedback photos={controller} />
   </>;
 }
 function show(answer = empty) {
@@ -98,4 +99,47 @@ it('confirms a photo deletion, leaves it on cancellation, and retries the same p
   expect(solutionsApi.remove).toHaveBeenCalledTimes(2);
   expect(vi.mocked(solutionsApi.remove).mock.calls[0]).toEqual(vi.mocked(solutionsApi.remove).mock.calls[1]);
   expect(screen.queryByRole('button', { name: 'Открыть фото 1' })).not.toBeInTheDocument();
+});
+
+it('shows each file state, stops at the failed file and resumes without uploading accepted files again', async () => {
+  let finish!: (value: SolutionAnswer[]) => void;
+  vi.mocked(solutionsApi.upload).mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }))
+    .mockRejectedValueOnce(new TypeError('offline')).mockResolvedValueOnce([{ ...added, revision: 2 }]).mockResolvedValueOnce([{ ...added, revision: 3 }]);
+  show();
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Добавить фото' })).toBeEnabled());
+  fireEvent.change(screen.getByLabelText('Выбрать фотографии решения'), { target: { files: [1, 2, 3].map((n) => new File(['abc'], `page-${n}.png`, { type: 'image/png' })) } });
+  const queue = screen.getByRole('list', { name: 'Очередь загрузки фотографий' });
+  await waitFor(() => expect(queue).toHaveTextContent('page-1.pngЗагружается…'));
+  expect(queue).toHaveTextContent('page-2.pngВ очереди');
+  expect(queue).toHaveTextContent('page-3.pngВ очереди');
+  await act(async () => finish([added]));
+  await screen.findByText('Не загружено');
+  expect(screen.getByText('Загружено файлов: 1 из 3')).toBeVisible();
+  expect(solutionsApi.upload).toHaveBeenCalledTimes(2);
+  const failedId = vi.mocked(solutionsApi.upload).mock.calls[1][2];
+  expect(screen.getByRole('button', { name: 'Открыть фото 1' })).toBeVisible();
+  vi.mocked(solutionsApi.list).mockResolvedValue([added]);
+  fireEvent.click(screen.getByRole('button', { name: 'Обновить фото и повторить' }));
+  await screen.findByText('Загружено файлов: 3 из 3');
+  const calls = vi.mocked(solutionsApi.upload).mock.calls;
+  expect(calls.map((call) => call[3].name)).toEqual(['page-1.png', 'page-2.png', 'page-2.png', 'page-3.png']);
+  expect(calls[2][2]).toBe(failedId);
+  expect(calls.map((call) => call[4].revision)).toEqual([0, 1, 1, 2]);
+});
+
+it('keeps pending files when refreshing fails and discards only files that were not accepted', async () => {
+  vi.mocked(solutionsApi.upload).mockResolvedValueOnce([added]).mockRejectedValue(new TypeError('offline'));
+  show();
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Добавить фото' })).toBeEnabled());
+  fireEvent.change(screen.getByLabelText('Выбрать фотографии решения'), { target: { files: [1, 2].map((n) => new File(['abc'], `page-${n}.png`, { type: 'image/png' })) } });
+  await screen.findByText('Не загружено');
+  vi.mocked(solutionsApi.list).mockRejectedValue(new TypeError('offline'));
+  fireEvent.click(screen.getByRole('button', { name: 'Обновить фото и повторить' }));
+  await waitFor(() => expect(solutionsApi.list).toHaveBeenCalledTimes(2));
+  expect(solutionsApi.upload).toHaveBeenCalledTimes(2);
+  expect(screen.getByText('page-2.png')).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Убрать незагруженные' }));
+  expect(screen.queryByText('page-2.png')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Открыть фото 1' })).toBeVisible();
+  expect(solutionsApi.remove).not.toHaveBeenCalled();
 });

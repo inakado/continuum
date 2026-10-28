@@ -1,11 +1,14 @@
+import { AssessmentBankBulkDeleteSchema, AssessmentBankBulkRestoreSchema, AssessmentBankBulkDeletionSchema, AssessmentBankBulkRestoredSchema, type AssessmentBankBulkDelete, type AssessmentBankBulkRestore } from '@continuum/shared';
 import { AssessmentBankDeleteResultSchema, AssessmentBankRestoreResultSchema, AssessmentBankListSchema, AssessmentImportPreviewSchema, AssessmentImportResultSchema, AssessmentTaskViewSchema, AssessmentDuplicateHintsSchema, type AssessmentBankDelete, type AssessmentBankRestore, type AssessmentBankQuery } from '@continuum/shared';
 import { apiRequest, apiRequestParsed, ApiError } from '@/lib/api/client';
 
 const root = '/teacher/assessment-bank';
 const base = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
-const queryString = (query: AssessmentBankQuery) => new URLSearchParams(Object.entries(query).filter(([, value]) => value !== undefined && value !== '').map(([key, value]) => [key, String(value)])).toString();
+const queryString = (query: AssessmentBankQuery) => new URLSearchParams(Object.entries(query).filter(([, value]) => value !== undefined && value !== '').map(([key, value]) => [key, Array.isArray(value) ? JSON.stringify(value) : String(value)])).toString();
 
 export const teacherBankApi = {
+  removeMany: (input: AssessmentBankBulkDelete) => apiRequestParsed(`${root}/tasks/bulk-delete`, AssessmentBankBulkDeletionSchema, { method: 'POST', body: AssessmentBankBulkDeleteSchema.parse(input) }),
+  restoreMany: (input: AssessmentBankBulkRestore) => apiRequestParsed(`${root}/tasks/bulk-restore`, AssessmentBankBulkRestoredSchema, { method: 'POST', body: AssessmentBankBulkRestoreSchema.parse(input) }),
   duplicates: (id: string) => apiRequestParsed(`${root}/imports/${id}/duplicates`, AssessmentDuplicateHintsSchema),
   remove: (id: string, input: AssessmentBankDelete) => apiRequestParsed(`${root}/tasks/${id}`, AssessmentBankDeleteResultSchema, { method: 'DELETE', body: input }),
   restore: (id: string, input: AssessmentBankRestore) => apiRequestParsed(`${root}/tasks/${id}/restore`, AssessmentBankRestoreResultSchema, { method: 'POST', body: input }),

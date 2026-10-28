@@ -1,5 +1,6 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render as baseRender, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { SchoolClass, TeacherStudent } from "@continuum/shared";
 import TeacherStudentsScreen from "./TeacherStudentsScreen";
@@ -13,7 +14,7 @@ vi.mock("./use-teacher-students", () => {
     useSchoolClasses: () => ({ data: { classes: data.classes } }),
     useSetStudentActive: mutation, useSetStudentAccess: mutation, useSetStudentClass: mutation,
     useUpdateSchoolClass: mutation, useResetStudentPassword: mutation,
-    useDeleteSchoolClass: mutation, useDeleteStudent: mutation,
+    useDeleteSchoolClass: mutation,
   };
 });
 afterEach(() => { cleanup(); data.classes = []; data.students = []; });
@@ -53,3 +54,5 @@ it("omits empty class groups and keeps all-pupils and no-class filters", () => {
   expect(select.getByRole("option", { name: "Все ученики" })).toBeInTheDocument();
   expect(select.getByRole("option", { name: "Без класса" })).toBeInTheDocument();
 });
+
+function render(ui: Parameters<typeof baseRender>[0]) { return baseRender(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>{ui}</QueryClientProvider>); }

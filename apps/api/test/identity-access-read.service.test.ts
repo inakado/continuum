@@ -33,7 +33,7 @@ describe('IdentityAccessReadService', () => {
     });
     expect(prisma.user.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { role: 'student' },
+        where: { role: 'student', studentProfile: { is: { deletedAt: null } } },
       }),
     );
   });

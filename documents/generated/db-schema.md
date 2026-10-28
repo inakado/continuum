@@ -488,6 +488,9 @@
 
 | Field | Type | Attributes |
 | --- | --- | --- |
+| `deletedAt` | `DateTime?` | `@map("deleted_at")` |
+| `lifecycleRevision` | `Int` | `@default(1) @map("lifecycle_revision")` |
+| `deletedWasActive` | `Boolean?` | `@map("deleted_was_active")` |
 | `userId` | `String` | `@id @map("user_id") @db.Uuid` |
 | `leadTeacherId` | `String` | `@map("lead_teacher_id") @db.Uuid` |
 | `firstName` | `String?` | `@map("first_name")` |

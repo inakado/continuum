@@ -11,3 +11,4 @@ export * from './contracts/assessment-assignments';
 export * from './contracts/assessment-solutions';
 export * from './contracts/assessment-statistics';
 export * from './contracts/reviewer';
+export * from './contracts/bulk-actions';

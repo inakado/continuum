@@ -59,3 +59,11 @@ it('does not delay filters, pagination or a restored initial URL', async () => {
   mount({ search: 'другая работа', topic: 'МКТ', page: 2 }); await advance();
   expect(fetcher).toHaveBeenCalledTimes(4);
 });
+
+it('serializes a path containing punctuation as JSON rather than a comma-joined label', async () => {
+  const fetcher = vi.fn(async (_url: string) => reply()); vi.stubGlobal('fetch', fetcher);
+  const topicPath = ['Механика, движение', 'Графики / координаты'];
+  mount({ search: '', topic: '', topicPath, page: 1 }); await advance();
+  const url = new URL(fetcher.mock.calls[0][0]);
+  expect(JSON.parse(url.searchParams.get('topicPath')!)).toEqual(topicPath);
+});

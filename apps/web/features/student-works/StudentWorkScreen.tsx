@@ -31,8 +31,9 @@ function SaveStatus({ attempt }: { attempt: ReturnType<typeof useStudentAttempt>
   return <span role="status" className={styles.muted}>{text}</span>;
 }
 
-function PlayerStatus({ attempt, photos }: { attempt: ReturnType<typeof useStudentAttempt>; photos: StudentSolutionPhotos }) {
-  if (photos.busy || photos.error) return <span role="status" className={styles.muted}>{photos.busy ? 'Загружаем фото…' : 'Фото не сохранены'}</span>;
+function PlayerStatus({ attempt, photos, onPhotos }: { attempt: ReturnType<typeof useStudentAttempt>; photos: StudentSolutionPhotos; onPhotos: (id: string) => void }) {
+  if (photos.error && photos.pendingTaskId) return <button className={styles.textButton} onClick={() => onPhotos(photos.pendingTaskId!)}>Решение не сохранено · К задаче</button>;
+  if (photos.busy || photos.error || photos.readError) return <span role="status" className={styles.muted}>{photos.busy ? 'Загружаем фото…' : 'Не удалось обновить фото'}</span>;
   return attempt.state.status !== 'completed' ? <SaveStatus attempt={attempt} /> : null;
 }
 
@@ -73,11 +74,11 @@ function StudentWorkPlayer({ initial, onReload, reloadError, onUnavailable, entr
   const blocked = attempt.finishing || leave.leaving || expired || Boolean(draft.candidate);
   return <StudentWorksShell beforeLeave={leave.request}>
     <StudentLeaveDialog open={leave.failed} decide={leave.decide} />
-    {expired && principal.id && <StudentReauthenticate owner={principal.id} login={principal.login} onReady={() => { attempt.retry(); void photos.reload(); void photos.flush(); }} />}
+    {expired && principal.id && <StudentReauthenticate owner={principal.id} login={principal.login} onReady={() => { attempt.retry(); void photos.retry(); }} />}
     <Link className={styles.textButton} href="/student/works">К работам</Link>
     {reloadError && <p className={styles.error} role="alert">{apiErrorMessage(reloadError, 'Не удалось загрузить сохранённую работу. Изменения этой вкладки сохранены на экране.')}</p>}
     <div className={styles.heading}><div><h1>{initial.title}</h1><p>Версия {initial.versionNumber} · Заданий: {initial.taskCount}</p></div>
-      <PlayerStatus attempt={attempt} photos={photos} />
+      <PlayerStatus attempt={attempt} photos={photos} onPhotos={(id) => setRequestedTask((previous) => ({ id, request: (previous?.request ?? 0) + 1 }))} />
     </div>
     {state.status === 'completed' && !hasExtended ? <WorkResult result={state.result} /> : <>
       {state.status === 'completed' && <WorkResult result={state.result} mixed />}

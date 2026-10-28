@@ -87,7 +87,7 @@
 .intro h1 {
   margin: 0;
   color: var(--catalog-heading);
-  font-family: var(--font-inter), Inter, system-ui, sans-serif;
+  font-family: var(--font-ui), system-ui, sans-serif;
   font-size: 40px;
   font-weight: 700;
   letter-spacing: -0.04em;
@@ -109,9 +109,9 @@
   min-height: 42px;
   padding: 0 18px;
   border: 1px solid var(--catalog-accent);
-  border-radius: 0;
+  border-radius: var(--catalog-control-radius);
   background: var(--catalog-accent);
-  color: #fff;
+  color: var(--catalog-on-accent);
   font: inherit;
   font-size: 13px;
   font-weight: 600;
@@ -154,7 +154,7 @@
   min-height: 38px;
   padding: 0 11px;
   border: 1px solid var(--catalog-border-strong);
-  border-radius: 0;
+  border-radius: var(--catalog-control-radius);
   background: var(--catalog-paper);
   color: var(--catalog-ink);
   font: inherit;
@@ -200,7 +200,7 @@
 }
 
 .sectionHeading > button[data-library-delete] { grid-column: -2 / -1; grid-row: 1; }
-.artifactActions button[data-library-delete] { color: #a33a32; }
+.artifactActions button[data-library-delete] { color: var(--catalog-danger); }
 .deleteLesson { margin-top: 24px; padding-top: 16px; border-top: 1px solid #e3e5e8; }
 
 .sectionToggle,
@@ -291,8 +291,8 @@
 }
 
 .lessons li.selectedLesson {
-  box-shadow: inset 3px 0 0 var(--catalog-accent);
-  background: #eef6f3;
+  box-shadow: inset 0 0 0 1px var(--catalog-selected-border);
+  background: var(--catalog-selected);
 }
 
 .lessonSelect {
@@ -331,7 +331,7 @@
 }
 
 .formatSlot {
-  color: var(--catalog-accent);
+  color: var(--catalog-muted);
   font-size: 11px;
 }
 
@@ -505,7 +505,7 @@
   gap: 10px;
   min-height: 68px;
   padding: 0 14px;
-  border: 1px dashed #cbd0d6;
+  border: 1px dashed var(--catalog-control-border);
 }
 
 .artifactNote {
@@ -517,7 +517,8 @@
 
 .artifactActions {
   display: flex;
-  gap: 18px;
+  flex-wrap: wrap;
+  gap: 8px;
   margin: 15px 0 0 46px;
 }
 
@@ -677,3 +678,18 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Workspace actions use the shared palette; geometry stays local. */
+.teacherNav a[aria-current="page"] { color: var(--catalog-nav-current); }
+.teacherNav a[aria-current="page"]::after { background: var(--catalog-nav-current); }
+.artifactActions button:not([data-library-delete]) {
+  min-height: 36px; padding: 6px 10px; border: 1px solid var(--catalog-action-border);
+  border-radius: var(--catalog-control-radius); color: var(--catalog-accent); background: var(--catalog-paper);
+}
+.artifactActions button:not([data-library-delete]):hover:not(:disabled) {
+  background: var(--catalog-selected); border-color: var(--catalog-accent); text-decoration: none;
+}
+.page :is(button, input, a):focus-visible { outline: 2px solid var(--catalog-accent); outline-offset: 3px; }
+.inspectorState button:is(:hover, :focus-visible):not(:disabled) { color: var(--catalog-on-accent); }
+
+.artifactActions button[data-library-delete]:hover:not(:disabled) { color: var(--catalog-danger-hover); }

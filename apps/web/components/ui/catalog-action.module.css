@@ -1,0 +1,36 @@
+.primary, .secondary {
+  background: var(--catalog-button-bg);
+  border-color: var(--catalog-button-border);
+  color: var(--catalog-button-text);
+  border-radius: var(--catalog-control-radius);
+  text-decoration: none;
+}
+.primary {
+  --catalog-button-bg: var(--catalog-accent);
+  --catalog-button-border: var(--catalog-accent);
+  --catalog-button-text: var(--catalog-on-accent);
+}
+.primary:hover:not(:disabled) {
+  --catalog-button-bg: var(--catalog-accent-hover);
+  --catalog-button-border: var(--catalog-accent-hover);
+}
+.secondary {
+  --catalog-button-bg: var(--catalog-paper);
+  --catalog-button-border: var(--catalog-action-border);
+  --catalog-button-text: var(--catalog-accent);
+}
+.secondary:hover:not(:disabled):not(:has(input:disabled)) {
+  --catalog-button-bg: var(--catalog-selected);
+  --catalog-button-border: var(--catalog-accent);
+  --catalog-button-text: var(--catalog-accent-hover);
+}
+.primary:disabled, .secondary:disabled, .secondary:has(input:disabled) {
+  --catalog-button-bg: var(--catalog-disabled-bg);
+  --catalog-button-border: var(--catalog-disabled-border);
+  --catalog-button-text: var(--catalog-disabled-text);
+  cursor: default;
+}
+.primary:focus-visible, .secondary:focus-visible {
+  outline: 2px solid var(--catalog-accent);
+  outline-offset: 3px;
+}

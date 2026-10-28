@@ -10,7 +10,7 @@ export class AssignmentRosterService {
     const [classes, assigned, recipients] = await Promise.all([
       tx.schoolClass.findMany({ where: { isArchived: false, ...(classIds ? { id: { in: classIds } } : {}) }, orderBy: [{ academicYear: 'desc' }, { title: 'asc' }], select: {
         id: true, title: true, grade: true, academicYear: true,
-        students: { select: { user: { select: { id: true, name: true, login: true, isActive: true } } }, orderBy: [{ user: { name: 'asc' } }, { userId: 'asc' }] },
+        students: { where: { deletedAt: null }, select: { user: { select: { id: true, name: true, login: true, isActive: true } } }, orderBy: [{ user: { name: 'asc' } }, { userId: 'asc' }] },
       } }),
       versionId ? tx.assessmentAssignment.findMany({ where: { versionId }, select: { id: true, classId: true } }) : [],
       versionId ? tx.assessmentRecipient.findMany({ where: { versionId }, select: { studentId: true } }) : [],

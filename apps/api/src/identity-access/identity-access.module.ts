@@ -7,9 +7,11 @@ import { TeacherClassesController } from './teacher-classes.controller';
 import { SchoolClassesReadService } from './school-classes-read.service';
 import { SchoolClassesWriteService } from './school-classes-write.service';
 
+import { StudentLifecycleService } from './student-lifecycle.service';
+
 @Module({
   imports: [AuthModule],
   controllers: [TeacherStudentsController, TeacherClassesController],
-  providers: [IdentityAccessReadService, IdentityAccessWriteService, SchoolClassesReadService, SchoolClassesWriteService],
+  providers: [StudentLifecycleService, IdentityAccessReadService, IdentityAccessWriteService, SchoolClassesReadService, SchoolClassesWriteService],
 })
 export class IdentityAccessModule {}

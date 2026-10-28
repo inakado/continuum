@@ -10,7 +10,7 @@
 - `CONTEXT.md` — канонический словарь нового домена библиотеки занятий.
 - `DESIGN.md` — root Impeccable/Stitch design context для AI-инструментов: machine-readable tokens, visual rules и component snippets текущей UI-системы.
 - `PRODUCT.md` — назначение продукта, аудитории, действующая библиотека и границы нового направления проверочных работ, визуальные принципы.
-- `design-qa.md` — визуальные проверки каталогов и учительских экранов, ограничения текущей проверки.
+- `design-qa.md` — история датированных визуальных проверок; текущий дизайн задают DESIGN-документы.
 
 
 
@@ -43,6 +43,9 @@
 ## Каталоги
 
 - `documents/research/` — исследования внешних продуктов и источников; выводы не заменяют утверждённые требования и работающие контракты.
+- `documents/research/2026-10-28-import-to-work.md` — референсы Classtime/Formative/Wayground/Moodle, текущий импорт и конструктор, предложение необязательного создания заполненной работы из пакета; без реализации.
+- `documents/research/2026-10-28-hierarchical-topic-filters.md` — Ant Design, Element Plus, живое демо Algolia, Linear и Primer: иерархический выбор темы, мобильная адаптация и ограничения текущего API; исследование без изменения приложения.
+- `documents/research/2026-10-28-login-visual-references.md` — Apple, Shopify, Linear и Raycast конца 2025–2026, варианты атмосферного входа React Bits и сдержанного рабочего UI; завершённое исследование и источники выбранного визуального направления.
 - `documents/research/2026-10-25-react-performance.md` — React Doctor 0.9.18, React/browser/JS измерения до/после, разбор замечаний, две подтверждённые оптимизации и ограничения.
 - `documents/research/2026-10-24-performance-audit.md` — аудит кода, локальные измерения 30/90×30 и общего списка учеников, ограничения замеров и приоритеты небольших оптимизаций; не реализация.
 - `documents/research/2026-10-24-performance-references.md` — первичные практики React/Next/Prisma/TanStack, пример Documenso и проверка возможностей/сетевых функций React Doctor.
@@ -57,7 +60,18 @@
 - `scripts/assessments/` — локальная сборка ZIP и PDF-предпросмотра пробного пакета, без серверного TeX.
 - `scripts/reviewer/` — локальный клиент проверяющего, тесты и сборка автономного `output/continuum-reviewer-client.zip` с инструкцией, без секретов.
 
+- `documents/research/2026-10-28-photo-ux-components.md` — первичные UX-референсы и интеграция очереди/фильтров/обновления фото, проверка команды CI.
+- `documents/exec-plans/completed/2026-10-28-photo-ux-ci.md` — первый UX-пакет фото и исправление security gate.
+- `documents/research/2026-10-28-project-ux-audit.md` — аудит готовности пилота, UI/UX обеих ролей, выполненной уборки, проверок и приоритетов roadmap.
+- `documents/research/2026-10-28-lms-ux-evidence.md` — официальные механики Classroom/Canvas/Moodle/Gradescope для проверки готовности пилота и UX-пробелов.
 - `documents/exec-plans/active/` — активные execution plans.
+- `documents/exec-plans/active/2026-10-28-production-release.md` — разрешённый выпуск согласованного UI/UX и security-пакета: настоящий CI, резервные копии БД/S3 и проверка сохранности.
+- `documents/exec-plans/completed/2026-10-28-auth-security-update.md` — исправление high/critical обновлением Better Auth без исключений, совместимость старых сессий/ключей и локальная проверка quality/security gates.
+- `documents/exec-plans/completed/2026-10-28-pilot-ux-audit.md` — аудит готовности ученического пилота, UI/UX, документации и гигиены.
+- `documents/exec-plans/completed/2026-10-28-bulk-delete-undo.md` — массовое удаление задач/учеников и обратимое восстановление.
+- `documents/exec-plans/completed/2026-10-28-consistent-bank-scroll.md` — единые scroll-области импорта, банка и выбора заданий в работу, доступность и проверки.
+- `documents/exec-plans/completed/2026-10-28-import-work.md` — локально реализованная работа из всех задач подтверждённого пакета, атомарное создание и проверки перехода в редактор.
+- `documents/exec-plans/completed/2026-10-28-bank-topic-filters.md` — локально реализованная иерархия тем и компактные фильтры банка, проверки и удаление временного прототипа.
 - `documents/exec-plans/completed/2026-10-25-session-handoff.md` — передача в новый чат: локальный пакет после выпуска 24.10, выполненные проверки, оставшаяся работа, правила UI/UX и измеримой оптимизации.
 - `documents/exec-plans/completed/2026-10-24-react-performance.md` — завершённый локальный React/JavaScript-проход: измерения, шапка, shared tree shaking, проверки и границы выпуска.
 - `documents/exec-plans/completed/2026-10-24-small-performance-improvements.md` — локально завершённые оптимизации PERF-01: поиск банка, глобальный CSS и gzip JSON, проверки и границы выпуска.
@@ -104,3 +118,5 @@
 - `documents/exec-plans/completed/2026-10-24-reviewer-implementation-history.md` — контракт, решения и реализация локальной проверки; исторический срез 24.10.2026.
 - `documents/exec-plans/completed/2026-10-24-ux-roadmap-history.md` — исходный UX-01–15, выполненные пункты и исключения пользователя; исторический срез 24.10.2026.
 - `documents/exec-plans/completed/2026-10-24-resolved-debt-history.md` — закрытые интерфейсные и конкурентные дефекты; исторический срез 24.10.2026.
+
+- `documents/exec-plans/completed/2026-10-28-steel-ui.md` — единые токены стального акцента, состояния действий, визуальные проверки обеих ролей и точный откат.

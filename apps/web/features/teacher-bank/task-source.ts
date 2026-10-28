@@ -10,9 +10,11 @@ export function taskSourceDetails(source: Source): [string, string][] {
   return [
     ['Классификация', exam ? 'ЕГЭ' : source.exam === 'none' ? 'Не ЕГЭ' : 'Не указана'],
     ['Вид источника', source.kind ? kind[source.kind] : undefined],
-    ['Источник', source.provider], ['Номер в источнике', source.externalId], [source.kind === 'taskbook' ? 'Название задачника' : 'Подборка', source.collection],
-    ['Номер в подборке', source.taskNumber?.toString()], ['Раздел источника', source.sectionCode],
-    ['Год ЕГЭ', source.examYear?.toString()], ['Номер задания ЕГЭ', source.examTaskNumber?.toString()],
+    [source.kind === 'taskbook' ? 'Автор / составитель' : source.kind === 'original' ? 'Автор' : source.kind === 'platform' ? 'Платформа' : 'Источник', source.provider],
+    [source.kind === 'taskbook' ? 'Номер задачи в задачнике' : 'ID / номер в источнике', source.externalId],
+    [source.kind === 'taskbook' ? 'Название задачника' : source.kind === 'platform' ? 'Подраздел источника' : 'Раздел / сборник', source.kind === 'original' ? undefined : source.collection],
+    [source.kind === 'platform' || source.sectionCode ? 'Номер задачи в подразделе' : 'Порядковый номер задачи', source.taskNumber?.toString()], ['Код подраздела', source.sectionCode],
+    ['Год формата ЕГЭ', source.examYear?.toString()], ['Номер задания ЕГЭ', source.examTaskNumber?.toString()],
   ].filter((entry): entry is [string, string] => Boolean(entry[1]));
 }
 export const taskTypeLabels = { short_number: 'Числовой ответ', short_text: 'Текстовый ответ', single_choice: 'Один вариант', multiple_choice: 'Несколько вариантов', matching: 'Соответствие', extended: 'Развёрнутая задача' } as const;

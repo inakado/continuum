@@ -18,6 +18,27 @@ vi.mock('@/features/teacher-bank/use-teacher-bank', () => ({
 }));
 afterEach(() => { cleanup(); vi.clearAllMocks(); fixture.failed = false; fixture.version = 1; });
 
+it('keeps checked tasks and list position when switching the preview in the selection review', () => {
+  const add = vi.fn();
+  render(<WorkBankPicker existing={[]} grade="grade_10_11" onClose={vi.fn()} onAdd={add} />);
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Выбрать: Давление' }));
+  fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Температура' } });
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Выбрать: Температура' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Посмотреть' }));
+  const list = screen.getByRole('list', { name: 'Выбор заданий из банка' });
+  const condition = screen.getByRole('region', { name: 'Условие выбранного задания' });
+  list.scrollTop = 200;
+  condition.scrollTop = 120;
+  fireEvent.click(screen.getByRole('button', { name: /Температура/ }));
+  expect(screen.getByText('Условие b, версия 2')).toBeVisible();
+  expect(screen.getByRole('list', { name: 'Выбор заданий из банка' })).toBe(list);
+  expect(list.scrollTop).toBe(200);
+  expect(screen.getByRole('region', { name: 'Условие выбранного задания' }).scrollTop).toBe(0);
+  expect(screen.getByRole('checkbox', { name: 'Выбрать: Давление' })).toBeChecked();
+  expect(screen.getByRole('checkbox', { name: 'Выбрать: Температура' })).toBeChecked();
+  expect(add).not.toHaveBeenCalled();
+});
+
 it('reviews selections across filters and pages, removes a check and adds only the remaining pinned versions', async () => {
   const add = vi.fn();
   render(<WorkBankPicker existing={[]} grade="grade_10_11" onClose={vi.fn()} onAdd={add} />);

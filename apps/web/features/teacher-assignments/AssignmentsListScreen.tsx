@@ -20,7 +20,7 @@ export default function AssignmentsListScreen() {
     {rows.length ? <ul className={styles.assignmentList}>{rows.map((item) => <li key={item.versionId}><Link href={`/teacher/works/assignments/${item.versionId}`}>
       <div className={styles.assignmentIdentity}><strong>{item.title}</strong><p>Версия {item.versionNumber} · {item.classes.map((group) => group.title).join(', ')}</p></div><div className={styles.assignmentProgress}>
         {item.automaticTaskCount > 0 && <span>Тест завершили: {item.completedCount} из {item.studentCount}</span>}
-        {item.extendedTaskCount > 0 && <><span>Фото ко всем задачам: у {item.allPhotosCount} из {item.studentCount}</span><span>Все проверки опубликованы: у {item.allReviewsPublishedCount} из {item.studentCount}</span></>}
+        {item.extendedTaskCount > 0 && <><span>Все решения: {item.allPhotosCount} из {item.studentCount} учеников</span><span>Решения проверены: {item.allReviewsPublishedCount} из {item.studentCount} учеников</span></>}
       </div>
     </Link></li>)}</ul> : query.data && <div className={ui.empty}><h2>{search ? 'Ничего не найдено' : 'Пока нет назначений'}</h2>{!search && <p>Выберите работу во вкладке «Мои работы» и назначьте её классам.</p>}</div>}
   </WorksShell>;

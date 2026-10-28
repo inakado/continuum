@@ -1,0 +1,14 @@
+.bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; min-height: 48px; padding: 4px 0; border-top: 1px solid var(--catalog-border); color: var(--catalog-ink); font-size: 13px; }
+.selection { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; cursor: pointer; }
+.checkbox { display: inline-flex; align-items: center; justify-content: center; width: 36px; min-height: 44px; flex-shrink: 0; cursor: pointer; }
+.checkbox input { width: 18px; height: 18px; margin: 0; accent-color: var(--catalog-accent); cursor: pointer; }
+.checkbox input:focus-visible, .bar button:focus-visible, .notice button:focus-visible { outline: 2px solid var(--catalog-accent); outline-offset: 3px; }
+.actions { display: flex; align-items: center; gap: 12px; }
+.bar button, .notice button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; min-width: 40px; border: 0; padding: 6px 4px; background: transparent; color: var(--catalog-accent); font: inherit; font-size: 13px; cursor: pointer; }
+.bar .danger { color: var(--catalog-danger); }
+.bar button:hover:not(:disabled), .notice button:hover:not(:disabled) { text-decoration: underline; text-underline-offset: 3px; }
+.bar button:disabled, .checkbox input:disabled, .notice button:disabled { opacity: .5; cursor: default; }
+.notice { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 20px; padding: 12px 0; border-block: 1px solid var(--catalog-border); font-size: 14px; }
+.message { flex: 1; min-width: 160px; }
+.message p { margin: 0; line-height: 1.5; }
+.error { color: var(--catalog-danger); }

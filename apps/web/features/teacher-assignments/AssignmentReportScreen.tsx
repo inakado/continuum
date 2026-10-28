@@ -18,16 +18,19 @@ import AssignedClasses from './AssignedClasses';
 import { useReportFilters } from './use-report-filters';
 import { useAuthSession } from '@/features/auth/useAuthSession';
 import AssignmentProgressRow from './AssignmentProgressRow';
+import { matchesPhotoFilter, photoFilters, type PhotoFilter } from './report-photo-filters';
 
 const filters = [{ id: 'all', label: 'Все' }, { id: 'not_started', label: 'Не начали' }, { id: 'in_progress', label: 'В работе' }, { id: 'completed', label: 'Завершили' }] as const;
 export function AssignmentReportView({ data, onRemovedLast, userId }: { data: AssignmentReport; onRemovedLast?: () => void; userId?: string }) {
   const context = useReportFilters(data.versionId, userId);
-  const { search, status, page, update } = context;
+  const { search, status, photos, page, update } = context;
   const classId = data.classes.some((item) => item.id === context.classId) ? context.classId : '';
   const [viewing, setViewing] = useState<{ id: string; name: string } | null>(null);
   const query = search.trim().toLocaleLowerCase('ru');
   const scoped = data.recipients.filter((item) => (!classId || item.assignmentId === classId) && `${item.name} ${item.login}`.toLocaleLowerCase('ru').includes(query));
-  const filtered = scoped.filter((item) => data.automaticTaskCount === 0 || status === 'all' || item.status === status);
+  const photoScoped = scoped.filter((item) => matchesPhotoFilter(item.progress, data.extendedTaskCount, photos));
+  const testScoped = scoped.filter((item) => data.automaticTaskCount === 0 || status === 'all' || item.status === status);
+  const filtered = testScoped.filter((item) => matchesPhotoFilter(item.progress, data.extendedTaskCount, photos));
   const pages = Math.max(1, Math.ceil(filtered.length / 20));
   const activePage = Math.min(page, pages);
   const shown = filtered.slice((activePage - 1) * 20, activePage * 20);
@@ -38,11 +41,11 @@ export function AssignmentReportView({ data, onRemovedLast, userId }: { data: As
     </div>
     <div className={styles.filters}><label>Класс<WorkSelect aria-label="Класс" value={classId} onChange={(event) => update({ classId: event.target.value, page: 1 })}><option value="">Все классы</option>{data.classes.map((item) => <option key={item.id} value={item.id}>{item.title} · {item.academicYear}–{item.academicYear + 1}{item.classId ? '' : ' · удалён'}</option>)}</WorkSelect></label>
       <label>Поиск<SearchField label="Поиск ученика" placeholder="ФИО или логин" maxLength={200} value={search} onValueChange={context.changeSearch} /></label>
-      {data.automaticTaskCount > 0 && <label>Тестовая часть<WorkSelect aria-label="Тестовая часть" value={status} onChange={(event) => update({ status: event.target.value as (typeof filters)[number]['id'], page: 1 })}>{filters.map((item) => <option key={item.id} value={item.id}>{item.label} — {item.id === 'all' ? scoped.length : scoped.filter((row) => row.status === item.id).length}</option>)}</WorkSelect></label>}
+      {data.automaticTaskCount > 0 && <label>Тестовая часть<WorkSelect aria-label="Тестовая часть" value={status} onChange={(event) => update({ status: event.target.value as (typeof filters)[number]['id'], page: 1 })}>{filters.map((item) => <option key={item.id} value={item.id}>{item.label} — {item.id === 'all' ? photoScoped.length : photoScoped.filter((row) => row.status === item.id).length}</option>)}</WorkSelect></label>}
+      {data.extendedTaskCount > 0 && <label>Развёрнутая часть<WorkSelect aria-label="Развёрнутая часть" value={photos} onChange={(event) => update({ photos: event.target.value as PhotoFilter, page: 1 })}>{photoFilters.map((item) => <option key={item.id} value={item.id}>{item.label} — {testScoped.filter((row) => matchesPhotoFilter(row.progress, data.extendedTaskCount, item.id)).length}</option>)}</WorkSelect></label>}
     </div>
     <AssignedClasses data={data} onRemoved={(last) => { update({ classId: '', page: 1 }, true); setViewing(null); if (last) onRemovedLast?.(); }} />
-    {data.extendedTaskCount > 0 && <p className={styles.muted}>Фото считаются по задачам. «Опубликовано» — проверки, доступные ученику.</p>}
-    {shown.length ? <table className={styles.reportTable}><thead><tr><th scope="col">Ученик</th><th scope="col">Класс</th>{data.automaticTaskCount > 0 && <th scope="col">Тестовая часть</th>}{data.extendedTaskCount > 0 && <><th scope="col">Решения</th><th scope="col">Проверка</th></>}</tr></thead><tbody>{shown.map((item) => <AssignmentProgressRow key={item.id} item={item} data={data} onSolutions={() => setViewing({ id: item.id, name: item.name })} />)}</tbody></table> : <p className={ui.empty}>По этим фильтрам учеников нет.</p>}
+    {shown.length ? <table className={styles.report}><thead><tr><th scope="col">Ученик</th><th scope="col">Класс</th>{data.automaticTaskCount > 0 && <th scope="col">Тестовая часть</th>}{data.extendedTaskCount > 0 && <><th scope="col">Развёрнутая часть</th><th scope="col">Проверка решений</th></>}</tr></thead><tbody>{shown.map((item) => <AssignmentProgressRow key={item.id} item={item} data={data} onSolutions={() => setViewing({ id: item.id, name: item.name })} />)}</tbody></table> : <p className={ui.empty}>По этим фильтрам учеников нет.</p>}
     <div className={styles.pagination}><span>{filtered.length ? `${(activePage - 1) * 20 + 1}–${Math.min(activePage * 20, filtered.length)} из ${filtered.length}` : '0 учеников'}</span><div><button className={ui.secondary} disabled={activePage === 1} onClick={() => update({ page: activePage - 1 })}>Назад</button><span>{activePage} / {pages}</span><button className={ui.secondary} disabled={activePage === pages} onClick={() => update({ page: activePage + 1 })}>Далее</button></div></div>
     {viewing && <StudentSolutionsPanel key={viewing.id} id={viewing.id} name={viewing.name} close={() => setViewing(null)} />}
   </>;

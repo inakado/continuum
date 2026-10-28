@@ -136,8 +136,8 @@ describe('school classes: real PostgreSQL, HTTP and Better Auth', () => {
     await api(`/teacher/students/${removedStudent.id}/password-reset`, 'POST', { requestId: randomUUID() });
     expect((await api(`/teacher/students/${removedStudent.id}`, 'DELETE', undefined, otherCookie)).status).toBe(200);
     expect((await api('/me', 'GET', undefined, studentSession)).status).toBe(401);
-    expect(await prisma.user.count({ where: { id: removedStudent.id } })).toBe(0);
-    expect(await prisma.account.count({ where: { userId: removedStudent.id } })).toBe(0);
+    expect(await prisma.user.count({ where: { id: removedStudent.id } })).toBe(1);
+    expect(await prisma.account.count({ where: { userId: removedStudent.id } })).toBe(1);
     const deleted = await api(`/teacher/classes/${classAgain.data.classId}`, 'DELETE', { deleteStudents: true }, otherCookie);
     expect(deleted.status).toBe(200); expect(deleted.data.deletedStudentsCount).toBe(1);
   }, 30000);

@@ -26,7 +26,7 @@ vi.mock("@/components/useTheme", () => ({
   }),
 }));
 
-vi.mock("@/components/Grainient", () => ({
+vi.mock("./IridescenceBackdrop", () => ({
   default: () => null,
 }));
 

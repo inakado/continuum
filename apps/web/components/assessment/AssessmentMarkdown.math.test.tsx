@@ -14,7 +14,7 @@ afterEach(() => {
 
 it('measures inline and display math in their real text context and retypesets after a width change', async () => {
   let width = 640;
-  const getMetricsFor = vi.fn((_node: HTMLElement, display: boolean) => ({ display, em: 18, ex: 9, containerWidth: width, scale: 1, family: 'Inter' }));
+  const getMetricsFor = vi.fn((_node: HTMLElement, display: boolean) => ({ display, em: 18, ex: 9, containerWidth: width, scale: 1, family: 'Medeo Sans' }));
   let fontsReady!: () => void;
   Object.defineProperty(document, 'fonts', { configurable: true, value: { ready: new Promise<void>((resolve) => { fontsReady = resolve; }) } });
   const tex2chtmlPromise = vi.fn(async (tex: string, options: { containerWidth: number }) => {

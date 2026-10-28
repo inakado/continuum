@@ -4,7 +4,7 @@
 
 ## ENG-01. Complexity budget
 
-Lint не падает, но есть девять предупреждений сверх лимита 20: shared `assessment-markdown` (23), API `parseAssessmentArchive` (29), web `StudentWorkPlayer` (24), `BankImportPanel` (21), `TeacherBankScreen` (37), `TeacherMaterialsScreen` (25), `SchoolClassWizard` (34), `TeacherStudentsScreen` (39), `WorkEditor` (25).
+Lint не падает, но есть девять предупреждений сверх лимита 20: shared `assessment-markdown` (23), API `parseAssessmentArchive` (29), web `StudentWorkPlayer` (24), `BankImportPanel` (24), `TeacherBankScreen` (39), `TeacherMaterialsScreen` (25), `SchoolClassWizard` (34), `TeacherStudentsScreen` (38), `WorkEditor` (25).
 
 Риск: труднее проверять состояния и вносить изменения. При следующей профильной работе выделять связные policy/mapping/UI-части с прежними контрактами и регрессиями; не переписывать все модули перед выпуском. Приёмка: лимит соблюдён без отключения правила и без переноса ветвления в непрозрачный общий helper.
 

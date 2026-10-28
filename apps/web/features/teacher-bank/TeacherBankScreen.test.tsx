@@ -1,5 +1,6 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import '@testing-library/jest-dom/vitest';
-import { act, cleanup, fireEvent, render, screen, within, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render as baseRender, screen, within, waitFor } from '@testing-library/react';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import TeacherBankScreen from './TeacherBankScreen';
 
@@ -25,7 +26,7 @@ vi.mock('./use-teacher-bank', () => {
   const tasks = ['Давление газа', 'Температура'].map((title, index) => ({ id: `00000000-0000-4000-8000-00000000000${index}`, stableId: `sample-${index}`, title, source, version: 1, gradeBand: 'grade_10_11', topicPath: ['МКТ'], type: 'short_number', maxPoints: 1, excerpt: 'Условие задачи' }));
   return {
     useRemoveBankTask: () => ({ isPending: false, error: null, reset: vi.fn(), mutate: vi.fn() }),
-    useTeacherBank: (query: Record<string, unknown>) => { state.query = query; return { data: { tasks: state.empty ? [] : tasks, total: state.empty ? 0 : 2, topics: ['МКТ'], sources: ['Авторское', 'Школково'], pageSize: 50 }, isPending: false }; },
+    useTeacherBank: (query: Record<string, unknown>) => { state.query = query; return { data: { tasks: state.empty ? [] : tasks, total: state.empty ? 0 : 2, topics: ['МКТ', 'Механика', 'Баллистика'], topicPaths: [['МКТ'], ['Механика', 'Кинематика', 'Баллистика']], sources: ['Авторское', 'Школково'], pageSize: 50 }, isPending: false }; },
     useTeacherBankTask: (id: string) => { state.viewedId = id; return { error: state.viewError ? new Error('Ошибка условия') : null, refetch: state.refetch, data: { id, version: 1, task: { ...tasks[id === tasks[1].id ? 1 : 0], type: 'short_number', grading: { answer: '4.83', absoluteTolerance: 0 }, unit: 'Па' }, statement: 'Найдите давление.', solution: null, images: {} } }; },
   };
 });
@@ -48,9 +49,9 @@ it('keeps source visible and separates collection, source section and EGE number
   expect(screen.getByText('Правило оценивания')).toBeVisible();
   expect(screen.getByText('Полное совпадение')).toBeVisible();
   expect(screen.getAllByText('Числовой ответ').length).toBeGreaterThan(0);
-  expect(screen.getByText('Номер в подборке')).toBeVisible();
+  expect(screen.getByText('Номер задачи в подразделе')).toBeVisible();
   expect(screen.getByText('86')).toBeVisible();
-  expect(screen.getByText('Раздел источника')).toBeVisible();
+  expect(screen.getByText('Код подраздела')).toBeVisible();
   expect(screen.getByText('7.05')).toBeVisible();
   expect(screen.getByText('Номер задания ЕГЭ')).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Следующая' }));
@@ -61,6 +62,16 @@ it('passes grade and search filters to the server-state layer', () => {
   fireEvent.click(screen.getByRole('button', { name: '8 класс' }));
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: '11121' } });
   expect(state.query).toMatchObject({ gradeBand: 'grade_8', search: '11121', page: 1 });
+});
+it('filters by a subject section or topic while preserving exam and source filters', () => {
+  history.replaceState({}, '', '/teacher/bank?exam=none&source=Авторское');
+  render(<TeacherBankScreen />);
+  fireEvent.click(screen.getByRole('button', { name: 'Все разделы и темы' }));
+  fireEvent.click(screen.getByRole('button', { name: /^Механика/ }));
+  expect(state.query.topicPath).toBeUndefined();
+  fireEvent.click(screen.getByRole('button', { name: /^Кинематика/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Баллистика' }));
+  expect(state.query).toMatchObject({ topicPath: ['Механика', 'Кинематика', 'Баллистика'], topic: '', exam: 'none', source: 'Авторское', page: 1 });
 });
 it('clears only the search and returns keyboard focus without losing other filters', () => {
   history.replaceState({}, '', '/teacher/bank?search=ма&topic=МКТ&exam=ege&source=Школково');
@@ -83,13 +94,32 @@ it('expands the reading area without losing the selected task', () => {
   fireEvent.click(screen.getByRole('button', { name: 'Вернуть список' }));
   expect(screen.getByRole('heading', { name: 'Температура' })).toBeVisible();
 });
+it('preserves the list scroll and navigation focus while opening another condition from the top', () => {
+  render(<TeacherBankScreen />);
+  const list = screen.getByRole('list', { name: 'Задания банка' });
+  const condition = screen.getByRole('region', { name: 'Условие выбранного задания' });
+  const next = screen.getByRole('button', { name: 'Следующая' });
+  list.scrollTop = 180;
+  condition.scrollTop = 120;
+  next.focus();
+  fireEvent.click(next);
+  expect(screen.getByRole('heading', { name: 'Температура' })).toBeVisible();
+  expect(screen.getByRole('list', { name: 'Задания банка' })).toBe(list);
+  expect(list.scrollTop).toBe(180);
+  expect(screen.getByRole('region', { name: 'Условие выбранного задания' }).scrollTop).toBe(0);
+  expect(screen.getByRole('button', { name: 'Следующая' })).toBe(next);
+  expect(next).toHaveFocus();
+});
 it('keeps source options available in an empty result and resets both filters', () => {
   state.empty = true;
   history.replaceState({}, '', '/teacher/bank?exam=none&source=Авторское');
   render(<TeacherBankScreen />);
   expect(screen.getByRole('heading', { name: 'Ничего не найдено' })).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: /Фильтры/ }));
   expect(screen.getByRole('option', { name: 'Школково' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Закрыть фильтр' }));
   fireEvent.click(screen.getByRole('button', { name: 'Сбросить фильтры' }));
+  fireEvent.click(screen.getByRole('button', { name: /Фильтры/ }));
   expect(location.search).toBe('');
   expect(screen.getByRole('combobox', { name: 'ЕГЭ / не ЕГЭ' })).toHaveValue('');
   expect(screen.getByRole('combobox', { name: 'Источник' })).toHaveValue('');
@@ -97,17 +127,21 @@ it('keeps source options available in an empty result and resets both filters', 
 it('combines exam and exact source filters, resets selection and restores them on return', async () => {
   const view = render(<TeacherBankScreen />);
   fireEvent.click(screen.getByRole('button', { name: 'Следующая' }));
+  fireEvent.click(screen.getByRole('button', { name: /Фильтры/ }));
   fireEvent.change(screen.getByRole('combobox', { name: 'ЕГЭ / не ЕГЭ' }), { target: { value: 'ege' } });
   fireEvent.change(screen.getByRole('combobox', { name: 'Источник' }), { target: { value: 'Школково' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Показать задачи' }));
   expect(state.query).toMatchObject({ exam: 'ege', source: 'Школково', page: 1 });
   expect(new URLSearchParams(location.search).has('task')).toBe(false);
   view.unmount(); render(<TeacherBankScreen />);
+  fireEvent.click(screen.getByRole('button', { name: /Фильтры/ }));
   expect(screen.getByRole('combobox', { name: 'ЕГЭ / не ЕГЭ' })).toHaveValue('ege');
   expect(screen.getByRole('combobox', { name: 'Источник' })).toHaveValue('Школково');
+  fireEvent.click(screen.getByRole('button', { name: 'Закрыть фильтр' }));
   act(() => history.back());
-  await waitFor(() => expect(screen.getByRole('combobox', { name: 'Источник' })).toHaveValue(''));
+  await waitFor(() => expect(state.query.source).toBeUndefined());
   act(() => history.forward());
-  await waitFor(() => expect(screen.getByRole('combobox', { name: 'Источник' })).toHaveValue('Школково'));
+  await waitFor(() => expect(state.query.source).toBe('Школково'));
 });
 
 it('restores the selected task on remount, Back and Forward without changing the API query', async () => {
@@ -121,7 +155,9 @@ it('restores the selected task on remount, Back and Forward without changing the
   await waitFor(() => expect(screen.getByRole('heading', { name: 'Давление газа' })).toBeVisible());
   act(() => history.forward());
   await waitFor(() => expect(screen.getByRole('heading', { name: 'Температура' })).toBeVisible());
+  fireEvent.click(screen.getByRole('button', { name: /Фильтры/ }));
   fireEvent.change(screen.getByRole('combobox', { name: 'Тип задания' }), { target: { value: 'short_number' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Показать задачи' }));
   expect(new URLSearchParams(location.search).has('task')).toBe(false);
 });
 
@@ -142,3 +178,5 @@ it('supports a reload into the mobile preview and returning to the list with the
   expect(preview.parentElement?.className).not.toContain('showPreview');
   expect(location.search).toBe('');
 });
+
+function render(ui: Parameters<typeof baseRender>[0]) { return baseRender(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>{ui}</QueryClientProvider>); }

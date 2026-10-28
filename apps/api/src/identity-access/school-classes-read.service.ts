@@ -9,7 +9,7 @@ export class SchoolClassesReadService {
   async getClasses(): Promise<{ classes: SchoolClass[] }> {
     const classes = await this.prisma.schoolClass.findMany({
       orderBy: [{ academicYear: 'desc' }, { grade: 'asc' }, { title: 'asc' }],
-      include: { _count: { select: { students: true } } },
+      include: { _count: { select: { students: { where: { deletedAt: null } } } } },
     });
     return { classes: classes.map((item) => ({
       id: item.id, title: item.title, grade: item.grade, academicYear: item.academicYear,
