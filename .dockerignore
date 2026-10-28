@@ -12,3 +12,8 @@ coverage
 !.env.example
 output
 documents
+release-bundle
+deploy/releases
+deploy/runtime
+deploy/current
+**/__pycache__

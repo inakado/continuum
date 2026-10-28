@@ -49,42 +49,42 @@ node --test deploy/scripts/test-nginx-gzip.mjs
 
 `deploy-on-vps.sh` не устанавливает Nginx-конфиг автоматически. При разрешённом выпуске перенести map и location-директивы в установленный domain-specific конфиг, сохранив домен/сертификаты; сделать backup, `sudo nginx -t` и только затем reload. После выпуска проверить авторизованный GET отчёта с `Accept-Encoding: gzip` и `identity`: одинаковое распакованное тело, меньший размер, прежние права/`no-store`. Для rollback вернуть backup и повторить `nginx -t` перед reload.
 
-## Ручной deploy
+## CI и готовые артефакты
 
-### Согласованный backup перед миграциями
+CI определяет fingerprint отслеживаемого кода, включая зависимости, Dockerfile, workflow и deploy-скрипты. Только явный список инертных Markdown-документов исключён; неизвестный путь требует полного quality-прохода. Изменение README не требует повторной сборки приложения.
 
-Перед выпуском сохранить вне checkout прежний revision, API image и `apps/web/.next`, затем согласованный набор PostgreSQL + S3:
+- `quality`: docs/lint/boundaries/build/typecheck/tests, затем один пакет API image + standalone web + manifest/SHA256SUMS.
+- На main готовый пакет повторно используется только из успешного CI того же repository/workflow/fingerprint, с успешными quality **и** security. Ошибка GitHub API не считается подтверждением.
+- `security` остаётся независимым свежим gate: полный `pnpm audit --audit-level=high` и Trivy HIGH/CRITICAL без исключений. Проверки безопасности не отключаются при повторном использовании или правках документации.
+- CI artifacts имеют TTL **1 день**. Истёкший/отсутствующий пакет требует ручного CI; VPS не пересобирает код автоматически.
 
-1. На короткое время остановить API, чтобы не принять запись между снимками БД и файлов. PostgreSQL и bucket не сбрасывать.
-2. Сделать `pg_dump -Fc`, проверить `pg_restore --list` и восстановление **в отдельную временную БД**, сравнить данные с исходным снимком. Временную БД удалять только по её точному имени.
-3. Скопировать S3-объекты, сохранить manifest с исходными keys, размером, Content-Type/metadata и SHA-256 содержимого; перечитать локальные копии и проверить хеши.
-4. Вернуть API даже при ошибке backup. Артефакты хранить в закрытом каталоге вне Git с файлами 0600, без cookies/паролей в журналах. Применять миграции только после успешной проверки копий.
-5. После выпуска сверить сохранность исходных записей и SHA-256 существующих S3-объектов. Новые поля аддитивной миграции не считать потерей прежних данных.
+## Ручной deploy готового пакета
 
-Проверенный пример — [выпуск 28.10.2026](../documents/exec-plans/completed/2026-10-28-production-release.md). Этот разовый release backup не заменяет регулярное внешнее резервное копирование. Старый dump нельзя автоматически восстанавливать поверх новых ученических ответов: при ошибке совместимого выпуска сначала возвращают прежний runtime.
-
-Для обычного совместимого выпуска после явного подтверждения владельца:
+На компьютере оператора нужны Node.js 24, авторизованный `gh` и существующий SSH alias `continuum-vps` с проверенным host key:
 
 ```bash
-ssh continuum-vps
-sudo -iu deploy
-cd /srv/continuum
-git fetch --all --prune
-git checkout main
-git merge --ff-only origin/main
-MIGRATIONS_APPROVED=yes APP_DOMAIN=vl-physics.ru ./deploy/scripts/deploy-on-vps.sh
+node deploy/scripts/release.mjs
+# либо полный SHA из main с успешным CI:
+node deploy/scripts/release.mjs <40-character-main-sha>
 ```
 
-Скрипт:
+Команда проверяет свежий успешный CI точного main revision и provenance артефакта, скачивает пакет, передаёт его по SSH и вызывает `deploy-on-vps.sh`. На VPS нет `pnpm install`, `docker build` или `next build`. Проверяются checksum, fingerprint, production API URL, image ID и история миграций; web переключается атомарной ссылкой. Health/readiness проверяются локально и публично. При сбое активации возвращается прежний API/web без reset БД.
 
-1. проверяет пользователя, Git, Node, pnpm и env;
-2. устанавливает frozen dependencies;
-3. поднимает PostgreSQL;
-4. собирает API, затем shared contracts и web (`pnpm build:web`);
-5. применяет Prisma migrations только при `MIGRATIONS_APPROVED=yes`;
-6. перезапускает API и `continuum-web`;
-7. проверяет локальные и публичные health/login endpoints;
-8. при заданных auth-smoke credentials проверяет Better Auth и защищённый `GET /me`.
+Для первого перехода нужен launcher `deploy/systemd/continuum-web.service`, установленный администратором после staging-проверки. Он поддерживает возврат к прежнему Next runtime, пока ещё нет предыдущего standalone-пакета. Режим `PREPARE_ONLY=yes` загружает/проверяет пакет без переключения сервисов.
+
+Кнопка `Deploy Production` вызывает тот же клиент. Для неё отдельно требуются production environment secrets `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`; host key проверяется строго. Локальная команда использует уже имеющийся SSH, новых credentials ей не нужно.
+
+## Данные и резервное копирование
+
+Обычный deploy **не создаёт** dump, копию bucket или архив web. Он сохраняет PostgreSQL volume и S3, меняет только исполняемые сборки. Новые миграции требуют `MIGRATIONS_APPROVED=yes BACKUP_CONFIRMED=yes`; при неизменной схеме подтверждения не нужны. Неполная/изменённая история миграций блокирует переключение.
+
+По решению владельца основной механизм резервирования — Beget, отдельно от релизов. Автокопии VPS доступны в панели; их периодичность, актуальность и восстановимость проверяются там. Наличие файловой копии не является результатом проверочного восстановления live PostgreSQL; S3 — отдельное хранилище. Деплой не меняет настройки Beget/S3 и не удаляет существующую проверенную recovery-копию 28.10.2026.
+
+## Хранение и откат
+
+После успешного переключения остаются текущая и одна предыдущая web-сборка/API image. Очистка затрагивает только release-каталог и неиспользуемые образы Continuum; volumes, S3, другие проекты и backup данных исключены. Build cache сокращается до 4 ГБ; входящие CI-пакеты удаляются после установки.
+
+Текущий/предыдущий runtime записываются в `deploy/runtime/current.json` и `previous.json`; `deploy/current` указывает на web. Во время неудачной активации скрипт возвращает прежний runtime автоматически. Схема БД не откатывается автоматически: совместимость миграций проверяют до разрешения выпуска. Старый dump нельзя накатывать поверх новых ответов учеников как часть обычного rollback.
 
 ## Cutover новой версии
 
@@ -96,7 +96,7 @@ Cutover новой library baseline выполнен 2026-09-23 на commit `093
 - worker, Redis и TeX Live удалены из runtime;
 - production auth smoke и публичные health/login checks прошли.
 
-Следующие deploy выполняются как обычные совместимые миграции через `deploy-on-vps.sh`. Новый destructive reset не является частью штатного deploy.
+Следующие deploy используют готовые CI-пакеты и совместимые миграции через `deploy-on-vps.sh`. Новый destructive reset не является частью штатного deploy.
 
 Минимальный rollback:
 
