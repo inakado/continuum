@@ -27,7 +27,7 @@ export function trustedRun(run, jobs, repository, revision) {
 }
 export function findRelease(repository, sourceFingerprint, request = api) {
   if (!/^[\w.-]+\/[\w.-]+$/.test(repository) || !/^[a-f0-9]{64}$/.test(sourceFingerprint)) throw Error('Invalid release identity');
-  const name = `release-${sourceFingerprint}`;
+  const name = `checked-${sourceFingerprint}`;
   const artifacts = request(`repos/${repository}/actions/artifacts?name=${name}&per_page=100`).artifacts;
   for (const artifact of artifacts.filter(a => a.name === name && !a.expired).slice(0, 10)) {
     const run = request(`repos/${repository}/actions/runs/${artifact.workflow_run.id}`);

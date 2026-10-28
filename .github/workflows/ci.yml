@@ -68,19 +68,16 @@ jobs:
           pnpm test
           node --test scripts/ci/release.test.mjs
           python3 -m unittest discover -s deploy/scripts -p 'test_*.py'
-      - name: Package the checked release
+      - name: Record checked source
         if: steps.scope.outputs.docs_only != 'true' && steps.release.outputs.reused != 'true'
-        env:
-          NEXT_PUBLIC_API_BASE_URL: https://vl-physics.ru/api
-        run: bash scripts/ci/package-release.sh release-bundle
-      - name: Retain release for one day
+        run: printf '%s\n' '${{ steps.scope.outputs.fingerprint }}' > checked-source.txt
+      - name: Retain source verification for one day
         if: steps.scope.outputs.docs_only != 'true' && steps.release.outputs.reused != 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ steps.scope.outputs.fingerprint }}
-          path: release-bundle/
+          name: checked-${{ steps.scope.outputs.fingerprint }}
+          path: checked-source.txt
           if-no-files-found: error
-          compression-level: 0
           retention-days: 1
 
   security:

@@ -40,11 +40,11 @@ test('reuse requires both successful gates in the trusted repository and workflo
 });
 test('unrelated or expired artifacts never skip quality checks even if the API returns them', () => {
   const fp = 'a'.repeat(64);
-  const artifact = { name: `release-${fp}`, expired: false, id: 3, workflow_run: { id: 2 } };
+  const artifact = { name: `checked-${fp}`, expired: false, id: 3, workflow_run: { id: 2 } };
   const request = path => path.includes('/artifacts?')
     ? { artifacts: [{ ...artifact, name: 'unrelated' }, { ...artifact, expired: true }, artifact] }
     : path.endsWith('/jobs?per_page=100') ? { jobs } : { ...run, id: 2 };
-  assert.deepEqual(findRelease('inakado/continuum', fp, request), { runId: 2, artifactId: 3, name: `release-${fp}` });
+  assert.deepEqual(findRelease('inakado/continuum', fp, request), { runId: 2, artifactId: 3, name: `checked-${fp}` });
   assert.equal(findRelease('inakado/continuum', fp, () => ({ artifacts: [{ ...artifact, name: 'wrong' }] })), null);
   assert.throws(() => findRelease('inakado/continuum', fp, () => { throw Error('API unavailable'); }));
 });

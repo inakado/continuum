@@ -3,7 +3,6 @@ set -euo pipefail
 : "${APP_DIR:=/srv/continuum}"
 : "${MIGRATIONS_APPROVED:=no}"
 : "${BACKUP_CONFIRMED:=no}"
-bundle=$(realpath "${1:?Pass the downloaded CI bundle directory}")
 [ "$(id -u)" -ne 0 ] || { echo 'Run as deploy, not root'; exit 1; }
 cd "$APP_DIR"
 [ -z "$(git status --short)" ] || { echo 'Checkout must be clean'; exit 1; }
@@ -21,10 +20,7 @@ if [ "${PREPARE_ONLY:-no}" != yes ]; then
   systemctl cat continuum-web | grep -Fq '/srv/continuum/deploy/scripts/start-web.sh' || { echo 'Install the verified release web launcher first'; exit 1; }
 fi
 fingerprint=$(node scripts/ci/release.mjs fingerprint)
-python3 deploy/scripts/release_bundle.py verify "$bundle" "$fingerprint" "https://$APP_DOMAIN/api" > "$state/candidate.json"
-field() { python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))[sys.argv[2]])' "$state/candidate.json" "$1"; }
-image=$(field apiImage)
-image_id=$(field apiImageId)
+image="continuum-release-api:$fingerprint"
 compose=(docker compose -f docker-compose.prod.yml)
 old_container=$("${compose[@]}" ps -q api)
 [ -n "$old_container" ]
@@ -49,32 +45,49 @@ if [ -f "$state/current.json" ] && [ "$(python3 -c 'import json,sys;d=json.load(
   echo 'This checked source is already deployed'
   exit 0
 fi
+NEXT_PUBLIC_API_BASE_URL="https://$APP_DOMAIN/api" node scripts/ci/release.mjs manifest "$state" "$old_image"
+mv "$state/release.json" "$state/candidate.json"
 "${compose[@]}" exec -T -w /app/apps/api api node -e '
 const {PrismaService}=require("./dist/prisma/prisma.service");const db=new PrismaService();
 db.$queryRawUnsafe("SELECT migration_name AS name, checksum, finished_at AS finished, rolled_back_at AS \"rolledBack\" FROM _prisma_migrations")
 .then(rows=>console.log(JSON.stringify(rows))).finally(()=>db.$disconnect()).catch(()=>process.exitCode=1);
 ' > "$state/applied.json"
-pending=$(python3 deploy/scripts/release_bundle.py migrations "$state/candidate.json" "$state/applied.json")
+pending=$(python3 deploy/scripts/release_state.py migrations "$state/candidate.json" "$state/applied.json")
 if [ -n "$pending" ] && { [ "$MIGRATIONS_APPROVED" != yes ] || [ "$BACKUP_CONFIRMED" != yes ]; }; then
   echo 'New migrations require MIGRATIONS_APPROVED=yes and confirmed provider backup (BACKUP_CONFIRMED=yes)'
   exit 1
 fi
-loaded=$(docker image inspect "$image" --format '{{.Id}}' 2>/dev/null || true)
-if [ "$loaded" != "$image_id" ]; then docker image load -i "$bundle/api-image.tar.gz"; fi
-[ "$(docker image inspect "$image" --format '{{.Id}}')" = "$image_id" ]
 prepared="$releases/$fingerprint"
-if [ -d "$prepared" ]; then
-  cmp "$bundle/SHA256SUMS" "$prepared/SHA256SUMS" || { echo 'Conflicting prepared release'; exit 1; }
-else
+if [ ! -d "$prepared" ]; then
   stage=$(mktemp -d "$releases/.prepare-XXXXXX")
   trap 'rm -rf "${stage:-}"' EXIT
-  mkdir "$stage/web"
-  python3 deploy/scripts/release_bundle.py extract "$bundle" "$stage/web"
-  cp "$bundle/release.json" "$bundle/SHA256SUMS" "$stage/"
+  mkdir "$stage/source"
+  git archive HEAD | tar -x -C "$stage/source"
+  CONTINUUM_API_IMAGE="$image" "${compose[@]}" build api
+  pnpm --dir "$stage/source" install --frozen-lockfile --prefer-offline --prod=false
+  if [ -d "$APP_DIR/deploy/cache/next" ]; then
+    mkdir -p "$stage/source/apps/web/.next"
+    cp -a "$APP_DIR/deploy/cache/next" "$stage/source/apps/web/.next/cache"
+  fi
+  NEXT_PUBLIC_API_BASE_URL="https://$APP_DOMAIN/api" pnpm --dir "$stage/source" build:web
+  mv "$stage/source/apps/web/.next/standalone" "$stage/web"
+  cp -a "$stage/source/apps/web/.next/static" "$stage/web/apps/web/.next/static"
+  cp -a "$stage/source/apps/web/public" "$stage/web/apps/web/public"
+  if [ -d "$stage/source/apps/web/.next/cache" ]; then
+    mkdir -p "$APP_DIR/deploy/cache"
+    rm -rf "$APP_DIR/deploy/cache/next"
+    mv "$stage/source/apps/web/.next/cache" "$APP_DIR/deploy/cache/next"
+  fi
+  image_id=$(docker image inspect "$image" --format '{{.Id}}')
+  NEXT_PUBLIC_API_BASE_URL="https://$APP_DOMAIN/api" node scripts/ci/release.mjs manifest "$stage" "$image_id"
+  rm -rf "$stage/source"
   mv "$stage" "$prepared"
   stage=''
   trap - EXIT
 fi
+cp "$prepared/release.json" "$state/candidate.json"
+python3 deploy/scripts/release_state.py prepared "$state/candidate.json" "$fingerprint" "$image" "$(docker image inspect "$image" --format '{{.Id}}')" "https://$APP_DOMAIN/api"
+[ -f "$prepared/web/apps/web/server.js" ]
 if [ "${PREPARE_ONLY:-no}" = yes ]; then echo "Prepared $fingerprint; runtime unchanged"; exit 0; fi
 export CONTINUUM_API_IMAGE="$image"
 rollback() {
@@ -116,4 +129,4 @@ PY
 trap - EXIT
 rm -f "$state/applied.json"
 python3 deploy/scripts/prune-releases.py "$APP_DIR/deploy"
-echo "Deploy checks passed: $fingerprint (no install/build, no data backup created)"
+echo "Deploy checks passed: $fingerprint (cached VPS build, no data backup created)"
