@@ -2,14 +2,14 @@ import type { AssignmentReport } from '@continuum/shared';
 import { solutionTaskProgress } from '@/lib/assessment/progress-labels';
 import ui from '@/features/teacher-works/teacher-works.module.css';
 import styles from './teacher-assignments.module.css';
+import ReportTestStatus from './ReportTestStatus';
 
-const testLabels = { not_started: 'Не начата', in_progress: 'В работе', completed: 'Завершена' };
 export default function AssignmentProgressRow({ item, data, onSolutions }: { item: AssignmentReport['recipients'][number]; data: AssignmentReport; onSolutions: () => void }) {
   const solutionsLabel = solutionTaskProgress(item.progress.photoTaskCount, data.extendedTaskCount);
   return <tr>
     <td>{item.name}{item.deleted ? <small>Учётная запись удалена</small> : !item.isActive ? <small>Учётная запись отключена</small> : null}</td>
     <td data-label="Класс">{data.classes.find((group) => group.id === item.assignmentId)?.title}</td>
-    {data.automaticTaskCount > 0 && <td data-label="Тестовая часть"><span className={item.status === 'completed' ? styles.completed : undefined}>{testLabels[item.status]}</span>
+    {data.automaticTaskCount > 0 && <td data-label="Тестовая часть"><ReportTestStatus status={item.status} />
       {item.result ? <small>{item.result.points} из {item.result.maxPoints} · {item.result.percentage}%</small> : <small>Заполнено {item.answeredCount} из {data.automaticTaskCount}</small>}
     </td>}
     {data.extendedTaskCount > 0 && <>

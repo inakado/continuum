@@ -43,6 +43,7 @@
 ## Каталоги
 
 - `documents/research/` — исследования внешних продуктов и источников; выводы не заменяют утверждённые требования и работающие контракты.
+- `documents/research/2026-10-28-assigned-classes-ux.md` — Apple, Shopify, Linear и Helios: размещение сводки получателей у заголовка работы, временное управление вместо accordion; исследование без изменения приложения.
 - `documents/research/2026-10-28-import-to-work.md` — референсы Classtime/Formative/Wayground/Moodle, текущий импорт и конструктор, предложение необязательного создания заполненной работы из пакета; без реализации.
 - `documents/research/2026-10-28-hierarchical-topic-filters.md` — Ant Design, Element Plus, живое демо Algolia, Linear и Primer: иерархический выбор темы, мобильная адаптация и ограничения текущего API; исследование без изменения приложения.
 - `documents/research/2026-10-28-login-visual-references.md` — Apple, Shopify, Linear и Raycast конца 2025–2026, варианты атмосферного входа React Bits и сдержанного рабочего UI; завершённое исследование и источники выбранного визуального направления.
@@ -65,6 +66,10 @@
 - `documents/research/2026-10-28-project-ux-audit.md` — аудит готовности пилота, UI/UX обеих ролей, выполненной уборки, проверок и приоритетов roadmap.
 - `documents/research/2026-10-28-lms-ux-evidence.md` — официальные механики Classroom/Canvas/Moodle/Gradescope для проверки готовности пилота и UX-пробелов.
 - `documents/exec-plans/active/` — активные execution plans.
+- `documents/exec-plans/completed/2026-10-28-assigned-classes.md` — сводка получателей у заголовка работы, временная панель, одиночный фильтр и desktop/phone QA.
+- `documents/exec-plans/completed/2026-10-28-teacher-navigation-progress.md` — закреплённая навигация учителя, открытый фильтр и различимые состояния выполнения, источники и проверки.
+- `documents/exec-plans/completed/2026-10-28-correction-ui-polish.md` — упрощение окна исправления, проверка responsive/keyboard и устранение TeX-тире в подготовленных архивах.
+- `documents/exec-plans/completed/2026-10-28-task-presentation-corrections.md` — исправление условия в банке и назначенных работах без изменения ответов/баллов; Markdown №16656 и проверки архива.
 - `documents/exec-plans/completed/2026-10-28-release-artifacts.md` — предыдущий вариант доставки готовых CI-артефактов, заменённый Git и кешем VPS.
 - `documents/exec-plans/completed/2026-10-28-production-release.md` — проверенный production-выпуск согласованного UI/UX и security-пакета: настоящий CI, восстановление backup БД/S3, сохранность и публичный upload/readback фото.
 - `documents/exec-plans/completed/2026-10-28-auth-security-update.md` — исправление high/critical обновлением Better Auth без исключений, совместимость старых сессий/ключей и локальная проверка quality/security gates.

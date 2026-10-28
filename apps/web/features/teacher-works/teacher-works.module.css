@@ -6,9 +6,6 @@
 .reauth label { display: grid; gap: 8px; }
 .reauth input { width: 100%; min-height: 44px; border: 1px solid var(--catalog-control-border); border-radius: var(--catalog-control-radius); padding: 10px 12px; background: #fff; color: var(--catalog-ink); font: inherit; }
 .workDialog :is(button, input):focus-visible { outline: 2px solid var(--catalog-accent); outline-offset: 3px; }
-.nav { display: flex; gap: 40px; height: 64px; padding: 0 48px; border-bottom: 1px solid var(--catalog-border); overflow-x: auto; }
-.nav a { display: flex; align-items: center; white-space: nowrap; border-bottom: 3px solid transparent; color: #353b49; text-decoration: none; font-size: 15px; }
-.nav a[aria-current] { color: var(--catalog-nav-current); font-weight: 600; border-bottom-color: var(--catalog-nav-current); }
 .main { max-width: 1360px; margin: 0 auto; padding: 24px 48px 64px; }
 .heading, .editorHeading, .sectionHeading, .sectionHeading > div, .actions { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .heading { margin: 16px 0 32px; }
@@ -141,7 +138,6 @@
 .mobileBack { display: none; }
 .srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; clip-path: inset(50%); overflow: hidden; white-space: nowrap; border: 0; }
 @media (max-width: 900px) {
-  .nav { padding: 0 20px; gap: 28px; height: 58px; }
   .main { padding: 20px 20px 48px; }
   .heading, .editorHeading { gap: 16px; }
   .heading { align-items: flex-start; flex-wrap: wrap; }

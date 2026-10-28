@@ -33,7 +33,7 @@ it('retains the confirmed membership hash through a background refresh and shows
   const { cache, close } = show();
   await screen.findByText(/Учеников: 20/);
   cache.setQueryData(assignmentQueryKeys.revocation(id), { ...preview, studentCount: 21, recipientsHash: 'b'.repeat(64) });
-  fireEvent.click(screen.getByRole('button', { name: 'Убрать назначение' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Удалить назначение' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Список получателей изменился.');
   expect(teacherAssignmentsApi.revoke).toHaveBeenCalledWith({ id, input: { expectedRecipientsHash: preview.recipientsHash } }, expect.anything());
   expect(close).not.toHaveBeenCalled();
@@ -44,7 +44,7 @@ it('blocks double submit and closing while pending, then completes with a single
   vi.mocked(teacherAssignmentsApi.revoke).mockImplementation(() => new Promise((done) => { resolve = done; }));
   const { close, onRemoved } = show();
   await screen.findByText(/Учеников: 20/);
-  const submit = screen.getByRole('button', { name: 'Убрать назначение' });
+  const submit = screen.getByRole('button', { name: 'Удалить назначение' });
   fireEvent.click(submit); fireEvent.click(submit);
   await waitFor(() => expect(screen.getByRole('button', { name: 'Отмена' })).toBeDisabled());
   fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });

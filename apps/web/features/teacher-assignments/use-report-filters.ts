@@ -3,6 +3,7 @@
 import { useCallback, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { z } from 'zod';
+import type { AssignmentReport } from '@continuum/shared';
 import { photoFilterSchema } from './report-photo-filters';
 import { readReportSearch, reportSearchKey, writeReportSearch } from '@/lib/assessment/report-search';
 
@@ -24,7 +25,7 @@ function reportFilterParams(filters: ReportFilters) {
   if (filters.page !== 1) params.set('page', String(filters.page));
   return params.toString();
 }
-export function useReportFilters(versionId: string, userId?: string) {
+export function useReportFilters(versionId: string, classes: AssignmentReport['classes'], userId?: string) {
   const params = useSearchParams();
   const filters = readReportFilters(new URLSearchParams(params.toString()));
   const key = reportSearchKey(userId, versionId);
@@ -37,7 +38,9 @@ export function useReportFilters(versionId: string, userId?: string) {
       window.history[replace ? 'replaceState' : 'pushState'](null, '', url);
     }
   }, []);
-  return { ...filters, search, update, changeSearch: (value: string) => {
+  const classId = classes.length > 1 && classes.some((item) => item.id === filters.classId) ? filters.classId : '';
+  useEffect(() => { if (classId !== filters.classId) update({ classId }, true); }, [classId, filters.classId, update]);
+  return { ...filters, classId, search, update, changeSearch: (value: string) => {
     const next = value.slice(0, 200);
     setSearch(next); writeReportSearch(key, next); update({ page: 1 }, true);
   } };

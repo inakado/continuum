@@ -1,0 +1,2 @@
+export const pupilCount = (value: number) => `${value} ${value % 100 >= 11 && value % 100 <= 14 ? 'учеников' : value % 10 === 1 ? 'ученик' : value % 10 >= 2 && value % 10 <= 4 ? 'ученика' : 'учеников'}`;
+export const classCountLabel = (value: number) => `${value} ${value % 100 >= 11 && value % 100 <= 14 ? 'классов' : value % 10 === 1 ? 'класс' : value % 10 >= 2 && value % 10 <= 4 ? 'класса' : 'классов'}`;

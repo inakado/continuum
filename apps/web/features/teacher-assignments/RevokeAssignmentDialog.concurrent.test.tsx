@@ -25,7 +25,7 @@ it('does not confirm a snapshot captured by a suspended render that never reache
     </Suspense>;
   }
   render(<Harness />);
-  expect(screen.getByRole('button', { name: 'Убрать назначение' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Удалить назначение' })).toBeDisabled();
   await act(async () => { state.data = first; startTransition(() => update(1)); });
   expect(state.read).toHaveBeenCalledWith(first);
   expect(screen.queryByText(/Учеников: 20/)).not.toBeInTheDocument();
@@ -35,7 +35,7 @@ it('does not confirm a snapshot captured by a suspended render that never reache
   expect(screen.getByText(/Учеников: 21/)).toBeVisible();
   act(() => { state.data = { ...first, studentCount: 22, recipientsHash: 'c'.repeat(64) }; update(3); });
   expect(screen.getByText(/Учеников: 21/)).toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: 'Убрать назначение' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Удалить назначение' }));
   expect(state.mutate).toHaveBeenCalledWith({ id, input: { expectedRecipientsHash: committed.recipientsHash } }, expect.anything());
   await act(async () => blocked.resolve());
 });

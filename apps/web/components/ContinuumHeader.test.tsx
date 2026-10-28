@@ -14,6 +14,7 @@ it('opens by keyboard, navigates the teacher menu and returns focus on Escape', 
   trigger.focus(); await user.keyboard('{Enter}');
   const agent = await screen.findByRole('menuitem', { name: 'Подключение агента' });
   await waitFor(() => expect(agent).toHaveFocus());
+  expect(document.body).not.toHaveAttribute('data-scroll-locked');
   await user.keyboard('{ArrowDown}'); expect(screen.getByRole('menuitem', { name: 'Выйти' })).toHaveFocus();
   await user.keyboard('{Escape}'); await waitFor(() => expect(trigger).toHaveFocus());
   expect(screen.queryByRole('menu')).not.toBeInTheDocument();

@@ -4,7 +4,6 @@
   color: var(--catalog-ink);
 }
 
-.teacherNav,
 .gradeNav {
   display: flex;
   align-items: center;
@@ -13,12 +12,6 @@
   background: var(--catalog-paper);
 }
 
-.teacherNav {
-  height: 70px;
-  gap: 43px;
-}
-
-.teacherNav a,
 .gradeNav button {
   position: relative;
   display: flex;
@@ -34,21 +27,16 @@
   cursor: pointer;
 }
 
-.teacherNav a:hover,
-.teacherNav a:focus-visible,
-.teacherNav a[aria-current="page"],
 .gradeNav button:hover,
 .gradeNav button:focus-visible,
 .gradeNav button[aria-current="page"] {
   color: var(--catalog-accent);
 }
 
-.teacherNav a[aria-current="page"],
 .gradeNav button[aria-current="page"] {
   font-weight: 650;
 }
 
-.teacherNav a[aria-current="page"]::after,
 .gradeNav button[aria-current="page"]::after {
   position: absolute;
   right: 0;
@@ -595,15 +583,9 @@
 }
 
 @media (max-width: 680px) {
-  .teacherNav,
   .gradeNav {
     padding: 0 20px;
     overflow-x: auto;
-  }
-
-  .teacherNav {
-    height: 58px;
-    gap: 28px;
   }
 
   .gradeNav {
@@ -611,7 +593,6 @@
     gap: 28px;
   }
 
-  .teacherNav a,
   .gradeNav button {
     flex: 0 0 auto;
     font-size: 14px;
@@ -680,8 +661,6 @@
 }
 
 /* Workspace actions use the shared palette; geometry stays local. */
-.teacherNav a[aria-current="page"] { color: var(--catalog-nav-current); }
-.teacherNav a[aria-current="page"]::after { background: var(--catalog-nav-current); }
 .artifactActions button:not([data-library-delete]) {
   min-height: 36px; padding: 6px 10px; border: 1px solid var(--catalog-action-border);
   border-radius: var(--catalog-control-radius); color: var(--catalog-accent); background: var(--catalog-paper);

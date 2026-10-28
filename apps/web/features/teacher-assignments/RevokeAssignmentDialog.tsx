@@ -22,13 +22,13 @@ export default function RevokeAssignmentDialog({ id, close, onRemoved, returnFoc
   return <Dialog.Root open onOpenChange={(open) => { if (!open) dismiss(); }}><Dialog.Portal>
     <Dialog.Overlay className={ui.deleteOverlay} />
     <Dialog.Content className={ui.deleteDialog} onOpenAutoFocus={(event) => { event.preventDefault(); cancel.current?.focus(); }} onCloseAutoFocus={(event) => { event.preventDefault(); returnFocus(removed.current); }}>
-      <Dialog.Title>Убрать назначение?</Dialog.Title>
+      <Dialog.Title>Удалить назначение?</Dialog.Title>
       <Dialog.Description>{data ? <>Работа «{data.title}» исчезнет у получателей назначения класса {data.classTitle} · {data.academicYear}–{data.academicYear + 1}. Все их ответы, фотографии, проверки и результаты этой работы будут удалены. Восстановить их нельзя. Другие классы не затронуты.</> : 'Проверяем назначение перед удалением.'}</Dialog.Description>
       {data && <p>Учеников: {data.studentCount} · Начали: {data.startedCount} · Завершили: {data.completedCount}</p>}
       {!data && preview.isPending && <p role="status">Загружаем получателей…</p>}
       {!data && preview.error && <div role="alert" className={ui.error}><p>{apiErrorMessage(preview.error)}</p><button type="button" className={ui.textButton} onClick={() => void preview.refetch()}>Повторить</button></div>}
       {mutation.error && <p role="alert" className={ui.error}>{apiErrorMessage(mutation.error, 'Не удалось подтвердить отзыв. Повторите попытку.')}</p>}
-      <div className={ui.deleteButtons}><button ref={cancel} type="button" disabled={mutation.isPending} onClick={dismiss}>Отмена</button><button type="button" className={ui.deleteConfirm} disabled={!data || mutation.isPending} onClick={revoke}>{mutation.isPending ? 'Убираем…' : 'Убрать назначение'}</button></div>
+      <div className={ui.deleteButtons}><button ref={cancel} type="button" disabled={mutation.isPending} onClick={dismiss}>Отмена</button><button type="button" className={ui.deleteConfirm} disabled={!data || mutation.isPending} onClick={revoke}>{mutation.isPending ? 'Удаляем…' : 'Удалить назначение'}</button></div>
     </Dialog.Content>
   </Dialog.Portal></Dialog.Root>;
 }

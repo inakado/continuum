@@ -1,4 +1,5 @@
 "use client";
+import { pupilCount, classCountLabel } from './assignment-labels';
 import { useRef, useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { AssignmentCreate, AssignmentPrepare } from '@continuum/shared';
@@ -11,8 +12,6 @@ import ui from '@/features/teacher-works/teacher-works.module.css';
 import { useAssignWork } from './use-assignments';
 import styles from './teacher-assignments.module.css';
 
-const pupilCount = (value: number) => `${value} ${value % 100 >= 11 && value % 100 <= 14 ? 'учеников' : value % 10 === 1 ? 'ученик' : value % 10 >= 2 && value % 10 <= 4 ? 'ученика' : 'учеников'}`;
-const classCountLabel = (value: number) => `${value} ${value % 100 >= 11 && value % 100 <= 14 ? 'классов' : value % 10 === 1 ? 'класс' : value % 10 >= 2 && value % 10 <= 4 ? 'класса' : 'классов'}`;
 const eligible = (item: AssignmentPrepare['classes'][number]) => item.students.filter((student) => student.isActive && !student.alreadyAssigned);
 type Props = { data: AssignmentPrepare; addOnly?: boolean; onAssigned: (versionId: string) => void; onReload: () => void; onVersionChange: (number?: number) => void; onPreview: () => void };
 
