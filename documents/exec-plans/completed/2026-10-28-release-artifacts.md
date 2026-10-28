@@ -29,3 +29,7 @@
 - Основания: [Next standalone](https://nextjs.org/docs/app/api-reference/config/next-config-js/output), [GitHub artifacts/retention](https://docs.github.com/en/actions/tutorials/store-and-share-data), [Beget backup/snapshot](https://beget.com/ru/kb/how-to/other/backup-i-snapshot-v-chyom-raznica).
 
 - Реальный [CI 40621979012](https://github.com/inakado/continuum/actions/runs/40621979012) прошёл за 3 мин 11 с: quality и security успешны, готовый пакет опубликован. CI выявил избыточную область `NEXT_PUBLIC_API_BASE_URL`; production URL ограничен build/package, два существующих upload/panel теста проходят без изменения ожиданий.
+
+## Замена схемы доставки
+
+На первой подготовке передача Docker-архива 457 МБ через Mac заняла около 5 минут; активация не выполнялась. Проверка также выявила различие config/manifest image ID у Docker CI/VPS. По решению владельца доставка полного image заменена Git + cached build на VPS; см. [план замены](2026-10-28-cached-vps-release.md). Замер main CI 43 с против прежних 274 с подтверждён. Этот документ описывает предыдущий вариант, актуальная схема — в deploy runbook.

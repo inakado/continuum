@@ -49,16 +49,16 @@ node --test deploy/scripts/test-nginx-gzip.mjs
 
 `deploy-on-vps.sh` не устанавливает Nginx-конфиг автоматически. При разрешённом выпуске перенести map и location-директивы в установленный domain-specific конфиг, сохранив домен/сертификаты; сделать backup, `sudo nginx -t` и только затем reload. После выпуска проверить авторизованный GET отчёта с `Accept-Encoding: gzip` и `identity`: одинаковое распакованное тело, меньший размер, прежние права/`no-store`. Для rollback вернуть backup и повторить `nginx -t` перед reload.
 
-## CI и готовые артефакты
+## CI и проверенный состав исходников
 
-CI определяет fingerprint отслеживаемого кода, включая зависимости, Dockerfile, workflow и deploy-скрипты. Только явный список инертных Markdown-документов исключён; неизвестный путь требует полного quality-прохода. Изменение README не требует повторной сборки приложения.
+CI определяет fingerprint отслеживаемого кода, включая зависимости, Dockerfile, workflow и deploy-скрипты. Только явный список инертных Markdown-документов исключён; неизвестный путь требует полного quality-прохода.
 
-- `quality`: docs/lint/boundaries/build/typecheck/tests, затем один пакет API image + standalone web + manifest/SHA256SUMS.
-- На main готовый пакет повторно используется только из успешного CI того же repository/workflow/fingerprint, с успешными quality **и** security. Ошибка GitHub API не считается подтверждением.
-- `security` остаётся независимым свежим gate: полный `pnpm audit --audit-level=high` и Trivy HIGH/CRITICAL без исключений. Проверки безопасности не отключаются при повторном использовании или правках документации.
-- CI artifacts имеют TTL **1 день**. Истёкший/отсутствующий пакет требует ручного CI; VPS не пересобирает код автоматически.
+- `quality`: docs/lint/boundaries/build/typecheck/tests. После успеха публикуется только маленькая отметка `checked-<fingerprint>`, без Docker/web-архивов.
+- На main тяжёлые проверки повторно используются только из успешного CI того же repository/workflow/fingerprint с успешными quality **и** security. Ошибка GitHub API блокирует выпуск.
+- `security` всегда выполняется заново: полный `pnpm audit --audit-level=high` и Trivy HIGH/CRITICAL без исключений.
+- Отметка CI живёт **1 день**; после истечения нужен новый CI. На VPS тесты не дублируются.
 
-## Ручной deploy готового пакета
+## Ручной deploy исходников
 
 На компьютере оператора нужны Node.js 24, авторизованный `gh` и существующий SSH alias `continuum-vps` с проверенным host key:
 
@@ -68,11 +68,15 @@ node deploy/scripts/release.mjs
 node deploy/scripts/release.mjs <40-character-main-sha>
 ```
 
-Команда проверяет свежий успешный CI точного main revision и provenance артефакта, скачивает пакет, передаёт его по SSH и вызывает `deploy-on-vps.sh`. На VPS нет `pnpm install`, `docker build` или `next build`. Проверяются checksum, fingerprint, production API URL, image ID и история миграций; web переключается атомарной ссылкой. Health/readiness проверяются локально и публично. При сбое активации возвращается прежний API/web без reset БД.
+Клиент проверяет свежий успешный CI точного main revision и отметку проверенного fingerprint, затем вызывает SSH. На VPS выполняются только `git fetch` изменений и сборка с существующим кешем. Полный проект, зависимости и Docker-архив через компьютер оператора не передаются.
 
-Для первого перехода нужен launcher `deploy/systemd/continuum-web.service`, установленный администратором после staging-проверки. Он поддерживает возврат к прежнему Next runtime, пока ещё нет предыдущего standalone-пакета. Режим `PREPARE_ONLY=yes` загружает/проверяет пакет без переключения сервисов.
+API собирается Docker BuildKit. Web собирается из `git archive HEAD` в отдельном временном каталоге; `pnpm install --prefer-offline --frozen-lockfile --prod=false` использует pnpm store, сохраняется один Next cache. Работающий `.next` не перезаписывается. Из сборки сохраняются standalone web и image с неизменяемым тегом fingerprint; временные исходники и `node_modules` удаляются. Runtime переключается только после успешной сборки и проверки истории миграций. При ошибке активации возвращается прежний API/web без reset БД.
 
-Кнопка `Deploy Production` вызывает тот же клиент. Для неё отдельно требуются production environment secrets `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`; host key проверяется строго. Локальная команда использует уже имеющийся SSH, новых credentials ей не нужно.
+CI собирает API для тестового quality-контекста; VPS — production runtime. Это осознанный компромисс вместо передачи полного Docker-архива. Main не повторяет уже выполненный полный quality CI.
+
+Для первого перехода нужен launcher `deploy/systemd/continuum-web.service`, установленный администратором после staging-проверки. Он поддерживает возврат к прежнему Next runtime, пока нет предыдущей standalone-сборки. `PREPARE_ONLY=yes` готовит runtime без переключения сервисов.
+
+Кнопка `Deploy Production` вызывает тот же клиент. Для неё отдельно требуются production environment secrets `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`; host key проверяется строго. Локальная команда использует уже имеющийся SSH.
 
 ## Данные и резервное копирование
 
@@ -82,7 +86,7 @@ node deploy/scripts/release.mjs <40-character-main-sha>
 
 ## Хранение и откат
 
-После успешного переключения остаются текущая и одна предыдущая web-сборка/API image. Очистка затрагивает только release-каталог и неиспользуемые образы Continuum; volumes, S3, другие проекты и backup данных исключены. Build cache сокращается до 4 ГБ; входящие CI-пакеты удаляются после установки.
+После успешного переключения остаются текущая и одна предыдущая web-сборка/API image. Очистка затрагивает только release-каталог и неиспользуемые образы Continuum; volumes, S3, другие проекты и backup данных исключены. Build cache сокращается до 4 ГБ; входящих Docker/web-архивов нет; Next cache хранится в одном каталоге.
 
 Текущий/предыдущий runtime записываются в `deploy/runtime/current.json` и `previous.json`; `deploy/current` указывает на web. Во время неудачной активации скрипт возвращает прежний runtime автоматически. Схема БД не откатывается автоматически: совместимость миграций проверяют до разрешения выпуска. Старый dump нельзя накатывать поверх новых ответов учеников как часть обычного rollback.
 
@@ -96,7 +100,7 @@ Cutover новой library baseline выполнен 2026-09-23 на commit `093
 - worker, Redis и TeX Live удалены из runtime;
 - production auth smoke и публичные health/login checks прошли.
 
-Следующие deploy используют готовые CI-пакеты и совместимые миграции через `deploy-on-vps.sh`. Новый destructive reset не является частью штатного deploy.
+Следующие deploy используют проверенные исходники и кеш VPS и совместимые миграции через `deploy-on-vps.sh`. Новый destructive reset не является частью штатного deploy.
 
 Минимальный rollback:
 

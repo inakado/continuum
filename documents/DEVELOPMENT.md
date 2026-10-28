@@ -106,4 +106,4 @@ Production migration выполняется только в составе яв�
 
 ## Поставка production
 
-CI и готовые release artifacts, fingerprint/provenance, ручная доставка без сборки на VPS, rollback и retention описаны в [deploy runbook](../deploy/README.md). Новый deploy проверяют тестами `node --test scripts/ci/release.test.mjs` и `python3 -m unittest discover -s deploy/scripts -p 'test_*.py'`. Бэкапы Beget не являются частью обычного deploy.
+CI fingerprint/provenance, доставка исходников и сборка с кешем VPS, rollback и retention описаны в [deploy runbook](../deploy/README.md). Новый deploy проверяют тестами `node --test scripts/ci/release.test.mjs` и `python3 -m unittest discover -s deploy/scripts -p 'test_*.py'`. Бэкапы Beget не являются частью обычного deploy.

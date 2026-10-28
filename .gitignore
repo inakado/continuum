@@ -34,8 +34,10 @@ volumes/
 /output/
 
 # Prepared deployment artifacts and runtime pointers (no application data)
-/release-bundle/
 /deploy/releases/
 /deploy/runtime/
 /deploy/current
+/deploy/cache/
 __pycache__/
+
+checked-source.txt
