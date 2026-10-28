@@ -11,6 +11,36 @@ spec.loader.exec_module(module)
 
 
 class RetentionTests(unittest.TestCase):
+    def test_cleanup_rejects_symlinked_deploy_root(self):
+        with tempfile.TemporaryDirectory() as temp:
+            cwd = Path(temp)
+            external = cwd/'external'; external.mkdir()
+            (external/'keep').touch()
+            (cwd/'deploy').symlink_to(external)
+            with patch.object(Path,'cwd',return_value=cwd), self.assertRaises(ValueError):
+                module.prune(cwd/'deploy',temporary_only=True)
+            self.assertTrue((external/'keep').exists())
+
+    def test_temporary_cleanup_preserves_runtimes_user_files_and_external_symlinks(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)/'deploy'
+            releases = root/'releases'; releases.mkdir(parents=True)
+            state = root/'runtime'; state.mkdir()
+            for name in ['.prepare-Ab12Cd', 'a'*64, 'user-files']:
+                (releases/name).mkdir()
+            external = Path(temp)/'external'; external.mkdir()
+            (external/'keep').touch()
+            (releases/'.prepare-Ef34Gh').symlink_to(external)
+            for name in ['candidate.json', 'applied.json', 'release.json', 'current.json', 'previous.json', 'deploy.lock']:
+                (state/name).write_text(name)
+            with patch.object(Path,'cwd',return_value=root.parent): module.prune(root,temporary_only=True)
+            self.assertFalse((releases/'.prepare-Ab12Cd').exists())
+            self.assertTrue((releases/('a'*64)).is_dir())
+            self.assertTrue((releases/'user-files').is_dir())
+            self.assertTrue((external/'keep').exists())
+            self.assertTrue((releases/'.prepare-Ef34Gh').is_symlink())
+            self.assertEqual({p.name for p in state.iterdir()},{'current.json','previous.json','deploy.lock'})
+
     def test_missing_metadata_never_deletes_releases(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)/'deploy'; old = root/'releases'/('a'*64); old.mkdir(parents=True)

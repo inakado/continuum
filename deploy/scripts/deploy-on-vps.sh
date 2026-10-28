@@ -11,6 +11,21 @@ releases="$APP_DIR/deploy/releases"
 mkdir -p "$state" "$releases"
 exec 9>"$state/deploy.lock"
 flock -n 9 || { echo 'Another deployment is running'; exit 1; }
+activation_started=no
+finish() {
+  local status=$?
+  trap - EXIT
+  if [ "$status" -ne 0 ] && [ "$activation_started" = yes ]; then rollback || true; fi
+  if ! python3 deploy/scripts/prune-releases.py "$APP_DIR/deploy" --temporary-only; then
+    echo 'Temporary deployment cleanup failed' >&2
+    if [ "$status" -eq 0 ]; then status=1; fi
+  fi
+  exit "$status"
+}
+trap finish EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+python3 deploy/scripts/prune-releases.py "$APP_DIR/deploy" --temporary-only
 set -a
 . ./deploy/env/api.env
 set +a
@@ -58,9 +73,12 @@ if [ -n "$pending" ] && { [ "$MIGRATIONS_APPROVED" != yes ] || [ "$BACKUP_CONFIR
   exit 1
 fi
 prepared="$releases/$fingerprint"
+validate_prepared() {
+  python3 deploy/scripts/release_state.py prepared "$1/release.json" "$fingerprint" "$image" "$(docker image inspect "$image" --format '{{.Id}}')" "https://$APP_DOMAIN/api"
+  python3 deploy/scripts/release_state.py assets "$1/web/apps/web"
+}
 if [ ! -d "$prepared" ]; then
   stage=$(mktemp -d "$releases/.prepare-XXXXXX")
-  trap 'rm -rf "${stage:-}"' EXIT
   mkdir "$stage/source"
   git archive HEAD | tar -x -C "$stage/source"
   CONTINUUM_API_IMAGE="$image" "${compose[@]}" build api
@@ -81,19 +99,15 @@ if [ ! -d "$prepared" ]; then
   image_id=$(docker image inspect "$image" --format '{{.Id}}')
   NEXT_PUBLIC_API_BASE_URL="https://$APP_DOMAIN/api" node scripts/ci/release.mjs manifest "$stage" "$image_id"
   rm -rf "$stage/source"
+  validate_prepared "$stage"
   mv "$stage" "$prepared"
-  stage=''
-  trap - EXIT
+else
+  validate_prepared "$prepared"
 fi
 cp "$prepared/release.json" "$state/candidate.json"
-python3 deploy/scripts/release_state.py prepared "$state/candidate.json" "$fingerprint" "$image" "$(docker image inspect "$image" --format '{{.Id}}')" "https://$APP_DOMAIN/api"
-python3 deploy/scripts/release_state.py assets "$prepared/web/apps/web"
 if [ "${PREPARE_ONLY:-no}" = yes ]; then echo "Prepared $fingerprint; runtime unchanged"; exit 0; fi
 export CONTINUUM_API_IMAGE="$image"
 rollback() {
-  local status=$?
-  trap - EXIT
-  if [ "$status" -eq 0 ]; then return; fi
   echo 'Activation failed; restoring previous runtime (database is not reset)' >&2
   if [ -n "$old_web" ]; then
     ln -sfn "$old_web" "$state/web-rollback"
@@ -103,9 +117,8 @@ rollback() {
   fi
   CONTINUUM_API_IMAGE="$old_image" "${compose[@]}" up -d --no-build --pull never --no-deps api || true
   sudo -n systemctl restart continuum-web || true
-  exit "$status"
 }
-trap rollback EXIT
+activation_started=yes
 if [ -n "$pending" ]; then
   "${compose[@]}" stop api
   "${compose[@]}" run --rm -T --no-deps api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'
@@ -126,7 +139,6 @@ old={'apiImageId':old_image,'webPath':old_web or None,'fingerprint':Path(old_web
 (state/'previous.json').write_text(json.dumps(old))
 (state/'candidate.json').replace(state/'current.json')
 PY
-trap - EXIT
-rm -f "$state/applied.json"
+activation_started=no
 python3 deploy/scripts/prune-releases.py "$APP_DIR/deploy"
 echo "Deploy checks passed: $fingerprint (cached VPS build, no data backup created)"
