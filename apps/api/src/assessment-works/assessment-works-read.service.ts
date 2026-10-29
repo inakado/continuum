@@ -40,7 +40,7 @@ export class AssessmentWorksReadService {
   }
   async list(teacherId: string) {
     const rows = await this.db.assessmentWork.findMany({ where: { teacherId, deletedAt: null }, select: { id: true, title: true, gradeBand: true, revision: true, taskCount: true, maxPoints: true, updatedAt: true, archivedAt: true, lifecycleRevision: true, _count: { select: { versions: { where: { assignments: { some: {} } } } } } }, orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }] });
-    return rows.map((row) => ({ ...workSummary(row), canDelete: row._count.versions === 0 }));
+    return rows.map((row) => ({ ...workSummary(row), hasAssignments: row._count.versions > 0, canDelete: row._count.versions === 0 }));
   }
   async detail(teacherId: string, id: string) {
     return this.db.$transaction(async (tx) => {

@@ -1,8 +1,15 @@
 import { expect, it } from 'vitest';
 import { AssessmentWorkUpdateSchema, AssessmentWorkFreezeSchema, AssessmentWorkCopySchema, AssessmentWorkArchiveSchema, AssessmentWorkDeleteSchema } from '../src/contracts/assessment-works';
-import { AssessmentWorkAnswerCheckSchema } from '../src/contracts/assessment-works';
+import { AssessmentWorkAnswerCheckSchema, AssessmentWorkListSchema } from '../src/contracts/assessment-works';
 
 const id = '00000000-0000-4000-8000-000000000001';
+
+it('requires factual assignment presence in the work list instead of inferring it from deletion permission', () => {
+  const work = { id, title: 'Кинематика', gradeBand: 'grade_10_11', revision: 1, taskCount: 30, maxPoints: 45, updatedAt: '2026-10-29T00:00:00Z', canDelete: false };
+  for (const hasAssignments of [true, false]) expect(AssessmentWorkListSchema.parse([{ ...work, hasAssignments }])[0].hasAssignments).toBe(hasAssignments);
+  expect(AssessmentWorkListSchema.safeParse([work]).success).toBe(false);
+  expect(AssessmentWorkListSchema.safeParse([{ ...work, hasAssignments: 'true' }]).success).toBe(false);
+});
 const input = { requestId: id, expectedRevision: 1, title: 'МКТ', instructions: '', gradeBand: 'grade_10_11', items: [{ taskId: id, version: 1 }] };
 it('checks only an answer against an explicit draft revision or immutable version', () => {
   const check = { taskId: id, source: { kind: 'draft', expectedRevision: 2 }, answer: { type: 'short_number', value: '-2,5' } };

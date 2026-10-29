@@ -5,6 +5,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import type { AssignmentPrepare } from '@continuum/shared';
 import AssignmentForm from './AssignmentForm';
 import { teacherAssignmentsApi } from './teacher-assignments.api';
+import { teacherWorkQueryKeys } from '@/lib/query/keys';
 
 vi.mock('./teacher-assignments.api', () => ({ teacherAssignmentsApi: { assign: vi.fn() } }));
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
@@ -16,8 +17,9 @@ const data: AssignmentPrepare = {
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 it('selects rosters, previews pupils and replays the exact assignment after a lost response', async () => {
   vi.mocked(teacherAssignmentsApi.assign).mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValueOnce({ versionId: id(20), versionNumber: 1, addedCount: 2 });
-  const assigned = vi.fn();
-  render(<QueryClientProvider client={new QueryClient()}><AssignmentForm data={data} onAssigned={assigned} onReload={vi.fn()} onVersionChange={vi.fn()} onPreview={vi.fn()} /></QueryClientProvider>);
+  const assigned = vi.fn(), cache = new QueryClient();
+  cache.setQueryData(teacherWorkQueryKeys.list(), []);
+  render(<QueryClientProvider client={cache}><AssignmentForm data={data} onAssigned={assigned} onReload={vi.fn()} onVersionChange={vi.fn()} onPreview={vi.fn()} /></QueryClientProvider>);
   fireEvent.click(screen.getByRole('checkbox', { name: 'Выбрать 11А' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Выбрать 11Б' }));
   expect(screen.getByText('Выбрано: 2 класса · 2 ученика')).toBeVisible();
@@ -25,10 +27,12 @@ it('selects rosters, previews pupils and replays the exact assignment after a lo
   expect(screen.getByText('Ученик 2')).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Назначить' }));
   await screen.findByRole('button', { name: 'Повторить назначение' });
+  expect(cache.getQueryState(teacherWorkQueryKeys.list())?.isInvalidated).toBe(false);
   expect(screen.queryByText('Failed to fetch')).not.toBeInTheDocument();
   expect(screen.getByRole('checkbox', { name: 'Выбрать 11А' })).toBeDisabled();
   fireEvent.click(screen.getByRole('button', { name: 'Повторить назначение' }));
   await waitFor(() => expect(assigned).toHaveBeenCalledWith(id(20)));
+  expect(cache.getQueryState(teacherWorkQueryKeys.list())?.isInvalidated).toBe(true);
   const calls = vi.mocked(teacherAssignmentsApi.assign).mock.calls;
   expect(calls[1]).toEqual(calls[0]);
   expect(calls[0][1].classes.map((item) => item.id)).toEqual([id(2), id(3)]);

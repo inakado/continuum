@@ -14,7 +14,7 @@ vi.mock('next/navigation', async () => {
 });
 vi.mock('@/components/ContinuumHeader', () => ({ default: () => null }));
 vi.mock('./teacher-works.api', () => ({ teacherWorksApi: { list: vi.fn(), copy: vi.fn(), create: vi.fn(), archive: vi.fn(), remove: vi.fn() } }));
-const work: AssessmentWorkSummary = { id: '00000000-0000-4000-8000-000000000001', title: 'МКТ', gradeBand: 'grade_10_11', revision: 2, taskCount: 0, maxPoints: 0, updatedAt: '2026-10-21T00:00:00Z', isArchived: false, lifecycleRevision: 1, canDelete: true };
+const work: AssessmentWorkSummary & { hasAssignments: boolean } = { id: '00000000-0000-4000-8000-000000000001', title: 'МКТ', hasAssignments: false, gradeBand: 'grade_10_11', revision: 2, taskCount: 0, maxPoints: 0, updatedAt: '2026-10-21T00:00:00Z', isArchived: false, lifecycleRevision: 1, canDelete: true };
 beforeEach(() => {
   vi.restoreAllMocks(); vi.resetAllMocks(); history.replaceState({}, '', '/teacher/works');
   for (const method of ['pushState', 'replaceState'] as const) {
@@ -50,7 +50,7 @@ it('filters archives without a new navigation tab and restores through the same 
   expect(teacherWorksApi.remove).not.toHaveBeenCalled();
 });
 it('never offers deletion for an assigned work but keeps archiving and copying', async () => {
-  vi.mocked(teacherWorksApi.list).mockResolvedValue([{ ...work, canDelete: false }]);
+  vi.mocked(teacherWorksApi.list).mockResolvedValue([{ ...work, canDelete: false, hasAssignments: true }]);
   setup(); const user = userEvent.setup(); await user.click(await screen.findByRole('button', { name: 'Действия с работой: МКТ' }));
   expect(screen.getByRole('menuitem', { name: 'В архив' })).toBeVisible();
   expect(screen.getByRole('menuitem', { name: 'Создать копию' })).toBeVisible();
