@@ -1,5 +1,6 @@
 .state {
   min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
   gap: 8px;
@@ -18,4 +19,13 @@
 .subtitle {
   color: var(--catalog-muted);
   font-size: 14px;
+}
+
+.retry {
+  composes: secondary from "../../components/ui/catalog-action.module.css";
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--catalog-button-border);
+  font: inherit;
+  cursor: pointer;
 }

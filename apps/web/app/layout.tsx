@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import Script from "next/script";
 import "medeo-font/sans.css";
@@ -10,7 +10,13 @@ import QueryProvider from "@/lib/query/query-provider";
 export const metadata: Metadata = {
   title: "Континуум",
   description: "Закрытая библиотека занятий по физике",
+  applicationName: "Континуум",
   manifest: "/site.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Континуум",
+    statusBarStyle: "default",
+  },
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -20,6 +26,10 @@ export const metadata: Metadata = {
     shortcut: ["/favicon.ico"],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({
