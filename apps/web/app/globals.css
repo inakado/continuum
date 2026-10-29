@@ -1,4 +1,5 @@
 :root {
+  color-scheme: only light;
   --catalog-paper: #ffffff;
   --catalog-ink: #202633;
   --catalog-heading: #080c13;
@@ -209,6 +210,7 @@
   --text-mono-tracking: 0em;
 }
 
+:root,
 [data-theme="light"] {
   --control-radius: var(--catalog-control-radius);
   --button-primary-bg: var(--catalog-accent);
@@ -280,7 +282,7 @@
   --switch-thumb-active-bg: var(--switch-thumb-bg);
 }
 
-[data-theme="dark"] {
+:where([data-theme="dark"] .glass-scope) {
   --bg-primary: #0f172a;
   --bg-surface: #1e293b;
   --bg-field: #0f172a;
@@ -381,10 +383,6 @@ textarea,
 select {
   border-radius: var(--control-radius);
   font-family: inherit;
-}
-
-[data-theme="dark"] {
-  color-scheme: dark;
 }
 
 .glass-scope {

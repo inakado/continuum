@@ -42,6 +42,8 @@
 
 ## Каталоги
 
+- `documents/exec-plans/completed/2026-10-29-native-control-theme.md` — источник тёмных native controls на белых рабочих экранах, общий CSS-контракт и проверки обеих тем/ролей.
+
 - `documents/exec-plans/completed/2026-10-29-mobile-pwa.md` — установка на главный экран, брендовые иконки, первичные PWA-источники и проверки.
 
 - `documents/exec-plans/completed/2026-10-29-work-assignment-labels.md` — две отметки наличия назначений вместо технического «Черновик», источники, контракт и проверки.
