@@ -40,3 +40,5 @@
 - Снимок настоящего login: `pwa-login-mobile.png` в папке визуализаций текущего чата. Это responsive screenshot, не имитация физически установленного приложения.
 - Contract review: только нативные metadata/manifest, статические иконки и минимальный session-aware launch; нет новых dependencies, SW, storage, install prompts или отдельного PWA shell.
 - Временный Next-сервер, его каталог/кеш и браузерная вкладка удалены после проверки; viewport override сброшен. Физическая установка на iPhone/Android остаётся приёмкой после выпуска.
+
+Release CI выявил несовместимость PNG RGB внутри ICO с Linux Turbopack: «The PNG is not in RGBA format». Оба favicon.ico переупакованы в RGBA; RGB-пиксели, непрозрачность и размеры 16/32/48 сохранены, копии app/public совпадают. Home-screen PNG остаются исходными RGB. Production build CI служит проверкой декодирования.
