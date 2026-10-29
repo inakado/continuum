@@ -8,7 +8,7 @@ import { pointsLabel } from '@/features/teacher-bank/task-source';
 import { useWorkDraft } from './use-work-draft';
 import { useWorkArrangement } from './use-work-arrangement';
 import WorkPreview from './WorkPreview';
-import { taskCountLabel, workGrades, workStateLabel } from './work-labels';
+import { taskCountLabel, workGrades } from './work-labels';
 import WorksShell from './WorksShell';
 import WorkTaskRow from './WorkTaskRow';
 import WorkBankPicker from './WorkBankPicker';
@@ -41,7 +41,7 @@ export default function WorkEditor({ initial, onReload }: { initial: AssessmentW
       <button className={styles.textButton} onClick={() => { void leave.request().then((allowed) => { if (allowed) router.push(worksListHref(new URLSearchParams(window.location.search))); }); }}><ArrowLeft size={17} />К работам</button>
       <CopyNotice count={initial.copySkippedTaskCount} />
       <div className={styles.editorHeading}><div>{preview ? <h1>{draft.title}</h1> : <input ref={titleInput} className={styles.titleInput} aria-label="Название работы" maxLength={200} value={draft.title} onChange={(event) => { editor.change({ title: event.target.value }); }} />}
-        <div className={styles.meta}>{preview ? workGrades[draft.gradeBand] : <WorkSelect aria-label="Параллель работы" value={draft.gradeBand} onChange={(event) => { editor.change({ gradeBand: event.target.value as GradeBand }); }}>{Object.entries(workGrades).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</WorkSelect>}<span>· {workStateLabel(initial.isArchived)}</span>{!preview && <button className={styles.textButton} onClick={() => setInstructions(!instructionsOpen)}>{instructionsOpen ? 'Скрыть инструкцию' : draft.instructions ? 'Инструкция' : 'Добавить инструкцию'}</button>}</div>
+        <div className={styles.meta}>{preview ? workGrades[draft.gradeBand] : <WorkSelect aria-label="Параллель работы" value={draft.gradeBand} onChange={(event) => { editor.change({ gradeBand: event.target.value as GradeBand }); }}>{Object.entries(workGrades).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</WorkSelect>}{initial.isArchived && <span>· Архив</span>}{!preview && <button className={styles.textButton} onClick={() => setInstructions(!instructionsOpen)}>{instructionsOpen ? 'Скрыть инструкцию' : draft.instructions ? 'Инструкция' : 'Добавить инструкцию'}</button>}</div>
       </div><span className={styles.saveStatus} role="status">{editor.saving ? 'Сохраняем…' : editor.error ? 'Не сохранено' : !draft.title.trim() ? 'Введите название' : editor.dirty ? 'Есть изменения' : <><Check size={17} />Сохранено</>}</span></div>
       {instructionsOpen && !preview && <label className={styles.instructionField}>Инструкция ученику<textarea maxLength={10000} value={draft.instructions} onChange={(event) => { editor.change({ instructions: event.target.value }); }} /></label>}
       {preview && draft.instructions && <p className={styles.instructions}>{draft.instructions}</p>}

@@ -1,8 +1,8 @@
 import { buildPageMetadata } from "@/app/page-metadata";
-import { redirect } from "next/navigation";
+import AppEntry from "@/features/auth/AppEntry";
 
 export const metadata = buildPageMetadata("Перенаправление", "Вход в платформу Континуум.");
 
 export default function Home() {
-  redirect("/login");
+  return <AppEntry />;
 }

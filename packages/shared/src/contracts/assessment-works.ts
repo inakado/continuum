@@ -30,7 +30,7 @@ export const AssessmentWorkSummarySchema = z.object({
   isArchived: z.boolean().optional(), lifecycleRevision: z.number().int().positive().optional(), canDelete: z.boolean().optional(),
 });
 export const AssessmentWorkDetailSchema = AssessmentWorkSummarySchema.extend({ instructions: z.string(), items: z.array(AssessmentTaskViewSchema), copySkippedTaskCount: z.number().int().nonnegative().optional() });
-export const AssessmentWorkListSchema = z.array(AssessmentWorkSummarySchema);
+export const AssessmentWorkListSchema = z.array(AssessmentWorkSummarySchema.extend({ hasAssignments: z.boolean() }));
 export const AssessmentWorkVersionSchema = z.object({
   id: z.uuid(), workId: z.uuid(), number: z.number().int().positive(), revision: z.number().int().positive(), createdAt: z.iso.datetime(),
   title: z.string(), instructions: z.string(), gradeBand: GradeBandSchema, items: z.array(AssessmentTaskViewSchema).min(1), maxPoints: z.number().int().positive(),

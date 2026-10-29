@@ -1,5 +1,6 @@
 .page {
   min-height: 100vh;
+  min-height: 100dvh;
   position: relative;
   color: var(--text-primary);
   background: #080d17;
@@ -86,6 +87,10 @@
 
 .formInput::placeholder {
   color: #566074;
+}
+
+@media (max-width: 700px) {
+  .formInput { font-size: 16px; }
 }
 
 .formInput:focus-visible {

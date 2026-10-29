@@ -15,7 +15,7 @@ vi.mock('next/navigation', async () => {
 });
 vi.mock('@/components/ContinuumHeader', () => ({ default: () => null }));
 vi.mock('./teacher-works.api', () => ({ teacherWorksApi: { list: vi.fn(), copy: vi.fn(), create: vi.fn(), archive: vi.fn(), remove: vi.fn() } }));
-const work: AssessmentWorkDetail = { id: '00000000-0000-4000-8000-000000000001', title: 'Термодинамика', gradeBand: 'grade_10_11', revision: 2, taskCount: 0, maxPoints: 0, instructions: '', items: [], updatedAt: '2026-10-21T00:00:00Z' };
+const work: AssessmentWorkDetail & { hasAssignments: boolean } = { id: '00000000-0000-4000-8000-000000000001', title: 'Термодинамика', hasAssignments: false, gradeBand: 'grade_10_11', revision: 2, taskCount: 0, maxPoints: 0, instructions: '', items: [], updatedAt: '2026-10-21T00:00:00Z' };
 const copied = { ...work, id: '00000000-0000-4000-8000-000000000002', title: 'Термодинамика — копия', revision: 1 };
 beforeEach(() => {
   vi.restoreAllMocks(); vi.resetAllMocks(); history.replaceState({}, '', '/teacher/works');
@@ -50,8 +50,22 @@ it('offers copying in the row menu, opens an independent draft and primes its qu
 it('carries the filtered list context into the work link', async () => {
   history.replaceState({}, '', '/teacher/works?search=Термо');
   setup();
-  const link = await screen.findByRole('link', { name: /Термодинамика.*Черновик/ });
+  const link = await screen.findByRole('link', { name: /Термодинамика.*Не назначена/ });
   expect(link).toHaveAttribute('href', `/teacher/works/${work.id}?search=%D0%A2%D0%B5%D1%80%D0%BC%D0%BE`);
+});
+
+it('shows only assignment presence and keeps it after editing and archiving', async () => {
+  const assigned = { ...work, id: '00000000-0000-4000-8000-000000000003', title: 'Кинематика', taskCount: 30, maxPoints: 45, hasAssignments: true };
+  vi.mocked(teacherWorksApi.list).mockResolvedValue([work, assigned]);
+  const client = setup();
+  expect(await screen.findByRole('link', { name: /Термодинамика.*Не назначена/ })).toBeVisible();
+  expect(screen.getByRole('link', { name: /Кинематика.*Назначена/ })).toBeVisible();
+  act(() => client.setQueryData(teacherWorkQueryKeys.list(), [{ ...assigned, revision: 7 }]));
+  expect(screen.getByRole('link', { name: /Кинематика.*Назначена/ })).toBeVisible();
+  expect(screen.queryByText(/Черновик|Есть новые изменения|Редакция изменена/)).not.toBeInTheDocument();
+  act(() => client.setQueryData(teacherWorkQueryKeys.list(), [{ ...assigned, isArchived: true }]));
+  await userEvent.setup().selectOptions(screen.getByRole('combobox', { name: 'Показывать' }), 'archived');
+  expect(screen.getByRole('link', { name: /Кинематика.*Назначена.*Архив/ })).toBeVisible();
 });
 it('retries an uncertain result with the same payload even if the source list refreshes', async () => {
   vi.mocked(teacherWorksApi.copy).mockRejectedValueOnce(new Error('Сеть недоступна')).mockResolvedValueOnce(copied);

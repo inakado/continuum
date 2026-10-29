@@ -28,6 +28,7 @@ const titles = () => within(screen.getByRole('list', { name: 'Задания р�
 
 it('flushes before debounce and waits before returning, ignoring repeated navigation', async () => {
   setup();
+  expect(screen.queryByText(/Черновик|Не назначена|Назначена/)).not.toBeInTheDocument();
   let saved!: (work: AssessmentWorkDetail) => void;
   vi.mocked(teacherWorksApi.update).mockImplementation(() => new Promise((resolve) => { saved = resolve; }));
   fireEvent.change(screen.getByRole('textbox', { name: 'Название работы' }), { target: { value: 'Изменение' } });

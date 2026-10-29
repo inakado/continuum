@@ -27,5 +27,5 @@ export function useRevokeAssignment(onRemoved: () => void) {
 export function useAssignWork(id: string) {
   const cache = useQueryClient();
   return useMutation({ mutationFn: (input: AssignmentCreate) => teacherAssignmentsApi.assign(id, input), retry: false,
-    onSuccess: () => { void cache.invalidateQueries({ queryKey: assignmentQueryKeys.all() }); } });
+    onSuccess: () => { void cache.invalidateQueries({ queryKey: assignmentQueryKeys.all() }); void cache.invalidateQueries({ queryKey: teacherWorkQueryKeys.list() }); } });
 }

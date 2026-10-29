@@ -13,6 +13,18 @@
 
 Teacher и student получают отдельные role-specific layouts и feature-контуры. Старые dashboard shells удалены; новые создаются только вместе с реальным каталогом и authoring flow. Cross-import между role-specific features запрещён.
 
+## PWA на телефоне
+
+Общий `app/layout.tsx` подключает `public/site.webmanifest`, название приложения, Apple web-app metadata, `apple-touch-icon` и белый `theme-color`. Manifest задаёт `display: standalone`, язык `ru`, стабильные `id`, `start_url`, `scope` = `/`. Установка со страницы конкретной работы не закрепляет её ID в launch URL. Общий `/` использует `features/auth/AppEntry` и существующий `useAuthSession`: действующая сессия открывает `/teacher`, `/student` или `/admin`, отсутствие сессии — `/login`. Сетевая ошибка показывает повтор проверки и не трактуется как выход. Это поведение одинаково для обычного браузера и PWA. Права и сохранение ответов работают по прежним правилам; установка сама по себе не продлевает вход.
+
+Иконки — предоставленный чёрно-серый знак на светлом фоне: PNG 192/512 для Android, отдельный непрозрачный `android-maskable-512x512.png` с безопасным кругом радиуса 40% ширины, Apple 180 px, favicon 16/32 и ICO 16/32/48. Скругление применяет ОС. App Router `app/favicon.ico` и `public/favicon.ico` согласованы. Maskable экспорт уменьшает исходный квадрат до 420 px внутри 512 px с полями 46 px; фон заполнен исходной текстурой, знак не перерисован.
+
+`statusBarStyle: default` сохраняет системную строку состояния. `viewport-fit: cover` не включён: браузер/ОС оставляет безопасные области у выреза и индикатора жеста. Пользовательское масштабирование доступно. Login использует `100dvh` с fallback `100vh`; поля на телефоне имеют 16 px. Общий Dialog ограничен `100dvh - 24px`, включая низкие viewport. Существующие role-specific меню и ссылки возврата используются и в standalone; отдельной PWA-навигации нет.
+
+Установка требует HTTPS (localhost допустим для разработки). iPhone: Safari → «Поделиться» → «На экран Домой», «Открывать как веб-приложение» включено, если переключатель доступен. Android: меню Chrome → «Установить приложение» / «Добавить на главный экран»; формулировка зависит от версии браузера. Запускать с созданной иконки. Адресная строка и панели браузера скрыты, системные часы/батарея остаются. Старую установку с кешированной иконкой может потребоваться удалить и добавить заново.
+
+Работа требует сети. Service worker, offline-кеш страниц/API/фото, push и собственные install-баннеры не вводятся. Для физической приёмки: установить на iPhone и Android, закрыть/запустить с иконки, войти, проверить навигацию и возврат из работы, ввод с экранной клавиатурой, прокрутку/диалоги и выход. Desktop responsive QA не подтверждает поведение ОС. Основания: [Next.js PWA](https://nextjs.org/docs/app/guides/progressive-web-apps), [Google install criteria](https://web.dev/articles/install-criteria), [Google maskable icons](https://web.dev/articles/maskable-icon), [WebKit Safari 26](https://webkit.org/blog/17333/webkit-features-in-safari-26-0/).
+
 ## Routes Map
 
 - `/login` — единый вход.
@@ -96,6 +108,8 @@ Markdown преобразуется в ограниченное дерево и 
 `useCorrectBankTask` обновляет bank/works/statistics cache. У ученика текущий availability polling сообщает `presentationRevision`; `StudentWorkSession` перечитывает detail, сохраняя key игрока, локальные ответы и фокус. Общий Markdown-parser поддерживает сохранённые display-формулы внутри абзаца и отклоняет непарные разделители. При создании новых архивов display-формулы готовятся отдельными блоками по [гайду](ASSESSMENT-PACKAGE.md).
 
 ## Конструктор работ
+
+В «Моих работах» подпись показывает только факт наличия назначений: «Не назначена» / «Назначена». Обязательный `hasAssignments` приходит в DTO списка из API; frontend не выводит статус из права `canDelete`, ревизии или наличия сохранённой версии. Отметка «Архив» независима и не заменяет подпись назначения. После успешного назначения `useAssignWork` инвалидирует список работ; существующий отзыв назначения также обновляет его. Технический «Черновик» в списке и редакторе не показывается. Обычные правки, presentation corrections и состояние прохождения не добавляют отметок редакции/изменений. Текущая обратная связь автосохранения («Сохраняем», «Сохранено», ошибки) сохраняется.
 
 Импорт банка запрашивает duplicate hints отдельным TanStack query после preview, с gcTime 0, retry false и без refetch-on-focus. Query не входит в busy/disabled подтверждения; pending/unavailable/error — неблокирующий текст с ручным повтором. Отмечаются только stableId из текущего preview. BankImportReview отвечает за список/условие/подсказки; BankDuplicateWarnings открывает общий Dialog с двумя BankTaskPreview. Кандидат банка запрашивается по pinned version, ZIP — через preview endpoint. На mobile колонки становятся вертикальными без горизонтального overflow; закрытие возвращает focus на исходное «Сравнить» через Dialog onCloseAutoFocus. Данные preview не копируются в browser storage.
 
