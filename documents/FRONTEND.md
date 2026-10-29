@@ -13,6 +13,12 @@
 
 Teacher и student получают отдельные role-specific layouts и feature-контуры. Старые dashboard shells удалены; новые создаются только вместе с реальным каталогом и authoring flow. Cross-import между role-specific features запрещён.
 
+## Цветовая схема рабочих экранов
+
+Teacher, student и admin используют светлую рабочую поверхность независимо от системной темы и сохранённого `continuum-theme`. В `app/globals.css` `:root` задаёт `color-scheme: only light` и базовые светлые tokens; нативные checkbox/radio/select/input, полосы прокрутки и portal-содержимое не наследуют dark chrome на белом фоне. Не подменять нативные чекбоксы рисунками и не добавлять точечные theme-патчи в каждый feature.
+
+Автоматическая/сохранённая тема остаётся для композиции входа: dark tokens ограничены `:where([data-theme="dark"] .glass-scope)`. Низкая специфичность сохраняет локальные цвета `pageDark`/`pageLight`. Сейчас `glass-scope` используется только входом; рабочие layouts и порталы нельзя помещать в этот декоративный контур. Нативные поля входа также остаются светлыми. Смена системной темы, client navigation после входа и старое сохранённое значение `dark` не переключают рабочий UI. Это одинаково для desktop browser, mobile browser и PWA; `forced-colors`/системный режим высокой контрастности не отключается.
+
 ## PWA на телефоне
 
 Общий `app/layout.tsx` подключает `public/site.webmanifest`, название приложения, Apple web-app metadata, `apple-touch-icon` и белый `theme-color`. Manifest задаёт `display: standalone`, язык `ru`, стабильные `id`, `start_url`, `scope` = `/`. Установка со страницы конкретной работы не закрепляет её ID в launch URL. Общий `/` использует `features/auth/AppEntry` и существующий `useAuthSession`: действующая сессия открывает `/teacher`, `/student` или `/admin`, отсутствие сессии — `/login`. Сетевая ошибка показывает повтор проверки и не трактуется как выход. Это поведение одинаково для обычного браузера и PWA. Права и сохранение ответов работают по прежним правилам; установка сама по себе не продлевает вход.
