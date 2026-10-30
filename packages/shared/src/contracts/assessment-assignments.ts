@@ -75,6 +75,7 @@ export const PublicAssessmentItemSchema = z.discriminatedUnion('type', [
 export const StudentAttemptStateSchema = z.strictObject({
   revision: positive, status: AttemptStatusSchema, answeredCount: count,
   startedAt: z.iso.datetime().nullable(), completedAt: z.iso.datetime().nullable(),
+  taskResults: z.record(uuid, z.strictObject({ points: count, maxPoints: positive })).optional(),
   result: z.strictObject({ correctCount: count, incorrectCount: count, partialCount: count.optional(), points: count.optional(), maxPoints: positive.optional() }).nullable(),
 });
 export const StudentWorkSummarySchema = StudentAttemptStateSchema.extend({

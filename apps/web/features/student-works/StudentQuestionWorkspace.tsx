@@ -8,9 +8,9 @@ import StudentTaskNavigation from './StudentTaskNavigation';
 import { useStudentMobile } from './use-student-mobile';
 import styles from './student-works.module.css';
 
-export default function StudentQuestionWorkspace({ work, answers, activeId, onSelect, onChange, disabled, automaticCompleted, photoTaskIds, renderExtended, focusRequest }: {
+export default function StudentQuestionWorkspace({ work, answers, activeId, onSelect, onChange, disabled, automaticCompleted, taskResults, photoTaskIds, renderExtended, focusRequest }: {
   work: StudentWorkDetail; answers: StudentWorkDetail['answers']; activeId: string; onSelect: (id: string) => void; onChange: (id: string, answer: AssessmentAnswer) => void; disabled: boolean;
-  automaticCompleted: boolean; photoTaskIds: string[]; renderExtended?: (id: string) => ReactNode; focusRequest?: number;
+  taskResults?: StudentWorkDetail['taskResults']; automaticCompleted: boolean; photoTaskIds: string[]; renderExtended?: (id: string) => ReactNode; focusRequest?: number;
 }) {
   const mobile = useStudentMobile();
   const index = Math.max(0, work.items.findIndex(item => item.id === activeId));
@@ -19,7 +19,7 @@ export default function StudentQuestionWorkspace({ work, answers, activeId, onSe
   const uid = useId();
   useEffect(() => { title.current?.focus({ preventScroll: true }); title.current?.scrollIntoView?.({ block: 'start' }); }, [activeId, focusRequest]);
   if (!item) return <p role="alert">В работе нет заданий.</p>;
-  const navigation = <StudentTaskNavigation mobile={mobile} items={work.items} answers={answers} index={index} photoTaskIds={photoTaskIds} disabled={disabled} select={onSelect} heading={title} instructions={work.instructions} />;
+  const navigation = <StudentTaskNavigation mobile={mobile} items={work.items} answers={answers} index={index} photoTaskIds={photoTaskIds} taskResults={taskResults} disabled={disabled} select={onSelect} heading={title} instructions={work.instructions} />;
   return <div className={`${question.workspace} ${styles.questionWorkspace}`}>
     {!mobile && navigation}
     <section className={question.questionPane} aria-labelledby={`question-title-${uid}`}>

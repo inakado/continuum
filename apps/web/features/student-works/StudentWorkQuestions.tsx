@@ -42,5 +42,5 @@ export default function StudentWorkQuestions({ work, answers, disabled, onChange
     setActiveId(id);
     try { sessionStorage.setItem(positionKey, id); } catch { /* Position is optional; answers are saved by the attempt hook. */ }
   }
-  return <StudentQuestionWorkspace work={work} answers={answers} activeId={activeId} onSelect={select} onChange={onChange} disabled={disabled} automaticCompleted={automaticCompleted} photoTaskIds={solutions.filter((answer) => answer.photos.length).map((answer) => answer.taskId)} renderExtended={renderExtended} focusRequest={requestedTask?.request} />;
+  return <StudentQuestionWorkspace work={work} answers={answers} activeId={activeId} onSelect={select} onChange={onChange} disabled={disabled} automaticCompleted={automaticCompleted} taskResults={{ ...(work.status === 'completed' ? work.taskResults : {}), ...Object.fromEntries(solutions.filter(answer => answer.publishedReview).map(answer => [answer.taskId, { points: answer.publishedReview!.points, maxPoints: answer.maxPoints }])) }} photoTaskIds={solutions.filter((answer) => answer.photos.length).map((answer) => answer.taskId)} renderExtended={renderExtended} focusRequest={requestedTask?.request} />;
 }

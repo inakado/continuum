@@ -113,3 +113,23 @@ it('preserves answers and closes the task sheet when rotating between mobile and
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   expect(screen.getByRole('textbox')).toHaveValue('3,25');
 });
+
+it('shows earned scores on mobile without the explanatory note and preserves the active score tone', () => {
+  vi.spyOn(window, 'matchMedia').mockImplementation(query => ({ matches: true, media: query, onchange: null, addListener: vi.fn(), removeListener: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn() }));
+  render(<Example data={{ ...work, status: 'completed', taskResults: { 'task-1': { points: 0, maxPoints: 1 }, 'task-2': { points: 1, maxPoints: 2 }, 'task-3': { points: 2, maxPoints: 2 } } }} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Задания · 1 из 30' }));
+  expect(screen.queryByText(/Выберите номер/)).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Задание 1: 0 из 1 баллов' })).toHaveAttribute('data-score', 'incorrect');
+  expect(screen.getByRole('button', { name: 'Задание 1: 0 из 1 баллов' })).toHaveAttribute('aria-current', 'step');
+  expect(screen.getByRole('button', { name: 'Задание 2: 1 из 2 баллов' })).toHaveAttribute('data-score', 'partial');
+  expect(screen.getByRole('button', { name: 'Задание 3: 2 из 2 баллов' })).toHaveAttribute('data-score', 'correct');
+  expect(screen.getByRole('button', { name: 'Задание 4: без ответа' })).not.toHaveAttribute('data-score');
+});
+it('uses only published extended grades and keeps unreviewed photos neutral before test completion', () => {
+  vi.spyOn(window, 'matchMedia').mockImplementation(query => ({ matches: false, media: query, onchange: null, addListener: vi.fn(), removeListener: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn() }));
+  const items = ['ext-1', 'ext-2'].map(id => ({ id, title: id, type: 'extended' as const, statement: 'Условие', images: {}, maxPoints: 3 }));
+  const solutions: SolutionAnswer[] = items.map((item, index) => ({ taskId: item.id, title: item.title, maxPoints: 3, revision: 1, locked: index === 0, photos: [], publishedReview: index === 0 ? { points: 2, revision: 1, reportUrl: '/report' } : null }));
+  render(<StudentWorkQuestions work={{ ...work, items }} answers={{}} disabled={false} onChange={vi.fn()} solutions={solutions} />);
+  expect(screen.getByRole('button', { name: 'Задание 1: 2 из 3 баллов' })).toHaveAttribute('data-score', 'partial');
+  expect(screen.getByRole('button', { name: 'Задание 2: без фото' })).not.toHaveAttribute('data-score');
+});
