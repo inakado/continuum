@@ -43,6 +43,8 @@ export class StatisticsReadService {
     return this.db.$transaction(async (tx) => {
       const row = await this.owned(tx, teacherId, id);
       const snapshot = WorkSnapshotSchema.parse(row.data);
+      const items = await applyAssessmentPresentations(tx, snapshot.items);
+      snapshot.items = items;
       const classes = row.assignments.map((group) => ({ id: group.id, classId: group.classId, title: group.classTitle, academicYear: group.academicYear }));
       const recipients = await tx.assessmentRecipient.findMany({ where: { versionId: id }, orderBy: [{ studentName: 'asc' }, { id: 'asc' }], select: {
         ...recipientFields, student: { select: { studentProfile: { select: { firstName: true, lastName: true } } } },
@@ -61,10 +63,11 @@ export class StatisticsReadService {
     return this.db.$transaction(async (tx) => {
       const row = await this.owned(tx, teacherId, id);
       const snapshot = WorkSnapshotSchema.parse(row.data);
-      const item = snapshot.items.find((entry) => entry.taskId === taskId);
+      const items = await applyAssessmentPresentations(tx, snapshot.items);
+      snapshot.items = items;
+      const item = items.find((entry) => entry.taskId === taskId);
       if (!item) throw new NotFoundException('Задание не входит в эту версию работы.');
-      const [display] = await applyAssessmentPresentations(tx, [item]);
-      const view = mapAssessmentView(item.taskId, item.version, display.data, `/teacher/assessment-bank/tasks/${item.taskId}/images`, display.presentationVersion);
+      const view = mapAssessmentView(item.taskId, item.version, item.data, `/teacher/assessment-bank/tasks/${item.taskId}/images`, item.presentationVersion);
       if (!recipientId) return { item: view, student: null };
       const recipient = await tx.assessmentRecipient.findFirst({ where: { id: recipientId, versionId: id }, select: recipientFields });
       if (!recipient) throw new NotFoundException('Ученик не входит в это назначение.');

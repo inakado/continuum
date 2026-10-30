@@ -50,3 +50,10 @@
   .actions { flex-direction: column-reverse; }
   .actions button { width: 100%; }
 }
+
+.reviewBody { min-height: 0; overflow: auto; flex: 1; overscroll-behavior: contain; }
+.reviewBody .comparison { overflow: visible; }
+.impact { border-top: 1px solid var(--catalog-border); padding-block: 16px; font-size: 14px; line-height: 1.5; }
+.impact h3 { margin: 0 0 8px; font-size: 16px; }
+.impact ul { padding-left: 20px; margin-block: 12px; }
+.impact li + li { margin-top: 8px; }

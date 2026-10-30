@@ -73,3 +73,15 @@ it('retries the same unanswered save before newer edits and finishes only after 
   expect(studentWorksApi.finish).toHaveBeenCalledWith(id, 3);
   expect(result.current.state.result).toEqual({ correctCount: 1, incorrectCount: 0 });
 });
+it('refreshes completed grades without replacing saved answers or attempt revision', async () => {
+  const completed: StudentWorkDetail = { ...initial, status: 'completed', revision: 7, completedAt: '2026-10-17T01:00:00Z', answers: { [id]: { type: 'short_number', value: '7' } }, result: { correctCount: 0, incorrectCount: 1, points: 0 }, taskResults: { [id]: { points: 0, maxPoints: 1 } } };
+  const client = new QueryClient();
+  const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  const { result, rerender } = renderHook(({ data }) => useStudentAttempt(data), { wrapper, initialProps: { data: completed } });
+  rerender({ data: { ...completed, result: { correctCount: 1, incorrectCount: 0, points: 1 }, taskResults: { [id]: { points: 1, maxPoints: 1 } }, answers: {} } });
+  await waitFor(() => expect(result.current.state.result?.points).toBe(1));
+  expect(result.current.state.taskResults?.[id].points).toBe(1);
+  expect(result.current.answers).toBe(completed.answers); expect(result.current.saved).toBe(completed.answers);
+  expect(result.current.state.revision).toBe(7);
+  expect(studentWorksApi.save).not.toHaveBeenCalled(); expect(studentWorksApi.finish).not.toHaveBeenCalled();
+});

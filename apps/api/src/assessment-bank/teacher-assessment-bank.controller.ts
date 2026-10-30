@@ -11,7 +11,7 @@ import { assertWriteOrigin } from '../common/assert-write-origin';
 import { AssessmentBankReadService } from './assessment-bank-read.service';
 import { AssessmentBankWriteService } from './assessment-bank-write.service';
 import { AssessmentDuplicateReadService } from './assessment-duplicate-read.service';
-import { AssessmentBankCorrectionSchema, type AssessmentBankCorrection } from '@continuum/shared';
+import { AssessmentBankCorrectionSchema, AssessmentBankCorrectionPreviewSchema, type AssessmentBankCorrection } from '@continuum/shared';
 
 const VersionQuerySchema = z.object({ version: z.coerce.number().int().positive().max(100000).optional() });
 
@@ -49,11 +49,18 @@ export class TeacherAssessmentBankController {
   @Header('Cache-Control', 'no-store')
   restore(@Req() request: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string, @Body(new ZodValidationPipe(AssessmentBankRestoreSchema)) input: AssessmentBankRestore) { assertWriteOrigin(request); return this.writes.restore(request.user.id, id, input); }
 
+  @Post('tasks/:id/correction-preview')
+  @Header('Cache-Control', 'no-store')
+  correctionPreview(@Req() request: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string, @Body(new ZodValidationPipe(AssessmentBankCorrectionPreviewSchema)) input: z.infer<typeof AssessmentBankCorrectionPreviewSchema>) {
+    assertWriteOrigin(request);
+    return this.writes.correctionPreview(request.user.id, input.importId, { taskId: id, expectedVersion: input.expectedVersion });
+  }
+
   @Post('tasks/:id/correct')
   @Header('Cache-Control', 'no-store')
   correct(@Req() request: AuthRequest, @Param('id', new ParseUUIDPipe()) id: string, @Body(new ZodValidationPipe(AssessmentBankCorrectionSchema)) input: AssessmentBankCorrection) {
     assertWriteOrigin(request);
-    return this.writes.confirm(request.user.id, input.importId, { taskId: id, expectedVersion: input.expectedVersion });
+    return this.writes.confirm(request.user.id, input.importId, { taskId: id, expectedVersion: input.expectedVersion, expectedImpactHash: input.expectedImpactHash });
   }
 
   @Get('tasks/:id/export')

@@ -21,7 +21,7 @@ beforeEach(() => {
   }
 });
 vi.mock('@/components/ContinuumHeader', () => ({ default: () => null }));
-vi.mock('./BankTaskCorrection', () => ({ default: ({ task, onClose }: { task: { task: { title: string } }; onClose: () => void }) => <div role="dialog" aria-label="Исправить условие"><p>{task.task.title}</p><button onClick={onClose}>Закрыть исправление</button></div> }));
+vi.mock('./BankTaskCorrection', () => ({ default: ({ task, onClose }: { task: { task: { title: string } }; onClose: () => void }) => <div role="dialog" aria-label="Исправить задачу"><p>{task.task.title}</p><button onClick={onClose}>Закрыть исправление</button></div> }));
 vi.mock('@/components/assessment/AssessmentMarkdown', () => ({ default: ({ text }: { text: string }) => <div>{text}</div> }));
 vi.mock('./use-teacher-bank', () => {
   const source = { provider: 'Школково', externalId: '11121', taskNumber: 86, sectionCode: '7.05', examYear: 2026, examTaskNumber: 7 };
@@ -36,12 +36,12 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 it('keeps the correction dialog when the task no longer matches the bank search', async () => {
   const user = userEvent.setup(); render(<TeacherBankScreen />);
   await user.click(screen.getByRole('button', { name: 'Действия с заданием' }));
-  await user.click(await screen.findByRole('menuitem', { name: 'Исправить условие' }));
-  expect(screen.getByRole('dialog', { name: 'Исправить условие' })).toHaveTextContent('Давление газа');
+  await user.click(await screen.findByRole('menuitem', { name: 'Исправить задачу' }));
+  expect(screen.getByRole('dialog', { name: 'Исправить задачу' })).toHaveTextContent('Давление газа');
   state.empty = true;
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'исправленная фраза' } });
   expect(screen.getByRole('heading', { name: 'Ничего не найдено' })).toBeInTheDocument();
-  expect(screen.getByRole('dialog', { name: 'Исправить условие' })).toBeInTheDocument();
+  expect(screen.getByRole('dialog', { name: 'Исправить задачу' })).toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Закрыть исправление' }));
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });

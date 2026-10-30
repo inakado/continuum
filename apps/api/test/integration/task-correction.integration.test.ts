@@ -49,8 +49,8 @@ async function preview(entries: { task: AssessmentPackageTask; text: string }[],
   expect(result.issues).toEqual([]);
   return result.id!;
 }
-async function fixture() {
-  const first = task(), extended = AssessmentPackageTaskSchema.parse({ id: `extended-${randomUUID()}`, title: 'Решите задачу', gradeBand: first.gradeBand, topicPath: first.topicPath, source: first.source, type: 'extended', maxPoints: 2 });
+async function fixture(first: AssessmentPackageTask = task()) {
+  const extended = AssessmentPackageTaskSchema.parse({ id: `extended-${randomUUID()}`, title: 'Решите задачу', gradeBand: first.gradeBand, topicPath: first.topicPath, source: first.source, type: 'extended', maxPoints: 2 });
   const id = await preview([{ task: first, text: 'Исходное условие' }, { task: extended, text: 'Решите задачу' }]);
   const imported = await writes.confirm(users[0], id);
   const work = await works.create(users[0], { id: randomUUID(), title: 'Проверка исправления', gradeBand: 'grade_10_11', items: imported.items });
@@ -113,9 +113,9 @@ it('corrects bank, draft, frozen, statistics and student views; keeps answers/re
 it('blocks incompatible/foreign/deleted/stale/multi-task corrections atomically and preserves ordinary import semantics', async () => {
   const f = await fixture(), taskId = f.imported.taskIds[0];
   if (f.first.type !== 'short_number') throw new Error('fixture');
-  for (const changed of [{ ...f.first, grading: { answer: '12', absoluteTolerance: 0 } }, { ...f.first, maxPoints: 2 }, { ...f.first, unit: 'м' }]) {
+  for (const changed of [{ ...f.first, maxPoints: 2 }, { ...f.first, unit: 'м' }]) {
     const importId = await preview([{ task: changed, text: 'Другое условие' }]);
-    await expect(writes.confirm(users[0], importId, { taskId, expectedVersion: 1 })).rejects.toThrow(/Можно исправить только/);
+    await expect(writes.confirm(users[0], importId, { taskId, expectedVersion: 1 })).rejects.toThrow(/должны остаться прежними/);
   }
   const many = await preview([{ task: f.first, text: '1' }, { task: f.extended, text: '2' }]);
   await expect(writes.confirm(users[0], many, { taskId, expectedVersion: 1 })).rejects.toThrow(/только задача/);
@@ -170,4 +170,87 @@ it('corrects an extended condition for the reviewer while leaving existing solut
   expect((await reviewer.image(principal, answer.id, 'graph.png')).stream).toBeInstanceOf(Readable);
   expect(await db.assessmentSolutionAnswer.findUnique({ where: { id: answer.id } })).toEqual(answer);
   expect(await db.assessmentSolutionPhoto.findUnique({ where: { id: photo.id } })).toEqual(photo);
+}, 30000);
+
+it('previews and applies partial grading atomically, preserves answers/photos/snapshot, supports live finish and chained key fixes', async () => {
+  const number = task(); if (number.type !== 'short_number') throw new Error('fixture');
+  const { unit: _unit, ...base } = number;
+  const first = AssessmentPackageTaskSchema.parse({ ...base, maxPoints: 2, type: 'multiple_choice', options: ['1','2','3','4','5'].map(id => ({ id, content: id })), grading: { policy: 'exact', correctOptionIds: ['1','3'] } });
+  if (first.type !== 'multiple_choice') throw new Error('fixture');
+  const f = await fixture(first), taskId = f.imported.taskIds[0];
+  for (let i = 0; i < 2; i++) {
+    await attempts.start(users[i+2], f.recipients[i].id);
+    const saved = await attempts.save(users[i+2], f.recipients[i].id, taskId, { requestId: randomUUID(), expectedRevision: 1, answer: { type: 'multiple_choice', optionIds: ['1','5'] } });
+    if (i === 0) await attempts.finish(users[i+2], f.recipients[i].id, saved.revision);
+  }
+  const saved = await db.assessmentRecipient.findMany({ where: { versionId: f.version.id }, orderBy: { id: 'asc' } });
+  const pinned = await db.assessmentWorkVersion.findUniqueOrThrow({ where: { id: f.version.id } });
+  const solution = await db.assessmentSolutionAnswer.create({ data: { recipientId: f.recipients[0].id, taskId: f.imported.taskIds[1] } });
+  const photo = await db.assessmentSolutionPhoto.create({ data: { id: randomUUID(), answerId: solution.id, objectKey: 'preserved', contentHash: 'hash', contentType: 'image/png', sizeBytes: 1, confirmedAt: new Date() } });
+  const fixed = { ...first, grading: { ...first.grading, policy: 'ege_physics_multiple_choice_v1' as const } };
+  const importId = await preview([{ task: fixed, text: 'Исходное условие' }]);
+  const request = { taskId, expectedVersion: 1 };
+  const impact = await writes.correctionPreview(users[0], importId, request);
+  expect(impact.gradingChanged).toBe(true); expect(impact.completedCount).toBe(1);
+  expect(impact.changes).toEqual([expect.objectContaining({ before: 0, after: 1, taskBefore: 0, taskAfter: 1 })]);
+  await expect(writes.confirm(users[0], importId, request)).rejects.toThrow(/после предпросмотра/);
+  expect(await db.assessmentTaskVersion.count({ where: { taskId } })).toBe(1);
+  const input = { ...request, expectedImpactHash: impact.hash };
+  const [result, replay] = await Promise.all([writes.confirm(users[0], importId, input), writes.confirm(users[0], importId, input)]);
+  expect(result).toEqual(replay);
+  expect(await db.assessmentTaskVersion.count({ where: { taskId } })).toBe(2);
+  expect((await students.detail(users[2], f.recipients[0].id)).taskResults?.[taskId].points).toBe(1);
+  expect((await students.list(users[2])).find(item => item.id === f.recipients[0].id)?.result?.points).toBe(1);
+  for (const source of [{ kind: 'version' as const, number: 1 }, { kind: 'draft' as const, expectedRevision: 1 }]) {
+    expect(await reads.checkAnswer(users[0], f.work.id, { source, taskId, answer: { type: 'multiple_choice', optionIds: ['1','5'] } })).toEqual({ correct: false, points: 1, maxPoints: 2 });
+  }
+  const report = await statistics.report(users[0], f.version.id);
+  expect(report.students.find(item => item.id === f.recipients[0].id)?.scores[0]).toEqual({ state: 'scored', points: 1 });
+  const after = await db.assessmentRecipient.findMany({ where: { versionId: f.version.id }, orderBy: { id: 'asc' } });
+  for (let i=0;i<saved.length;i++) {
+    expect(after[i].answers).toEqual(saved[i].answers); expect(after[i].revision).toBe(saved[i].revision);
+    expect(after[i].startedAt).toEqual(saved[i].startedAt); expect(after[i].completedAt).toEqual(saved[i].completedAt);
+  }
+  expect(await db.assessmentWorkVersion.findUnique({ where: { id: f.version.id } })).toEqual(pinned);
+  expect(await db.assessmentSolutionPhoto.findUnique({ where: { id: photo.id } })).toEqual(photo);
+  const next = await preview([{ task: { ...fixed, grading: { ...fixed.grading, correctOptionIds: ['1','5'] } }, text: 'Исходное условие' }]);
+  const second = { taskId, expectedVersion: 2 };
+  const oldImpact = await writes.correctionPreview(users[0], next, second);
+  const pending = await students.detail(users[3], f.recipients[1].id);
+  expect((await attempts.finish(users[3], pending.id, pending.revision)).result?.points).toBe(1);
+  await expect(writes.confirm(users[0], next, { ...second, expectedImpactHash: oldImpact.hash })).rejects.toThrow(/после предпросмотра/);
+  const fresh = await writes.correctionPreview(users[0], next, second);
+  await writes.confirm(users[0], next, { ...second, expectedImpactHash: fresh.hash });
+  for (let i=0;i<2;i++) expect((await students.detail(users[i+2], f.recipients[i].id)).result?.points).toBe(2);
+}, 30000);
+
+it('serializes simultaneous finish and correction; rejects inconsistent historical totals without writes', async () => {
+  const f = await fixture(), taskId = f.imported.taskIds[0], recipient = f.recipients[0];
+  if (f.first.type !== 'short_number') throw new Error('fixture');
+  await attempts.start(users[2], recipient.id);
+  const saved = await attempts.save(users[2], recipient.id, taskId, { requestId: randomUUID(), expectedRevision: 1, answer: { type: 'short_number', value: '0' } });
+  const changed = { ...f.first, grading: { ...f.first.grading, answer: '0' } };
+  const importId = await preview([{ task: changed, text: 'Исправленный ключ' }]);
+  const request = { taskId, expectedVersion: 1 };
+  const impact = await writes.correctionPreview(users[0], importId, request);
+  const [correction, finish] = await Promise.allSettled([
+    writes.confirm(users[0], importId, { ...request, expectedImpactHash: impact.hash }),
+    attempts.finish(users[2], recipient.id, saved.revision),
+  ]);
+  expect(finish.status).toBe('fulfilled');
+  if (correction.status === 'rejected') {
+    expect(correction.reason.message).toMatch(/после предпросмотра/);
+    const fresh = await writes.correctionPreview(users[0], importId, request);
+    await writes.confirm(users[0], importId, { ...request, expectedImpactHash: fresh.hash });
+  }
+  const row = await db.assessmentRecipient.findUniqueOrThrow({ where: { id: recipient.id } });
+  expect(row.points).toBe(1); expect(row.answers).toEqual({ [taskId]: { type: 'short_number', value: '0' } });
+  expect((await students.detail(users[2], recipient.id)).taskResults?.[taskId].points).toBe(1);
+  const next = await preview([{ task: f.first, text: 'Ещё одно исправление' }]);
+  const input = { taskId, expectedVersion: 2 };
+  const before = await writes.correctionPreview(users[0], next, input);
+  await db.assessmentRecipient.update({ where: { id: recipient.id }, data: { points: 99 } });
+  await expect(writes.confirm(users[0], next, { ...input, expectedImpactHash: before.hash })).rejects.toThrow(/не соответствует закреплённой шкале/);
+  expect(await db.assessmentTaskVersion.count({ where: { taskId } })).toBe(2);
+  expect((await db.assessmentRecipient.findUniqueOrThrow({ where: { id: recipient.id } })).points).toBe(99);
 }, 30000);

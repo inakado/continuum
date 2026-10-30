@@ -21,7 +21,7 @@ export default function BankTaskActions({ task, query, onDeleted, onCorrect }: {
     <DropdownMenu modal={false} open={menu} onOpenChange={(open) => { if (open) correcting.current = false; setMenu(open); }}>
       <DropdownMenuTrigger asChild><button ref={trigger} className={styles.taskActionsTrigger} type="button" aria-label="Действия с заданием" disabled={!task?.lifecycleRevision || remove.isPending}><MoreHorizontal size={20} aria-hidden="true" /></button></DropdownMenuTrigger>
       <DropdownMenuContent align="end" className={styles.taskMenu} onCloseAutoFocus={(event) => { if (snapshot || correcting.current) event.preventDefault(); }}>
-        <DropdownMenuItem onSelect={() => { if (task) { correcting.current = true; onCorrect(task, trigger); } }}><FilePenLine size={16} aria-hidden="true" />Исправить условие</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => { if (task) { correcting.current = true; onCorrect(task, trigger); } }}><FilePenLine size={16} aria-hidden="true" />Исправить задачу</DropdownMenuItem>
         <DropdownMenuItem className={styles.deleteItem} onSelect={() => { if (task?.lifecycleRevision) { remove.reset(); setSnapshot({ id: task.id, expectedVersion: task.version, expectedLifecycleRevision: task.lifecycleRevision, title: task.task.title, query }); } }}><Trash2 size={16} aria-hidden="true" />Удалить из банка</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

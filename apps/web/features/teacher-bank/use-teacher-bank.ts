@@ -22,6 +22,10 @@ export const useTeacherBankTask = (id: string | null, version?: number) => useQu
 export const useBankImportTask = (id: string | null, stableId: string | null) => useQuery({ queryKey: teacherBankQueryKeys.importTask(id ?? '', stableId ?? ''), queryFn: () => teacherBankApi.previewTask(id!, stableId!), enabled: Boolean(id && stableId), gcTime: 0, retry: false });
 export const useBankDuplicateHints = (id: string | null) => useQuery({ queryKey: teacherBankQueryKeys.duplicates(id ?? ''), queryFn: () => teacherBankApi.duplicates(id!), enabled: Boolean(id), gcTime: 0, retry: false, refetchOnWindowFocus: false });
 export const usePreviewBankImport = () => useMutation({ mutationFn: teacherBankApi.preview, retry: false, gcTime: 0 });
+export const useBankCorrectionImpact = (id: string, importId: string | null, version: number, enabled: boolean) => useQuery({
+  queryKey: teacherBankQueryKeys.correctionImpact(id, importId ?? '', version), queryFn: () => teacherBankApi.correctionPreview(id, { importId: importId!, expectedVersion: version }),
+  enabled: enabled && Boolean(importId), gcTime: 0, retry: false, refetchOnWindowFocus: false,
+});
 export function useCorrectBankTask() {
   const cache = useQueryClient();
   return useMutation({ mutationFn: ({ id, ...input }: AssessmentBankCorrection & { id: string }) => teacherBankApi.correct(id, input), retry: false,

@@ -19,6 +19,11 @@ export function useStudentAttempt(initial: StudentWorkDetail) {
   const finalize = useMutation({ mutationFn: (revision: number) => studentWorksApi.finish(initial.id, revision), retry: false, networkMode: 'always' });
   const save = write.mutateAsync;
   const publish = useCallback((patch: Partial<typeof model>) => { live.current = { ...live.current, ...patch }; setModel(live.current); }, []);
+  useEffect(() => {
+    if (initial.status !== 'completed' || live.current.state.status !== 'completed') return;
+    if (JSON.stringify([initial.result, initial.taskResults]) === JSON.stringify([live.current.state.result, live.current.state.taskResults])) return;
+    publish({ state: { ...live.current.state, result: initial.result, taskResults: initial.taskResults } });
+  }, [initial.status, initial.result, initial.taskResults, publish]);
   const flush = useCallback((): Promise<boolean> => {
     if (flight.current) return flight.current;
     if (live.current.state.status !== 'in_progress') return Promise.resolve(true);

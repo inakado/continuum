@@ -1,7 +1,7 @@
 import { AssessmentBankBulkDeleteSchema, AssessmentBankBulkRestoreSchema, AssessmentBankBulkDeletionSchema, AssessmentBankBulkRestoredSchema, type AssessmentBankBulkDelete, type AssessmentBankBulkRestore } from '@continuum/shared';
 import { AssessmentBankDeleteResultSchema, AssessmentBankRestoreResultSchema, AssessmentBankListSchema, AssessmentImportPreviewSchema, AssessmentImportResultSchema, AssessmentTaskViewSchema, AssessmentDuplicateHintsSchema, type AssessmentBankDelete, type AssessmentBankRestore, type AssessmentBankQuery } from '@continuum/shared';
 import { apiRequest, apiRequestParsed, ApiError } from '@/lib/api/client';
-import { AssessmentBankCorrectionSchema, type AssessmentBankCorrection } from '@continuum/shared';
+import { AssessmentBankCorrectionSchema, AssessmentBankCorrectionPreviewSchema, AssessmentCorrectionImpactSchema, type AssessmentBankCorrection } from '@continuum/shared';
 
 const root = '/teacher/assessment-bank';
 const base = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
@@ -19,6 +19,7 @@ async function download(path: string, name: string) {
 
 export const teacherBankApi = {
   exportTask: (id: string) => download(`${root}/tasks/${id}/export`, 'continuum-task.zip'),
+  correctionPreview: (id: string, input: Pick<AssessmentBankCorrection, 'importId' | 'expectedVersion'>) => apiRequestParsed(`${root}/tasks/${id}/correction-preview`, AssessmentCorrectionImpactSchema, { method: 'POST', body: AssessmentBankCorrectionPreviewSchema.parse(input) }),
   correct: (id: string, input: AssessmentBankCorrection) => apiRequestParsed(`${root}/tasks/${id}/correct`, AssessmentImportResultSchema, { method: 'POST', body: AssessmentBankCorrectionSchema.parse(input) }),
   removeMany: (input: AssessmentBankBulkDelete) => apiRequestParsed(`${root}/tasks/bulk-delete`, AssessmentBankBulkDeletionSchema, { method: 'POST', body: AssessmentBankBulkDeleteSchema.parse(input) }),
   restoreMany: (input: AssessmentBankBulkRestore) => apiRequestParsed(`${root}/tasks/bulk-restore`, AssessmentBankBulkRestoredSchema, { method: 'POST', body: AssessmentBankBulkRestoreSchema.parse(input) }),

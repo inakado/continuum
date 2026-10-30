@@ -42,6 +42,8 @@
 
 ## Каталоги
 
+- `documents/exec-plans/active/2026-10-31-grading-corrections.md` — точечное исправление ключа/шкалы с предварительным пересчётом, сохранением ответов и single-task ZIP.
+
 - `documents/research/2026-10-30-teacher-mobile-audit.md` — измерения реальных teacher-компонентов на телефоне, исправления пакета и следующие кандидаты материалов/списка работ.
 
 - `documents/exec-plans/completed/2026-10-30-teacher-mobile.md` — согласованная мобильная адаптация трёх teacher-экранов, удаление прототипа и дальнейший аудит.
