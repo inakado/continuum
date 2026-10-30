@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { WorkSnapshotSchema } from '../assessment-works/assessment-works-read.service';
 import { StudentAttemptReadService } from './student-attempt-read.service';
 import { answersSchema, attemptState, inputHash, json } from './assignment-data';
+import { applyAssessmentPresentations } from '../common/assessment-presentation';
 import { answerIsFilled, gradeAssessmentAnswer, validateAssessmentAnswer } from '../common/assessment-grading';
 
 @Injectable()
@@ -18,6 +19,7 @@ export class StudentAttemptWriteService {
     return this.db.$transaction(async (tx) => {
       const row = await this.lock(tx, studentId, id);
       const snapshot = WorkSnapshotSchema.parse(row.version.data);
+      snapshot.items = await applyAssessmentPresentations(tx, snapshot.items);
       if (row.startedAt) return attemptState(row, snapshot);
       return attemptState(await tx.assessmentRecipient.update({ where: { id }, data: { startedAt: new Date() } }), snapshot);
     });
@@ -26,6 +28,7 @@ export class StudentAttemptWriteService {
     return this.db.$transaction(async (tx) => {
       const row = await this.lock(tx, studentId, id);
       const snapshot = WorkSnapshotSchema.parse(row.version.data);
+      snapshot.items = await applyAssessmentPresentations(tx, snapshot.items);
       const hash = inputHash({ taskId, ...input });
       if (row.lastRequestId === input.requestId) {
         if (row.lastInputHash !== hash) throw new ConflictException('Ключ ответа уже использован для других данных.');
@@ -46,8 +49,12 @@ export class StudentAttemptWriteService {
   }
   finish(studentId: string, id: string, expectedRevision: number) {
     return this.db.$transaction(async (tx) => {
+      const owned = await this.reads.owned(studentId, id, tx);
+      const owner = await tx.assessmentWork.findUniqueOrThrow({ where: { id: owned.version.workId }, select: { teacherId: true } });
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${owner.teacherId}::uuid FOR UPDATE`;
       const row = await this.lock(tx, studentId, id);
       const snapshot = WorkSnapshotSchema.parse(row.version.data);
+      snapshot.items = await applyAssessmentPresentations(tx, snapshot.items);
       if (row.completedAt) return attemptState(row, snapshot);
       if (!row.startedAt || row.revision !== expectedRevision) throw new ConflictException('Сначала сохраните актуальные ответы и повторите завершение.');
       const answers = answersSchema.parse(row.answers);

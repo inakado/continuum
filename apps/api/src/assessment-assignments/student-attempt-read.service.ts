@@ -33,10 +33,13 @@ export class StudentAttemptReadService {
     return { id: row.id, presentationRevision: await assessmentPresentationRevision(this.db, WorkSnapshotSchema.parse(row.version.data).items.map((item) => item.taskId)) };
   }
   async detail(studentId: string, id: string) {
-    const row = await this.owned(studentId, id);
-    const snapshot = WorkSnapshotSchema.parse(row.version.data);
-    return { id: row.id, presentationRevision: await assessmentPresentationRevision(this.db, snapshot.items.map((item) => item.taskId)), title: snapshot.title, versionNumber: row.version.number, taskCount: snapshot.items.length, automaticTaskCount: snapshot.items.filter((item) => item.data.task.type !== 'extended').length, extendedTaskCount: snapshot.items.filter((item) => item.data.task.type === 'extended').length, assignedAt: row.createdAt.toISOString(), ...attemptState(row, snapshot),
-      instructions: snapshot.instructions, answers: answersSchema.parse(row.answers), items: (await applyAssessmentPresentations(this.db, snapshot.items)).map((item) => publicItem(row.id, item)) };
+    return this.db.$transaction(async tx => {
+      const row = await this.owned(studentId, id, tx);
+      const snapshot = WorkSnapshotSchema.parse(row.version.data);
+      snapshot.items = await applyAssessmentPresentations(tx, snapshot.items);
+      return { id: row.id, presentationRevision: await assessmentPresentationRevision(tx, snapshot.items.map((item) => item.taskId)), title: snapshot.title, versionNumber: row.version.number, taskCount: snapshot.items.length, automaticTaskCount: snapshot.items.filter((item) => item.data.task.type !== 'extended').length, extendedTaskCount: snapshot.items.filter((item) => item.data.task.type === 'extended').length, assignedAt: row.createdAt.toISOString(), ...attemptState(row, snapshot),
+        instructions: snapshot.instructions, answers: answersSchema.parse(row.answers), items: snapshot.items.map((item) => publicItem(row.id, item)) };
+    }, { isolationLevel: 'RepeatableRead', timeout: 30000 });
   }
   async image(studentId: string, id: string, taskId: string, name: string) {
     const row = await this.owned(studentId, id);

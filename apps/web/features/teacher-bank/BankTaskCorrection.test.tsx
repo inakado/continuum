@@ -8,7 +8,7 @@ import { teacherBankApi } from './teacher-bank.api';
 import BankTaskCorrection from './BankTaskCorrection';
 import BankTaskActions from './BankTaskActions';
 
-vi.mock('./teacher-bank.api', () => ({ teacherBankApi: { preview: vi.fn(), previewTask: vi.fn(), correct: vi.fn(), discard: vi.fn(), exportTask: vi.fn() } }));
+vi.mock('./teacher-bank.api', () => ({ teacherBankApi: { preview: vi.fn(), previewTask: vi.fn(), correct: vi.fn(), correctionPreview: vi.fn(), discard: vi.fn(), exportTask: vi.fn() } }));
 const task: AssessmentTaskView = { id: '00000000-0000-4000-8000-000000000001', version: 1, statement: 'Старое условие', solution: null, images: {},
   task: { id: 'source-1', title: 'Координата', gradeBand: 'grade_10_11', topicPath: ['Механика'], type: 'short_number', source: { provider: 'Автор' }, maxPoints: 1, grading: { answer: '-12', absoluteTolerance: 0 } } };
 const preview = { id: '00000000-0000-4000-8000-000000000002', title: 'Исправление', expiresAt: '2026-10-29T00:00:00Z', issues: [], items: [{ stableId: 'source-1', title: 'Координата', source: { provider: 'Автор' }, status: 'changed' as const, version: 2 }] };
@@ -17,6 +17,7 @@ beforeEach(() => {
   vi.resetAllMocks(); vi.mocked(teacherBankApi.preview).mockResolvedValue(preview);
   vi.mocked(teacherBankApi.previewTask).mockResolvedValue({ ...task, statement: 'Исправленное условие' });
   vi.mocked(teacherBankApi.correct).mockResolvedValue(result);
+  vi.mocked(teacherBankApi.correctionPreview).mockResolvedValue({ gradingChanged: false, hash: 'a'.repeat(64), workCount: 0, completedCount: 0, changes: [] });
 });
 afterEach(cleanup);
 it('returns keyboard focus to the bank menu after dismissing the correction', async () => {
@@ -28,7 +29,7 @@ it('returns keyboard focus to the bank menu after dismissing the correction', as
   render(<QueryClientProvider client={new QueryClient()}><Harness /></QueryClientProvider>);
   const user = userEvent.setup();
   await user.click(screen.getByRole('button', { name: 'Действия с заданием' }));
-  await user.click(await screen.findByRole('menuitem', { name: 'Исправить условие' }));
+  await user.click(await screen.findByRole('menuitem', { name: 'Исправить задачу' }));
   await screen.findByRole('dialog');
   await user.keyboard('{Escape}');
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -42,6 +43,7 @@ function setup() {
 async function upload() {
   fireEvent.change(screen.getByLabelText('Выбрать ZIP'), { target: { files: [new File(['zip'], 'fix.zip', { type: 'application/zip' })] } });
   await screen.findByText('Исправленное условие');
+  await waitFor(() => expect(screen.getByRole('checkbox')).toBeEnabled());
 }
 it('previews, requires unchanged meaning, applies once and closes after cleanup', async () => {
   const close = setup();
@@ -53,7 +55,7 @@ it('previews, requires unchanged meaning, applies once and closes after cleanup'
   const button = screen.getByRole('button', { name: 'Сохранить в банке и работах' });
   expect(button).toBeDisabled(); expect(teacherBankApi.correct).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('checkbox')); fireEvent.click(button); fireEvent.click(button);
-  await screen.findByRole('heading', { name: 'Условие исправлено' });
+  await screen.findByRole('heading', { name: 'Задача исправлена' });
   expect(teacherBankApi.correct).toHaveBeenCalledExactlyOnceWith(task.id, { importId: preview.id, expectedVersion: 1 });
   fireEvent.click(screen.getByRole('button', { name: 'Готово' }));
   await waitFor(() => expect(close).toHaveBeenCalledOnce());
@@ -71,7 +73,7 @@ it('retries exactly the same correction after a timeout', async () => {
   setup(); await upload(); fireEvent.click(screen.getByRole('checkbox'));
   fireEvent.click(screen.getByRole('button', { name: 'Сохранить в банке и работах' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Повторить сохранение' }));
-  await screen.findByRole('heading', { name: 'Условие исправлено' });
+  await screen.findByRole('heading', { name: 'Задача исправлена' });
   expect(vi.mocked(teacherBankApi.correct).mock.calls[1]).toEqual(vi.mocked(teacherBankApi.correct).mock.calls[0]);
 });
 it('downloads one task and cancels without applying', async () => {
@@ -79,4 +81,31 @@ it('downloads one task and cancels without applying', async () => {
   await waitFor(() => expect(teacherBankApi.exportTask).toHaveBeenCalledExactlyOnceWith(task.id));
   await upload(); fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
   await waitFor(() => expect(close).toHaveBeenCalledOnce()); expect(teacherBankApi.correct).not.toHaveBeenCalled();
+});
+it('shows grading impact, requires review and sends its exact confirmation hash', async () => {
+  const impact = { gradingChanged: true, hash: 'b'.repeat(64), workCount: 2, completedCount: 3, changes: [{ recipientId: task.id, name: 'Ученик', workTitle: 'Кинематика', before: 0, after: 1, taskBefore: 0, taskAfter: 1 }] };
+  vi.mocked(teacherBankApi.correctionPreview).mockResolvedValue(impact);
+  setup(); await upload();
+  expect(screen.getByRole('region', { name: 'Предварительный пересчёт' })).toHaveTextContent('За задачу: 0 → 1. Итог: 0 → 1.');
+  const save = screen.getByRole('button', { name: 'Сохранить и перепроверить' });
+  expect(save).toBeDisabled();
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Проверил исправление и изменения баллов' }));
+  fireEvent.click(save);
+  await screen.findByRole('heading', { name: 'Задача исправлена' });
+  expect(teacherBankApi.correct).toHaveBeenCalledExactlyOnceWith(task.id, { importId: preview.id, expectedVersion: 1, expectedImpactHash: impact.hash });
+});
+it('requires another review after a stale impact conflict', async () => {
+  const { ApiError } = await import('@/lib/api/client');
+  const impact = { gradingChanged: true, hash: 'b'.repeat(64), workCount: 1, completedCount: 0, changes: [] };
+  vi.mocked(teacherBankApi.correctionPreview).mockResolvedValueOnce(impact).mockResolvedValue({ ...impact, hash: 'c'.repeat(64), completedCount: 1 });
+  vi.mocked(teacherBankApi.correct).mockRejectedValueOnce(new ApiError(409, 'Результаты изменились после предпросмотра')).mockResolvedValueOnce(result);
+  setup(); await upload(); fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(screen.getByRole('button', { name: 'Сохранить и перепроверить' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Обновить пересчёт' }));
+  await waitFor(() => expect(screen.getByRole('checkbox')).toBeEnabled());
+  expect(screen.getByRole('checkbox')).not.toBeChecked();
+  expect(screen.getByRole('button', { name: 'Сохранить и перепроверить' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('checkbox')); fireEvent.click(screen.getByRole('button', { name: 'Сохранить и перепроверить' }));
+  await screen.findByRole('heading', { name: 'Задача исправлена' });
+  expect(vi.mocked(teacherBankApi.correct).mock.calls[1][1].expectedImpactHash).toBe('c'.repeat(64));
 });

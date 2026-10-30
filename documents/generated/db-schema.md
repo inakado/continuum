@@ -85,6 +85,7 @@
 | `version` | `Int` |  |
 | `contentHash` | `String` | `@map("content_hash")` |
 | `isPresentationCorrection` | `Boolean` | `@default(false) @map("is_presentation_correction")` |
+| `gradingSourceVersion` | `Int?` | `@map("grading_source_version")` |
 | `data` | `Json` |  |
 | `title` | `String` |  |
 | `gradeBand` | `GradeBand` | `@map("grade_band")` |

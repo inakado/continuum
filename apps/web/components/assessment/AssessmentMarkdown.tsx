@@ -33,7 +33,7 @@ function loadMath() {
   });
   return mathReady;
 }
-function Formula({ value, display }: { value: string; display: boolean }) {
+function Formula({ value, display, punctuation }: { value: string; display: boolean; punctuation: string }) {
   const slot = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     let active = true;
@@ -46,11 +46,13 @@ function Formula({ value, display }: { value: string; display: boolean }) {
         const runtime = await loadMath();
         await document.fonts?.ready;
         if (!active || current !== revision || !slot.current) return;
-        const node = await runtime.tex2chtmlPromise!(value, runtime.getMetricsFor!(slot.current, display));
+        const metrics = runtime.getMetricsFor!(slot.current, display);
+        const node = await runtime.tex2chtmlPromise!(value + punctuation, metrics);
         if (active && current === revision && slot.current) {
           slot.current.replaceChildren(node);
           runtime.startup!.document!.reset();
           runtime.startup!.document!.updateDocument();
+          slot.current.toggleAttribute('data-overflow', !display && node.getBoundingClientRect().width > metrics.containerWidth);
           slot.current.removeAttribute('title');
         }
       } catch {
@@ -63,14 +65,21 @@ function Formula({ value, display }: { value: string; display: boolean }) {
     });
     if (parent) observer?.observe(parent);
     return () => { active = false; observer?.disconnect(); };
-  }, [value, display]);
-  return <span className={display ? styles.displayMath : undefined} ref={slot}>{value}</span>;
+  }, [value, display, punctuation]);
+  return <span className={display ? styles.displayMath : styles.inlineMath} ref={slot}>{value}{punctuation}</span>;
 }
 function renderNodes(nodes: AssessmentMarkdownNode[], images: Record<string, string>, prefix = 'n'): React.ReactNode[] {
   return nodes.map((node, index) => {
     const key = `${prefix}-${index}`;
-    if (node.kind === 'text') return node.value;
-    if (node.kind === 'math') return <Formula key={`${key}-${node.value}`} value={node.value} display={node.display} />;
+    if (node.kind === 'text') {
+      const previous = nodes[index - 1];
+      return previous?.kind === 'math' && !previous.display ? node.value.replace(/^[.,;:!?…]+/, '') : node.value;
+    }
+    if (node.kind === 'math') {
+      const next = nodes[index + 1];
+      const punctuation = !node.display && next?.kind === 'text' ? next.value.match(/^[.,;:!?…]+/)?.[0] ?? '' : '';
+      return <Formula key={`${key}-${node.value}`} value={node.value} display={node.display} punctuation={punctuation} />;
+    }
     if (node.kind === 'image') {
       const src = imageUrl(images[node.src] ?? '');
       return src ? <AssessmentImage key={`${key}-${src}`} src={src} alt={node.alt} /> : <span key={key} role="alert">Рисунок недоступен: {node.alt}</span>;

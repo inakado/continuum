@@ -1,4 +1,4 @@
-.markdown { font-size: 16px; line-height: 1.6; overflow-wrap: anywhere; min-width: 0; overflow-x: auto; }
+.markdown { font-size: 16px; line-height: 1.6; overflow-wrap: anywhere; min-width: 0; }
 .markdown > :first-child { margin-top: 0; }
 .markdown > :last-child { margin-bottom: 0; }
 .markdown p { max-inline-size: 75ch; margin: 0 0 16px; }
@@ -19,3 +19,5 @@
 .textButton:focus-visible { outline: 2px solid var(--catalog-accent); outline-offset: 3px; }
 .displayMath { display: block; max-width: 100%; overflow-x: auto; margin: 16px 0; padding-block: 4px; }
 .markdown .displayMath :global(mjx-container[display="true"]) { margin: 0; }
+
+.inlineMath[data-overflow] { display: block; max-width: 100%; overflow-x: auto; padding-block: 8px; }

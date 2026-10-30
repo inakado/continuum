@@ -409,4 +409,37 @@ describe('assessment bank: real HTTP, PostgreSQL and private S3', () => {
     expect(final.version).toBe(active.version + Number(importRace[1].status === 201));
     expect((await api(path)).status).toBe(200);
   }, 30000);
+
+  it('validates and authorizes grading correction preview/confirmation over HTTP', async () => {
+    const stableId = `grade-correction-${randomUUID()}`;
+    const original = await api(`${root}/imports/preview`, 'POST', await duplicatePackage([{ id: stableId, statement: 'Исходная задача' }]));
+    const imported = await api(`${root}/imports/${original.data.id}/confirm`, 'POST');
+    const taskId = imported.data.taskIds[0], path = `${root}/tasks/${taskId}`;
+    const single = await parseAssessmentArchive((await api(`${path}/export`)).data);
+    const entry = single.tasks[0];
+    if (entry.task.type !== 'short_number') throw new Error('fixture');
+    entry.task.grading.answer = '2';
+    const zip = new ZipFile();
+    zip.addBuffer(Buffer.from(JSON.stringify(single.manifest)), 'manifest.json');
+    zip.addBuffer(Buffer.from(JSON.stringify(entry.task)), `tasks/${stableId}/task.json`);
+    zip.addBuffer(Buffer.from(entry.statement), `tasks/${stableId}/statement.md`);
+    zip.end(); const chunks: Buffer[] = [];
+    for await (const chunk of zip.outputStream) chunks.push(Buffer.from(chunk));
+    const preview = await api(`${root}/imports/preview`, 'POST', Buffer.concat(chunks));
+    const input = { importId: preview.data.id, expectedVersion: 1 };
+    expect((await api(`${path}/correction-preview`, 'POST', input, '')).status).toBe(401);
+    expect((await api(`${path}/correction-preview`, 'POST', input, studentCookie)).status).toBe(403);
+    expect((await api(`${path}/correction-preview`, 'POST', input, otherCookie)).status).toBe(410);
+    expect((await api(`${path}/correction-preview`, 'POST', input, cookie, 'https://foreign.test')).status).toBe(403);
+    expect((await api(`${path}/correction-preview`, 'POST', { ...input, unexpected: true })).status).toBe(400);
+    const impact = await api(`${path}/correction-preview`, 'POST', input);
+    expect(impact.status).toBe(201); expect(impact.cache).toBe('no-store'); expect(impact.data.gradingChanged).toBe(true);
+    expect((await api(`${path}/correct`, 'POST', input)).status).toBe(409);
+    const body = { ...input, expectedImpactHash: impact.data.hash };
+    const applied = await api(`${path}/correct`, 'POST', body);
+    expect(applied.status).toBe(201); expect(applied.data.correction.impact.hash).toBe(impact.data.hash);
+    expect((await api(`${path}/correct`, 'POST', body)).data).toEqual(applied.data);
+    expect((await api(path)).data.task.grading.answer).toBe('2');
+  }, 30000);
+
 });

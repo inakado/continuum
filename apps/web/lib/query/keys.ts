@@ -22,6 +22,7 @@ export const teacherBankQueryKeys = {
   list: (query: object) => ['teacher-assessment-bank', 'list', query] as const,
   task: (id: string, version?: number) => ['teacher-assessment-bank', 'task', id, version ?? 'latest'] as const,
   importTask: (id: string, stableId: string) => ['teacher-assessment-bank', 'import', id, stableId] as const,
+  correctionImpact: (id: string, importId: string, version: number) => ['teacher-assessment-bank', 'correction-impact', id, importId, version] as const,
   duplicates: (id: string) => ['teacher-assessment-bank', 'duplicates', id] as const,
 } as const;
 

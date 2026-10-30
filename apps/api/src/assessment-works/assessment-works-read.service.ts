@@ -67,7 +67,8 @@ export class AssessmentWorksReadService {
       return ref ? (await this.resolve(teacherId, [ref], tx))[0] : undefined;
     });
     if (!item) throw new BadRequestException('Задание не входит в работу.');
-    const task = item.data.task;
+    const [resolved] = await applyAssessmentPresentations(this.db, [item]);
+    const task = resolved.data.task;
     if (task.type === 'extended') throw new BadRequestException('Развёрнутые решения проверяются отдельно.');
     validateAssessmentAnswer(input.answer, task);
     const points = gradeAssessmentAnswer(task, input.answer);
