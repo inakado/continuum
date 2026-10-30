@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import { gradeAssessmentAnswer } from '../common/assessment-grading';
 import { AssessmentAnswerSchema, type PublicAssessmentItem } from '@continuum/shared';
 import type { AssessmentRecipient, Prisma } from '@prisma/client';
 import type { WorkSnapshotSchema } from '../assessment-works/assessment-works-read.service';
@@ -8,9 +9,11 @@ export const answersSchema = z.record(z.uuid(), AssessmentAnswerSchema);
 export const inputHash = (input: object) => createHash('sha256').update(JSON.stringify(input)).digest('hex');
 export const json = (input: object): Prisma.InputJsonValue => JSON.parse(JSON.stringify(input)) as Prisma.InputJsonValue;
 export const attemptStatus = (row: { startedAt: Date | null; completedAt: Date | null }) => row.completedAt ? 'completed' as const : row.startedAt ? 'in_progress' as const : 'not_started' as const;
-export function attemptState(row: Pick<AssessmentRecipient, 'revision' | 'startedAt' | 'completedAt' | 'answeredCount' | 'correctCount' | 'incorrectCount' | 'points'>, snapshot: WorkSnapshot) {
+export function attemptState(row: Pick<AssessmentRecipient, 'revision' | 'startedAt' | 'completedAt' | 'answeredCount' | 'correctCount' | 'incorrectCount' | 'points'> & { answers?: Prisma.JsonValue }, snapshot: WorkSnapshot) {
   const automatic = snapshot.items.filter((item) => item.data.task.type !== 'extended');
-  return { revision: row.revision, status: attemptStatus(row), answeredCount: row.answeredCount, startedAt: row.startedAt?.toISOString() ?? null, completedAt: row.completedAt?.toISOString() ?? null,
+  const answers = row.completedAt && row.answers !== undefined ? answersSchema.parse(row.answers) : undefined;
+  const taskResults = answers ? Object.fromEntries(automatic.map(item => [item.taskId, { points: gradeAssessmentAnswer(item.data.task, answers[item.taskId] ?? null), maxPoints: item.data.task.maxPoints }])) : undefined;
+  return { ...(taskResults ? { taskResults } : {}), revision: row.revision, status: attemptStatus(row), answeredCount: row.answeredCount, startedAt: row.startedAt?.toISOString() ?? null, completedAt: row.completedAt?.toISOString() ?? null,
     result: row.completedAt ? { correctCount: row.correctCount!, incorrectCount: row.incorrectCount!, partialCount: automatic.length - row.correctCount! - row.incorrectCount!, points: row.points!, maxPoints: automatic.reduce((sum, item) => sum + item.data.task.maxPoints, 0) } : null };
 }
 export type WorkSnapshot = z.infer<typeof WorkSnapshotSchema>;
