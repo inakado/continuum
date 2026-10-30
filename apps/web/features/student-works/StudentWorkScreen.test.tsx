@@ -26,7 +26,7 @@ function show(cache = new QueryClient({ defaultOptions: { queries: { retry: fals
   return render(<QueryClientProvider client={cache}><StudentWorkScreen id={id} /></QueryClientProvider>);
 }
 afterEach(() => { cleanup(); vi.resetAllMocks(); vi.restoreAllMocks(); localStorage.clear(); sessionStorage.clear(); });
-beforeEach(() => { vi.mocked(studentWorksApi.availability).mockResolvedValue({ id }); });
+beforeEach(() => { vi.mocked(window.matchMedia).mockImplementation(query => ({ matches: false, media: query, onchange: null, addListener: vi.fn(), removeListener: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn() })); vi.mocked(studentWorksApi.availability).mockResolvedValue({ id }); });
 
 it('refreshes corrected text without resetting a pending answer or focus', async () => {
   const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -225,7 +225,7 @@ it('keeps photo answers available after completing the automatic part without re
   show();
   await screen.findByText('Тестовая часть завершена');
   expect(screen.getByRole('textbox', { name: 'Ответ: Давление' })).toBeDisabled();
-  fireEvent.click(screen.getByRole('button', { name: 'Задание 2: без ответа' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Задание 2: без фото' }));
   await waitFor(() => expect(screen.getByRole('button', { name: 'Добавить фото' })).toBeEnabled());
   expect(screen.queryByRole('button', { name: 'Завершить тестовую часть' })).not.toBeInTheDocument();
 });
@@ -238,4 +238,29 @@ it('does not require final submission for a photo-only work', async () => {
   await waitFor(() => expect(screen.getByRole('button', { name: 'Добавить фото' })).toBeEnabled());
   expect(screen.queryByRole('button', { name: /Завершить/ })).not.toBeInTheDocument();
   expect(screen.queryByText(/Сохранено ответов/)).not.toBeInTheDocument();
+});
+
+it('renders one mobile work header and one task toolbar while preserving the real save and finish flow', async () => {
+  vi.mocked(window.matchMedia).mockImplementation(query => ({ matches: query.includes('max-width: 760px'), media: query, onchange: null, addListener: vi.fn(), removeListener: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn() }));
+  vi.mocked(studentWorksApi.detail).mockResolvedValue(started);
+  vi.mocked(studentWorksApi.save).mockResolvedValue(saved);
+  vi.mocked(studentWorksApi.finish).mockResolvedValue(completed);
+  show();
+  const input = await screen.findByRole('textbox', { name: 'Ответ: Давление' });
+  expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  expect(screen.queryByRole('navigation', { name: 'Разделы ученика' })).not.toBeInTheDocument();
+  expect(screen.getAllByRole('button', { name: 'Далее' })).toHaveLength(1);
+  expect(screen.queryByRole('navigation', { name: 'Номера заданий' })).not.toBeInTheDocument();
+  fireEvent.change(input, { target: { value: '7' } });
+  await waitFor(() => expect(studentWorksApi.save).toHaveBeenCalledOnce());
+  const finish = screen.getByRole('button', { name: 'Завершить работу' });
+  await waitFor(() => expect(finish).toBeEnabled());
+  fireEvent.click(finish);
+  fireEvent.click(screen.getByRole('button', { name: 'Вернуться к работе' }));
+  await waitFor(() => expect(finish).toHaveFocus());
+  expect(studentWorksApi.finish).not.toHaveBeenCalled();
+  fireEvent.click(finish);
+  fireEvent.click(screen.getByRole('button', { name: 'Подтвердить завершение' }));
+  expect(await screen.findByText('Работа завершена')).toBeVisible();
+  expect(studentWorksApi.finish).toHaveBeenCalledOnce();
 });

@@ -2,7 +2,6 @@
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import type { StudentWorkListItem } from '@continuum/shared';
-import { solutionTaskProgress } from '@/lib/assessment/progress-labels';
 import { studentWorkQueryKeys } from '@/lib/query/keys';
 import { apiErrorMessage } from '@/lib/api/error-message';
 import { studentWorksApi } from './student-works.api';
@@ -26,8 +25,8 @@ function StudentWorkRow({ item }: { item: StudentWorkListItem }) {
   const action = workAction(item);
   return <li><Link href={`/student/works/${item.id}${action.query}`}>
     <div className={styles.workIdentity}><strong>{item.title}</strong>
-      {item.automaticTaskCount > 0 && <p>{item.status === 'completed' ? `Тестовая часть завершена · ${completedTestResult(item)}` : item.status === 'not_started' ? 'Тестовая часть: не начата' : `Тестовая часть: в работе · Заполнено ${item.answeredCount} из ${item.automaticTaskCount}`}</p>}
-      {item.extendedTaskCount > 0 && <p>Развёрнутая часть: {solutionTaskProgress(item.progress.photoTaskCount, item.extendedTaskCount)} · Проверено: {item.progress.publishedReviewTaskCount} из {item.extendedTaskCount}</p>}
+      {item.automaticTaskCount > 0 && <p className={styles.workTest}><span data-status={item.status}>Тест · {item.status === 'completed' ? 'Завершён' : item.status === 'not_started' ? 'Не начат' : 'В работе'}</span><span>{item.status === 'completed' ? completedTestResult(item) : `${item.answeredCount}/${item.automaticTaskCount} ответов`}</span></p>}
+      {item.extendedTaskCount > 0 && <p className={styles.workFacts}><span>Решения {item.progress.photoTaskCount}/{item.extendedTaskCount}</span><span>Проверено {item.progress.publishedReviewTaskCount}/{item.extendedTaskCount}</span></p>}
     </div><span className={styles.workAction}>{action.label}<span aria-hidden="true"> →</span></span>
   </Link></li>;
 }

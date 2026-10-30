@@ -1,3 +1,4 @@
+import type { CSSProperties, ReactNode } from 'react';
 import { pointsLabel } from '@/features/teacher-bank/task-source';
 import { formatDistributionValue, scoreTone, sortStatisticsRows, type StatisticsBucket, type StatisticsSort, type StatisticsTableRow, type StatisticsUnit } from './statistics-table';
 import styles from './teacher-statistics.module.css';
@@ -9,23 +10,24 @@ type Props = {
   onGroup: (id: string, bucket: StatisticsBucket) => void;
 };
 export default function StatisticsScoreTable({ rows, max, unit, label = 'Задание', showNumbers = true, sort = 'order', descending = false, onSort, onLabel, onGroup, compact = false }: Props) {
+  const numberedTasks = showNumbers && !!onLabel && label === 'Задание' && !compact;
   const points = Array.from({ length: (compact ? max : Math.max(3, max)) + 1 }, (_, n) => n);
   const ordered = sortStatisticsRows(rows, sort, descending, unit);
-  function heading(text: string, key: StatisticsSort) {
-    return onSort ? <button className={styles.sortButton} onClick={() => onSort(key)}>{text}{sort === key && <span aria-hidden="true">{descending ? ' ↓' : ' ↑'}</span>}</button> : text;
+  function heading(text: ReactNode, key: StatisticsSort, accessibleLabel?: string) {
+    return onSort ? <button aria-label={accessibleLabel} className={styles.sortButton} onClick={() => onSort(key)}>{text}{sort === key && <span aria-hidden="true">{descending ? ' ↓' : ' ↑'}</span>}</button> : text;
   }
   const ariaSort = (key: StatisticsSort) => sort === key ? descending ? 'descending' as const : 'ascending' as const : undefined;
-  return <div className={styles.tableScroll} tabIndex={0} role="region" aria-label={label === 'Класс' ? 'Распределение баллов по классам' : 'Распределение учеников по баллам'}>
-    <table className={styles.scoreTable} style={{ minWidth: `${compact ? 120 + points.length * 64 : 710 + Math.max(0, max - 3) * 88}px` }}>
+  return <div className={`${styles.tableScroll} ${numberedTasks ? styles.numberedTasks : ''}`} tabIndex={0} role="region" aria-label={label === 'Класс' ? 'Распределение баллов по классам' : 'Распределение учеников по баллам'}>
+    <table className={styles.scoreTable} style={{ '--score-table-min-width': `${compact ? 120 + points.length * 64 : 710 + Math.max(0, max - 3) * 88}px`, '--mobile-score-table-min-width': `${52 + points.length * 58 + 150}px` } as CSSProperties}>
       <colgroup>{showNumbers && <col className={styles.numberColumn} />}<col className={styles.titleColumn} />{!compact && <col className={styles.maxColumn} />}{points.map((point) => <col className={styles.pointColumn} key={point} />)}{!compact && <><col className={styles.resultColumn} /><col className={styles.pendingColumn} /></>}</colgroup>
       <thead><tr>{showNumbers && <th scope="col" rowSpan={2} className={styles.numeric} aria-sort={ariaSort('order')}>{heading('№', 'order')}</th>}
         <th scope="col" rowSpan={2} className={styles.rowTitle} aria-sort={ariaSort('title')}>{heading(label, 'title')}</th>{!compact && <th scope="col" rowSpan={2} className={`${styles.numeric} ${styles.maxCell}`}>Макс.</th>}
-        <th scope="colgroup" colSpan={points.length} className={styles.groupHeading}>Распределение учеников по полученным баллам</th>
+        <th scope="colgroup" colSpan={points.length} className={styles.groupHeading} aria-label="Распределение учеников по полученным баллам"><span className={styles.desktopScoreLabel}>Распределение учеников по полученным баллам</span><span className={styles.mobileGroupLabel}>Баллы</span></th>
         {!compact && <><th scope="col" rowSpan={2} className={`${styles.numeric} ${styles.resultCell}`} aria-sort={ariaSort('scored')}>{heading('Учтено', 'scored')}</th>
         <th scope="col" rowSpan={2} className={styles.numeric} aria-sort={ariaSort('pending')}>{heading('Без результата', 'pending')}</th></>}
-      </tr><tr>{points.map((point) => <th scope="col" key={point} className={styles.numeric} aria-sort={ariaSort(`score-${point}`)}>{heading(pointsLabel(point), `score-${point}`)}</th>)}</tr></thead>
+      </tr><tr>{points.map((point) => <th scope="col" key={point} aria-label={pointsLabel(point)} className={styles.numeric} aria-sort={ariaSort(`score-${point}`)}>{heading(numberedTasks ? <><span className={styles.desktopScoreLabel}>{pointsLabel(point)}</span><span className={styles.mobileScoreLabel}>{point} б.</span></> : pointsLabel(point), `score-${point}`, pointsLabel(point))}</th>)}</tr></thead>
       <tbody>{ordered.map((row) => <tr key={row.id}>
-        {showNumbers && <td className={`${styles.numeric} ${styles.rowNumber}`}>{row.order}</td>}
+        {showNumbers && <th scope="row" className={`${styles.numeric} ${styles.rowNumber}`}>{numberedTasks ? <button className={styles.taskNumberButton} type="button" aria-label={`Открыть условие задания ${row.order}: ${row.title}`} onClick={() => onLabel?.(row.id)}>{row.order}</button> : row.order}</th>}
         <th scope="row" className={styles.rowTitle}>{onLabel ? <button className={styles.taskTitle} title={row.title} onClick={() => onLabel(row.id)}>{row.title}</button> : <span title={row.title}>{row.title}</span>}</th>
         {!compact && <td className={`${styles.numeric} ${styles.maxCell}`}>{row.max}</td>}
         {points.map((point) => {

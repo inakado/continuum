@@ -24,7 +24,8 @@
 .taskList { composes: scroll from "../../components/ui/task-workspace.module.css"; list-style: none; margin: 0; border-top: 1px solid var(--catalog-control-border); }
 .taskList li { border-bottom: 1px solid var(--catalog-border); }
 .taskRow { display: grid; grid-template-columns: 20px minmax(0, 1fr) max-content; align-items: start; gap: 8px 12px; width: 100%; padding: 14px 8px; border: 0; border-radius: 0; background: transparent; color: var(--catalog-ink); text-align: left; font: inherit; cursor: pointer; }
-.taskRow:hover { background: var(--catalog-hover); }
+@media (hover: hover) and (pointer: fine) { .taskRow:hover { background: var(--catalog-hover); } }
+@media (min-width: 801px) { .taskRow[data-preview-current="true"] { background: var(--catalog-selected); box-shadow: inset 0 0 0 1px var(--catalog-selected-border); } }
 .taskRow[aria-pressed="true"] { background: var(--catalog-selected); box-shadow: inset 0 0 0 1px var(--catalog-selected-border); }
 .number { color: var(--catalog-muted); font-size: 13px; padding-top: 2px; font-variant-numeric: tabular-nums; }
 .identity { display: grid; gap: 5px; min-width: 0; }

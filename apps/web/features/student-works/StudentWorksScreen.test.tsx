@@ -15,16 +15,17 @@ function show(item: StudentWorkListItem = work) {
   vi.mocked(studentWorksApi.list).mockResolvedValue([item]);
   return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><StudentWorksScreen /></QueryClientProvider>);
 }
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => { vi.resetAllMocks(); vi.mocked(window.matchMedia).mockImplementation(query => ({ matches: false, media: query, onchange: null, addListener: vi.fn(), removeListener: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn() })); });
 it('shows saved points in the list when partial scoring is present', async () => {
   show({ ...work, result: { correctCount: 0, incorrectCount: 0, partialCount: 2, points: 2, maxPoints: 4 } });
-  expect(await screen.findByText('Тестовая часть завершена · Баллы 2 из 4')).toBeVisible();
+  expect(await screen.findByText('Баллы 2 из 4')).toBeVisible();
   expect(screen.queryByText(/Верно 0/)).not.toBeInTheDocument();
 });
 it('shows independent automatic/photo/published progress and opens missing solutions', async () => {
   show();
-  expect(await screen.findByText('Развёрнутая часть: 2 из 3 заданий · Проверено: 1 из 3')).toBeVisible();
-  expect(screen.getByText(/Тестовая часть завершена · Верно 1 из 2/)).toBeVisible();
+  expect(await screen.findByText('Решения 2/3')).toBeVisible();
+  expect(screen.getByText('Проверено 1/3')).toBeVisible();
+  expect(screen.getByText('Верно 1 из 2')).toBeVisible();
   expect(screen.getByRole('link', { name: /Добавить решения/ })).toHaveAttribute('href', '/student/works/work?view=solutions');
 });
 it('keeps all uploaded but partly reviewed work accessible without declaring it finished', async () => {
@@ -35,11 +36,11 @@ it('keeps all uploaded but partly reviewed work accessible without declaring it 
 it('opens published results and hides the absent automatic part', async () => {
   show({ ...work, automaticTaskCount: 0, taskCount: 3, progress: { photoTaskCount: 3, publishedReviewTaskCount: 3, resultReady: true } });
   expect(await screen.findByRole('link', { name: /Посмотреть результат/ })).toHaveAttribute('href', '/student/works/work?view=result');
-  expect(screen.queryByText(/Тестовая часть/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Тест ·/)).not.toBeInTheDocument();
   expect(screen.queryByText(/Верно/)).not.toBeInTheDocument();
 });
 it('does not show photo counters for an automatic-only result', async () => {
   show({ ...work, extendedTaskCount: 0, taskCount: 2, progress: { photoTaskCount: 0, publishedReviewTaskCount: 0, resultReady: true } });
   expect(await screen.findByRole('link', { name: /Посмотреть результат/ })).toBeVisible();
-  expect(screen.queryByText(/Развёрнутая часть:/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Решения/)).not.toBeInTheDocument();
 });

@@ -2,17 +2,19 @@ import '@testing-library/jest-dom/vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, expect, it, vi } from 'vitest';
-import type { SolutionAnswer } from '@continuum/shared';
+import type { AssignmentReport, SolutionAnswer } from '@continuum/shared';
 import { solutionsApi } from '@/lib/assessment/solutions.api';
 import StudentSolutionsPanel from './StudentSolutionsPanel';
 
 vi.mock('@/lib/assessment/solutions.api', () => ({ solutionsApi: { list: vi.fn() } }));
+const recipient = (id: string, name: string): AssignmentReport['recipients'][number] => ({ id, name, login: 'student', assignmentId: 'class', isActive: true, deleted: false, status: 'in_progress', answeredCount: 1, result: null, completedAt: null, progress: { photoTaskCount: 0, publishedReviewTaskCount: 0, resultReady: false } });
+const counts = { automaticTaskCount: 2, extendedTaskCount: 1 };
 const answer: SolutionAnswer = { taskId: 'task', title: 'Решение задачи', maxPoints: 2, revision: 0, locked: false, photos: [] };
 const received: SolutionAnswer = { ...answer, revision: 1, photos: [{ id: 'photo', contentType: 'image/png', sizeBytes: 3, url: '/photo.png', createdAt: '2026-10-28T00:00:00Z' }] };
 async function tick(ms = 50) { await act(async () => { await vi.advanceTimersByTimeAsync(ms); }); }
 function show() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-  const view = render(<QueryClientProvider client={client}><StudentSolutionsPanel id="recipient" name="Ученик" close={vi.fn()} /></QueryClientProvider>);
+  const view = render(<QueryClientProvider client={client}><StudentSolutionsPanel item={recipient("recipient", "Ученик")} data={counts} mobile={false} close={vi.fn()} /></QueryClientProvider>);
   return { ...view, client };
 }
 afterEach(() => { cleanup(); focusManager.setFocused(undefined); vi.useRealTimers(); vi.resetAllMocks(); });
@@ -56,7 +58,7 @@ it('pauses background polling, refreshes on return, and keeps accepted photos th
 
 it('shows a published per-task score and PDF, without treating a zero score as missing', async () => {
   vi.mocked(solutionsApi.list).mockResolvedValue([{ taskId: 'task', title: 'Газ', maxPoints: 2, revision: 1, locked: true, photos: [], publishedReview: { points: 0, revision: 1, reportUrl: '/assessment-solutions/report.pdf' } }]);
-  render(<QueryClientProvider client={new QueryClient()}><StudentSolutionsPanel id="recipient" name="Ученик" close={() => undefined} /></QueryClientProvider>);
+  render(<QueryClientProvider client={new QueryClient()}><StudentSolutionsPanel item={recipient("recipient", "Ученик")} data={counts} mobile={false} close={() => undefined} /></QueryClientProvider>);
   expect(await screen.findByText('Проверено · 0 из 2 баллов')).toBeVisible();
   expect(screen.getByRole('link', { name: 'Разбор решения · PDF' })).toHaveAttribute('href', 'http://localhost:3000/assessment-solutions/report.pdf');
 });

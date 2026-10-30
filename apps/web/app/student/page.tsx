@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { buildPageMetadata } from "@/app/page-metadata";
 import StudentLibraryScreen from "@/features/student-library/StudentLibraryScreen";
 
@@ -7,5 +8,5 @@ export const metadata = buildPageMetadata(
 );
 
 export default function StudentLibraryPage() {
-  return <StudentLibraryScreen />;
+  return <Suspense fallback={<p role="status">Загружаем материалы…</p>}><StudentLibraryScreen /></Suspense>;
 }

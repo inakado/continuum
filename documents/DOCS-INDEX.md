@@ -42,6 +42,12 @@
 
 ## Каталоги
 
+- `documents/research/2026-10-30-teacher-mobile-audit.md` — измерения реальных teacher-компонентов на телефоне, исправления пакета и следующие кандидаты материалов/списка работ.
+
+- `documents/exec-plans/completed/2026-10-30-teacher-mobile.md` — согласованная мобильная адаптация трёх teacher-экранов, удаление прототипа и дальнейший аудит.
+
+- `documents/research/2026-10-30-teacher-mobile-prototype.md` — Apple, Shopify и Carbon: мобильные списки назначения/статистика и ложное выделение банка; три исследованных варианта и выбранная мобильная композиция; временный прототип удалён.
+
 - `documents/exec-plans/completed/2026-10-29-native-control-theme.md` — источник тёмных native controls на белых рабочих экранах, общий CSS-контракт и проверки обеих тем/ролей.
 
 - `documents/exec-plans/completed/2026-10-29-mobile-pwa.md` — установка на главный экран, брендовые иконки, первичные PWA-источники и проверки.
@@ -123,6 +129,11 @@
 - `deploy/README.md` — production deploy runbook.
 
 История удалённой LMS хранится в Git; завершённые инициативы — в `completed`, отдельно от текущих SoR и backlog.
+
+- `documents/research/2026-10-30-student-mobile.md` — первичные мобильные UX-источники, аудит текущих student-экранов и сравнение A/B/C и выбранные изменения; временный прототип удалён.
+- `documents/exec-plans/completed/2026-10-30-student-mobile-research.md` — локальное исследование, временный стенд, доказательства и границы проверки.
+
+- `documents/exec-plans/active/2026-10-30-student-mobile.md` — реализация согласованных мобильных материалов и выполнения ученика, регрессии, QA и уборка прототипа.
 
 ## История завершённых этапов
 

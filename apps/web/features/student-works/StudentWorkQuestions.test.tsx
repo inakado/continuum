@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { useState } from 'react';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { StudentWorkDetail, SolutionAnswer } from '@continuum/shared';
 import StudentWorkQuestions, { studentAnswerState } from './StudentWorkQuestions';
@@ -78,15 +78,38 @@ it('keeps navigation available when browser storage is denied', () => {
   expect(screen.getByText('Условие 2')).toBeVisible();
 });
 
-it('exposes all 20 numbers and closes the compact navigator after selecting one', () => {
+it('uses one compact task map on mobile, restores focus and keeps typed answers across navigation', () => {
+  vi.spyOn(window, 'matchMedia').mockImplementation(query => ({ matches: query.includes('max-width: 760px'), media: query, onchange: null, addListener: vi.fn(), removeListener: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn() }));
   render(<Example data={{ ...work, taskCount: 20, items: work.items.slice(0, 20) }} />);
+  expect(screen.queryByRole('navigation', { name: 'Номера заданий' })).not.toBeInTheDocument();
+  expect(screen.getAllByRole('button', { name: 'Далее' })).toHaveLength(1);
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: '-12' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Задания · 1 из 20' }));
   expect(screen.getAllByRole('button', { name: /^Задание \d+:/ })).toHaveLength(20);
-  const toggle = screen.getByRole('button', { name: 'Задания · 1 из 20' });
-  expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  fireEvent.click(toggle);
-  expect(toggle).toHaveAttribute('aria-expanded', 'true');
   fireEvent.click(screen.getByRole('button', { name: 'Задание 20: без ответа' }));
-  expect(screen.getByRole('button', { name: 'Задания · 20 из 20' })).toHaveAttribute('aria-expanded', 'false');
-  expect(screen.getByText('Условие 20')).toBeVisible();
-  expect(screen.getAllByRole('textbox')).toHaveLength(1);
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Задача 20' })).toHaveFocus();
+  expect(screen.getByRole('button', { name: 'Далее' })).toBeDisabled();
+  const toggle = screen.getByRole('button', { name: 'Задания · 20 из 20' });
+  fireEvent.click(toggle);
+  fireEvent.click(screen.getByRole('button', { name: 'Задание 1: есть ответ' }));
+  expect(screen.getByRole('textbox')).toHaveValue('-12');
+  expect(screen.getByRole('button', { name: 'Назад' })).toBeDisabled();
+});
+
+it('preserves answers and closes the task sheet when rotating between mobile and desktop', () => {
+  let mobile = true;
+  const listeners = new Set<() => void>();
+  vi.spyOn(window, 'matchMedia').mockImplementation(query => ({ matches: mobile, media: query, onchange: null, addListener: vi.fn(), removeListener: vi.fn(), addEventListener: (_: string, listener: unknown) => { if (typeof listener === 'function') listeners.add(listener as () => void); }, removeEventListener: (_: string, listener: unknown) => { if (typeof listener === 'function') listeners.delete(listener as () => void); }, dispatchEvent: vi.fn() }));
+  render(<Example />);
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: '3,25' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Задания · 1 из 30' }));
+  expect(screen.getByRole('dialog')).toBeVisible();
+  act(() => { mobile = false; listeners.forEach(listener => listener()); });
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(screen.getByRole('textbox')).toHaveValue('3,25');
+  expect(screen.getAllByRole('button', { name: 'Далее' })).toHaveLength(1);
+  act(() => { mobile = true; listeners.forEach(listener => listener()); });
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(screen.getByRole('textbox')).toHaveValue('3,25');
 });

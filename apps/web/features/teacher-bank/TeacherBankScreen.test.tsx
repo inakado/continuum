@@ -194,3 +194,16 @@ it('supports a reload into the mobile preview and returning to the list with the
 });
 
 function render(ui: Parameters<typeof baseRender>[0]) { return baseRender(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>{ui}</QueryClientProvider>); }
+
+it('does not treat the default desktop preview as an explicit mobile task choice', () => {
+  render(<TeacherBankScreen />);
+  const list = screen.getByRole('list', { name: 'Задания банка' });
+  expect(within(list).queryByRole('button', { pressed: true })).not.toBeInTheDocument();
+  expect(list.querySelector('[data-preview-current="true"]')).not.toBeNull();
+  const row = within(list).getAllByRole('button')[1];
+  fireEvent.click(row);
+  expect(row).toHaveAttribute('aria-pressed', 'true');
+  expect(within(list).getAllByRole('checkbox').every(input => !(input as HTMLInputElement).checked)).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: 'К списку' }));
+  expect(within(list).queryByRole('button', { pressed: true })).not.toBeInTheDocument();
+});

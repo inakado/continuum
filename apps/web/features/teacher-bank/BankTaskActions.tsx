@@ -18,7 +18,7 @@ export default function BankTaskActions({ task, query, onDeleted, onCorrect }: {
   const remove = useRemoveBankTask((receipt) => { if (snapshot) onDeleted({ ...receipt, title: snapshot.title, query: snapshot.query }); setSnapshot(null); });
   const close = () => { if (!remove.isPending) setSnapshot(null); };
   return <>
-    <DropdownMenu open={menu} onOpenChange={(open) => { if (open) correcting.current = false; setMenu(open); }}>
+    <DropdownMenu modal={false} open={menu} onOpenChange={(open) => { if (open) correcting.current = false; setMenu(open); }}>
       <DropdownMenuTrigger asChild><button ref={trigger} className={styles.taskActionsTrigger} type="button" aria-label="Действия с заданием" disabled={!task?.lifecycleRevision || remove.isPending}><MoreHorizontal size={20} aria-hidden="true" /></button></DropdownMenuTrigger>
       <DropdownMenuContent align="end" className={styles.taskMenu} onCloseAutoFocus={(event) => { if (snapshot || correcting.current) event.preventDefault(); }}>
         <DropdownMenuItem onSelect={() => { if (task) { correcting.current = true; onCorrect(task, trigger); } }}><FilePenLine size={16} aria-hidden="true" />Исправить условие</DropdownMenuItem>

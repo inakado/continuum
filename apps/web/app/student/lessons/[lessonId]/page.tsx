@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { buildPageMetadata } from "@/app/page-metadata";
 import StudentLessonScreen from "@/features/student-library/StudentLessonScreen";
 
@@ -9,5 +10,5 @@ export default async function StudentLessonPage({
   params: Promise<{ lessonId: string }>;
 }) {
   const { lessonId } = await params;
-  return <StudentLessonScreen lessonId={lessonId} />;
+  return <Suspense fallback={<p role="status">Загружаем занятие…</p>}><StudentLessonScreen lessonId={lessonId} /></Suspense>;
 }

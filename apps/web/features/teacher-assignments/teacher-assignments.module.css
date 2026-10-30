@@ -78,16 +78,42 @@
   .filters label:nth-child(2) { flex: none; max-width: none; }
   .filters { gap: 16px; }
   .filters input, .filters select { font-size: 16px; }
-  .report thead { position: absolute; width: 1px; height: 1px; clip-path: inset(50%); overflow: hidden; }
-  .report th { position: static; }
   .testFilters { display: block; }
   .filterLabel { display: block; margin-bottom: 8px; }
-  .statusOptions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .report tbody tr { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 18px 0; border-bottom: 1px solid var(--catalog-border); }
-  .report tbody td { display: block; width: auto; padding: 0; border: 0; font-size: 14px; }
-  .report td:first-child { grid-column: 1 / -1; width: auto; font-size: 15px; }
-  .report td:nth-child(2) { width: auto; color: var(--catalog-muted); }
-  .report td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 4px; font-size: 12px; color: var(--catalog-muted); }
-  .report td[data-label="Класс"]::before { display: none; }
-  .report__solutions { padding: 0; }
 }
+
+.mobileReport { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--catalog-border); }
+.mobileReport > li { border-bottom: 1px solid var(--catalog-border); }
+.mobileRecipient { display: grid; gap: 8px; width: 100%; min-width: 0; padding: 14px 0; border: 0; border-radius: 0; background: transparent; color: var(--catalog-ink); font: inherit; text-align: left; cursor: pointer; }
+.mobileName { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.mobileName strong { font-size: 15px; font-weight: 550; line-height: 21px; overflow-wrap: anywhere; }
+.mobileName svg { flex-shrink: 0; color: var(--catalog-muted); }
+.mobileClass { overflow-wrap: anywhere; font-size: 12px; color: var(--catalog-muted); }
+.mobileTest { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--catalog-muted); font-size: 12px; line-height: 20px; }
+.mobileTest .testStatus { font-size: 12px; padding: 2px 6px; }
+.mobileFacts { display: flex; flex-wrap: wrap; gap: 4px 20px; font-size: 12px; color: var(--catalog-muted); line-height: 20px; }
+.mobileFacts b { font-weight: 500; color: var(--catalog-ink); margin-left: 3px; font-variant-numeric: tabular-nums; }
+.mobileRecipient:focus-visible { outline: 2px solid var(--catalog-accent); outline-offset: 2px; }
+.mobileSolutions.mobileSolutions { position: fixed; inset: 0; transform: none; display: flex; flex-direction: column; gap: 0; width: 100%; max-width: 100%; height: 100dvh; max-height: 100dvh; border: 0; border-radius: 0; padding: 0; background: var(--catalog-paper); color: var(--catalog-ink); }
+.mobileSolutions > h2 { padding: 20px 68px 20px 20px; border-bottom: 1px solid var(--catalog-border); font: 550 20px/26px var(--font-ui),sans-serif; }
+.mobileSolutions > p { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.mobileSolutionsBody { display: grid; align-content: start; gap: 16px; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 20px 20px max(32px,env(safe-area-inset-bottom)); }
+.mobileSolutionsBody > button { justify-self: start; }
+.mobileSolutionsBody article { border-top: 1px solid var(--catalog-border); padding: 20px 0; }
+.mobileSolutionsBody article h3 { font-size: 17px; line-height: 1.4; }
+.mobileSolutionsBody article p { margin-top: 8px; color: var(--catalog-muted); font-size: 13px; line-height: 1.6; }
+.mobileClose { position: absolute; top: 12px; right: 12px; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 0; border-radius: var(--catalog-control-radius); background: transparent; color: var(--catalog-accent); cursor: pointer; }
+.srOnly { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); }
+@media (hover: hover) and (pointer: fine) { .mobileRecipient:hover { background: var(--catalog-hover); } }
+
+@media (max-width: 760px) {
+  .filters { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+  .filters .reportSearch { grid-column: 1 / -1; grid-row: 1; }
+  .filters > label:only-child, .filters > label:last-child:nth-child(2) { grid-column: 1 / -1; }
+  .testFilters > .filterLabel { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .statusOptions { grid-template-columns: repeat(4,minmax(0,1fr)); }
+  .statusFilter { flex-direction: column; gap: 2px; min-width: 0; padding: 6px 4px; font-size: 12px; }
+  .statusFilter > svg { display: none; }
+}
+
+.mobileProgress { display: grid; gap: 8px; min-width: 0; }

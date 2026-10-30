@@ -43,7 +43,7 @@ export default function WorkActions({ work, onHidden }: { work: AssessmentWorkSu
   }
   const pending = copy.isPending || archive.isPending;
   return <>
-    <DropdownMenu><DropdownMenuTrigger asChild><button ref={trigger} className={styles.iconButton} type="button" disabled={pending} aria-busy={pending} aria-label={`Действия с работой: ${work.title}`}><MoreHorizontal size={19} aria-hidden="true" /></button></DropdownMenuTrigger>
+    <DropdownMenu modal={false}><DropdownMenuTrigger asChild><button ref={trigger} className={styles.iconButton} type="button" disabled={pending} aria-busy={pending} aria-label={`Действия с работой: ${work.title}`}><MoreHorizontal size={19} aria-hidden="true" /></button></DropdownMenuTrigger>
       <DropdownMenuContent align="end" className={styles.menu} onCloseAutoFocus={(event) => { if (deleting) event.preventDefault(); if (archiveFocus.current) { event.preventDefault(); archiveFocus.current = false; onHidden(); } }}>
         <DropdownMenuItem disabled={pending} onSelect={() => { void createCopy(); }}>Создать копию</DropdownMenuItem>
         <DropdownMenuItem disabled={pending} onSelect={() => { archiveFocus.current = true; void toggleArchive(); }}>{work.isArchived ? 'Восстановить' : 'В архив'}</DropdownMenuItem>
