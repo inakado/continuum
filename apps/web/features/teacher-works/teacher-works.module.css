@@ -178,3 +178,4 @@
   .pickerViewing .pickerDetail { display: block; }
   .mobileBack { display: inline-flex; margin-bottom: 16px; }
 }
+@media (max-width: 800px) { .picker:not(.pickerViewing) .pickerActive { background: transparent; } }

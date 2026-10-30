@@ -41,7 +41,7 @@ function StudentActions({ student, busy, onSetActive, onSetClass, onResetPasswor
   const [editing, setEditing] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const confirming = useRef(false);
-  return <div className={styles.rowActions}><DropdownMenu>
+  return <div className={styles.rowActions}><DropdownMenu modal={false}>
     <DropdownMenuTrigger asChild><button ref={trigger} disabled={busy} aria-label={`Действия: ${student.name}`} type="button"><MoreHorizontal size={19} aria-hidden="true" /></button></DropdownMenuTrigger>
     <DropdownMenuContent className={styles.studentMenu} align="end" onCloseAutoFocus={(event) => { if (editing || confirming.current) event.preventDefault(); confirming.current = false; }}>
       <DropdownMenuItem onSelect={() => setEditing(true)}>Изменить данные</DropdownMenuItem>

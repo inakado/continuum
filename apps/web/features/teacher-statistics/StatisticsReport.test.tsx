@@ -183,3 +183,14 @@ it('keeps all twenty task columns, compact profile names and one-line numbered h
   fireEvent.change(screen.getByRole('searchbox', { name: 'Поиск ученика' }), { target: { value: 'Петровна' } });
   expect(grid.getByRole('rowheader')).toBeVisible();
 });
+
+it('opens the condition by task number and preserves score-cell drilldown and numeric search', () => {
+  render(<StatisticsReportView data={data} />);
+  const grid = within(table());
+  fireEvent.click(grid.getByRole('button', { name: 'Открыть условие задания 2: Работа газа' }));
+  expect(screen.getByRole('dialog')).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Закрыть подробности' }));
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Найти задание' }), { target: { value: '№ 2' } });
+  expect(grid.queryByRole('button', { name: /Открыть условие задания 1:/ })).not.toBeInTheDocument();
+  expect(grid.getByRole('button', { name: 'Открыть условие задания 2: Работа газа' })).toBeVisible();
+});

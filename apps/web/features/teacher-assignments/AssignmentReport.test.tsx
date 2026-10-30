@@ -2,6 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { act, cleanup, fireEvent, render, screen, within, waitFor } from '@testing-library/react';
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import type { AssignmentReport } from '@continuum/shared';
+import { renderWithQueryClient } from '@/test/render-with-query-client';
 import { AssignmentReportView } from './AssignmentReportScreen';
 
 vi.mock('@/components/ContinuumHeader', () => ({ default: () => null }));
@@ -198,4 +199,33 @@ it('resets the page on photo filtering, restores URL state and ignores photos fo
   render(<AssignmentReportView data={data} />);
   expect(screen.queryByRole('combobox', { name: 'Развёрнутая часть' })).not.toBeInTheDocument();
   expect(screen.getByText('Всё заполнил')).toBeVisible();
+});
+
+it('shows one mobile summary per recipient and opens automatic-only progress without requesting photos', async () => {
+  const media = { matches: true, media: '(max-width: 760px)', onchange: null, addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: vi.fn() };
+  vi.spyOn(window, 'matchMedia').mockReturnValue({ ...media, matches: true });
+  renderWithQueryClient(<AssignmentReportView data={data} />);
+  const list = screen.getByRole('list', { name: 'Выполнение учениками' });
+  expect(within(list).getAllByRole('button')).toHaveLength(3);
+  expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  const origin = within(list).getByRole('button', { name: 'Открыть выполнение: Всё заполнил' });
+  fireEvent.click(origin);
+  const dialog = screen.getByRole('dialog');
+  expect(within(dialog).getByText('В работе')).toBeVisible();
+  expect(within(dialog).getByText('6/6 ответов')).toBeVisible();
+  expect(within(dialog).getByText('В работе только тестовая часть.')).toBeVisible();
+  expect(within(dialog).queryByText('Обновить решения')).not.toBeInTheDocument();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Закрыть выполнение' }));
+  await waitFor(() => expect(origin).toHaveFocus());
+});
+
+it('keeps the extended-only mobile summary independent of test completion', () => {
+  const media = { matches: true, media: '(max-width: 760px)', onchange: null, addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: vi.fn() };
+  vi.spyOn(window, 'matchMedia').mockReturnValue({ ...media, matches: true });
+  render(<AssignmentReportView data={{ ...data, automaticTaskCount: 0, extendedTaskCount: 3, recipients: [ { ...data.recipients[0], name: 'Очень длинное полное имя ученика', progress: { photoTaskCount: 2, publishedReviewTaskCount: 1, resultReady: false } } ] }} />);
+  const row = screen.getByRole('button', { name: 'Открыть выполнение: Очень длинное полное имя ученика' });
+  expect(row).toHaveTextContent('Решения 2/3');
+  expect(row).toHaveTextContent('Проверено 1/3');
+  expect(row).toHaveAccessibleDescription(/Решения 2\/3.*Проверено 1\/3/);
+  expect(within(row).queryByText('Тест')).not.toBeInTheDocument();
 });

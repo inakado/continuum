@@ -101,3 +101,14 @@ it('blocks dismissal and repeat while deleting, then refreshes the list and focu
   expect(client.getQueryData(teacherWorkQueryKeys.detail(work.id))).toBeUndefined();
   expect(client.getQueryData(teacherWorkQueryKeys.preview(work.id, 1))).toBeUndefined();
 });
+
+it('opens row actions without locking body scroll and returns keyboard focus on Escape', async () => {
+  setup(); const user = userEvent.setup();
+  const trigger = await screen.findByRole('button', { name: 'Действия с работой: МКТ' });
+  await user.click(trigger);
+  expect(screen.getByRole('menuitem', { name: 'Создать копию' })).toBeVisible();
+  expect(document.body).not.toHaveAttribute('data-scroll-locked');
+  expect(document.body.style.pointerEvents).not.toBe('none');
+  await user.keyboard('{Escape}');
+  expect(trigger).toHaveFocus();
+});

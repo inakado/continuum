@@ -2,8 +2,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, ChevronDown } from 'lucide-react';
 import type { AssessmentAnswer, PublicAssessmentItem } from '@continuum/shared';
-import AssessmentMarkdown from './AssessmentMarkdown';
-import AssessmentAnswerInput from './AssessmentAnswerInput';
+import AssessmentQuestion from './AssessmentQuestion';
 import styles from './assessment-questions.module.css';
 
 export function assessmentAnswerState(item: PublicAssessmentItem, answer?: AssessmentAnswer): 'empty' | 'partial' | 'filled' {
@@ -54,13 +53,7 @@ export default function AssessmentQuestions({ items, answers, activeId, onSelect
     </aside>
     <section className={styles.questionPane} aria-labelledby={`question-title-${uid}`}>
       <p className={styles.questionPosition}>Задание {index + 1} из {items.length}</p>
-      <fieldset className={styles.questions} disabled={disabled || (automaticCompleted && item.type !== 'extended')}>
-        <legend className={styles.srOnly}>Ответ на задание {index + 1}</legend>
-        <article><h2 id={`question-title-${uid}`} ref={title} tabIndex={-1}>{item.title}</h2>
-          <AssessmentMarkdown text={item.statement} images={item.images} />
-          {item.type === 'extended' ? renderExtended?.(item.id) : <AssessmentAnswerInput item={item} answer={answers[item.id]} onChange={(answer) => onChange(item.id, answer)} />}
-        </article>
-      </fieldset>
+      <AssessmentQuestion item={item} answer={answers[item.id]} position={index + 1} headingId={`question-title-${uid}`} headingRef={title} disabled={disabled || (automaticCompleted && item.type !== 'extended')} onChange={answer => onChange(item.id, answer)} renderExtended={renderExtended} />
       {renderFeedback?.(item.id)}
       <div className={styles.questionActions}>
         <button className={styles.secondary} disabled={disabled || index === 0} onClick={() => select(items[index - 1].id)}><ArrowLeft size={16} aria-hidden="true" />Назад</button>

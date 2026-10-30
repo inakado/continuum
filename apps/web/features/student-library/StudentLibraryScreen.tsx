@@ -1,67 +1,66 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { GradeBand, StudentLibrary } from "@continuum/shared";
+import { useEffect } from "react";
+import type { StudentLibrary } from "@continuum/shared";
 import Link from "next/link";
-import ContinuumHeader from "@/components/ContinuumHeader";
-import { StudentNavigation } from '@/features/student-works/StudentWorksShell';
+import { ChevronRight } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import SearchField from "@/components/ui/SearchField";
+import { StudentChrome } from '@/features/student-works/StudentWorksShell';
 import { useStudentLibrary } from "./use-student-library";
 import { useStudentPdf } from "./use-student-pdf";
+import { gradeLabels, libraryParams } from "./library-navigation";
 import styles from "./student-library.module.css";
-
-const gradeTabs: Array<{ code: GradeBand; label: string }> = [
-  { code: "grade_7", label: "7 класс" },
-  { code: "grade_8", label: "8 класс" },
-  { code: "grade_9", label: "9 класс" },
-  { code: "grade_10_11", label: "10–11 классы" },
-];
 
 export function StudentLibraryView({ library }: { library: StudentLibrary }) {
   const pdf = useStudentPdf();
-  const initialGrade = library.gradeBands.at(-1)?.code ?? "grade_7";
-  const [selectedGrade, setSelectedGrade] = useState<GradeBand>(initialGrade);
-  const activeGrade = useMemo(
-    () => library.gradeBands.find((gradeBand) => gradeBand.code === selectedGrade),
-    [library.gradeBands, selectedGrade],
-  );
-
+  const params = useSearchParams();
+  const grade = library.gradeBands.find(item => item.code === params.get('grade')) ?? library.gradeBands.at(-1);
+  const query = (params.get('q') ?? '').slice(0, 200);
+  const normalized = query.trim().toLocaleLowerCase('ru');
+  const sections = grade?.sections.map(section => ({ ...section, lessons: section.lessons.map((lesson, index) => ({ ...lesson, number: index + 1 })).filter(lesson => `${lesson.title} ${section.title}`.toLocaleLowerCase('ru').includes(normalized)) })).filter(section => section.lessons.length);
+  const update = (code: string | null, search: string) => {
+    const next = libraryParams(code, search).toString();
+    window.history.replaceState(null, '', `/student${next ? `?${next}` : ''}`);
+  };
+  useEffect(() => {
+    const id = window.location.hash.slice(1);
+    if (!id.startsWith('lesson-')) return;
+    const target = document.getElementById(id);
+    target?.scrollIntoView?.({ block: 'center' });
+    target?.focus({ preventScroll: true });
+  }, [library, query, grade?.code]);
   return (
     <>
-      <nav aria-label="Классы" className={styles.gradeNav}>
-        {gradeTabs.map((grade) => (
-          <button
-            aria-current={selectedGrade === grade.code ? "page" : undefined}
-            className={selectedGrade === grade.code ? styles.activeGrade : undefined}
-            key={grade.code}
-            onClick={() => setSelectedGrade(grade.code)}
-            type="button"
-          >
-            {grade.label}
-          </button>
-        ))}
-      </nav>
-
+      {library.gradeBands.length > 1 && <nav aria-label="Классы" className={styles.gradeNav}>
+        {library.gradeBands.map(item => <button key={item.code} type="button" aria-current={grade?.code === item.code ? 'page' : undefined} className={grade?.code === item.code ? styles.activeGrade : undefined} onClick={() => update(item.code, query)}>{gradeLabels[item.code]}</button>)}
+      </nav>}
       <main aria-label="Материалы по физике" className={styles.main}>
+        <div className={styles.catalogHeading}><h1>Материалы</h1>{library.gradeBands.length > 1 ? <label className={styles.mobileGrade}><span className={styles.srOnly}>Класс материалов</span><select aria-label="Класс материалов" value={grade?.code} onChange={event => update(event.target.value, query)}>{library.gradeBands.map(item => <option key={item.code} value={item.code}>{gradeLabels[item.code]}</option>)}</select></label> : grade && <span>{gradeLabels[grade.code]}</span>}</div>
+        {grade?.sections.some(section => section.lessons.length) && <SearchField label="Найти занятие" placeholder="Найти занятие" value={query} maxLength={200} onValueChange={value => update(grade.code, value)} className={styles.catalogSearch} />}
         {pdf.error ? <p className={styles.fileError} role="alert">Не удалось открыть PDF. Нажмите на файл ещё раз.</p> : null}
-        {!activeGrade ? (
+        {!grade ? (
           <div className={styles.empty}>
             <h2>Материалы этого класса недоступны</h2>
           </div>
-        ) : activeGrade.sections.length === 0 ? (
+        ) : grade.sections.length === 0 ? (
           <div className={styles.empty}>
             <h2>Материалов пока нет</h2>
           </div>
         ) : (
           <div className={styles.sections}>
-            {activeGrade.sections.map((section) => (
+            {!sections?.length && <p className={styles.gradeEmpty}>{normalized ? 'Занятия не найдены. Попробуйте другое название.' : 'Материалов пока нет.'}</p>}
+            {sections?.map((section) => (
               <section className={styles.section} key={section.id}>
                 <h2>{section.title}</h2>
                 <ol className={styles.lessons}>
-                  {section.lessons.map((lesson, index) => (
+                  {section.lessons.map((lesson) => (
                     <li key={lesson.id}>
-                      <span className={styles.lessonNumber}>{index + 1}</span>
-                      <Link className={styles.lessonTitle} href={`/student/lessons/${lesson.id}`}>
-                        {lesson.title}
+                      <Link id={`lesson-${lesson.id}`} className={styles.lessonTitle} href={`/student/lessons/${lesson.id}?${libraryParams(grade.code, query)}`}>
+                        <span className={styles.lessonNumber}>{lesson.number}</span>
+                        <span className={styles.lessonName}>{lesson.title}</span>
+                        <span className={styles.mobileFormats}>{[lesson.formats.pdf && 'Конспект', lesson.formats.tasks && 'Задачи', lesson.formats.interactive && 'Интерактив'].filter(Boolean).join(' · ')}</span>
+                        <ChevronRight className={styles.lessonChevron} size={18} aria-hidden="true" />
                       </Link>
                       <span className={styles.formats}>
                         <span className={styles.formatSlot}>
@@ -73,7 +72,7 @@ export function StudentLibraryView({ library }: { library: StudentLibrary }) {
                         </span>
                         <span className={styles.formatSlot}>
                           {lesson.formats.interactive ? (
-                            <Link href={`/student/lessons/${lesson.id}`}>Интерактив</Link>
+                            <Link href={`/student/lessons/${lesson.id}?${libraryParams(grade.code, query)}`}>Интерактив</Link>
                           ) : null}
                         </span>
                         <span className={styles.formatSlot}>
@@ -101,8 +100,7 @@ export default function StudentLibraryScreen() {
 
   return (
     <div className={styles.page}>
-      <ContinuumHeader homeHref="/student" />
-      <StudentNavigation active="materials" />
+      <StudentChrome active="materials" />
       {query.isPending ? <div className={styles.state}>Загружаем материалы…</div> : null}
       {query.isError ? (
         <div className={styles.state} role="alert">

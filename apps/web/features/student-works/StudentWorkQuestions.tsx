@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { AssessmentAnswer, StudentWorkDetail, SolutionAnswer } from '@continuum/shared';
-import AssessmentQuestions from '@/components/assessment/AssessmentQuestions';
+import StudentQuestionWorkspace from './StudentQuestionWorkspace';
 export { assessmentAnswerState as studentAnswerState } from '@/components/assessment/AssessmentQuestions';
 
 export default function StudentWorkQuestions({ work, answers, disabled, onChange, requestedTask, solutions = [], renderExtended, automaticCompleted = false, entry, solutionsLoading = false }: {
@@ -42,5 +42,5 @@ export default function StudentWorkQuestions({ work, answers, disabled, onChange
     setActiveId(id);
     try { sessionStorage.setItem(positionKey, id); } catch { /* Position is optional; answers are saved by the attempt hook. */ }
   }
-  return <AssessmentQuestions items={work.items} answers={answers} activeId={activeId} onSelect={select} onChange={onChange} disabled={disabled} automaticCompleted={automaticCompleted} photoTaskIds={solutions.filter((answer) => answer.photos.length).map((answer) => answer.taskId)} renderExtended={renderExtended} focusRequest={requestedTask?.request} />;
+  return <StudentQuestionWorkspace work={work} answers={answers} activeId={activeId} onSelect={select} onChange={onChange} disabled={disabled} automaticCompleted={automaticCompleted} photoTaskIds={solutions.filter((answer) => answer.photos.length).map((answer) => answer.taskId)} renderExtended={renderExtended} focusRequest={requestedTask?.request} />;
 }
