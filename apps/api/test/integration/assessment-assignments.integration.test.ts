@@ -139,6 +139,50 @@ it('pins explicit EGE scoring, preserves legacy results and matches preview to t
   expect(roundtrip.data.items.every((item: { status: string }) => item.status === 'unchanged')).toBe(true);
 });
 
+it('releases all five canonical answer types only to the completed recipient, without private grading or solutions', async () => {
+  const options=[{id:'one',content:'Первый'},{id:'two',content:'Второй'},{id:'three',content:'Третий'}];
+  const definitions=[
+    {id:'feedback-number',type:'short_number',grading:{answer:'-12',absoluteTolerance:0.5}},
+    {id:'feedback-text',type:'short_text',grading:{acceptedAnswers:['ускорение','проекция ускорения'],caseSensitive:false}},
+    {id:'feedback-single',type:'single_choice',options,grading:{correctOptionId:'two'}},
+    {id:'feedback-multiple',type:'multiple_choice',options,maxPoints:2,grading:{policy:'ege_physics_multiple_choice_v1',correctOptionIds:['one','two']}},
+    {id:'feedback-matching',type:'matching',rows:[{id:'a',content:'Скорость'},{id:'b',content:'Ускорение'}],options,maxPoints:2,grading:{policy:'ege_physics_matching_v1',matches:{a:'one',b:'two'}}},
+    {id:'feedback-extended',type:'extended'},
+  ];
+  const archive=new ZipFile();
+  archive.addBuffer(Buffer.from(JSON.stringify({format:'continuum-assessment-package',version:1,title:'Все типы',tasks:definitions.map(task=>task.id)})),'manifest.json');
+  for(const task of definitions){
+    archive.addBuffer(Buffer.from(JSON.stringify({title:task.id,gradeBand:'grade_10_11',topicPath:['Механика'],maxPoints:1,source:{provider:'Локальная проверка',kind:'original',exam:'ege',examYear:2026,examTaskNumber:1},...task})),`tasks/${task.id}/task.json`);
+    archive.addBuffer(Buffer.from('Условие задачи'),`tasks/${task.id}/statement.md`);
+    archive.addBuffer(Buffer.from('PRIVATE_SOLUTION_SENTINEL'),`tasks/${task.id}/solution.md`);
+  }
+  const bytes=(async()=>{const chunks:Buffer[]=[];for await(const part of archive.outputStream)chunks.push(Buffer.from(part));return Buffer.concat(chunks);})();archive.end();
+  const preview=await api('/teacher/assessment-bank/imports/preview','POST',await bytes);expect(preview.data.issues).toEqual([]);
+  const imported=await api(`/teacher/assessment-bank/imports/${preview.data.id}/confirm`,'POST');expect(imported.status).toBe(201);
+  const workId=randomUUID();await api('/teacher/assessment-works','POST',{id:workId,title:'Все типы',gradeBand:'grade_10_11'});
+  await api(`/teacher/assessment-works/${workId}`,'PATCH',{title:'Все типы',gradeBand:'grade_10_11',instructions:'',items:imported.data.taskIds.map((taskId:string)=>({taskId,version:1})),expectedRevision:1,requestId:randomUUID()});
+  const prepare=(await api(`${root}/works/${workId}/prepare`)).data;
+  const assigned=(await api(`${root}/works/${workId}`,'POST',{requestId:randomUUID(),selection:prepare.selection,classes:prepare.classes.filter((item:{id:string})=>classes.includes(item.id)).map((item:{id:string;rosterHash:string})=>({id:item.id,rosterHash:item.rosterHash}))})).data;
+  const recipients=await db.assessmentRecipient.findMany({where:{versionId:assigned.versionId}});
+  const own=recipients.find(row=>row.studentId===students[0].id)!;const path=`${studentRoot}/${own.id}`;
+  expect((await api(path,'GET',undefined,students[0].cookie)).data).not.toHaveProperty('answerKeys');
+  expect((await api(`${path}/start`,'POST',undefined,students[0].cookie)).data).not.toHaveProperty('answerKeys');
+  expect((await api(`${path}/finish`,'POST',{expectedRevision:99},students[0].cookie)).status).toBe(409);
+  const finished=await api(`${path}/finish`,'POST',{expectedRevision:1},students[0].cookie);expect(finished.status).toBe(200);
+  const detail=(await api(path,'GET',undefined,students[0].cookie)).data;
+  expect(Object.values(detail.answerKeys)).toEqual(expect.arrayContaining([
+    {type:'short_number',value:'-12'},{type:'short_text',value:'ускорение'},{type:'single_choice',optionId:'two'},
+    {type:'multiple_choice',optionIds:['one','two']},{type:'matching',matches:{a:'one',b:'two'}},
+  ]));
+  expect(Object.keys(detail.answerKeys)).toHaveLength(5);expect(finished.data.answerKeys).toEqual(detail.answerKeys);
+  expect((await api(`${path}/finish`,'POST',{expectedRevision:1},students[0].cookie)).data.answerKeys).toEqual(detail.answerKeys);
+  expect(JSON.stringify(detail)).not.toMatch(/PRIVATE_SOLUTION_SENTINEL|acceptedAnswers|absoluteTolerance|caseSensitive|grading/);
+  const peer=recipients.find(row=>row.studentId===students[1].id)!;
+  expect((await api(`${studentRoot}/${peer.id}`,'GET',undefined,students[1].cookie)).data).not.toHaveProperty('answerKeys');
+  expect((await api(path,'GET',undefined,students[1].cookie)).status).toBe(404);
+  for(const row of (await api(studentRoot,'GET',undefined,students[0].cookie)).data)expect(row).not.toHaveProperty('answerKeys');
+});
+
 it('concurrent retries assign one immutable version and preserve the original request outcome', async () => {
   const id = await work();
   const prepared = (await api(`${root}/works/${id}/prepare`)).data;
@@ -196,6 +240,7 @@ it('assigns an immutable draft to two rosters once, validates ownership and isol
   const own = report.data.recipients.find((item: { login: string }) => item.login === selectedClasses.find((item: { id: string }) => item.id === classes[0]).students[0].login);
   const detail = await api(`${studentRoot}/${own.id}`, 'GET', undefined, students[0].cookie);
   expect(detail.status).toBe(200);
+  expect(detail.data).not.toHaveProperty('answerKeys');
   for (const item of detail.data.items) {
     expect(item).not.toHaveProperty('grading'); expect(item).not.toHaveProperty('source'); expect(item).not.toHaveProperty('solution'); expect(item).not.toHaveProperty('task');
   }
@@ -250,6 +295,7 @@ it('resumes saved answers, checks revisions and seals results against concurrent
   const target = refs[0].taskId;
   const saved = await api(`${path}/answers/${target}`, 'PATCH', body, students[0].cookie);
   expect(saved.data).toMatchObject({ revision: 2, answeredCount: 1, result: null });
+  expect(saved.data).not.toHaveProperty('answerKeys');
   expect((await api(`${path}/answers/${target}`, 'PATCH', body, students[0].cookie)).data.revision).toBe(2);
   expect((await api(path, 'GET', undefined, students[0].cookie)).data.answers[target]).toEqual(body.answer);
   expect((await api(`${path}/answers/${target}`, 'PATCH', { ...body, requestId: randomUUID() }, students[0].cookie)).status).toBe(409);
@@ -261,6 +307,9 @@ it('resumes saved answers, checks revisions and seals results against concurrent
   const current = (await api(path, 'GET', undefined, students[0].cookie)).data;
   const finished = await api(`${path}/finish`, 'POST', { expectedRevision: current.revision }, students[0].cookie);
   expect(finished.data.status).toBe('completed');
+  expect(finished.data.answerKeys).toEqual((await api(path, 'GET', undefined, students[0].cookie)).data.answerKeys);
+  expect(finished.data.answerKeys[target]).toMatchObject({ type: 'short_number' });
+  expect((await api(path, 'GET', undefined, students[2].cookie)).status).toBe(404);
   expect(finished.data.result).toEqual({ correctCount: 0, incorrectCount: refs.length, partialCount: 0, points: 0, maxPoints: prepared.work.maxPoints });
   expect((await api(`${path}/finish`, 'POST', { expectedRevision: current.revision }, students[0].cookie)).data).toEqual(finished.data);
   expect((await api(`${path}/answers/${target}`, 'PATCH', { ...body, expectedRevision: finished.data.revision, requestId: randomUUID() }, students[0].cookie)).status).toBe(409);

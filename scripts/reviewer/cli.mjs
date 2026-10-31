@@ -5,10 +5,12 @@ import { join, resolve } from 'node:path';
 import { unlink } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { ReviewerMeSchema, ReviewerAssignmentsPageSchema, ReviewerSolutionsPageSchema, ReviewerListQuerySchema } from '../../packages/shared/src/contracts/reviewer.ts';
-import { apiClient, downloadSolution, keychain, normalizeApiPrefix, normalizeOrigin, profileName, readJson, sha256, uuid, writeJson } from './client.mjs';
+import { apiClient, checkConnection, downloadSolution, keychain, normalizeApiPrefix, normalizeOrigin, profileName, readJson, sha256, uuid, writeJson } from './client.mjs';
+import { cleanupPublished } from './cleanup-reviewed.mjs';
 import { publish, publicationStatus, uploadDraft } from './commands.mjs';
 
 const help = `Continuum — локальный проверяющий (Node.js 24+, macOS)
+node cli.mjs doctor --origin https://example.ru [--dev] [--api-prefix /api]  (проверка без ключа)
 node cli.mjs connect --origin https://example.ru [--profile default] [--dev] [--api-prefix /api]
 node cli.mjs status | disconnect [--profile default]
 node cli.mjs assignments [--query текст] [--cursor UUID] [--limit 50]
@@ -16,7 +18,7 @@ node cli.mjs solutions --assignment UUID [--state unreviewed|draft|stale|publish
 node cli.mjs download --solution UUID
 node cli.mjs upload-draft --manifest /path/source.json --pdf /path/review.pdf --points 2 [--operation /path/operation.json]
 node cli.mjs publish --input /path/publication.json
-node cli.mjs publish --request UUID  (только получить квитанцию)
+node cli.mjs publish --request UUID  (получить квитанцию и повторить локальную очистку)
 
 Каждая команда поддерживает --profile. --points null сохраняет черновик без балла.
 Ключ вводит человек только при connect в скрытом запросе macOS. Не вводите ключ в чате или argv.
@@ -34,10 +36,17 @@ async function main() {
   const profile = profileName(options.profile ?? 'default');
   const root = join(homedir(), 'Library', 'Application Support', 'Continuum Reviewer');
   const configPath = join(root, 'profiles', `${profile}.json`);
+  if (command === 'doctor') {
+    const origin = normalizeOrigin(required(options, 'origin'), options.dev);
+    const apiPrefix = normalizeApiPrefix(options['api-prefix'] ?? (options.dev ? '' : '/api'));
+    console.log(JSON.stringify({ origin, apiPrefix, node: process.version, ...await checkConnection(origin, apiPrefix) }, null, 2));
+    return;
+  }
   if (command === 'connect') {
     const origin = normalizeOrigin(required(options, 'origin'), options.dev);
     const apiPrefix = normalizeApiPrefix(options['api-prefix'] ?? (options.dev ? '' : '/api'));
     try { await readJson(configPath); throw new Error('Профиль уже подключён. Сначала disconnect; для другого сайта используйте другое имя профиля.'); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    await checkConnection(origin, apiPrefix);
     console.log(`Подключение к ${origin}${apiPrefix}. Введите ключ в следующем скрытом запросе macOS, не в чате.`);
     keychain('connect', profile);
     try {
@@ -56,6 +65,7 @@ async function main() {
   const config = await readJson(configPath).catch(() => { throw new Error('Нет профиля. Человек должен выполнить connect в терминале.'); });
   const origin = normalizeOrigin(config.origin, config.dev === true);
   const apiPrefix = normalizeApiPrefix(config.apiPrefix);
+  const dataRoot = join(root, 'data', profile, sha256(origin + apiPrefix).slice(0, 16));
   const api = apiClient(origin, keychain('read', profile), fetch, apiPrefix);
   let result;
   if (command === 'status') result = ReviewerMeSchema.parse(await api('/reviewer/v1/me'));
@@ -65,7 +75,7 @@ async function main() {
     result = command === 'assignments' ? ReviewerAssignmentsPageSchema.parse(await api(`/reviewer/v1/assignments?${params}`)) : ReviewerSolutionsPageSchema.parse(await api(`/reviewer/v1/assignments/${uuid(required(options, 'assignment'))}/solutions?${params}`));
   } else if (command === 'download') {
     const id = uuid(required(options, 'solution'));
-    const directory = join(root, 'data', profile, sha256(origin + apiPrefix).slice(0, 16), id, randomUUID());
+    const directory = join(dataRoot, id, randomUUID());
     result = { manifestPath: await downloadSolution(api, id, directory, origin, apiPrefix) };
   } else if (command === 'upload-draft') {
     const value = required(options, 'points');
@@ -73,7 +83,10 @@ async function main() {
     result = await uploadDraft(api, { origin, apiPrefix, manifestPath: resolve(required(options, 'manifest')), pdfPath: resolve(required(options, 'pdf')), points, operationPath: options.operation ? resolve(options.operation) : undefined });
   } else if (command === 'publish') {
     if (Boolean(options.input) === Boolean(options.request)) throw new Error('Укажите либо --input для публикации, либо --request для её квитанции.');
-    result = options.request ? await publicationStatus(api, options.request) : await publish(api, resolve(options.input));
+    if (options.request) {
+      const publication = await publicationStatus(api, options.request);
+      result = { ...publication, cleanup: await cleanupPublished({ root: dataRoot, origin, apiPrefix, publication }) };
+    } else result = await publish(api, resolve(options.input), { root: dataRoot, origin, apiPrefix });
   } else throw new Error('Неизвестная команда. Используйте --help.');
   console.log(JSON.stringify(result, null, 2));
 }

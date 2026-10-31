@@ -54,8 +54,8 @@ function SaveError({ error, onReload, retry }: { error: Error | null; onReload: 
   </div>;
 }
 
-function WorkResult({ result, mixed = false, returnLink = true }: { returnLink?: boolean; result: StudentWorkDetail['result']; mixed?: boolean }) {
-  return <div className={styles.result}><h2>{mixed ? 'Тестовая часть завершена' : 'Работа завершена'}</h2>{!result?.partialCount && <p>Верно: {result?.correctCount} · Неверно: {result?.incorrectCount}</p>}{result?.points !== undefined && result.maxPoints !== undefined && <p data-score={result.points === result.maxPoints ? 'correct' : result.points > 0 ? 'partial' : 'incorrect'}>Баллы: {result.points} из {result.maxPoints}</p>}{!mixed && returnLink && <Link className={styles.textButton} href="/student/works">К списку работ</Link>}</div>;
+function WorkResult({ result, mixed = false }: { result: StudentWorkDetail['result']; mixed?: boolean }) {
+  return <div className={styles.result}><h2>{mixed ? 'Тестовая часть завершена' : 'Работа завершена'}</h2>{!result?.partialCount && <p>Верно: {result?.correctCount} · Неверно: {result?.incorrectCount}</p>}{result?.points !== undefined && result.maxPoints !== undefined && <p data-score={result.points === result.maxPoints ? 'correct' : result.points > 0 ? 'partial' : 'incorrect'}>Баллы: {result.points} из {result.maxPoints}</p>}</div>;
 }
 
 function StudentWorkPlayer({ initial, onReload, reloadError, onUnavailable, entry }: { initial: StudentWorkDetail; onReload: () => Promise<void>; reloadError: Error | null; onUnavailable: () => void; entry?: 'solutions' | 'result' }) {
@@ -85,16 +85,14 @@ function StudentWorkPlayer({ initial, onReload, reloadError, onUnavailable, entr
     {!mobile && <div className={styles.heading}><div><h1>{initial.title}</h1><p>Версия {initial.versionNumber} · Заданий: {initial.taskCount}</p></div>
       {playerStatus}
     </div>}
-    {state.status === 'completed' && !hasExtended ? <WorkResult result={state.result} returnLink={!mobile} /> : <>
-      {state.status === 'completed' && <WorkResult result={state.result} mixed />}
-      {!mobile && initial.instructions && <details className={styles.workInstructions}><summary>Инструкция к работе</summary><p>{initial.instructions}</p></details>}
-      {draft.candidate && <StudentDraftNotice draft={draft.candidate} work={initial} compatible={draft.compatible} restore={() => draft.restore(attempt.change)} discard={draft.discard} />}
-      <SaveError error={attempt.error ?? attempt.finishError} onReload={onReload} retry={attempt.error ? attempt.retry : undefined} />
-      <StudentPhotoFeedback photos={photos} />
-      <StudentWorkQuestions work={{ ...initial, status: state.status, taskResults: state.taskResults }} answers={attempt.answers} disabled={blocked || photos.busy} onChange={attempt.change} requestedTask={requestedTask} solutions={photos.answers} entry={entry} solutionsLoading={!photos.ready} automaticCompleted={state.status === 'completed'} renderExtended={(id) => <StudentSolutionUpload key={id} taskId={id} controller={photos} disabled={blocked} />} />
-      <FinishBar attempt={attempt} count={automaticCount} mixed={hasExtended} disabled={attempt.dirty || blocked || photos.dirty} open={trigger => { finishTrigger.current = trigger; setReview(true); }} />
-      <StudentFinishReview returnFocus={finishTrigger} open={review} close={() => setReview(false)} work={initial} answers={attempt.answers} disabled={attempt.dirty || blocked} onTask={(id) => setRequestedTask((previous) => ({ id, request: (previous?.request ?? 0) + 1 }))} onFinish={() => void attempt.finish()} />
-    </>}
+    {state.status === 'completed' && <WorkResult result={state.result} mixed={hasExtended} />}
+    {!mobile && initial.instructions && <details className={styles.workInstructions}><summary>Инструкция к работе</summary><p>{initial.instructions}</p></details>}
+    {draft.candidate && <StudentDraftNotice draft={draft.candidate} work={initial} compatible={draft.compatible} restore={() => draft.restore(attempt.change)} discard={draft.discard} />}
+    <SaveError error={attempt.error ?? attempt.finishError} onReload={onReload} retry={attempt.error ? attempt.retry : undefined} />
+    <StudentPhotoFeedback photos={photos} />
+    <StudentWorkQuestions work={{ ...initial, status: state.status, taskResults: state.taskResults, answerKeys: state.answerKeys }} answers={attempt.answers} disabled={blocked || photos.busy} onChange={attempt.change} requestedTask={requestedTask} solutions={photos.answers} entry={entry} solutionsLoading={!photos.ready} automaticCompleted={state.status === 'completed'} renderExtended={(id) => <StudentSolutionUpload key={id} taskId={id} controller={photos} disabled={blocked} />} />
+    <FinishBar attempt={attempt} count={automaticCount} mixed={hasExtended} disabled={attempt.dirty || blocked || photos.dirty} open={trigger => { finishTrigger.current = trigger; setReview(true); }} />
+    <StudentFinishReview returnFocus={finishTrigger} open={review} close={() => setReview(false)} work={initial} answers={attempt.answers} disabled={attempt.dirty || blocked} onTask={(id) => setRequestedTask((previous) => ({ id, request: (previous?.request ?? 0) + 1 }))} onFinish={() => void attempt.finish()} />
   </StudentWorksShell>;
 }
 

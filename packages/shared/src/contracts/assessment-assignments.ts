@@ -72,19 +72,31 @@ export const PublicAssessmentItemSchema = z.discriminatedUnion('type', [
   z.strictObject({ ...publicItem, type: z.literal('multiple_choice'), options }),
   z.strictObject({ ...publicItem, type: z.literal('matching'), rows: options, options }),
 ]);
+// A minimal canonical answer, not the private grading definition.
+export const StudentAnswerKeySchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('short_number'), value: z.string().max(64) }),
+  z.strictObject({ type: z.literal('short_text'), value: z.string().max(5000) }),
+  z.strictObject({ type: z.literal('single_choice'), optionId }),
+  z.strictObject({ type: z.literal('multiple_choice'), optionIds: z.array(optionId).min(1).max(30).refine(distinct) }),
+  z.strictObject({ type: z.literal('matching'), matches: z.record(optionId, optionId) }),
+]);
+export type StudentAnswerKey = z.infer<typeof StudentAnswerKeySchema>;
 export const StudentAttemptStateSchema = z.strictObject({
   revision: positive, status: AttemptStatusSchema, answeredCount: count,
   startedAt: z.iso.datetime().nullable(), completedAt: z.iso.datetime().nullable(),
+  answerKeys: z.record(uuid, StudentAnswerKeySchema).optional(),
   taskResults: z.record(uuid, z.strictObject({ points: count, maxPoints: positive })).optional(),
   result: z.strictObject({ correctCount: count, incorrectCount: count, partialCount: count.optional(), points: count.optional(), maxPoints: positive.optional() }).nullable(),
+}).superRefine((value, ctx) => {
+  if (value.status !== 'completed' && value.answerKeys !== undefined) ctx.addIssue({ code: 'custom', path: ['answerKeys'], message: 'Ключи доступны только после завершения теста.' });
 });
-export const StudentWorkSummarySchema = StudentAttemptStateSchema.extend({
+export const StudentWorkSummarySchema = StudentAttemptStateSchema.safeExtend({
   id: uuid, title: z.string(), versionNumber: positive, taskCount: positive, assignedAt: z.iso.datetime(),
   automaticTaskCount: count.optional(), extendedTaskCount: count.optional(),
 });
-export const StudentWorkListSchema = z.array(StudentWorkSummarySchema.extend({ automaticTaskCount: count, extendedTaskCount: count, progress: WorkProgressSchema }));
+export const StudentWorkListSchema = z.array(StudentWorkSummarySchema.safeExtend({ automaticTaskCount: count, extendedTaskCount: count, progress: WorkProgressSchema }));
 export type StudentWorkListItem = z.infer<typeof StudentWorkListSchema>[number];
-export const StudentWorkDetailSchema = StudentWorkSummarySchema.extend({
+export const StudentWorkDetailSchema = StudentWorkSummarySchema.safeExtend({
   presentationRevision: z.string().regex(/^[a-f0-9]{64}$/).optional(),
   instructions: z.string(), items: z.array(PublicAssessmentItemSchema), answers: z.record(uuid, AssessmentAnswerSchema),
 });

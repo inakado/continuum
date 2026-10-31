@@ -2,7 +2,7 @@ import type { ReviewerKey, ReviewerTargets } from '@continuum/shared';
 
 export const classLabel = (item: ReviewerTargets['classes'][number]) => `${item.title} · ${item.academicYear}–${item.academicYear + 1}${item.isArchived ? ' · Архив' : ''}`;
 export const accessDate = (value: string) => new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value));
-export const keyStatus = (key: ReviewerKey) => key.revokedAt ? 'Ключ отозван' : new Date(key.expiresAt).getTime() <= Date.now() ? 'Срок ключа истёк' : `Действует до ${accessDate(key.expiresAt)}`;
+export const keyStatus = (key: ReviewerKey) => key.revokedAt ? 'Ключ отозван' : key.expiresAt === null ? 'Действует до отзыва' : new Date(key.expiresAt).getTime() <= Date.now() ? 'Срок ключа истёк' : `Действует до ${accessDate(key.expiresAt)}`;
 
 export function targetSummary(key: ReviewerKey, targets?: ReviewerTargets) {
   if (!key.classIds.length && !key.studentIds.length) return 'Прежний доступ больше не действует';

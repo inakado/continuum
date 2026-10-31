@@ -8,8 +8,8 @@ var __export = (target, all) => {
 // scripts/reviewer/cli.mjs
 import { parseArgs } from "node:util";
 import { homedir } from "node:os";
-import { join as join3, resolve } from "node:path";
-import { unlink as unlink2 } from "node:fs/promises";
+import { join as join4, resolve } from "node:path";
+import { unlink as unlink3 } from "node:fs/promises";
 import { randomUUID as randomUUID2 } from "node:crypto";
 
 // node_modules/.pnpm/zod@4.6.7/node_modules/zod/v4/classic/external.js
@@ -19730,18 +19730,18 @@ function date4(params) {
 }
 
 // packages/shared/src/contracts/reviewer.ts
-var reviewerPolicy = { keyTtlDays: 30, reportMaxBytes: 20 * 1024 * 1024, publicationMax: 50, pageMax: 100 };
+var reviewerPolicy = { keyExpiresIn: null, reportMaxBytes: 20 * 1024 * 1024, publicationMax: 50, pageMax: 100 };
 var ReviewerScopeSchema = external_exports.enum(["read", "draft:write", "publish"]);
 var scopes = external_exports.array(ReviewerScopeSchema).min(1).max(3).refine((items) => new Set(items).size === items.length && items.includes("read"), "\u041D\u0443\u0436\u043D\u043E \u043F\u0440\u0430\u0432\u043E \u0447\u0442\u0435\u043D\u0438\u044F; \u043F\u043E\u0432\u0442\u043E\u0440\u044F\u044E\u0449\u0438\u0435\u0441\u044F \u043F\u0440\u0430\u0432\u0430 \u0437\u0430\u043F\u0440\u0435\u0449\u0435\u043D\u044B.");
 var ids = external_exports.array(external_exports.uuid()).max(500).refine((items) => new Set(items).size === items.length, "\u041F\u043E\u0432\u0442\u043E\u0440\u044F\u044E\u0449\u0438\u0435\u0441\u044F \u0438\u0434\u0435\u043D\u0442\u0438\u0444\u0438\u043A\u0430\u0442\u043E\u0440\u044B.");
 var ReviewerKeyCreateSchema = external_exports.strictObject({ name: external_exports.string().trim().min(1).max(80), password: external_exports.string().min(1).max(128), classIds: ids, studentIds: ids }).refine((input2) => input2.classIds.length + input2.studentIds.length > 0, "\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u043A\u043B\u0430\u0441\u0441\u044B \u0438\u043B\u0438 \u0443\u0447\u0435\u043D\u0438\u043A\u043E\u0432.");
-var ReviewerKeySchema = external_exports.strictObject({ id: external_exports.uuid(), name: external_exports.string(), scopes, classIds: ids, studentIds: ids, createdAt: external_exports.iso.datetime(), expiresAt: external_exports.iso.datetime(), lastUsedAt: external_exports.iso.datetime().nullable(), revokedAt: external_exports.iso.datetime().nullable() });
+var ReviewerKeySchema = external_exports.strictObject({ id: external_exports.uuid(), name: external_exports.string(), scopes, classIds: ids, studentIds: ids, createdAt: external_exports.iso.datetime(), expiresAt: external_exports.iso.datetime().nullable(), lastUsedAt: external_exports.iso.datetime().nullable(), revokedAt: external_exports.iso.datetime().nullable() });
 var ReviewerKeysSchema = external_exports.array(ReviewerKeySchema);
 var ReviewerKeyCreatedSchema = external_exports.strictObject({ key: external_exports.string().min(16), entry: ReviewerKeySchema });
 var ReviewerTargetsSchema = external_exports.strictObject({ classes: external_exports.array(external_exports.strictObject({ id: external_exports.uuid(), title: external_exports.string(), academicYear: external_exports.number().int(), isArchived: external_exports.boolean() })), students: external_exports.array(external_exports.strictObject({ id: external_exports.uuid(), name: external_exports.string(), login: external_exports.string(), classId: external_exports.uuid().nullable() })) });
 var ReviewerAssignmentSchema = external_exports.strictObject({ id: external_exports.uuid(), versionId: external_exports.uuid(), title: external_exports.string(), version: external_exports.number().int(), classTitle: external_exports.string(), academicYear: external_exports.number().int(), canPublish: external_exports.boolean(), owner: external_exports.boolean() });
 var ReviewerAssignmentsSchema = external_exports.array(ReviewerAssignmentSchema);
-var ReviewerMeSchema = external_exports.strictObject({ userId: external_exports.uuid(), login: external_exports.string(), keyId: external_exports.uuid(), expiresAt: external_exports.iso.datetime(), scopes, classIds: ids, studentIds: ids });
+var ReviewerMeSchema = external_exports.strictObject({ userId: external_exports.uuid(), login: external_exports.string(), keyId: external_exports.uuid(), expiresAt: external_exports.iso.datetime().nullable(), scopes, classIds: ids, studentIds: ids });
 var ReviewerListQuerySchema = external_exports.strictObject({ query: external_exports.string().trim().max(160).optional(), cursor: external_exports.uuid().optional(), limit: external_exports.coerce.number().int().min(1).max(100).default(50), state: external_exports.enum(["unreviewed", "draft", "stale", "published"]).optional() });
 var ReviewerReportCreateSchema = external_exports.strictObject({ solutionId: external_exports.uuid(), sourceRevision: external_exports.number().int().positive() });
 var ReviewerReportSchema = external_exports.strictObject({ id: external_exports.uuid(), solutionId: external_exports.uuid(), sourceRevision: external_exports.number().int(), ready: external_exports.boolean(), sha256: external_exports.string().nullable(), sizeBytes: external_exports.number().int().nullable() });
@@ -19756,7 +19756,7 @@ var ReviewerPublicationResultSchema = external_exports.strictObject({ id: extern
 
 // scripts/reviewer/client.mjs
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile, rename, open as open2, unlink } from "node:fs/promises";
+import { mkdir, readFile, writeFile, rename, open as open2, unlink, realpath, lstat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
 var sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
@@ -19793,8 +19793,46 @@ function keychain(action, profile, run = spawnSync) {
   if (result.status !== 0) throw new Error("Keychain: \u043E\u043F\u0435\u0440\u0430\u0446\u0438\u044F \u043D\u0435 \u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D\u0430. \u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u0434\u043E\u0441\u0442\u0443\u043F \u043A \u0421\u0432\u044F\u0437\u043A\u0435 \u043A\u043B\u044E\u0447\u0435\u0439 \u0438 \u043F\u0440\u043E\u0444\u0438\u043B\u044C.");
   return action === "read" ? result.stdout.trim() : void 0;
 }
+function connectionError(error62) {
+  const hints = {
+    ENOTFOUND: "\u041D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D \u0430\u0434\u0440\u0435\u0441 \u0441\u0430\u0439\u0442\u0430 (DNS).",
+    EAI_AGAIN: "DNS \u0432\u0440\u0435\u043C\u0435\u043D\u043D\u043E \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u0435\u043D.",
+    ECONNREFUSED: "\u0421\u0435\u0440\u0432\u0435\u0440 \u043E\u0442\u043A\u043B\u043E\u043D\u0438\u043B \u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u0435.",
+    ECONNRESET: "\u0421\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u0435 \u043F\u0440\u0435\u0440\u0432\u0430\u043D\u043E.",
+    UND_ERR_SOCKET: "\u0421\u0435\u0442\u0435\u0432\u043E\u0435 \u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u0435 \u0437\u0430\u043A\u0440\u044B\u0442\u043E.",
+    ENETUNREACH: "\u041D\u0435\u0442 \u0441\u0435\u0442\u0435\u0432\u043E\u0433\u043E \u043C\u0430\u0440\u0448\u0440\u0443\u0442\u0430 \u043A \u0441\u0435\u0440\u0432\u0435\u0440\u0443.",
+    EHOSTUNREACH: "\u0421\u0435\u0440\u0432\u0435\u0440 \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u0435\u043D \u043F\u043E \u0441\u0435\u0442\u0438.",
+    ETIMEDOUT: "\u0418\u0441\u0442\u0435\u043A\u043B\u043E \u0432\u0440\u0435\u043C\u044F \u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u044F.",
+    UND_ERR_CONNECT_TIMEOUT: "\u0418\u0441\u0442\u0435\u043A\u043B\u043E \u0432\u0440\u0435\u043C\u044F \u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u044F.",
+    UND_ERR_HEADERS_TIMEOUT: "\u0421\u0435\u0440\u0432\u0435\u0440 \u043D\u0435 \u043E\u0442\u0432\u0435\u0442\u0438\u043B \u0432\u043E\u0432\u0440\u0435\u043C\u044F.",
+    TIMEOUT: "\u0418\u0441\u0442\u0435\u043A\u043B\u043E \u0432\u0440\u0435\u043C\u044F \u0437\u0430\u043F\u0440\u043E\u0441\u0430.",
+    CERT_HAS_EXPIRED: "\u0418\u0441\u0442\u0451\u043A \u0441\u0440\u043E\u043A TLS-\u0441\u0435\u0440\u0442\u0438\u0444\u0438\u043A\u0430\u0442\u0430.",
+    UNABLE_TO_VERIFY_LEAF_SIGNATURE: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u0446\u0435\u043F\u043E\u0447\u043A\u0443 TLS-\u0441\u0435\u0440\u0442\u0438\u0444\u0438\u043A\u0430\u0442\u0430.",
+    UNABLE_TO_GET_ISSUER_CERT_LOCALLY: "\u041D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D \u0434\u043E\u0432\u0435\u0440\u0435\u043D\u043D\u044B\u0439 \u0446\u0435\u043D\u0442\u0440 TLS-\u0441\u0435\u0440\u0442\u0438\u0444\u0438\u043A\u0430\u0442\u0430.",
+    SELF_SIGNED_CERT_IN_CHAIN: "\u041D\u0435\u0434\u043E\u0432\u0435\u0440\u0435\u043D\u043D\u044B\u0439 TLS-\u0441\u0435\u0440\u0442\u0438\u0444\u0438\u043A\u0430\u0442.",
+    DEPTH_ZERO_SELF_SIGNED_CERT: "\u0421\u0430\u043C\u043E\u043F\u043E\u0434\u043F\u0438\u0441\u0430\u043D\u043D\u044B\u0439 TLS-\u0441\u0435\u0440\u0442\u0438\u0444\u0438\u043A\u0430\u0442.",
+    ERR_TLS_CERT_ALTNAME_INVALID: "TLS-\u0441\u0435\u0440\u0442\u0438\u0444\u0438\u043A\u0430\u0442 \u043D\u0435 \u0441\u043E\u043E\u0442\u0432\u0435\u0442\u0441\u0442\u0432\u0443\u0435\u0442 \u0430\u0434\u0440\u0435\u0441\u0443 \u0441\u0430\u0439\u0442\u0430."
+  };
+  const candidates = [error62?.cause?.code, ...(Array.isArray(error62?.cause?.errors) ? error62.cause.errors : []).map((item) => item?.code), ...["TimeoutError", "AbortError"].includes(error62?.name) ? ["TIMEOUT"] : []];
+  const code = candidates.find((value) => typeof value === "string" && Object.hasOwn(hints, value));
+  return new Error(code ? `\u0421\u0435\u0442\u0435\u0432\u0430\u044F \u043E\u0448\u0438\u0431\u043A\u0430 [${code}]. ${hints[code]} \u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u0441\u0435\u0442\u044C \u0438 \u043F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u0435 \u043A\u043E\u043C\u0430\u043D\u0434\u0443.` : "\u0421\u0435\u0442\u0435\u0432\u0430\u044F \u043E\u0448\u0438\u0431\u043A\u0430. \u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u0441\u043E\u0435\u0434\u0438\u043D\u0435\u043D\u0438\u0435 \u0438 \u043F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u0435 \u043A\u043E\u043C\u0430\u043D\u0434\u0443.");
+}
+async function checkConnection(origin, apiPrefix = "/api", fetcher = fetch) {
+  normalizeOrigin(origin, new URL(origin).protocol === "http:");
+  normalizeApiPrefix(apiPrefix);
+  let response;
+  try {
+    response = await fetcher(`${origin}${apiPrefix}/reviewer/v1/me`, { headers: { accept: "application/json" }, redirect: "error", signal: AbortSignal.timeout(15e3) });
+  } catch (error62) {
+    throw connectionError(error62);
+  }
+  await response.body?.cancel();
+  if (response.status !== 401 || !response.headers.get("content-type")?.includes("application/json")) throw new Error(`\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 API: HTTP ${response.status}. \u041E\u0436\u0438\u0434\u0430\u043B\u0441\u044F JSON-\u043E\u0442\u0432\u0435\u0442 401 \u0431\u0435\u0437 \u043A\u043B\u044E\u0447\u0430. \u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 origin \u0438 API prefix.`);
+  return { reachable: true, status: 401 };
+}
 function apiClient(origin, token, fetcher = fetch, apiPrefix = "/api") {
   normalizeApiPrefix(apiPrefix);
+  if (typeof token !== "string" || !/^[\x21-\x7e]{1,512}$/.test(token)) throw new Error("\u041D\u0435\u043A\u043E\u0440\u0440\u0435\u043A\u0442\u043D\u044B\u0439 \u043A\u043B\u044E\u0447: \u043D\u0443\u0436\u043D\u044B \u0441\u0438\u043C\u0432\u043E\u043B\u044B \u0441\u043A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u043E\u0433\u043E \u043A\u043B\u044E\u0447\u0430 \u0431\u0435\u0437 \u043F\u0440\u043E\u0431\u0435\u043B\u043E\u0432 \u0438 \u043F\u0435\u0440\u0435\u043D\u043E\u0441\u043E\u0432. \u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u0435 connect \u0432 Terminal.");
   return async (path, { method = "GET", body, raw = false, contentType } = {}) => {
     if (typeof path !== "string" || !path.startsWith("/reviewer/v1/") || /(?:\.\.|\\|#)/.test(path)) throw new Error("\u041D\u0435\u0434\u043E\u043F\u0443\u0441\u0442\u0438\u043C\u044B\u0439 \u043F\u0443\u0442\u044C API.");
     const url2 = new URL(`${apiPrefix}${path}`, origin);
@@ -19802,8 +19840,8 @@ function apiClient(origin, token, fetcher = fetch, apiPrefix = "/api") {
     let response;
     try {
       response = await fetcher(url2.href, { method, body: body === void 0 ? void 0 : contentType ? body : JSON.stringify(body), headers: { authorization: `Bearer ${token}`, ...body === void 0 ? {} : { "content-type": contentType ?? "application/json" } }, redirect: "error", signal: AbortSignal.timeout(6e4) });
-    } catch {
-      throw new Error("\u0421\u0435\u0442\u0435\u0432\u0430\u044F \u043E\u0448\u0438\u0431\u043A\u0430. \u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u0435 \u0442\u0443 \u0436\u0435 \u043A\u043E\u043C\u0430\u043D\u0434\u0443: \u0438\u0434\u0435\u043D\u0442\u0438\u0444\u0438\u043A\u0430\u0442\u043E\u0440\u044B \u0437\u0430\u043F\u0438\u0441\u0438 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u044B.");
+    } catch (error62) {
+      throw connectionError(error62);
     }
     if (!response.ok) {
       await response.body?.cancel();
@@ -19832,6 +19870,21 @@ async function readBounded(response, maxBytes) {
 }
 async function privateDirectory(path) {
   await mkdir(path, { recursive: true, mode: 448 });
+}
+async function privateWorkspace(directory) {
+  await privateDirectory(directory);
+  let current = await realpath(directory);
+  while (true) {
+    try {
+      await lstat(join(current, ".git"));
+      throw new Error("\u0424\u043E\u0442\u043E \u0438 \u0440\u0430\u0437\u0431\u043E\u0440\u044B \u0434\u043E\u043B\u0436\u043D\u044B \u0445\u0440\u0430\u043D\u0438\u0442\u044C\u0441\u044F \u0432\u043D\u0435 \u0440\u0435\u043F\u043E\u0437\u0438\u0442\u043E\u0440\u0438\u044F.");
+    } catch (error62) {
+      if (error62.code !== "ENOENT") throw error62;
+    }
+    const parent = dirname(current);
+    if (parent === current) return;
+    current = parent;
+  }
 }
 async function writeJson(path, value) {
   await privateDirectory(dirname(path));
@@ -19885,6 +19938,7 @@ function validateSource(value, id) {
 }
 async function downloadSolution(api, id, directory, origin, apiPrefix = "/api") {
   uuid3(id);
+  await privateWorkspace(directory);
   const source = validateSource(await api(`/reviewer/v1/solutions/${id}`), id);
   await privateDirectory(directory);
   await unlink(join(directory, "source.json")).catch((error62) => {
@@ -19907,6 +19961,7 @@ async function downloadSolution(api, id, directory, origin, apiPrefix = "/api") 
     manifest.images.push({ name: image.name, path: image.name, sha256: sha256(bytes) });
   }
   await writeJson(join(directory, "source.json"), manifest);
+  await writeJson(join(directory, "managed.json"), { owner: "continuum-reviewer-pilot-v1", solutionId: source.id, sourceRevision: source.sourceRevision });
   return join(directory, "source.json");
 }
 async function loadManifest(path, origin, apiPrefix = "/api") {
@@ -19921,19 +19976,126 @@ async function loadManifest(path, origin, apiPrefix = "/api") {
   return source;
 }
 
+// scripts/reviewer/cleanup-reviewed.mjs
+import { realpath as realpath2, unlink as unlink2, lstat as lstat2, readFile as readFile2, readdir, rmdir } from "node:fs/promises";
+import { join as join2, dirname as dirname2, basename, sep } from "node:path";
+async function cleanupReviewed({ root, directory, operationPath, pdfPath, publication }) {
+  const base = await realpath2(root), job = await realpath2(directory);
+  const inside = (path) => path.startsWith(job + sep);
+  if ((await lstat2(directory)).isSymbolicLink() || !job.startsWith(base + sep)) throw new Error("\u041E\u0447\u0438\u0441\u0442\u043A\u0430 \u0440\u0430\u0437\u0440\u0435\u0448\u0435\u043D\u0430 \u0442\u043E\u043B\u044C\u043A\u043E \u0432\u043D\u0443\u0442\u0440\u0438 \u0443\u043F\u0440\u0430\u0432\u043B\u044F\u0435\u043C\u043E\u0439 \u043F\u0430\u043F\u043A\u0438 \u043F\u0440\u043E\u0432\u0435\u0440\u043E\u043A.");
+  if (!inside(await realpath2(operationPath))) throw new Error("\u0424\u0430\u0439\u043B \u043E\u043F\u0435\u0440\u0430\u0446\u0438\u0438 \u043D\u0430\u0445\u043E\u0434\u0438\u0442\u0441\u044F \u0432\u043D\u0435 \u043F\u0430\u043F\u043A\u0438 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438.");
+  const pdf = join2(await realpath2(dirname2(pdfPath)), basename(pdfPath));
+  if (!inside(pdf)) throw new Error("PDF \u043D\u0430\u0445\u043E\u0434\u0438\u0442\u0441\u044F \u0432\u043D\u0435 \u043F\u0430\u043F\u043A\u0438 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438.");
+  const marker = await readJson(join2(job, "managed.json"));
+  if (marker.owner !== "continuum-reviewer-pilot-v1") throw new Error("\u042D\u0442\u043E \u043D\u0435 \u0443\u043F\u0440\u0430\u0432\u043B\u044F\u0435\u043C\u0430\u044F \u043F\u0430\u043F\u043A\u0430 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438.");
+  const manifest = await readJson(join2(job, "source.json")), source = ReviewerSolutionSchema.parse(manifest.source);
+  const operation = await readJson(operationPath), input2 = operation.input, review = operation.review;
+  if (marker.solutionId !== source.id || marker.sourceRevision !== source.sourceRevision || input2?.solutionId !== source.id || input2.sourceRevision !== source.sourceRevision || !review?.reportId || review.reportId !== operation.reportId || review.sourceRevision !== source.sourceRevision || review.points !== input2.points || !/^[a-f0-9]{64}$/.test(input2.sha256)) throw new Error("\u041D\u0435\u0442 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0451\u043D\u043D\u043E\u0439 \u0437\u0430\u0433\u0440\u0443\u0437\u043A\u0438 \u0438\u043C\u0435\u043D\u043D\u043E \u044D\u0442\u043E\u0433\u043E PDF \u0438 \u043D\u0430\u0431\u043E\u0440\u0430 \u0444\u043E\u0442\u043E. \u0424\u0430\u0439\u043B\u044B \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u044B.");
+  ReviewerReviewSchema.parse(review);
+  const published = ReviewerPublicationResultSchema.parse(publication);
+  if (!published.items.some((item) => item.solutionId === source.id && item.reviewId === review.id && item.reviewRevision === review.revision && item.points === review.points)) throw new Error("\u041D\u0435\u0442 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0451\u043D\u043D\u043E\u0439 \u043F\u0443\u0431\u043B\u0438\u043A\u0430\u0446\u0438\u0438 \u0438\u043C\u0435\u043D\u043D\u043E \u044D\u0442\u043E\u0439 \u0440\u0435\u0432\u0438\u0437\u0438\u0438. \u0424\u0430\u0439\u043B\u044B \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u044B.");
+  const candidates = [...manifest.photos, ...manifest.images].map((item) => {
+    if (!/^(photos|images)\/[A-Za-z0-9_./-]+$/.test(item.path) || item.path.split("/").some((part) => !part || part === ".." || part === ".")) throw new Error("\u041D\u0435\u0431\u0435\u0437\u043E\u043F\u0430\u0441\u043D\u044B\u0439 \u043F\u0443\u0442\u044C \u043E\u0447\u0438\u0441\u0442\u043A\u0438.");
+    return { path: join2(job, item.path), hash: item.sha256 };
+  }).concat({ path: pdf, hash: input2.sha256 });
+  if (marker.evaluationHash) candidates.push({ path: join2(job, "evaluation.json"), hash: marker.evaluationHash });
+  const builds = [];
+  for (const entry of await readdir(job, { withFileTypes: true })) {
+    if (!entry.name.startsWith(".review-build-")) continue;
+    if (!entry.isDirectory() || entry.isSymbolicLink()) throw new Error("\u041D\u0435\u0431\u0435\u0437\u043E\u043F\u0430\u0441\u043D\u0430\u044F \u043F\u0430\u043F\u043A\u0430 TeX.");
+    const directory2 = join2(job, entry.name), files = await readdir(directory2, { withFileTypes: true });
+    if (files.some((file2) => !file2.isFile() || file2.isSymbolicLink() || !/^review\.(tex|aux|log|pdf|out|fls|fdb_latexmk|synctex\.gz)$/.test(file2.name))) throw new Error("\u041F\u043E\u0441\u0442\u043E\u0440\u043E\u043D\u043D\u0438\u0435 \u0444\u0430\u0439\u043B\u044B \u0432 \u043F\u0430\u043F\u043A\u0435 TeX. \u0424\u0430\u0439\u043B\u044B \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u044B.");
+    for (const file2 of files) {
+      const path = join2(directory2, file2.name);
+      candidates.push({ path, hash: sha256(await readFile2(path)) });
+    }
+    builds.push(directory2);
+  }
+  const remaining = [];
+  for (const item of candidates) {
+    try {
+      const path = await realpath2(item.path);
+      if (!inside(path) || (await lstat2(item.path)).isSymbolicLink()) throw new Error("\u041D\u0435\u0431\u0435\u0437\u043E\u043F\u0430\u0441\u043D\u044B\u0439 \u043F\u0443\u0442\u044C \u043E\u0447\u0438\u0441\u0442\u043A\u0438.");
+      if (sha256(await readFile2(path)) !== item.hash) throw new Error("\u041B\u043E\u043A\u0430\u043B\u044C\u043D\u044B\u0439 \u0444\u0430\u0439\u043B \u0438\u0437\u043C\u0435\u043D\u0438\u043B\u0441\u044F. \u0424\u0430\u0439\u043B\u044B \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u044B.");
+      remaining.push(path);
+    } catch (error62) {
+      if (error62.code !== "ENOENT") throw error62;
+    }
+  }
+  const receiptPath = join2(job, "receipt.json");
+  await writeJson(receiptPath, { version: 1, solutionId: source.id, sourceRevision: source.sourceRevision, review, publicationId: published.id, publishedAt: published.publishedAt, pdfSha256: input2.sha256, cleanedAt: (/* @__PURE__ */ new Date()).toISOString() });
+  for (const path of remaining) await unlink2(path).catch((error62) => {
+    if (error62.code !== "ENOENT") throw error62;
+  });
+  for (const directory2 of builds) await rmdir(directory2).catch((error62) => {
+    if (error62.code !== "ENOENT") throw error62;
+  });
+  return { removedFiles: remaining.length, receiptPath };
+}
+async function cleanupPublished({ root, origin, apiPrefix = "/api", publication }) {
+  const result = ReviewerPublicationResultSchema.parse(publication), cleaned = [], retained = [];
+  for (const item of result.items) {
+    const parent = join2(root, item.solutionId);
+    let jobs;
+    try {
+      if ((await lstat2(parent)).isSymbolicLink()) throw new Error("\u041D\u0435\u0431\u0435\u0437\u043E\u043F\u0430\u0441\u043D\u0430\u044F \u043F\u0430\u043F\u043A\u0430 \u0440\u0435\u0448\u0435\u043D\u0438\u044F.");
+      jobs = await readdir(parent, { withFileTypes: true });
+    } catch (error62) {
+      if (error62.code !== "ENOENT") retained.push({ solutionId: item.solutionId, reason: "\u041F\u0430\u043F\u043A\u0430 \u0440\u0435\u0448\u0435\u043D\u0438\u044F \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u0430 \u0434\u043B\u044F \u0431\u0435\u0437\u043E\u043F\u0430\u0441\u043D\u043E\u0439 \u043E\u0447\u0438\u0441\u0442\u043A\u0438." });
+      continue;
+    }
+    for (const job of jobs) {
+      if (!job.isDirectory() || job.isSymbolicLink()) continue;
+      const directory = join2(parent, job.name);
+      try {
+        const marker = await readJson(join2(directory, "managed.json"));
+        if (marker.owner !== "continuum-reviewer-pilot-v1" || !marker.operation || !marker.pdf) continue;
+        const local = (value) => {
+          if (typeof value !== "string" || value.startsWith("/") || value.split("/").some((part) => !part || part === "." || part === "..")) throw new Error("\u041D\u0435\u0431\u0435\u0437\u043E\u043F\u0430\u0441\u043D\u044B\u0439 \u043F\u0443\u0442\u044C.");
+          return join2(directory, value);
+        };
+        const manifest = await readJson(join2(directory, "source.json"));
+        if (manifest.origin !== origin || manifest.apiPrefix !== apiPrefix || manifest.source?.id !== item.solutionId) continue;
+        const operationPath = local(marker.operation), operation = await readJson(operationPath);
+        if (operation.review?.id !== item.reviewId || operation.review?.revision !== item.reviewRevision) continue;
+        cleaned.push(await cleanupReviewed({ root, directory, operationPath, pdfPath: local(marker.pdf), publication: result }));
+      } catch {
+        retained.push({ solutionId: item.solutionId, reason: "\u041B\u043E\u043A\u0430\u043B\u044C\u043D\u044B\u0435 \u0444\u0430\u0439\u043B\u044B \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u044B: \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u043E\u0447\u0438\u0441\u0442\u043A\u0438 \u043D\u0435 \u043F\u0440\u043E\u0439\u0434\u0435\u043D\u0430. \u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u0435 publish --request \u0441 ID \u043F\u0443\u0431\u043B\u0438\u043A\u0430\u0446\u0438\u0438." });
+      }
+    }
+  }
+  return { cleaned, retained };
+}
+
 // scripts/reviewer/commands.mjs
-import { readFile as readFile2, stat } from "node:fs/promises";
-import { dirname as dirname2, join as join2 } from "node:path";
+import { readFile as readFile3, stat } from "node:fs/promises";
+import { dirname as dirname3, join as join3, relative } from "node:path";
 async function uploadDraft(api, { manifestPath, pdfPath, points, origin, apiPrefix = "/api", operationPath }) {
+  await privateWorkspace(dirname3(manifestPath));
   const source = await loadManifest(manifestPath, origin, apiPrefix);
   if (points !== null && (!Number.isSafeInteger(points) || points < 0 || points > source.maxPoints)) throw new Error("\u0411\u0430\u043B\u043B\u044B \u0434\u043E\u043B\u0436\u043D\u044B \u0431\u044B\u0442\u044C \u0446\u0435\u043B\u044B\u043C \u0447\u0438\u0441\u043B\u043E\u043C \u043E\u0442 0 \u0434\u043E \u043C\u0430\u043A\u0441\u0438\u043C\u0443\u043C\u0430 \u043B\u0438\u0431\u043E null.");
   const info = await stat(pdfPath);
   if (!info.isFile() || info.size > reviewerPolicy.reportMaxBytes) throw new Error("\u041D\u0443\u0436\u0435\u043D PDF \u043D\u0435 \u0431\u043E\u043B\u044C\u0448\u0435 20 \u041C\u0438\u0411.");
-  const bytes = await readFile2(pdfPath);
+  const bytes = await readFile3(pdfPath);
   if (bytes.length < 8 || bytes.subarray(0, 5).toString() !== "%PDF-") throw new Error("\u0424\u0430\u0439\u043B \u043D\u0435 \u044F\u0432\u043B\u044F\u0435\u0442\u0441\u044F PDF.");
   const input2 = { origin, apiPrefix, solutionId: source.id, sourceRevision: source.sourceRevision, expectedReviewRevision: source.review?.revision ?? 0, points, sha256: sha256(bytes) };
-  const path = operationPath ?? join2(dirname2(manifestPath), `draft-${sha256(JSON.stringify(input2)).slice(0, 20)}.json`);
+  const path = operationPath ?? join3(dirname3(manifestPath), `draft-${sha256(JSON.stringify(input2)).slice(0, 20)}.json`);
+  const markerPath = join3(dirname3(manifestPath), "managed.json");
+  const marker = await readJson(markerPath);
+  const local = (value) => {
+    const path2 = relative(dirname3(manifestPath), value);
+    if (!path2 || path2.startsWith("..") || path2.startsWith("/")) throw new Error("PDF \u0438 \u043E\u043F\u0435\u0440\u0430\u0446\u0438\u044F \u0434\u043E\u043B\u0436\u043D\u044B \u043D\u0430\u0445\u043E\u0434\u0438\u0442\u044C\u0441\u044F \u0432 \u043F\u0430\u043F\u043A\u0435 source.json.");
+    return path2;
+  };
+  if (marker.owner !== "continuum-reviewer-pilot-v1" || marker.solutionId !== source.id || marker.sourceRevision !== source.sourceRevision) throw new Error("\u041D\u0443\u0436\u043D\u0430 \u0443\u043F\u0440\u0430\u0432\u043B\u044F\u0435\u043C\u0430\u044F \u043F\u0430\u043F\u043A\u0430 download.");
+  const evaluationPath = join3(dirname3(manifestPath), "evaluation.json");
+  const evaluationHash = await readFile3(evaluationPath).then(sha256).catch((error62) => {
+    if (error62.code === "ENOENT") return null;
+    throw error62;
+  });
+  const localOperation = local(path), localPdf = local(pdfPath);
   const operation = await saveOperation(path, input2);
+  await writeJson(markerPath, { ...marker, operation: localOperation, pdf: localPdf, evaluationHash });
   await api(`/reviewer/v1/reports/${operation.reportId}`, { method: "PUT", body: { solutionId: source.id, sourceRevision: source.sourceRevision } });
   const report = ReviewerReportSchema.parse(await api(`/reviewer/v1/reports/${operation.reportId}/file`, { method: "PUT", body: bytes, contentType: "application/pdf" }));
   if (!report.ready || report.sha256 !== input2.sha256 || report.sizeBytes !== bytes.length) throw new Error("\u0421\u0435\u0440\u0432\u0435\u0440 \u043D\u0435 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u043B \u0446\u0435\u043B\u043E\u0441\u0442\u043D\u043E\u0441\u0442\u044C PDF. \u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u0435 \u044D\u0442\u0443 \u0436\u0435 \u043A\u043E\u043C\u0430\u043D\u0434\u0443.");
@@ -19943,10 +20105,11 @@ async function uploadDraft(api, { manifestPath, pdfPath, points, origin, apiPref
   await writeJson(path, { ...operation, review, publicationItem });
   return { operationPath: path, review, publicationItem };
 }
-async function publish(api, path) {
+async function publish(api, path, cleanup) {
   const input2 = ReviewerPublicationSchema.parse(await readJson(path));
   const result = ReviewerPublicationResultSchema.parse(await api("/reviewer/v1/publications", { method: "POST", body: input2 }));
   await writeJson(`${path}.receipt.json`, result);
+  if (cleanup) return { ...result, cleanup: await cleanupPublished({ ...cleanup, publication: result }) };
   return result;
 }
 async function publicationStatus(api, id) {
@@ -19955,6 +20118,7 @@ async function publicationStatus(api, id) {
 
 // scripts/reviewer/cli.mjs
 var help = `Continuum \u2014 \u043B\u043E\u043A\u0430\u043B\u044C\u043D\u044B\u0439 \u043F\u0440\u043E\u0432\u0435\u0440\u044F\u044E\u0449\u0438\u0439 (Node.js 24+, macOS)
+node cli.mjs doctor --origin https://example.ru [--dev] [--api-prefix /api]  (\u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u0431\u0435\u0437 \u043A\u043B\u044E\u0447\u0430)
 node cli.mjs connect --origin https://example.ru [--profile default] [--dev] [--api-prefix /api]
 node cli.mjs status | disconnect [--profile default]
 node cli.mjs assignments [--query \u0442\u0435\u043A\u0441\u0442] [--cursor UUID] [--limit 50]
@@ -19962,7 +20126,7 @@ node cli.mjs solutions --assignment UUID [--state unreviewed|draft|stale|publish
 node cli.mjs download --solution UUID
 node cli.mjs upload-draft --manifest /path/source.json --pdf /path/review.pdf --points 2 [--operation /path/operation.json]
 node cli.mjs publish --input /path/publication.json
-node cli.mjs publish --request UUID  (\u0442\u043E\u043B\u044C\u043A\u043E \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C \u043A\u0432\u0438\u0442\u0430\u043D\u0446\u0438\u044E)
+node cli.mjs publish --request UUID  (\u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C \u043A\u0432\u0438\u0442\u0430\u043D\u0446\u0438\u044E \u0438 \u043F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u044C \u043B\u043E\u043A\u0430\u043B\u044C\u043D\u0443\u044E \u043E\u0447\u0438\u0441\u0442\u043A\u0443)
 
 \u041A\u0430\u0436\u0434\u0430\u044F \u043A\u043E\u043C\u0430\u043D\u0434\u0430 \u043F\u043E\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442 --profile. --points null \u0441\u043E\u0445\u0440\u0430\u043D\u044F\u0435\u0442 \u0447\u0435\u0440\u043D\u043E\u0432\u0438\u043A \u0431\u0435\u0437 \u0431\u0430\u043B\u043B\u0430.
 \u041A\u043B\u044E\u0447 \u0432\u0432\u043E\u0434\u0438\u0442 \u0447\u0435\u043B\u043E\u0432\u0435\u043A \u0442\u043E\u043B\u044C\u043A\u043E \u043F\u0440\u0438 connect \u0432 \u0441\u043A\u0440\u044B\u0442\u043E\u043C \u0437\u0430\u043F\u0440\u043E\u0441\u0435 macOS. \u041D\u0435 \u0432\u0432\u043E\u0434\u0438\u0442\u0435 \u043A\u043B\u044E\u0447 \u0432 \u0447\u0430\u0442\u0435 \u0438\u043B\u0438 argv.
@@ -19980,8 +20144,14 @@ async function main() {
   }
   if (positionals.length !== 1) throw new Error("\u041B\u0438\u0448\u043D\u0438\u0435 \u0430\u0440\u0433\u0443\u043C\u0435\u043D\u0442\u044B. \u041A\u043B\u044E\u0447 \u043D\u0435\u043B\u044C\u0437\u044F \u043F\u0435\u0440\u0435\u0434\u0430\u0432\u0430\u0442\u044C \u0430\u0440\u0433\u0443\u043C\u0435\u043D\u0442\u043E\u043C.");
   const profile = profileName(options.profile ?? "default");
-  const root = join3(homedir(), "Library", "Application Support", "Continuum Reviewer");
-  const configPath = join3(root, "profiles", `${profile}.json`);
+  const root = join4(homedir(), "Library", "Application Support", "Continuum Reviewer");
+  const configPath = join4(root, "profiles", `${profile}.json`);
+  if (command === "doctor") {
+    const origin2 = normalizeOrigin(required2(options, "origin"), options.dev);
+    const apiPrefix2 = normalizeApiPrefix(options["api-prefix"] ?? (options.dev ? "" : "/api"));
+    console.log(JSON.stringify({ origin: origin2, apiPrefix: apiPrefix2, node: process.version, ...await checkConnection(origin2, apiPrefix2) }, null, 2));
+    return;
+  }
   if (command === "connect") {
     const origin2 = normalizeOrigin(required2(options, "origin"), options.dev);
     const apiPrefix2 = normalizeApiPrefix(options["api-prefix"] ?? (options.dev ? "" : "/api"));
@@ -19991,6 +20161,7 @@ async function main() {
     } catch (error62) {
       if (error62.code !== "ENOENT") throw error62;
     }
+    await checkConnection(origin2, apiPrefix2);
     console.log(`\u041F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435 \u043A ${origin2}${apiPrefix2}. \u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043A\u043B\u044E\u0447 \u0432 \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0435\u043C \u0441\u043A\u0440\u044B\u0442\u043E\u043C \u0437\u0430\u043F\u0440\u043E\u0441\u0435 macOS, \u043D\u0435 \u0432 \u0447\u0430\u0442\u0435.`);
     keychain("connect", profile);
     try {
@@ -20005,7 +20176,7 @@ async function main() {
   }
   if (command === "disconnect") {
     keychain("disconnect", profile);
-    await unlink2(configPath).catch((error62) => {
+    await unlink3(configPath).catch((error62) => {
       if (error62.code !== "ENOENT") throw error62;
     });
     console.log("\u041A\u043B\u044E\u0447 \u0443\u0434\u0430\u043B\u0451\u043D \u0441 \u044D\u0442\u043E\u0433\u043E Mac. \u0414\u043B\u044F \u043E\u0442\u0437\u044B\u0432\u0430 \u0441\u0435\u0440\u0432\u0435\u0440\u043D\u043E\u0433\u043E \u043A\u043B\u044E\u0447\u0430 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0439\u0442\u0435 \u043A\u0430\u0431\u0438\u043D\u0435\u0442. \u041B\u043E\u043A\u0430\u043B\u044C\u043D\u044B\u0435 \u0440\u0430\u0431\u043E\u0442\u044B \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u044B.");
@@ -20016,6 +20187,7 @@ async function main() {
   });
   const origin = normalizeOrigin(config2.origin, config2.dev === true);
   const apiPrefix = normalizeApiPrefix(config2.apiPrefix);
+  const dataRoot = join4(root, "data", profile, sha256(origin + apiPrefix).slice(0, 16));
   const api = apiClient(origin, keychain("read", profile), fetch, apiPrefix);
   let result;
   if (command === "status") result = ReviewerMeSchema.parse(await api("/reviewer/v1/me"));
@@ -20025,7 +20197,7 @@ async function main() {
     result = command === "assignments" ? ReviewerAssignmentsPageSchema.parse(await api(`/reviewer/v1/assignments?${params}`)) : ReviewerSolutionsPageSchema.parse(await api(`/reviewer/v1/assignments/${uuid3(required2(options, "assignment"))}/solutions?${params}`));
   } else if (command === "download") {
     const id = uuid3(required2(options, "solution"));
-    const directory = join3(root, "data", profile, sha256(origin + apiPrefix).slice(0, 16), id, randomUUID2());
+    const directory = join4(dataRoot, id, randomUUID2());
     result = { manifestPath: await downloadSolution(api, id, directory, origin, apiPrefix) };
   } else if (command === "upload-draft") {
     const value = required2(options, "points");
@@ -20033,7 +20205,10 @@ async function main() {
     result = await uploadDraft(api, { origin, apiPrefix, manifestPath: resolve(required2(options, "manifest")), pdfPath: resolve(required2(options, "pdf")), points, operationPath: options.operation ? resolve(options.operation) : void 0 });
   } else if (command === "publish") {
     if (Boolean(options.input) === Boolean(options.request)) throw new Error("\u0423\u043A\u0430\u0436\u0438\u0442\u0435 \u043B\u0438\u0431\u043E --input \u0434\u043B\u044F \u043F\u0443\u0431\u043B\u0438\u043A\u0430\u0446\u0438\u0438, \u043B\u0438\u0431\u043E --request \u0434\u043B\u044F \u0435\u0451 \u043A\u0432\u0438\u0442\u0430\u043D\u0446\u0438\u0438.");
-    result = options.request ? await publicationStatus(api, options.request) : await publish(api, resolve(options.input));
+    if (options.request) {
+      const publication = await publicationStatus(api, options.request);
+      result = { ...publication, cleanup: await cleanupPublished({ root: dataRoot, origin, apiPrefix, publication }) };
+    } else result = await publish(api, resolve(options.input), { root: dataRoot, origin, apiPrefix });
   } else throw new Error("\u041D\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043D\u0430\u044F \u043A\u043E\u043C\u0430\u043D\u0434\u0430. \u0418\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0439\u0442\u0435 --help.");
   console.log(JSON.stringify(result, null, 2));
 }

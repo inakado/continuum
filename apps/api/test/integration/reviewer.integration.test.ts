@@ -95,17 +95,17 @@ afterAll(async () => {
   await db.$disconnect();
 }, 30000);
 
-it('issues independent scoped device keys with bounded TTL, hashed secrets and no teacher-session or generic-plugin bypass', async () => {
+it('issues independent scoped device keys without expiry, hashed secrets and no teacher-session or generic-plugin bypass', async () => {
   expect((await api('/reviewer/v1/me', 'GET', undefined, '', teacher)).status).toBe(401);
   expect((await api('/teacher/reviewer-access/keys', 'POST', { name: 'Mac', password: 'wrong', classIds: [classId], studentIds: [] }, '', teacher)).status).toBe(401);
   expect((await api('/auth/api-key/create', 'POST', { name: 'bypass' }, '', teacher)).status).toBe(404);
   const first = await device('Мой Mac'); key = first.key; keyId = first.entry.id;
   const second = await device('Другой Mac'); secondKey = second.key; secondKeyId = second.entry.id;
   expect(key).not.toBe(secondKey);
-  expect(Date.parse(first.entry.expiresAt) - Date.now()).toBeGreaterThan(29 * 86400000);
-  expect(Date.parse(first.entry.expiresAt) - Date.now()).toBeLessThanOrEqual(30 * 86400000);
+  expect(first.entry.expiresAt).toBeNull();
+  expect((await db.apikey.findUniqueOrThrow({ where: { id: keyId } })).expiresAt).toBeNull();
   expect((await db.apikey.findUniqueOrThrow({ where: { id: keyId } })).key).not.toBe(key);
-  expect((await api('/reviewer/v1/me')).data).toMatchObject({ userId: teacherId, keyId });
+  expect((await api('/reviewer/v1/me')).data).toMatchObject({ userId: teacherId, keyId, expiresAt: null });
   expect((await api('/teacher/students')).status).toBe(401);
   const listed = await api('/teacher/reviewer-access/keys', 'GET', undefined, '', teacher);
   expect(listed.data).toHaveLength(2); expect(JSON.stringify(listed.data)).not.toContain(key);
@@ -113,6 +113,13 @@ it('issues independent scoped device keys with bounded TTL, hashed secrets and n
   expect((await api('/teacher/reviewer-access/keys', 'POST', { name: 'Injected', password, classIds: [classId], studentIds: [], userId: colleagueId }, '', teacher)).status).toBe(400);
   expect((await api('/teacher/reviewer-access/keys', 'POST', { name: 'Injected', password, classIds: [classId], studentIds: [], scopes: ['read'] }, '', teacher)).status).toBe(400);
   expect((await api('/teacher/reviewer-access/keys', 'POST', { name: 'Missing', password, classIds: [], studentIds: [] }, '', teacher)).status).toBe(400);
+  const extraIds = Array.from({ length: 18 }, () => randomUUID());
+  try {
+    await db.reviewerDeviceKey.createMany({ data: extraIds.map(id => ({ id, userId: teacherId, name: 'Capacity fixture', scopes: ['read'], classIds: [classId], studentIds: [], expiresAt: null })) });
+    expect((await api('/teacher/reviewer-access/keys', 'POST', { name: 'Over limit', password, classIds: [classId], studentIds: [] }, '', teacher)).status).toBe(400);
+  } finally {
+    await db.reviewerDeviceKey.deleteMany({ where: { id: { in: extraIds } } });
+  }
 });
 
 it('lets both teachers use the common roster but limits each agent to selected students, including those without a class', async () => {
@@ -272,6 +279,9 @@ it('revokes one device without affecting another, and denies expired/inactive id
   expect((await api('/reviewer/v1/me')).status).toBe(401);
   expect((await api('/reviewer/v1/me', 'GET', undefined, secondKey)).status).toBe(200);
   await db.reviewerDeviceKey.update({ where: { id: secondKeyId }, data: { expiresAt: new Date(Date.now() - 1000) } });
+  expect((await api('/reviewer/v1/me', 'GET', undefined, secondKey)).status).toBe(401);
+  await db.reviewerDeviceKey.update({ where: { id: secondKeyId }, data: { expiresAt: null } });
+  await db.apikey.update({ where: { id: secondKeyId }, data: { expiresAt: new Date(Date.now() - 1000) } });
   expect((await api('/reviewer/v1/me', 'GET', undefined, secondKey)).status).toBe(401);
   await db.user.update({ where: { id: colleagueId }, data: { isActive: false } });
   expect((await api('/reviewer/v1/me', 'GET', undefined, colleagueKey)).status).toBe(401);

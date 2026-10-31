@@ -19,7 +19,7 @@ export class ReviewerKeysService {
   async list(userId: string) {
     const rows = await this.db.reviewerDeviceKey.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
     const apiKeys = new Map((await this.db.apikey.findMany({ where: { id: { in: rows.map((row) => row.id) } }, select: { id: true, lastRequest: true } })).map((key) => [key.id, key]));
-    return rows.map((row) => ReviewerKeySchema.parse({ id: row.id, name: row.name, scopes: row.scopes, classIds: row.classIds, studentIds: row.studentIds, createdAt: row.createdAt.toISOString(), expiresAt: row.expiresAt.toISOString(), revokedAt: row.revokedAt?.toISOString() ?? null, lastUsedAt: apiKeys.get(row.id)?.lastRequest?.toISOString() ?? null }));
+    return rows.map((row) => ReviewerKeySchema.parse({ id: row.id, name: row.name, scopes: row.scopes, classIds: row.classIds, studentIds: row.studentIds, createdAt: row.createdAt.toISOString(), expiresAt: row.expiresAt?.toISOString() ?? null, revokedAt: row.revokedAt?.toISOString() ?? null, lastUsedAt: apiKeys.get(row.id)?.lastRequest?.toISOString() ?? null }));
   }
   async create(userId: string, input: ReviewerKeyCreate) {
     const account = await this.db.account.findFirst({ where: { userId, providerId: 'credential' } });
@@ -29,11 +29,10 @@ export class ReviewerKeysService {
       this.db.user.count({ where: { id: { in: input.studentIds }, role: 'student', isActive: true, studentProfile: { isNot: null } } }),
     ]);
     if (classes !== input.classIds.length || students !== input.studentIds.length) throw new BadRequestException('Выбранный класс или ученик больше недоступен. Обновите список.');
-    if (await this.db.reviewerDeviceKey.count({ where: { userId, revokedAt: null, expiresAt: { gt: new Date() } } }) >= 20) throw new BadRequestException('Сначала отзовите неиспользуемые ключи.');
+    if (await this.db.reviewerDeviceKey.count({ where: { userId, revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] } }) >= 20) throw new BadRequestException('Сначала отзовите неиспользуемые ключи.');
     const scopes = ['read', 'draft:write', 'publish'];
-    const created = await this.auth.api.createApiKey({ body: { userId, name: input.name, prefix: 'ctm_', expiresIn: reviewerPolicy.keyTtlDays * 86400, permissions: { reviewer: scopes } } });
+    const created = await this.auth.api.createApiKey({ body: { userId, name: input.name, prefix: 'ctm_', expiresIn: reviewerPolicy.keyExpiresIn, permissions: { reviewer: scopes } } });
     try {
-      if (!created.expiresAt) throw new Error('API key TTL is required');
       await this.db.reviewerDeviceKey.create({ data: { id: created.id, userId, name: input.name, scopes, classIds: input.classIds, studentIds: input.studentIds, expiresAt: created.expiresAt } });
       return { key: created.key, entry: (await this.list(userId)).find((row) => row.id === created.id)! };
     } catch (error) { await this.db.apikey.update({ where: { id: created.id }, data: { enabled: false } }); throw error; }
