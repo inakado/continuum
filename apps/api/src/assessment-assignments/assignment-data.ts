@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import { studentAnswerKey } from './student-answer-keys';
 import { gradeAssessmentAnswer } from '../common/assessment-grading';
 import { AssessmentAnswerSchema, type PublicAssessmentItem } from '@continuum/shared';
 import type { AssessmentRecipient, Prisma } from '@prisma/client';
@@ -13,7 +14,8 @@ export function attemptState(row: Pick<AssessmentRecipient, 'revision' | 'starte
   const automatic = snapshot.items.filter((item) => item.data.task.type !== 'extended');
   const answers = row.completedAt && row.answers !== undefined ? answersSchema.parse(row.answers) : undefined;
   const taskResults = answers ? Object.fromEntries(automatic.map(item => [item.taskId, { points: gradeAssessmentAnswer(item.data.task, answers[item.taskId] ?? null), maxPoints: item.data.task.maxPoints }])) : undefined;
-  return { ...(taskResults ? { taskResults } : {}), revision: row.revision, status: attemptStatus(row), answeredCount: row.answeredCount, startedAt: row.startedAt?.toISOString() ?? null, completedAt: row.completedAt?.toISOString() ?? null,
+  const answerKeys = answers ? Object.fromEntries(automatic.flatMap(item => { const key = studentAnswerKey(item.data.task); return key ? [[item.taskId, key]] : []; })) : undefined;
+  return { ...(taskResults ? { taskResults, answerKeys } : {}), revision: row.revision, status: attemptStatus(row), answeredCount: row.answeredCount, startedAt: row.startedAt?.toISOString() ?? null, completedAt: row.completedAt?.toISOString() ?? null,
     result: row.completedAt ? { correctCount: row.correctCount!, incorrectCount: row.incorrectCount!, partialCount: automatic.length - row.correctCount! - row.incorrectCount!, points: row.points!, maxPoints: automatic.reduce((sum, item) => sum + item.data.task.maxPoints, 0) } : null };
 }
 export type WorkSnapshot = z.infer<typeof WorkSnapshotSchema>;

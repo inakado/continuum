@@ -21,9 +21,9 @@ export function useStudentAttempt(initial: StudentWorkDetail) {
   const publish = useCallback((patch: Partial<typeof model>) => { live.current = { ...live.current, ...patch }; setModel(live.current); }, []);
   useEffect(() => {
     if (initial.status !== 'completed' || live.current.state.status !== 'completed') return;
-    if (JSON.stringify([initial.result, initial.taskResults]) === JSON.stringify([live.current.state.result, live.current.state.taskResults])) return;
-    publish({ state: { ...live.current.state, result: initial.result, taskResults: initial.taskResults } });
-  }, [initial.status, initial.result, initial.taskResults, publish]);
+    if (JSON.stringify([initial.result, initial.taskResults, initial.answerKeys]) === JSON.stringify([live.current.state.result, live.current.state.taskResults, live.current.state.answerKeys])) return;
+    publish({ state: { ...live.current.state, result: initial.result, taskResults: initial.taskResults, answerKeys: initial.answerKeys } });
+  }, [initial.status, initial.result, initial.taskResults, initial.answerKeys, publish]);
   const flush = useCallback((): Promise<boolean> => {
     if (flight.current) return flight.current;
     if (live.current.state.status !== 'in_progress') return Promise.resolve(true);

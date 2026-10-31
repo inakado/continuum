@@ -85,3 +85,12 @@ it('refreshes completed grades without replacing saved answers or attempt revisi
   expect(result.current.state.revision).toBe(7);
   expect(studentWorksApi.save).not.toHaveBeenCalled(); expect(studentWorksApi.finish).not.toHaveBeenCalled();
 });
+
+it('refreshes the displayed canonical key after a grading correction even if totals stay the same', () => {
+  const done = { ...initial, status: 'completed' as const, completedAt: '2026-10-31T00:00:00Z', answerKeys: { [id]: { type: 'short_number' as const, value: '2' } } };
+  const client = new QueryClient({defaultOptions:{queries:{retry:false},mutations:{retry:false}}});
+  const {result,rerender}=renderHook(({value})=>useStudentAttempt(value),{initialProps:{value:done},wrapper:({children})=><QueryClientProvider client={client}>{children}</QueryClientProvider>});
+  rerender({value:{...done,answerKeys:{[id]:{type:'short_number',value:'3'}}}});
+  expect(result.current.state.answerKeys?.[id]).toEqual({type:'short_number',value:'3'});
+  expect(studentWorksApi.save).not.toHaveBeenCalled();
+});

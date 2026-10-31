@@ -30,3 +30,15 @@ it('accepts partial saved responses without allowing a client-supplied score', (
   expect(AttemptSaveSchema.safeParse({ ...input, points: 2 }).success).toBe(false);
   expect(AttemptSaveSchema.safeParse({ ...input, answer: { type: 'multiple_choice', optionIds: ['a', 'a'] } }).success).toBe(false);
 });
+
+it('rejects answer keys before completion and exposes only a minimal canonical answer afterwards', async () => {
+  const { StudentAttemptStateSchema, StudentAnswerKeySchema } = await import('../src/contracts/assessment-assignments');
+  const state = { revision: 2, status: 'in_progress', answeredCount: 1, startedAt: '2026-10-31T00:00:00Z', completedAt: null, result: null };
+  const keys = [{type:'short_number',value:'-12'}, {type:'short_text',value:'сила'}, {type:'single_choice',optionId:'a'}, {type:'multiple_choice',optionIds:['a','b']}, {type:'matching',matches:{a:'one'}}];
+  for (const key of keys) {
+    expect(StudentAnswerKeySchema.parse(key)).toEqual(key);
+    expect(StudentAttemptStateSchema.safeParse({...state,answerKeys:{[uuid]:key}}).success).toBe(false);
+    expect(StudentAttemptStateSchema.parse({...state,status:'completed',completedAt:'2026-10-31T00:01:00Z',answerKeys:{[uuid]:key}}).answerKeys?.[uuid]).toEqual(key);
+  }
+  expect(StudentAnswerKeySchema.safeParse({type:'short_text',value:'сила',acceptedAnswers:['сила'],solution:'private'}).success).toBe(false);
+});

@@ -221,7 +221,11 @@ it('previews and applies partial grading atomically, preserves answers/photos/sn
   await expect(writes.confirm(users[0], next, { ...second, expectedImpactHash: oldImpact.hash })).rejects.toThrow(/после предпросмотра/);
   const fresh = await writes.correctionPreview(users[0], next, second);
   await writes.confirm(users[0], next, { ...second, expectedImpactHash: fresh.hash });
-  for (let i=0;i<2;i++) expect((await students.detail(users[i+2], f.recipients[i].id)).result?.points).toBe(2);
+  for (let i=0;i<2;i++) {
+    const detail=await students.detail(users[i+2], f.recipients[i].id);
+    expect(detail.result?.points).toBe(2);
+    expect(detail.answerKeys?.[taskId]).toEqual({type:'multiple_choice',optionIds:['1','5']});
+  }
 }, 30000);
 
 it('serializes simultaneous finish and correction; rejects inconsistent historical totals without writes', async () => {

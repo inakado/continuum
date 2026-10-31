@@ -21,7 +21,7 @@ const initial: StudentWorkDetail = { id, title: 'Давление газа', ver
   items: [{ id: taskId, type: 'short_number', title: 'Давление', statement: 'Найдите давление газа.', unit: 'Па', maxPoints: 1, images: {} }] };
 const started = { ...initial, status: 'in_progress' as const, startedAt: '2026-10-17T01:00:00Z' };
 const saved = { revision: 2, status: 'in_progress' as const, answeredCount: 1, startedAt: started.startedAt, completedAt: null, result: null };
-const completed = { ...saved, revision: 3, status: 'completed' as const, completedAt: '2026-10-17T01:10:00Z', result: { correctCount: 1, incorrectCount: 0 } };
+const completed = { ...saved, revision: 3, status: 'completed' as const, completedAt: '2026-10-17T01:10:00Z', taskResults: { [taskId]: { points: 1, maxPoints: 1 } }, answerKeys: { [taskId]: { type: 'short_number' as const, value: '4.83' } }, result: { correctCount: 1, incorrectCount: 0 } };
 function show(cache = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })) {
   return render(<QueryClientProvider client={cache}><StudentWorkScreen id={id} /></QueryClientProvider>);
 }
@@ -145,7 +145,10 @@ it('starts explicitly, saves an answer before finishing and restores the final r
   fireEvent.click(screen.getByRole('button', { name: 'Завершить работу' }));
   fireEvent.click(screen.getByRole('button', { name: 'Подтвердить завершение' }));
   expect(await screen.findByText('Верно: 1 · Неверно: 0')).toBeVisible();
-  expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  expect(screen.getByRole('textbox', { name: 'Ответ: Давление' })).toBeDisabled();
+  expect(screen.getByRole('textbox', { name: 'Ответ: Давление' })).toHaveValue('4,83');
+  expect(screen.getByRole('group', { name: 'Результат задания 1' })).toHaveTextContent('Верно');
+  expect(screen.queryByText('Правильный ответ')).not.toBeInTheDocument();
   first.unmount();
   vi.mocked(studentWorksApi.detail).mockResolvedValue({ ...started, ...completed });
   show();

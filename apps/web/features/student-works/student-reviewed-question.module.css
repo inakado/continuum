@@ -1,0 +1,22 @@
+.reviewed { --answer-result-color: var(--catalog-danger); }
+.reviewed[data-tone="correct"] { --answer-result-color: var(--catalog-success); }
+.reviewed[data-tone="partial"] { --answer-result-color: var(--catalog-warning); }
+.reviewed h2:focus { outline: none; }
+.reviewed fieldset input:disabled:not([type="checkbox"]):not([type="radio"]) { border-color: var(--answer-result-color); color: var(--catalog-ink); -webkit-text-fill-color: var(--catalog-ink); opacity: 1; }
+.feedback { margin-top: 20px; border-top: 1px solid var(--catalog-border); padding-top: 16px; font-size: 14px; line-height: 1.5; }
+.status { display: flex; justify-content: space-between; align-items: center; gap: 16px; color: var(--answer-result-color); }
+.status > span { display: inline-flex; align-items: center; gap: 7px; font-weight: 500; }
+.status strong { font-variant-numeric: tabular-nums; font-size: 17px; font-weight: 600; white-space: nowrap; }
+.status strong span { font-size: 14px; font-weight: 400; }
+.correctAnswer { display: flex; justify-content: space-between; align-items: baseline; gap: 18px; margin-top: 12px; color: var(--catalog-ink); }
+.correctAnswer > span { color: var(--catalog-muted); font-size: 13px; flex-shrink: 0; }
+.correctAnswer strong { font-weight: 600; font-size: 17px; text-align: right; overflow-wrap: anywhere; white-space: pre-wrap; min-width: 0; }
+.correctAnswer[data-stacked="true"] { display: grid; gap: 6px; }
+.correctAnswer[data-stacked="true"] strong { text-align: left; font-size: 15px; font-weight: 500; }
+.correctAnswer small { font-size: 14px; font-weight: 400; }
+.choice[data-choice] { position: relative; padding-right: 30px; }
+.choice[data-choice="correct"] { background: color-mix(in srgb, var(--catalog-success) 5%, white); }
+.choice[data-choice="incorrect"] { background: color-mix(in srgb, var(--catalog-danger) 5%, white); }
+.choiceResult { position: absolute; right: 8px; top: 19px; color: var(--catalog-success); display: flex; }
+.choice[data-choice="incorrect"] .choiceResult { color: var(--catalog-danger); }
+@media (min-width: 761px) { .feedback { max-width: 520px; } }
