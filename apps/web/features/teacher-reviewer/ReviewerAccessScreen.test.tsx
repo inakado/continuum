@@ -11,7 +11,7 @@ vi.mock('@/lib/assessment/reviewer.api', () => ({ reviewerApi: { keys: vi.fn(), 
 const id = '00000000-0000-4000-8000-000000000001';
 const pupil = '00000000-0000-4000-8000-000000000002';
 const secret = 'cnt_review_test_only_secret';
-const entry = { id, name: 'Мой Mac', scopes: ['read', 'draft:write', 'publish'] as const, classIds: [id], studentIds: [pupil], createdAt: '2026-10-18T00:00:00Z', expiresAt: '2026-11-17T00:00:00Z', lastUsedAt: null, revokedAt: null };
+const entry = { id, name: 'Мой Mac', scopes: ['read', 'draft:write', 'publish'] as const, classIds: [id], studentIds: [pupil], createdAt: '2026-10-18T00:00:00Z', expiresAt: null, lastUsedAt: null, revokedAt: null };
 const targets = { classes: [{ id, title: '11А', academicYear: 2026, isArchived: false }], students: [{ id: pupil, name: 'Иванов Иван', login: 'ivanov', classId: null }, { id, name: 'Петров Пётр', login: 'petrov', classId: id }] };
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 function show(keys: Awaited<ReturnType<typeof reviewerApi.keys>> = []) {
@@ -30,6 +30,7 @@ it('connects classes and pupils without storing secrets in caches or browser sto
   vi.mocked(reviewerApi.createKey).mockResolvedValue({ key: secret, entry: { ...entry, scopes: [...entry.scopes] } });
   const { client } = show(); await openForm();
   expect(screen.getByRole('heading', { name: 'Подключение агента' })).toBeInTheDocument();
+  expect(screen.getByText('Ключ действует до отзыва.')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Создать ключ' })).toBeDisabled();
   expect(screen.queryByText('Доступные работы')).not.toBeInTheDocument();
   expect(screen.queryByText('Права проверяющего')).not.toBeInTheDocument();
@@ -61,9 +62,11 @@ it('preserves individual pupils across search and class selection, and permits r
   fireEvent.click(screen.getByRole('button', { name: 'Убрать Петров Пётр' }));
   expect(screen.queryByRole('button', { name: 'Убрать Петров Пётр' })).not.toBeInTheDocument();
 });
-it('supports a pupil without a class and displays revoked legacy keys with empty targets', async () => {
+it('supports a pupil without a class while hiding revoked legacy keys', async () => {
   show([{ ...entry, classIds: [], studentIds: [], scopes: [...entry.scopes], revokedAt: '2026-10-18T01:00:00Z' }]);
-  await openForm(); expect(screen.getByText('Прежний доступ больше не действует')).toBeInTheDocument();
+  await openForm(); expect(screen.getByText(/Нет подключённых компьютеров/)).toBeInTheDocument();
+  expect(screen.queryByText('Прежний доступ больше не действует')).not.toBeInTheDocument();
+  expect(screen.queryByText('Ключ отозван')).not.toBeInTheDocument();
   fireEvent.click(screen.getByText(/Отдельные ученики/)); fireEvent.click(screen.getByLabelText(/Иванов Иван/));
   expect(screen.getByRole('button', { name: 'Создать ключ' })).toBeEnabled();
 });
@@ -106,6 +109,7 @@ it('clears the password after a failed request without losing chosen targets', a
 it('requires confirmation to revoke the selected key and retains errors for a safe retry', async () => {
   vi.mocked(reviewerApi.revokeKey).mockRejectedValueOnce(new ApiError(503, 'Нет соединения')).mockResolvedValue({ ok: true });
   show([{ ...entry, scopes: [...entry.scopes] }]);
+  expect(await screen.findByText('Действует до отзыва')).toBeInTheDocument();
   fireEvent.click(await screen.findByRole('button', { name: 'Отозвать' }));
   expect(screen.getByRole('alertdialog')).toHaveAccessibleDescription(/Мой Mac.*потеряет доступ/);
   fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
@@ -113,7 +117,10 @@ it('requires confirmation to revoke the selected key and retains errors for a sa
   fireEvent.click(screen.getByRole('button', { name: 'Отозвать' }));
   fireEvent.click(screen.getByRole('button', { name: 'Отозвать ключ' }));
   await waitFor(() => expect(screen.getByRole('alertdialog')).toHaveTextContent('Нет соединения'));
+  vi.mocked(reviewerApi.keys).mockResolvedValue([{ ...entry, scopes: [...entry.scopes], revokedAt: '2026-10-31T00:00:00Z' }]);
   fireEvent.click(screen.getByRole('button', { name: 'Отозвать ключ' }));
   await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+  expect(await screen.findByText(/Нет подключённых компьютеров/)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Отозвать' })).not.toBeInTheDocument();
   expect(vi.mocked(reviewerApi.revokeKey).mock.calls.map((call) => call[0])).toEqual([id, id]);
 });

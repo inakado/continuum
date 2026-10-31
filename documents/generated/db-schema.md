@@ -272,7 +272,7 @@
 | `classIds` | `String[]` | `@default([]) @db.Uuid` |
 | `studentIds` | `String[]` | `@default([]) @db.Uuid` |
 | `createdAt` | `DateTime` | `@default(now())` |
-| `expiresAt` | `DateTime` |  |
+| `expiresAt` | `DateTime?` |  |
 | `revokedAt` | `DateTime?` |  |
 | `user` | `User` | `@relation(fields: [userId], references: [id], onDelete: Cascade)` |
 

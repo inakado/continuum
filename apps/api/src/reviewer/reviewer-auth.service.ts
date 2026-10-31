@@ -8,7 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 export const REVIEWER_SCOPE = 'reviewer_scope';
 export const ReviewerAccess = (scope: ReviewerScope) => SetMetadata(REVIEWER_SCOPE, scope);
-export type ReviewerPrincipal = { userId: string; login: string; keyId: string; scopes: string[]; classIds: string[]; studentIds: string[]; expiresAt: Date };
+export type ReviewerPrincipal = { userId: string; login: string; keyId: string; scopes: string[]; classIds: string[]; studentIds: string[]; expiresAt: Date | null };
 export type ReviewerRequest = Request & { reviewer: ReviewerPrincipal };
 export const unavailable = () => new NotFoundException({ code: 'RESOURCE_NOT_FOUND', message: 'Материал недоступен.' });
 
@@ -33,7 +33,7 @@ export class ReviewerAuthService {
       throw new UnauthorizedException({ code: 'KEY_INVALID', message: 'Ключ недействителен, истёк или отозван.' });
     }
     const key = await this.db.reviewerDeviceKey.findUnique({ where: { id: verified.key.id }, include: { user: true } });
-    if (!key || key.revokedAt || key.expiresAt <= new Date() || !key.user.isActive || key.user.role !== 'teacher' || !key.classIds.length && !key.studentIds.length) throw new UnauthorizedException({ code: 'KEY_INVALID', message: 'Доступ агента прекращён.' });
+    if (!key || key.revokedAt || (key.expiresAt !== null && key.expiresAt <= new Date()) || !key.user.isActive || key.user.role !== 'teacher' || !key.classIds.length && !key.studentIds.length) throw new UnauthorizedException({ code: 'KEY_INVALID', message: 'Доступ агента прекращён.' });
     if (!key.scopes.includes(scope)) throw new ForbiddenException({ code: 'SCOPE_REQUIRED', message: 'У ключа нет нужного разрешения.' });
     request.res?.setHeader('Retry-After', '60');
     this.rate(`u:${key.userId}`, 600);
@@ -59,7 +59,7 @@ export class ReviewerAuthService {
     await tx.$queryRaw`SELECT id FROM reviewer_device_keys WHERE id = ${principal.keyId}::uuid FOR UPDATE`;
     const key = await tx.reviewerDeviceKey.findUnique({ where: { id: principal.keyId }, include: { user: true } });
     const apiKey = await tx.apikey.findUnique({ where: { id: principal.keyId } });
-    if (!key || key.revokedAt || key.expiresAt <= new Date() || !key.user.isActive || key.user.role !== 'teacher' || !apiKey?.enabled || !apiKey.expiresAt || apiKey.expiresAt <= new Date() || !key.classIds.length && !key.studentIds.length) throw new UnauthorizedException({ code: 'KEY_INVALID', message: 'Ключ недействителен.' });
+    if (!key || key.revokedAt || (key.expiresAt !== null && key.expiresAt <= new Date()) || !key.user.isActive || key.user.role !== 'teacher' || !apiKey?.enabled || (apiKey.expiresAt !== null && apiKey.expiresAt <= new Date()) || !key.classIds.length && !key.studentIds.length) throw new UnauthorizedException({ code: 'KEY_INVALID', message: 'Ключ недействителен.' });
     if (!key.scopes.includes(scope)) throw new ForbiddenException({ code: 'SCOPE_REQUIRED', message: 'Нет нужного разрешения.' });
   }
 }

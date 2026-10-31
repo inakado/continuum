@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ReviewerKeyCreateSchema, ReviewerPublicationSchema, ReviewerReportCreateSchema, ReviewerDraftSchema } from '../src/contracts/reviewer';
+import { ReviewerKeySchema, ReviewerMeSchema, ReviewerKeyCreateSchema, ReviewerPublicationSchema, ReviewerReportCreateSchema, ReviewerDraftSchema } from '../src/contracts/reviewer';
 const id = 'cc1057ef-4534-49fc-8a7b-b1a153fed59a';
 describe('reviewer boundary', () => {
   it('requires explicit classes or students and never accepts assignment or permissions overrides', () => {
@@ -11,6 +11,14 @@ describe('reviewer boundary', () => {
     expect(ReviewerKeyCreateSchema.safeParse({ ...input, scopes: ['read', 'publish'] }).success).toBe(false);
     expect(ReviewerKeyCreateSchema.safeParse({ ...input, classIds: [id, id] }).success).toBe(false);
     expect(ReviewerKeyCreateSchema.safeParse({ ...input, userId: id }).success).toBe(false);
+  });
+  it('accepts no-expiry keys and legacy deadlines, rejecting malformed expiry', () => {
+    const principal = { userId: id, login: 'teacher', keyId: id, scopes: ['read'], classIds: [id], studentIds: [], expiresAt: null };
+    expect(ReviewerMeSchema.parse(principal).expiresAt).toBeNull();
+    const entry = { id, name: 'Mac', scopes: ['read'], classIds: [id], studentIds: [], createdAt: '2026-10-31T00:00:00Z', expiresAt: null, lastUsedAt: null, revokedAt: null };
+    expect(ReviewerKeySchema.parse(entry).expiresAt).toBeNull();
+    expect(ReviewerKeySchema.parse({ ...entry, expiresAt: '2026-11-30T00:00:00Z' }).expiresAt).not.toBeNull();
+    expect(ReviewerMeSchema.safeParse({ ...principal, expiresAt: 'forever' }).success).toBe(false);
   });
   it('binds PDF and drafts to exact source revisions, with null distinct from zero', () => {
     expect(ReviewerReportCreateSchema.safeParse({ solutionId: id, sourceRevision: 1 }).success).toBe(true);

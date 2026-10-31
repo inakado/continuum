@@ -10,7 +10,7 @@ import { ReviewerWriteService } from './reviewer-write.service';
 @ReviewerAccess('read')
 export class ReviewerController {
   constructor(@Inject(ReviewerReadService) private readonly reads: ReviewerReadService, @Inject(ReviewerWriteService) private readonly writes: ReviewerWriteService) {}
-  @Get('me') @Header('Cache-Control', 'no-store') me(@Req() req: ReviewerRequest) { const p = req.reviewer; return { ...p, expiresAt: p.expiresAt.toISOString() }; }
+  @Get('me') @Header('Cache-Control', 'no-store') me(@Req() req: ReviewerRequest) { const p = req.reviewer; return { ...p, expiresAt: p.expiresAt?.toISOString() ?? null }; }
   @Get('assignments') @Header('Cache-Control', 'no-store') assignments(@Req() req: ReviewerRequest, @Query(new ZodValidationPipe(ReviewerListQuerySchema)) query: ReviewerListQuery) { return this.reads.assignments(req.reviewer, query); }
   @Get('assignments/:id/solutions') @Header('Cache-Control', 'no-store') solutions(@Req() req: ReviewerRequest, @Param('id', new ParseUUIDPipe()) id: string, @Query(new ZodValidationPipe(ReviewerListQuerySchema)) query: ReviewerListQuery) { return this.reads.list(req.reviewer, id, query); }
   @Get('solutions/:id') @Header('Cache-Control', 'no-store') detail(@Req() req: ReviewerRequest, @Param('id', new ParseUUIDPipe()) id: string) { return this.reads.detail(req.reviewer, id); }

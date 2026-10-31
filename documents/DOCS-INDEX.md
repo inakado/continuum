@@ -22,6 +22,7 @@
 - `documents/PLANS.md` — lifecycle execution plans, deferred roadmap и tech debt.
 - `documents/CONTENT.md` — действующая модель каталога, публикации и материалов занятия.
 - `documents/ASSESSMENTS.md` — классы, банк, конструктор, назначения, ответы, фотографии и локальная проверка: версии, публикация PDF/баллов, история и права.
+- `documents/REVIEWER-PILOT.md` — критерии ФИПИ для восьми расчётных задач, JSON/TeX/PDF-образец и безопасная очистка управляемых файлов.
 - `documents/REVIEWER-CLIENT.md` — пересылаемая инструкция преподавателю и агенту: ключ классов/учеников в общей базе, подключение Mac/Keychain, фото, PDF/баллы, публикация и конфликты.
 - `documents/ASSESSMENT-PACKAGE.md` — подготовка пакета v1: поля, ключи, Markdown, лимиты импорта и пробный пакет; читать перед адаптацией TeX.
 - `documents/DESIGN.md` — высокоуровневые продуктовые и UX-инварианты.
@@ -41,6 +42,8 @@
 - Future product idea без активной реализации → `documents/exec-plans/deferred-roadmap.md`.
 
 ## Каталоги
+
+- `documents/exec-plans/active/2026-10-31-reviewer-pilot.md` — критерии ФИПИ для восьми расчётных задач и первый локальный PDF-разбор перед автоматизацией.
 
 - `documents/exec-plans/active/2026-10-31-grading-corrections.md` — точечное исправление ключа/шкалы с предварительным пересчётом, сохранением ответов и single-task ZIP.
 
@@ -147,3 +150,9 @@
 - `documents/exec-plans/completed/2026-10-28-steel-ui.md` — единые токены стального акцента, состояния действий, визуальные проверки обеих ролей и точный откат.
 
 - `documents/exec-plans/completed/2026-10-28-cached-vps-release.md` — Git-доставка, изолированная сборка с кешем VPS и выпуск без передачи Docker-архива.
+
+- `documents/exec-plans/active/2026-10-31-reviewer-key-lifetime.md` — бессрочные ключи проверяющего, безопасный перенос действующих подключений и проверки.
+
+- `documents/research/2026-10-31-student-answer-feedback.md` — правильные ответы после завершения, текущий UI/API, согласованный вид, первичные референсы и история удалённого макета.
+
+- `documents/exec-plans/completed/2026-10-31-student-answer-feedback.md` — реализация правильных ответов только после завершения, проверки API/student UI и удаление макета.

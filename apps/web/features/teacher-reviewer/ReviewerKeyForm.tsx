@@ -1,6 +1,6 @@
 "use client";
 import { useRef, useState } from 'react';
-import { reviewerPolicy, type ReviewerKeyCreate, type ReviewerTargets } from '@continuum/shared';
+import { type ReviewerKeyCreate, type ReviewerTargets } from '@continuum/shared';
 import { classLabel } from './reviewer-labels';
 import ReviewerStudents from './ReviewerStudents';
 import styles from './reviewer-access.module.css';
@@ -20,7 +20,7 @@ export default function ReviewerKeyForm({ targets, busy, submit, cancel }: { tar
     await submit({ name: name.trim(), password: value, classIds, studentIds });
   }
   return <form className={styles.form} onSubmit={(event) => void save(event)} aria-label="Подключение компьютера">
-    <h2>Новый компьютер</h2><p className={styles.muted}>Ключ действует {reviewerPolicy.keyTtlDays} дней. Его можно отозвать в любой момент.</p>
+    <h2>Новый компьютер</h2><p className={styles.muted}>Ключ действует до отзыва.</p>
     <label className={styles.field}>Название компьютера<input autoFocus name="computerName" required maxLength={80} placeholder="Например, Mac Александра" value={name} disabled={busy} onChange={(event) => setName(event.target.value)} /></label>
     <fieldset disabled={busy}><legend>Доступ к классам</legend><p className={styles.muted}>Агент сможет проверять работы учеников выбранных классов. Состав обновляется вместе с классом.</p>
       <div className={styles.classChoices}>{targets.classes.map((item) => <label className={styles.check} key={item.id}><input type="checkbox" checked={classIds.includes(item.id)} disabled={classIds.length >= 500 && !classIds.includes(item.id)} onChange={() => toggleClass(item.id)} /><span>{classLabel(item)}</span></label>)}</div>

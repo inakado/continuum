@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdir, readFile, writeFile, rename, open, unlink } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, rename, open, unlink, realpath, lstat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { ReviewerSolutionSchema } from '../../packages/shared/src/contracts/reviewer.ts';
@@ -41,8 +41,37 @@ export function keychain(action, profile, run = spawnSync) {
   return action === 'read' ? result.stdout.trim() : undefined;
 }
 
+function connectionError(error) {
+  const hints = {
+    ENOTFOUND: 'Не найден адрес сайта (DNS).', EAI_AGAIN: 'DNS временно недоступен.',
+    ECONNREFUSED: 'Сервер отклонил соединение.', ECONNRESET: 'Соединение прервано.', UND_ERR_SOCKET: 'Сетевое соединение закрыто.',
+    ENETUNREACH: 'Нет сетевого маршрута к серверу.', EHOSTUNREACH: 'Сервер недоступен по сети.',
+    ETIMEDOUT: 'Истекло время соединения.', UND_ERR_CONNECT_TIMEOUT: 'Истекло время соединения.',
+    UND_ERR_HEADERS_TIMEOUT: 'Сервер не ответил вовремя.', TIMEOUT: 'Истекло время запроса.',
+    CERT_HAS_EXPIRED: 'Истёк срок TLS-сертификата.', UNABLE_TO_VERIFY_LEAF_SIGNATURE: 'Не удалось проверить цепочку TLS-сертификата.',
+    UNABLE_TO_GET_ISSUER_CERT_LOCALLY: 'Не найден доверенный центр TLS-сертификата.',
+    SELF_SIGNED_CERT_IN_CHAIN: 'Недоверенный TLS-сертификат.', DEPTH_ZERO_SELF_SIGNED_CERT: 'Самоподписанный TLS-сертификат.',
+    ERR_TLS_CERT_ALTNAME_INVALID: 'TLS-сертификат не соответствует адресу сайта.',
+  };
+  const candidates = [error?.cause?.code, ...(Array.isArray(error?.cause?.errors) ? error.cause.errors : []).map(item => item?.code), ...(['TimeoutError', 'AbortError'].includes(error?.name) ? ['TIMEOUT'] : [])];
+  const code = candidates.find(value => typeof value === 'string' && Object.hasOwn(hints, value));
+  // Never copy fetch messages/headers/causes: they can contain the Authorization value.
+  return new Error(code ? `Сетевая ошибка [${code}]. ${hints[code]} Проверьте сеть и повторите команду.` : 'Сетевая ошибка. Проверьте соединение и повторите команду.');
+}
+
+export async function checkConnection(origin, apiPrefix = '/api', fetcher = fetch) {
+  normalizeOrigin(origin, new URL(origin).protocol === 'http:'); normalizeApiPrefix(apiPrefix);
+  let response;
+  try { response = await fetcher(`${origin}${apiPrefix}/reviewer/v1/me`, { headers: { accept: 'application/json' }, redirect: 'error', signal: AbortSignal.timeout(15_000) }); }
+  catch (error) { throw connectionError(error); }
+  await response.body?.cancel();
+  if (response.status !== 401 || !response.headers.get('content-type')?.includes('application/json')) throw new Error(`Проверка API: HTTP ${response.status}. Ожидался JSON-ответ 401 без ключа. Проверьте origin и API prefix.`);
+  return { reachable: true, status: 401 };
+}
+
 export function apiClient(origin, token, fetcher = fetch, apiPrefix = '/api') {
   normalizeApiPrefix(apiPrefix);
+  if (typeof token !== 'string' || !/^[\x21-\x7e]{1,512}$/.test(token)) throw new Error('Некорректный ключ: нужны символы скопированного ключа без пробелов и переносов. Повторите connect в Terminal.');
   return async (path, { method = 'GET', body, raw = false, contentType } = {}) => {
     if (typeof path !== 'string' || !path.startsWith('/reviewer/v1/') || /(?:\.\.|\\|#)/.test(path)) throw new Error('Недопустимый путь API.');
     const url = new URL(`${apiPrefix}${path}`, origin);
@@ -50,9 +79,7 @@ export function apiClient(origin, token, fetcher = fetch, apiPrefix = '/api') {
     let response;
     try {
       response = await fetcher(url.href, { method, body: body === undefined ? undefined : contentType ? body : JSON.stringify(body), headers: { authorization: `Bearer ${token}`, ...(body === undefined ? {} : { 'content-type': contentType ?? 'application/json' }) }, redirect: 'error', signal: AbortSignal.timeout(60_000) });
-    } catch {
-      throw new Error('Сетевая ошибка. Повторите ту же команду: идентификаторы записи сохранены.');
-    }
+    } catch (error) { throw connectionError(error); }
     if (!response.ok) { await response.body?.cancel(); throw new Error(`API: HTTP ${response.status}. При 401 подключите новый ключ; при 409 перечитайте работу, не меняйте ревизии вручную.`); }
     if (raw) return response;
     const bytes = await readBounded(response, 2 * 1024 * 1024);
@@ -70,6 +97,17 @@ export async function readBounded(response, maxBytes) {
   return Buffer.concat(chunks);
 }
 export async function privateDirectory(path) { await mkdir(path, { recursive: true, mode: 0o700 }); }
+export async function privateWorkspace(directory) {
+  await privateDirectory(directory);
+  let current = await realpath(directory);
+  while (true) {
+    try { await lstat(join(current, '.git')); throw new Error('Фото и разборы должны храниться вне репозитория.'); }
+    catch (error) { if (error.code !== 'ENOENT') throw error; }
+    const parent = dirname(current);
+    if (parent === current) return;
+    current = parent;
+  }
+}
 export async function writeJson(path, value) {
   await privateDirectory(dirname(path));
   const temporary = `${path}.${randomUUID()}.tmp`;
@@ -115,6 +153,7 @@ function validateSource(value, id) {
 
 export async function downloadSolution(api, id, directory, origin, apiPrefix = '/api') {
   uuid(id);
+  await privateWorkspace(directory);
   const source = validateSource(await api(`/reviewer/v1/solutions/${id}`), id);
   await privateDirectory(directory);
   // No ready manifest survives an unsuccessful refresh of this directory.
@@ -136,6 +175,7 @@ export async function downloadSolution(api, id, directory, origin, apiPrefix = '
     manifest.images.push({ name: image.name, path: image.name, sha256: sha256(bytes) });
   }
   await writeJson(join(directory, 'source.json'), manifest);
+  await writeJson(join(directory, 'managed.json'), { owner: 'continuum-reviewer-pilot-v1', solutionId: source.id, sourceRevision: source.sourceRevision });
   return join(directory, 'source.json');
 }
 export async function loadManifest(path, origin, apiPrefix = '/api') {

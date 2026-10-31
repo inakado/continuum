@@ -4,7 +4,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
-import { apiClient, normalizeOrigin, keychainArguments, saveOperation, downloadSolution } from './client.mjs';
+import { apiClient, normalizeOrigin, checkConnection, keychainArguments, saveOperation, downloadSolution } from './client.mjs';
 
 const id = '11111111-1111-4111-8111-111111111111';
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
@@ -67,4 +67,47 @@ test('download verifies hashes and retains condition images with manifest; incom
     const malicious = async () => ({ ...source, images: [{ name: '../escape', downloadPath: 'https://evil.test/file' }] });
     await assert.rejects(downloadSolution(malicious, id, join(dir, 'unsafe'), 'https://example.test'));
   } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+
+test('connection diagnosis needs no credential, accepts only the reviewer API and does not follow redirects', async () => {
+  const calls = [];
+  const fetcher = async (url, options) => { calls.push({ url, options }); return new Response('{}', { status: 401, headers: { 'content-type': 'application/json' } }); };
+  assert.deepEqual(await checkConnection('https://example.test', '/api', fetcher), { reachable: true, status: 401 });
+  assert.equal(calls[0].url, 'https://example.test/api/reviewer/v1/me');
+  assert.equal(calls[0].options.headers.authorization, undefined);
+  assert.equal(calls[0].options.redirect, 'error');
+  await assert.rejects(checkConnection('https://example.test', '/api', async () => new Response('login', { status: 200 })), /HTTP 200/);
+});
+
+test('network diagnostics expose only known codes and never include arbitrary errors or secrets', async () => {
+  for (const code of ['ENOTFOUND', 'ECONNREFUSED', 'UND_ERR_CONNECT_TIMEOUT', 'CERT_HAS_EXPIRED']) {
+    const api = apiClient('https://example.test', 'private-token', async () => { throw new TypeError('private-token', { cause: Object.assign(new Error('private-token'), { code }) }); });
+    await assert.rejects(api('/reviewer/v1/me'), error => error.message.includes(code) && !error.message.includes('private-token'));
+  }
+  const api = apiClient('https://example.test', 'private-token', async () => { throw new Error('private-token', { cause: { code: 'private-token' } }); });
+  await assert.rejects(api('/reviewer/v1/me'), error => !error.message.includes('private-token'));
+  await assert.rejects(checkConnection('https://example.test', '/api', async () => { throw new DOMException('private-token', 'TimeoutError'); }), /TIMEOUT/);
+});
+
+
+test('invalid pasted credentials fail before fetch without showing their value', () => {
+  assert.throws(() => apiClient('https://example.test', ''), /Некорректный ключ/);
+  for (const token of ['private-token\nsecond-line', 'кириллица-secret', 'private token']) {
+    assert.throws(() => apiClient('https://example.test', token), error => error.message.includes('Некорректный ключ') && !error.message.includes(token || 'private-token'));
+  }
+});
+
+test('student downloads cannot be written inside a repository, including a symlink alias', async () => {
+  const { mkdir, symlink } = await import('node:fs/promises');
+  const dir = await mkdtemp(join(tmpdir(), 'reviewer-private-test-'));
+  try {
+    const repo = join(dir, 'repo'); await mkdir(join(repo, '.git'), {recursive:true});
+    await symlink(repo, join(dir, 'alias'));
+    let calls = 0;
+    const api = async () => { calls++; return source; };
+    await assert.rejects(downloadSolution(api, id, join(repo, 'output'), 'https://example.test'), /вне репозитория/);
+    await assert.rejects(downloadSolution(api, id, join(dir, 'alias', 'data'), 'https://example.test'), /вне репозитория/);
+    assert.equal(calls, 0);
+  } finally { await rm(dir, {recursive:true,force:true}); }
 });

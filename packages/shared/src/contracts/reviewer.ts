@@ -1,18 +1,18 @@
 import { z } from 'zod';
 
-export const reviewerPolicy = { keyTtlDays: 30, reportMaxBytes: 20 * 1024 * 1024, publicationMax: 50, pageMax: 100 } as const;
+export const reviewerPolicy = { keyExpiresIn: null, reportMaxBytes: 20 * 1024 * 1024, publicationMax: 50, pageMax: 100 } as const;
 export const ReviewerScopeSchema = z.enum(['read', 'draft:write', 'publish']);
 export type ReviewerScope = z.infer<typeof ReviewerScopeSchema>;
 const scopes = z.array(ReviewerScopeSchema).min(1).max(3).refine((items) => new Set(items).size === items.length && items.includes('read'), 'Нужно право чтения; повторяющиеся права запрещены.');
 const ids = z.array(z.uuid()).max(500).refine((items) => new Set(items).size === items.length, 'Повторяющиеся идентификаторы.');
 export const ReviewerKeyCreateSchema = z.strictObject({ name: z.string().trim().min(1).max(80), password: z.string().min(1).max(128), classIds: ids, studentIds: ids }).refine((input) => input.classIds.length + input.studentIds.length > 0, 'Выберите классы или учеников.');
-export const ReviewerKeySchema = z.strictObject({ id: z.uuid(), name: z.string(), scopes, classIds: ids, studentIds: ids, createdAt: z.iso.datetime(), expiresAt: z.iso.datetime(), lastUsedAt: z.iso.datetime().nullable(), revokedAt: z.iso.datetime().nullable() });
+export const ReviewerKeySchema = z.strictObject({ id: z.uuid(), name: z.string(), scopes, classIds: ids, studentIds: ids, createdAt: z.iso.datetime(), expiresAt: z.iso.datetime().nullable(), lastUsedAt: z.iso.datetime().nullable(), revokedAt: z.iso.datetime().nullable() });
 export const ReviewerKeysSchema = z.array(ReviewerKeySchema);
 export const ReviewerKeyCreatedSchema = z.strictObject({ key: z.string().min(16), entry: ReviewerKeySchema });
 export const ReviewerTargetsSchema = z.strictObject({ classes: z.array(z.strictObject({ id: z.uuid(), title: z.string(), academicYear: z.number().int(), isArchived: z.boolean() })), students: z.array(z.strictObject({ id: z.uuid(), name: z.string(), login: z.string(), classId: z.uuid().nullable() })) });
 export const ReviewerAssignmentSchema = z.strictObject({ id: z.uuid(), versionId: z.uuid(), title: z.string(), version: z.number().int(), classTitle: z.string(), academicYear: z.number().int(), canPublish: z.boolean(), owner: z.boolean() });
 export const ReviewerAssignmentsSchema = z.array(ReviewerAssignmentSchema);
-export const ReviewerMeSchema = z.strictObject({ userId: z.uuid(), login: z.string(), keyId: z.uuid(), expiresAt: z.iso.datetime(), scopes, classIds: ids, studentIds: ids });
+export const ReviewerMeSchema = z.strictObject({ userId: z.uuid(), login: z.string(), keyId: z.uuid(), expiresAt: z.iso.datetime().nullable(), scopes, classIds: ids, studentIds: ids });
 export const ReviewerListQuerySchema = z.strictObject({ query: z.string().trim().max(160).optional(), cursor: z.uuid().optional(), limit: z.coerce.number().int().min(1).max(100).default(50), state: z.enum(['unreviewed', 'draft', 'stale', 'published']).optional() });
 export const ReviewerReportCreateSchema = z.strictObject({ solutionId: z.uuid(), sourceRevision: z.number().int().positive() });
 export const ReviewerReportSchema = z.strictObject({ id: z.uuid(), solutionId: z.uuid(), sourceRevision: z.number().int(), ready: z.boolean(), sha256: z.string().nullable(), sizeBytes: z.number().int().nullable() });
