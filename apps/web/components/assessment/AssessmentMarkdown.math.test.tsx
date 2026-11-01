@@ -79,3 +79,26 @@ it('measures inline and display math in their real text context and retypesets a
   view.unmount();
   expect(disconnect).toHaveBeenCalledTimes(2);
 });
+
+it('switches tasks with the same formula and changing punctuation after typesetting', async () => {
+  vi.resetModules();
+  const { default: Markdown } = await import('./AssessmentMarkdown');
+  const append = document.head.appendChild.bind(document.head);
+  vi.spyOn(document.head, 'appendChild').mockImplementation(function<T extends Node>(node: T): T {
+    const result = append(node);
+    if (node instanceof HTMLScriptElement && node.src.endsWith('/vendor/mathjax/tex-chtml.js')) {
+      Object.assign(window, { MathJax: {
+        startup: { promise: Promise.resolve(), document: { reset() {}, updateDocument() {} } },
+        getMetricsFor: () => ({ display: false, em: 18, ex: 9, containerWidth: 640, scale: 1, family: 'sans-serif' }),
+        tex2chtmlPromise: async (tex: string) => { const output = document.createElement('span'); output.dataset.typeset = tex; return output; },
+      } });
+      queueMicrotask(() => node.dispatchEvent(new Event('load')));
+    }
+    return result;
+  });
+  const view = render(<Markdown images={{}} text={'Скорость $v$. Следующее условие.'} />);
+  await waitFor(() => expect(view.container.querySelector('[data-typeset="v."]')).toBeInTheDocument());
+  expect(() => view.rerender(<Markdown images={{}} text={'Скорость $v$ тела.'} />)).not.toThrow();
+  await waitFor(() => expect(view.container.querySelector('[data-typeset="v"]')).toBeInTheDocument());
+  expect(view.container.textContent).toContain('Скорость');
+});
