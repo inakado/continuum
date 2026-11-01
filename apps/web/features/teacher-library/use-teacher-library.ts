@@ -13,6 +13,7 @@ export const useTeacherLibrary = () =>
   useQuery({
     queryKey: teacherLibraryQueryKeys.all(),
     queryFn: teacherLibraryApi.getLibrary,
+    refetchOnWindowFocus: true,
   });
 
 export const useTeacherLesson = (lessonId: string | null) =>

@@ -7,8 +7,8 @@ import { gradeAssessmentAnswer } from '../common/assessment-grading';
 import { applyAssessmentPresentations, assessmentPresentationCompatible } from '../common/assessment-presentation';
 import type { StoredAssessmentTask } from './assessment-bank.mapper';
 
-export async function assessmentCorrectionImpact(tx: Prisma.TransactionClient, teacherId: string, taskId: string, original: StoredAssessmentTask, replacement: StoredAssessmentTask, lock = false) {
-  const versions = await tx.assessmentWorkVersion.findMany({ where: { work: { teacherId } }, orderBy: { id: 'asc' }, select: { id: true, workId: true, data: true } });
+export async function assessmentCorrectionImpact(tx: Prisma.TransactionClient, _teacherId: string, taskId: string, original: StoredAssessmentTask, replacement: StoredAssessmentTask, lock = false) {
+  const versions = await tx.assessmentWorkVersion.findMany({ orderBy: { id: 'asc' }, select: { id: true, workId: true, data: true } });
   const candidates = versions.map(row => ({ row, snapshot: WorkSnapshotSchema.parse(row.data) })).filter(({ snapshot }) => snapshot.items.some(item => item.taskId === taskId));
   const resolved = await applyAssessmentPresentations(tx, candidates.flatMap(({ snapshot }) => snapshot.items));
   const affected = []; let offset = 0;

@@ -12,7 +12,8 @@ export class SolutionReadService {
   constructor(@Inject(PrismaService) private readonly db: PrismaService, @Inject(ObjectStorageService) private readonly storage: ObjectStorageService) {}
 
   async owned(user: Pick<AuthUser, 'id' | 'role'>, id: string, tx: Prisma.TransactionClient = this.db) {
-    const where = user.role === 'student' ? { id, studentId: user.id } : { id, version: { work: { teacherId: user.id } } };
+    if (user.role !== 'teacher' && user.role !== 'student') throw new NotFoundException('Решение недоступно.');
+    const where = user.role === 'student' ? { id, studentId: user.id } : { id };
     const row = await tx.assessmentRecipient.findFirst({ where, include: { version: true } });
     if (!row) throw new NotFoundException('Решение недоступно.');
     return row;

@@ -23,40 +23,40 @@ export function workVersion(row: AssessmentWorkVersion, items?: StoredWorkItem[]
 @Injectable()
 export class AssessmentWorksReadService {
   constructor(@Inject(PrismaService) private readonly db: PrismaService) {}
-  async owned(teacherId: string, id: string, client: Prisma.TransactionClient = this.db) {
-    const row = await client.assessmentWork.findFirst({ where: { id, teacherId, deletedAt: null } });
+  async accessible(_teacherId: string, id: string, client: Prisma.TransactionClient = this.db) {
+    const row = await client.assessmentWork.findFirst({ where: { id, deletedAt: null } });
     if (!row) throw new NotFoundException('Работа не найдена.');
     return row;
   }
-  async resolve(teacherId: string, refs: AssessmentWorkReference[], client: Prisma.TransactionClient = this.db): Promise<StoredWorkItem[]> {
+  async resolve(_teacherId: string, refs: AssessmentWorkReference[], client: Prisma.TransactionClient = this.db): Promise<StoredWorkItem[]> {
     if (!refs.length) return [];
-    const rows = await client.assessmentTaskVersion.findMany({ where: { task: { teacherId }, OR: refs.map((ref) => ({ taskId: ref.taskId, version: ref.version })) }, select: { taskId: true, version: true, data: true } });
+    const rows = await client.assessmentTaskVersion.findMany({ where: { OR: refs.map((ref) => ({ taskId: ref.taskId, version: ref.version })) }, select: { taskId: true, version: true, data: true } });
     const map = new Map(rows.map((row) => [`${row.taskId}@${row.version}`, row]));
     return refs.map((ref) => {
       const row = map.get(`${ref.taskId}@${ref.version}`);
-      if (!row) throw new BadRequestException('Задание или выбранная версия недоступны в вашем банке.');
+      if (!row) throw new BadRequestException('Задание или выбранная версия недоступны в банке.');
       return { ...ref, data: StoredAssessmentTaskSchema.parse(row.data) };
     });
   }
-  async list(teacherId: string) {
-    const rows = await this.db.assessmentWork.findMany({ where: { teacherId, deletedAt: null }, select: { id: true, title: true, gradeBand: true, revision: true, taskCount: true, maxPoints: true, updatedAt: true, archivedAt: true, lifecycleRevision: true, _count: { select: { versions: { where: { assignments: { some: {} } } } } } }, orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }] });
+  async list(_teacherId: string) {
+    const rows = await this.db.assessmentWork.findMany({ where: { deletedAt: null }, select: { id: true, title: true, gradeBand: true, revision: true, taskCount: true, maxPoints: true, updatedAt: true, archivedAt: true, lifecycleRevision: true, _count: { select: { versions: { where: { assignments: { some: {} } } } } } }, orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }] });
     return rows.map((row) => ({ ...workSummary(row), hasAssignments: row._count.versions > 0, canDelete: row._count.versions === 0 }));
   }
   async detail(teacherId: string, id: string) {
     return this.db.$transaction(async (tx) => {
-      const row = await this.owned(teacherId, id, tx);
+      const row = await this.accessible(teacherId, id, tx);
       return workDetail(row, await applyAssessmentPresentations(tx, await this.resolve(teacherId, WorkReferencesSchema.parse(row.items), tx)));
     });
   }
   async version(teacherId: string, id: string, number: number) {
-    await this.owned(teacherId, id);
+    await this.accessible(teacherId, id);
     const row = await this.db.assessmentWorkVersion.findUnique({ where: { workId_number: { workId: id, number } } });
     if (!row) throw new NotFoundException('Версия работы не найдена.');
     return workVersion(row, await applyAssessmentPresentations(this.db, WorkSnapshotSchema.parse(row.data).items));
   }
   async checkAnswer(teacherId: string, id: string, input: AssessmentWorkAnswerCheck) {
     const item = await this.db.$transaction(async (tx) => {
-      const work = await this.owned(teacherId, id, tx);
+      const work = await this.accessible(teacherId, id, tx);
       if (input.source.kind === 'version') {
         const version = await tx.assessmentWorkVersion.findUnique({ where: { workId_number: { workId: id, number: input.source.number } } });
         if (!version) throw new NotFoundException('Версия работы не найдена.');

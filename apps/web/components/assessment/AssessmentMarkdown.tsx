@@ -36,6 +36,7 @@ function loadMath() {
 function Formula({ value, display, punctuation }: { value: string; display: boolean; punctuation: string }) {
   const slot = useRef<HTMLSpanElement>(null);
   useEffect(() => {
+    if (slot.current) slot.current.textContent = value + punctuation;
     let active = true;
     let revision = 0;
     const parent = slot.current?.parentElement;
@@ -66,7 +67,8 @@ function Formula({ value, display, punctuation }: { value: string; display: bool
     if (parent) observer?.observe(parent);
     return () => { active = false; observer?.disconnect(); };
   }, [value, display, punctuation]);
-  return <span className={display ? styles.displayMath : styles.inlineMath} ref={slot}>{value}{punctuation}</span>;
+  // MathJax owns these children; React must not reconcile replaced text nodes.
+  return <span className={display ? styles.displayMath : styles.inlineMath} ref={slot} />;
 }
 function renderNodes(nodes: AssessmentMarkdownNode[], images: Record<string, string>, prefix = 'n'): React.ReactNode[] {
   return nodes.map((node, index) => {

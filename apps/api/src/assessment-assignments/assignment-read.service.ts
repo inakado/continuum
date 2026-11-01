@@ -27,7 +27,7 @@ export class AssignmentReadService {
     @Inject(AssessmentWorksReadService) private readonly works: AssessmentWorksReadService,
     @Inject(AssignmentRosterService) private readonly roster: AssignmentRosterService) {}
   async prepare(teacherId: string, workId: string, number?: number) {
-    const current = await this.works.owned(teacherId, workId);
+    const current = await this.works.accessible(teacherId, workId);
     const versions = await this.db.assessmentWorkVersion.findMany({ where: { workId }, orderBy: { number: 'desc' } });
     const selected = number ? versions.find((item) => item.number === number) : versions.find((item) => item.revision === current.revision);
     if (number && !selected) throw new NotFoundException('Версия работы не найдена.');
@@ -41,8 +41,8 @@ export class AssignmentReadService {
       selection: number ? { kind: 'version' as const, number } : { kind: 'draft' as const, expectedRevision: current.revision },
       versions: metadata, classes: await this.roster.classes(teacherId, selected?.id) };
   }
-  async list(teacherId: string) {
-    const rows = await this.db.assessmentWorkVersion.findMany({ where: { work: { teacherId }, assignments: { some: {} } }, orderBy: { createdAt: 'desc' },
+  async list(_teacherId: string) {
+    const rows = await this.db.assessmentWorkVersion.findMany({ where: { assignments: { some: {} } }, orderBy: { createdAt: 'desc' },
       include: { assignments: reportInclude.assignments, recipients: { select: { id: true, completedAt: true } } } });
     const prepared = rows.map((row) => ({ row, snapshot: WorkSnapshotSchema.parse(row.data) }));
     const progress = await readWorkProgress(this.db, prepared.flatMap(({ row, snapshot }) => row.recipients.map((recipient) => progressScope(recipient, snapshot))));
@@ -53,8 +53,8 @@ export class AssignmentReadService {
         allReviewsPublishedCount: extendedCount ? row.recipients.filter((item) => progress.get(item.id)!.publishedReviewTaskCount === extendedCount).length : 0 };
     });
   }
-  async report(teacherId: string, versionId: string) {
-    const row = await this.db.assessmentWorkVersion.findFirst({ where: { id: versionId, work: { teacherId }, assignments: { some: {} } }, include: reportInclude });
+  async report(_teacherId: string, versionId: string) {
+    const row = await this.db.assessmentWorkVersion.findFirst({ where: { id: versionId, assignments: { some: {} } }, include: reportInclude });
     if (!row) throw new NotFoundException('Назначение не найдено.');
     const snapshot = WorkSnapshotSchema.parse(row.data);
     const base = summary(row, snapshot, row.recipients.length, row.recipients.filter((item) => item.completedAt).length);

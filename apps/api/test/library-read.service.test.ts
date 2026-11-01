@@ -28,7 +28,7 @@ describe('LibraryReadService', () => {
     expect(prisma.section.findMany).not.toHaveBeenCalled();
   });
 
-  it('scopes catalog reads by both grade and granting teacher', async () => {
+  it('scopes catalog reads by granted grade regardless of the granting teacher', async () => {
     const prisma = makePrisma();
     prisma.accessGrant.findMany.mockResolvedValue([
       { gradeBand: 'grade_10_11', grantedById: teacherId },
@@ -61,7 +61,7 @@ describe('LibraryReadService', () => {
       expect.objectContaining({
         where: {
           status: PublicationStatus.published,
-          OR: [{ gradeBand: 'grade_10_11', createdById: teacherId }],
+          gradeBand: { in: ['grade_10_11'] },
         },
       }),
     );
@@ -91,7 +91,7 @@ describe('LibraryReadService', () => {
           section: {
             is: {
               status: PublicationStatus.published,
-              OR: [{ gradeBand: 'grade_8', createdById: teacherId }],
+              gradeBand: { in: ['grade_8'] },
             },
           },
         },
@@ -134,7 +134,7 @@ describe('LibraryReadService', () => {
           status: PublicationStatus.published,
           section: { is: {
             status: PublicationStatus.published,
-            OR: [{ gradeBand: 'grade_8', createdById: teacherId }],
+            gradeBand: { in: ['grade_8'] },
           } },
         } },
       }),

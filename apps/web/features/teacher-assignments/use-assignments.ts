@@ -4,8 +4,8 @@ import { assignmentQueryKeys, teacherWorkQueryKeys } from '@/lib/query/keys';
 import type { AssignmentCreate, AssignmentReport } from '@continuum/shared';
 import { teacherAssignmentsApi } from './teacher-assignments.api';
 
-export const useAssignments = () => useQuery({ queryKey: assignmentQueryKeys.list(), queryFn: teacherAssignmentsApi.list, refetchInterval: 10000, refetchIntervalInBackground: false });
-export const useAssignmentReport = (id: string) => useQuery({ queryKey: assignmentQueryKeys.report(id), queryFn: () => teacherAssignmentsApi.report(id), refetchInterval: 10000, refetchIntervalInBackground: false });
+export const useAssignments = () => useQuery({ queryKey: assignmentQueryKeys.list(), queryFn: teacherAssignmentsApi.list, refetchOnWindowFocus: true, refetchInterval: 10000, refetchIntervalInBackground: false });
+export const useAssignmentReport = (id: string) => useQuery({ queryKey: assignmentQueryKeys.report(id), queryFn: () => teacherAssignmentsApi.report(id), refetchOnWindowFocus: true, refetchInterval: 10000, refetchIntervalInBackground: false });
 export const useAssignmentPrepare = (id: string, version?: number) => useQuery({ queryKey: assignmentQueryKeys.prepare(id, version), queryFn: () => teacherAssignmentsApi.prepare(id, version), staleTime: Infinity, gcTime: 0, refetchOnWindowFocus: false });
 export const useRevocationPreview = (id: string) => useQuery({ queryKey: assignmentQueryKeys.revocation(id), queryFn: () => teacherAssignmentsApi.revocation(id), gcTime: 0, retry: false, refetchOnWindowFocus: false });
 export function useRevokeAssignment(onRemoved: () => void) {

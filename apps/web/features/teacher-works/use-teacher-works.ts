@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { teacherWorkQueryKeys } from '@/lib/query/keys';
 import { teacherWorksApi } from './teacher-works.api';
 
-export const useTeacherWorks = () => useQuery({ queryKey: teacherWorkQueryKeys.list(), queryFn: teacherWorksApi.list });
+export const useTeacherWorks = () => useQuery({ queryKey: teacherWorkQueryKeys.list(), queryFn: teacherWorksApi.list, refetchOnWindowFocus: true });
 export const useTeacherWork = (id: string) => useQuery({ queryKey: teacherWorkQueryKeys.detail(id), queryFn: () => teacherWorksApi.detail(id) });
 export function useCreateTeacherWork() {
   const cache = useQueryClient();

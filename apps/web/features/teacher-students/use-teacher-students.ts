@@ -13,6 +13,7 @@ export const useTeacherStudents = () =>
   useQuery({
     queryKey: teacherStudentsQueryKeys.all(),
     queryFn: teacherStudentsApi.getStudents,
+    refetchOnWindowFocus: true,
   });
 
 export const useCreateStudent = () => {
@@ -30,7 +31,7 @@ export const useSetStudentAccess = () => {
   return useMutation({ mutationFn: teacherStudentsApi.setAccess, onSuccess: refresh });
 };
 
-export const useSchoolClasses = () => useQuery({ queryKey: teacherStudentsQueryKeys.classes(), queryFn: teacherStudentsApi.getClasses });
+export const useSchoolClasses = () => useQuery({ queryKey: teacherStudentsQueryKeys.classes(), queryFn: teacherStudentsApi.getClasses, refetchOnWindowFocus: true });
 export const useUpdateSchoolClass = () => {
   const refresh = useRefreshStudents();
   return useMutation({ mutationFn: teacherStudentsApi.updateClass, onSuccess: refresh });

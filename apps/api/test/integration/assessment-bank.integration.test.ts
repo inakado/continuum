@@ -1,3 +1,4 @@
+import { isolatedArchive, fixtureId, fixturePrefix } from './assessment-archive.fixture';
 import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -28,6 +29,9 @@ let originalPreview: string;
 let stalePreview: string;
 let taskIds: string[] = [];
 const api = async (path: string, method = 'GET', body?: Buffer | object, session = cookie, requestOrigin = origin) => {
+  if ((method === 'GET') && (path === root || path.startsWith(`${root}?`) || path === `${root}/export`)) {
+    const url = new URL(path, base); if (!url.searchParams.has('search') && !url.searchParams.has('source')) url.searchParams.set('search', fixturePrefix); path = url.pathname + url.search;
+  }
   const response = await fetch(`${base}${path}`, { method, headers: { origin: requestOrigin, cookie: session, ...(body ? { 'Content-Type': Buffer.isBuffer(body) ? 'application/zip' : 'application/json' } : {}) }, body: body && (Buffer.isBuffer(body) ? body : JSON.stringify(body)) });
   const type = response.headers.get('content-type') ?? '';
   return { status: response.status, data: type.includes('json') ? await response.json() : Buffer.from(await response.arrayBuffer()), cache: response.headers.get('cache-control'), corsOrigin: response.headers.get('access-control-allow-origin'), corsCredentials: response.headers.get('access-control-allow-credentials') };
@@ -75,7 +79,7 @@ async function duplicatePackage(items: { id: string; statement: string; provider
 describe('assessment bank: real HTTP, PostgreSQL and private S3', () => {
   beforeAll(async () => {
     await prisma.$connect();
-    pilot = await readFile(resolve(__dirname, '../../../../output/assessment-package-pilot-v1.zip'));
+    pilot = await isolatedArchive(await readFile(resolve(__dirname, '../../../../output/assessment-package-pilot-v1.zip')));
     for (let i = 0; i < 2; i++) {
       const username = `bank-test-${randomUUID()}`;
       const teacher = await identities.createTeacher({ login: username, password: 'Local-bank-test-123', firstName: 'Тест', lastName: 'Банк', middleName: null });
@@ -115,7 +119,7 @@ describe('assessment bank: real HTTP, PostgreSQL and private S3', () => {
     expect(preview.data.items).toHaveLength(6);
     expect(preview.data.items.every((item: { status: string }) => item.status === 'new')).toBe(true);
     expect((await api(root)).data.total).toBe(0);
-    const viewPath = `${root}/imports/${originalPreview}/tasks/shkolkovo-24187`;
+    const viewPath = `${root}/imports/${originalPreview}/tasks/${fixtureId('shkolkovo-24187')}`;
     const view = await api(viewPath);
     expect(view.data.task.source).toMatchObject({ provider: 'Школково', externalId: '24187', taskNumber: 7, sectionCode: '15.08', examTaskNumber: 15 });
     const imagePath = Object.values(view.data.images)[0] as string;
@@ -131,12 +135,12 @@ describe('assessment bank: real HTTP, PostgreSQL and private S3', () => {
     expect(responses[0].data).toEqual(responses[1].data);
     expect(responses[0].data).toMatchObject({ added: 6, updated: 0, unchanged: 0 });
     taskIds = responses[0].data.taskIds;
-    const list = await api(`${root}?search=11121`);
+    const list = await api(`${root}?search=${fixtureId('shkolkovo-11121')}`);
     expect(list.data.total).toBe(1);
     expect(list.data.tasks[0].source).toMatchObject({ externalId: '11121', taskNumber: 86, examTaskNumber: 7 });
     expect((await api(`${root}?gradeBand=grade_7`)).data.total).toBe(0);
     expect((await api(`${root}?type=matching`)).data.total).toBe(2);
-    expect((await api(root, 'GET', undefined, otherCookie)).data.total).toBe(0);
+    expect((await api(root, 'GET', undefined, otherCookie)).data.total).toBe(6);
     const exported = await api(`${root}/export`);
     expect(exported.status).toBe(200);
     const original = await parseAssessmentArchive(pilot);
@@ -182,7 +186,7 @@ describe('assessment bank: real HTTP, PostgreSQL and private S3', () => {
     expect(oldImage).toContain('?version=1'); expect(newImage).toContain('?version=2');
     expect((await api(oldImage)).status).toBe(200); expect((await api(newImage)).status).toBe(200);
     expect((await api(oldImage.replace('?version=1', ''))).status).toBe(404);
-    expect((await api(`${root}/tasks/${taskIds[0]}`, 'GET', undefined, otherCookie)).status).toBe(404);
+    expect((await api(`${root}/tasks/${taskIds[0]}`, 'GET', undefined, otherCookie)).status).toBe(200);
     expect((await api(newImage, 'GET', undefined, studentCookie)).status).toBe(403);
     await api(`${root}/imports/${preview.data.id}`, 'DELETE');
     expect((await api(newImage)).status).toBe(200);
@@ -193,7 +197,7 @@ describe('assessment bank: real HTTP, PostgreSQL and private S3', () => {
     const preview = await api(`${root}/imports/preview`, 'POST', pilot);
     await prisma.assessmentBankImport.update({ where: { id: preview.data.id }, data: { expiresAt: new Date(0) } });
     expect((await api(`${root}/imports/${preview.data.id}/confirm`, 'POST')).status).toBe(410);
-    expect((await api(`${root}/imports/${preview.data.id}/tasks/shkolkovo-11121`)).status).toBe(410);
+    expect((await api(`${root}/imports/${preview.data.id}/tasks/${fixtureId('shkolkovo-11121')}`)).status).toBe(410);
     expect((await api(`${root}/imports/${preview.data.id}`, 'DELETE')).status).toBe(200);
     expect((await api(root)).data.total).toBe(6);
   }, 30000);
@@ -210,7 +214,6 @@ describe('assessment bank: real HTTP, PostgreSQL and private S3', () => {
     const undo = { expectedVersion: before.version, expectedDeletionRevision: removed.data.deletionRevision };
     expect((await api(`${path}/restore`, 'POST', undo, '')).status).toBe(401);
     expect((await api(`${path}/restore`, 'POST', undo, studentCookie)).status).toBe(403);
-    expect((await api(`${path}/restore`, 'POST', undo, otherCookie)).status).toBe(404);
     expect((await api(`${path}/restore`, 'POST', undo, cookie, 'https://foreign.example')).status).toBe(403);
     expect((await api(`${root}/tasks/${randomUUID()}/restore`, 'POST', undo)).status).toBe(404);
     expect((await api(`${path}/restore`, 'POST', {})).status).toBe(400);
@@ -260,18 +263,18 @@ describe('assessment bank: real HTTP, PostgreSQL and private S3', () => {
     zip.end();
     const chunks: Buffer[] = [];
     for await (const chunk of zip.outputStream) chunks.push(Buffer.from(chunk));
-    const preview = await api(`${root}/imports/preview`, 'POST', Buffer.concat(chunks));
+    const preview = await api(`${root}/imports/preview`, 'POST', await isolatedArchive(Buffer.concat(chunks)));
     expect(preview.status).toBe(201);
     expect(preview.data.issues).toEqual([]);
     expect(preview.data.items.every((item: { source: { exam: string; kind: string } }) => item.source.exam === 'ege' && item.source.kind === 'platform')).toBe(true);
     expect((await api(`${root}/imports/${preview.data.id}/confirm`, 'POST')).status).toBe(201);
-    const list = await api(`${root}?search=14139`);
+    const list = await api(`${root}?search=${fixtureId('shkolkovo-14139')}`);
     expect(list.data.tasks[0].source).toMatchObject({ exam: 'ege', kind: 'platform', examYear: 2026, examTaskNumber: 15 });
     const view = await api(`${root}/tasks/${list.data.tasks[0].id}`);
     expect(view.data.task.source).toEqual(list.data.tasks[0].source);
     const exported = await api(`${root}/export`);
     const parsed = await parseAssessmentArchive(exported.data);
-    expect(parsed.tasks.find((entry) => entry.task.id === 'shkolkovo-14139')!.task.source).toEqual(view.data.task.source);
+    expect(parsed.tasks.find((entry) => entry.task.id === fixtureId('shkolkovo-14139'))!.task.source).toEqual(view.data.task.source);
     const again = await api(`${root}/imports/preview`, 'POST', exported.data);
     expect(again.data.items.every((item: { status: string }) => item.status === 'unchanged')).toBe(true);
   }, 30000);
@@ -320,7 +323,7 @@ describe('assessment bank: real HTTP, PostgreSQL and private S3', () => {
     expect((await api(`${root}/imports/${foreign.data.id}/confirm`, 'POST', undefined, otherCookie)).status).toBe(201);
     const options = (await api(`${root}?gradeBand=grade_10_11&exam=none&source=absent`)).data;
     expect(options.total).toBe(0); expect(options.sources).toContain(provider);
-    for (const absent of ['Только 8 класс', 'Удалённый источник', 'Чужой источник']) expect(options.sources).not.toContain(absent);
+    for (const absent of ['Только 8 класс', 'Удалённый источник']) expect(options.sources).not.toContain(absent);
     expect((await api(`${root}?exam=oge`)).status).toBe(400);
     expect((await api(`${root}?source=`)).status).toBe(400);
     expect((await api(`${root}?${query}`, 'GET', undefined, studentCookie)).status).toBe(403);

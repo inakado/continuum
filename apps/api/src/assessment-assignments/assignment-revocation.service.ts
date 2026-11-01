@@ -11,8 +11,8 @@ const recipientsHash = (ids: string[]) => createHash('sha256').update(JSON.strin
 @Injectable()
 export class AssignmentRevocationService {
   constructor(@Inject(PrismaService) private readonly db: PrismaService, @Inject(AssessmentFileCleanupService) private readonly cleanup: AssessmentFileCleanupService) {}
-  private async target(tx: Prisma.TransactionClient, teacherId: string, id: string) {
-    const row = await tx.assessmentAssignment.findFirst({ where: { id, version: { work: { teacherId } } }, include: { version: true } });
+  private async target(tx: Prisma.TransactionClient, _teacherId: string, id: string) {
+    const row = await tx.assessmentAssignment.findFirst({ where: { id }, include: { version: true } });
     if (!row) throw unavailable();
     return row;
   }
@@ -33,7 +33,7 @@ export class AssignmentRevocationService {
   }
   async remove(teacherId: string, id: string, input: AssignmentRevoke) {
     const result = await this.db.$transaction(async (tx) => {
-      const initial = await tx.assessmentAssignment.findFirst({ where: { id, version: { work: { teacherId } } }, select: { version: { select: { workId: true } } } });
+      const initial = await tx.assessmentAssignment.findFirst({ where: { id }, select: { version: { select: { workId: true } } } });
       if (!initial) return this.receipt(tx, teacherId, id);
       await tx.$queryRaw`SELECT id FROM assessment_works WHERE id = ${initial.version.workId}::uuid FOR UPDATE`;
       const current = await tx.assessmentAssignment.findUnique({ where: { id } });

@@ -53,7 +53,7 @@ it('atomically deletes and restores a bank batch, validates ownership/duplicates
   const result = await api(`${root}/bulk-delete`, { items }); expect(result.status).toBe(201);
   expect(result.data.items).toHaveLength(2);
   expect((await api(`${root}/bulk-delete`, { items })).data).toEqual(result.data);
-  expect((await api('/teacher/assessment-bank')).data.total).toBe(0);
+  expect((await api('/teacher/assessment-bank')).data.tasks.some((task: { id: string }) => tasks.includes(task.id))).toBe(false);
   const undo = { items: result.data.items.map((item: { id: string; version: number; deletionRevision: number }) => ({ id: item.id, expectedVersion: item.version, expectedDeletionRevision: item.deletionRevision })) };
   expect((await api(`${root}/bulk-restore`, { items: [undo.items[0], { ...undo.items[1], expectedDeletionRevision: 9 }] })).status).toBe(409);
   expect(await db.assessmentBankTask.count({ where: { id: { in: tasks }, deletedAt: { not: null } } })).toBe(2);

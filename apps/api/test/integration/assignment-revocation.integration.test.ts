@@ -82,15 +82,14 @@ afterAll(async () => {
   await db.$disconnect();
 }, 30000);
 
-it('requires teacher ownership, trusted Origin, strict body and the exact current recipients', async () => {
+it('requires trusted Origin, strict body and the exact current recipients', async () => {
   const fixture = await assigned(), id = fixture.assignments[0].id, path = `${root}/classes/${id}`;
   expect((await api(`${path}/revocation`, 'GET', undefined, '')).status).toBe(401);
-  expect((await api(`${path}/revocation`, 'GET', undefined, other)).status).toBe(404);
+  expect((await api(`${path}/revocation`, 'GET', undefined, other)).status).toBe(200);
   expect((await api(`${path}/revocation`, 'GET', undefined, pupils[0].cookie)).status).toBe(403);
   const preview = (await api(`${path}/revocation`)).data;
   const input = { expectedRecipientsHash: preview.recipientsHash };
   expect(preview).toMatchObject({ studentCount: 2, startedCount: 0, completedCount: 0 });
-  expect((await api(path, 'DELETE', input, other)).status).toBe(404);
   expect((await api(path, 'DELETE', input, pupils[0].cookie)).status).toBe(403);
   expect((await api(path, 'DELETE', input, teacher, 'https://foreign.example')).status).toBe(403);
   expect((await api(path, 'DELETE', { ...input, deleteAll: true })).status).toBe(400);
@@ -160,7 +159,6 @@ it('deletes started/completed answers, real photos, PDF reviews and receipts onl
   const renewed = await db.assessmentAssignment.findFirstOrThrow({ where: { versionId: fixture.version.id, classId: classIds[0] } });
   expect(renewed.id).not.toBe(target.id);
   expect((await api(path, 'DELETE', input)).status).toBe(200);
-  expect((await api(path, 'DELETE', input, other)).status).toBe(404);
   expect(await db.assessmentAssignment.findUnique({ where: { id: renewed.id } })).not.toBeNull();
   const fresh = await db.assessmentRecipient.findFirstOrThrow({ where: { assignmentId: renewed.id } });
   expect(fresh).toMatchObject({ startedAt: null, completedAt: null, points: null, answers: {} });
@@ -221,3 +219,17 @@ it('serializes revocation with adding recipients and never silently widens the c
     }
   }
 }, 30000);
+
+it('lets another teacher revoke the common assignment and replay only their own revocation receipt', async () => {
+  const fixture = await assigned(), assignment = fixture.assignments[0];
+  const path = `${root}/classes/${assignment.id}`;
+  const preview = await api(`${path}/revocation`, 'GET', undefined, other);
+  expect(preview.status).toBe(200);
+  const input = { expectedRecipientsHash: preview.data.recipientsHash };
+  const removed = await api(path, 'DELETE', input, other);
+  expect(removed.status).toBe(200);
+  expect((await api(path, 'DELETE', input, other)).data).toEqual(removed.data);
+  expect((await api(path, 'DELETE', input)).status).toBe(404);
+  expect(await db.assessmentAssignment.count({ where: { id: assignment.id } })).toBe(0);
+  expect(await db.assessmentRecipient.count({ where: { assignmentId: assignment.id } })).toBe(0);
+});

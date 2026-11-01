@@ -5,6 +5,7 @@ import type { AssessmentWorkCopy, AssessmentWorkCreate, AssessmentWorkUpdate } f
 import { PrismaService } from '../prisma/prisma.service';
 import { AssessmentWorksReadService, workDetail, workVersion, WorkReferencesSchema } from './assessment-works-read.service';
 import { WorkSnapshotSchema } from './assessment-works-read.service';
+import { lockAssessmentBank } from '../common/assessment-bank-lock';
 import { applyAssessmentPresentations } from '../common/assessment-presentation';
 
 const json = (value: object): Prisma.InputJsonValue => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -12,12 +13,12 @@ const json = (value: object): Prisma.InputJsonValue => JSON.parse(JSON.stringify
 export class AssessmentWorksWriteService {
   constructor(@Inject(PrismaService) private readonly db: PrismaService, @Inject(AssessmentWorksReadService) private readonly reads: AssessmentWorksReadService) {}
   private async lock(tx: Prisma.TransactionClient, teacherId: string, id: string) {
-    await tx.$queryRaw`SELECT id FROM assessment_works WHERE id = ${id}::uuid AND teacher_id = ${teacherId}::uuid FOR UPDATE`;
-    return this.reads.owned(teacherId, id, tx);
+    await tx.$queryRaw`SELECT id FROM assessment_works WHERE id = ${id}::uuid FOR UPDATE`;
+    return this.reads.accessible(teacherId, id, tx);
   }
   async create(teacherId: string, input: AssessmentWorkCreate) {
     return this.db.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT id FROM users WHERE id = ${teacherId}::uuid FOR UPDATE`;
+      await lockAssessmentBank(tx, 'read');
       const existing = await tx.assessmentWork.findUnique({ where: { id: input.id } });
       if (existing) {
         if (existing.teacherId !== teacherId || existing.deletedAt) throw new NotFoundException('Работа не найдена.');
@@ -25,30 +26,30 @@ export class AssessmentWorksWriteService {
       }
       const refs = input.items ?? [];
       if (refs.length) {
-        const available = await tx.assessmentBankTask.count({ where: { teacherId, deletedAt: null, id: { in: refs.map((ref) => ref.taskId) } } });
-        if (available !== refs.length) throw new BadRequestException('Не все задания доступны в вашем банке. Обновите список перед созданием работы.');
+        const available = await tx.assessmentBankTask.count({ where: { deletedAt: null, id: { in: refs.map((ref) => ref.taskId) } } });
+        if (available !== refs.length) throw new BadRequestException('Не все задания доступны в банке. Обновите список перед созданием работы.');
       }
       const items = await this.reads.resolve(teacherId, refs, tx);
       await tx.assessmentWork.createMany({ data: [{ id: input.id, title: input.title, gradeBand: input.gradeBand, teacherId,
         items: json(refs), taskCount: items.length, maxPoints: items.reduce((sum, item) => sum + item.data.task.maxPoints, 0) }], skipDuplicates: true });
       const row = await tx.assessmentWork.findFirst({ where: { id: input.id, teacherId, deletedAt: null } });
       if (!row) throw new NotFoundException('Работа не найдена.');
-      return workDetail(row, await applyAssessmentPresentations(tx, items));
+      return workDetail(row, await applyAssessmentPresentations(tx, await this.reads.resolve(teacherId, WorkReferencesSchema.parse(row.items), tx)));
     }, { timeout: 30000 });
   }
   async update(teacherId: string, id: string, input: AssessmentWorkUpdate) {
-    const hash = createHash('sha256').update(JSON.stringify(input)).digest('hex');
+    const hash = createHash('sha256').update(JSON.stringify({ teacherId, input })).digest('hex');
     return this.db.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT id FROM users WHERE id = ${teacherId}::uuid FOR UPDATE`;
+      await lockAssessmentBank(tx, 'read');
       const row = await this.lock(tx, teacherId, id);
       if (row.lastRequestId === input.requestId) {
         if (row.lastInputHash !== hash) throw new ConflictException('Ключ запроса уже использован для других изменений.');
         return workDetail(row, await applyAssessmentPresentations(tx, await this.reads.resolve(teacherId, WorkReferencesSchema.parse(row.items), tx)));
       }
-      if (row.revision !== input.expectedRevision) throw new ConflictException('Работа изменена в другой вкладке. Загрузите актуальную версию, прежде чем продолжать.');
+      if (row.revision !== input.expectedRevision) throw new ConflictException('Работа изменена в другой вкладке или другим преподавателем. Загрузите актуальную версию, прежде чем продолжать.');
       const previous = new Set(WorkReferencesSchema.parse(row.items).map((item) => `${item.taskId}@${item.version}`));
       const added = input.items.filter((item) => !previous.has(`${item.taskId}@${item.version}`));
-      const removed = await tx.assessmentBankTask.count({ where: { teacherId, deletedAt: { not: null }, id: { in: added.map((item) => item.taskId) } } });
+      const removed = await tx.assessmentBankTask.count({ where: { deletedAt: { not: null }, id: { in: added.map((item) => item.taskId) } } });
       if (removed) throw new BadRequestException('Выбранное задание удалено из банка. Обновите список и выберите другое.');
       const items = await this.reads.resolve(teacherId, input.items, tx);
       const updated = await tx.assessmentWork.update({ where: { id }, data: { title: input.title, instructions: input.instructions, gradeBand: input.gradeBand, items: json(input.items), taskCount: items.length, maxPoints: items.reduce((sum, item) => sum + item.data.task.maxPoints, 0), revision: { increment: 1 }, lastRequestId: input.requestId, lastInputHash: hash } });
@@ -57,7 +58,7 @@ export class AssessmentWorksWriteService {
   }
   async copy(teacherId: string, id: string, input: AssessmentWorkCopy) {
     return this.db.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT id FROM users WHERE id = ${teacherId}::uuid FOR UPDATE`;
+      await lockAssessmentBank(tx, 'read');
       const source = await this.lock(tx, teacherId, id);
       const existing = await tx.assessmentWork.findUnique({ where: { id: input.id } });
       if (existing) {
@@ -67,7 +68,7 @@ export class AssessmentWorksWriteService {
       }
       if (source.revision !== input.expectedRevision) throw new ConflictException('Работа изменилась. Список обновлён — проверьте её перед копированием.');
       const sourceRefs = WorkReferencesSchema.parse(source.items);
-      const available = await tx.assessmentBankTask.findMany({ where: { teacherId, deletedAt: null, id: { in: sourceRefs.map((ref) => ref.taskId) } }, select: { id: true } });
+      const available = await tx.assessmentBankTask.findMany({ where: { deletedAt: null, id: { in: sourceRefs.map((ref) => ref.taskId) } }, select: { id: true } });
       const availableIds = new Set(available.map((task) => task.id));
       const refs = sourceRefs.filter((ref) => availableIds.has(ref.taskId));
       const items = await this.reads.resolve(teacherId, refs, tx);
@@ -85,7 +86,10 @@ export class AssessmentWorksWriteService {
     }, { timeout: 30000 });
   }
   async freeze(teacherId: string, id: string, expectedRevision: number) {
-    return this.db.$transaction((tx) => this.freezeInTransaction(tx, teacherId, id, expectedRevision), { timeout: 30000 });
+    return this.db.$transaction(async (tx) => {
+      await lockAssessmentBank(tx, 'read');
+      return this.freezeInTransaction(tx, teacherId, id, expectedRevision);
+    }, { timeout: 30000 });
   }
   async freezeInTransaction(tx: Prisma.TransactionClient, teacherId: string, id: string, expectedRevision: number) {
       const row = await this.lock(tx, teacherId, id);

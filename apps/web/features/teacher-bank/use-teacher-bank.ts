@@ -14,11 +14,12 @@ export function useTeacherBank(query: AssessmentBankQuery) {
   }, [query.search]);
   return useQuery({
     queryKey: teacherBankQueryKeys.list(query),
+    refetchOnWindowFocus: true,
     queryFn: ({ signal }) => teacherBankApi.list(query, signal),
     enabled: !query.search || query.search === settledSearch,
   });
 }
-export const useTeacherBankTask = (id: string | null, version?: number) => useQuery({ queryKey: teacherBankQueryKeys.task(id ?? '', version), queryFn: () => teacherBankApi.view(id!, version), enabled: Boolean(id) });
+export const useTeacherBankTask = (id: string | null, version?: number) => useQuery({ queryKey: teacherBankQueryKeys.task(id ?? '', version), queryFn: () => teacherBankApi.view(id!, version), enabled: Boolean(id), refetchOnWindowFocus: true });
 export const useBankImportTask = (id: string | null, stableId: string | null) => useQuery({ queryKey: teacherBankQueryKeys.importTask(id ?? '', stableId ?? ''), queryFn: () => teacherBankApi.previewTask(id!, stableId!), enabled: Boolean(id && stableId), gcTime: 0, retry: false });
 export const useBankDuplicateHints = (id: string | null) => useQuery({ queryKey: teacherBankQueryKeys.duplicates(id ?? ''), queryFn: () => teacherBankApi.duplicates(id!), enabled: Boolean(id), gcTime: 0, retry: false, refetchOnWindowFocus: false });
 export const usePreviewBankImport = () => useMutation({ mutationFn: teacherBankApi.preview, retry: false, gcTime: 0 });

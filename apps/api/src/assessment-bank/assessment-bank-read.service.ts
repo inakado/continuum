@@ -12,11 +12,11 @@ import { StoredAssessmentImportSchema, StoredAssessmentTaskSchema, mapAssessment
 export class AssessmentBankReadService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService, @Inject(ObjectStorageService) private readonly storage: ObjectStorageService) {}
 
-  private async where(teacherId: string, query: AssessmentBankQuery): Promise<Prisma.AssessmentBankTaskWhereInput> {
+  private async where(_teacherId: string, query: AssessmentBankQuery): Promise<Prisma.AssessmentBankTaskWhereInput> {
     const path = query.topicPath;
-    const candidates = path ? await this.prisma.assessmentTaskVersion.findMany({ where: { currentFor: { is: { teacherId, deletedAt: null } }, topicPath: { hasEvery: path } }, distinct: ['topicPath'], select: { topicPath: true } }) : [];
+    const candidates = path ? await this.prisma.assessmentTaskVersion.findMany({ where: { currentFor: { is: { deletedAt: null } }, topicPath: { hasEvery: path } }, distinct: ['topicPath'], select: { topicPath: true } }) : [];
     const branch = path ? { OR: [{ topicPath: { equals: path } }, ...candidates.filter((row) => row.topicPath.length > path.length && path.every((part, index) => row.topicPath[index] === part)).map((row) => ({ topicPath: { equals: row.topicPath } }))] } : {};
-    return { teacherId, deletedAt: null, latestVersion: { is: { ...(query.gradeBand ? { gradeBand: query.gradeBand } : {}), ...(query.type ? { type: query.type } : {}), ...(!path && query.topic ? { topicPath: { has: query.topic } } : {}), ...(query.search ? { searchText: { contains: query.search, mode: 'insensitive' } } : {}), AND: [...this.sourceFilters(query), branch] } } };
+    return { deletedAt: null, latestVersion: { is: { ...(query.gradeBand ? { gradeBand: query.gradeBand } : {}), ...(query.type ? { type: query.type } : {}), ...(!path && query.topic ? { topicPath: { has: query.topic } } : {}), ...(query.search ? { searchText: { contains: query.search, mode: 'insensitive' } } : {}), AND: [...this.sourceFilters(query), branch] } } };
   }
   private sourceFilters(query: AssessmentBankQuery): Prisma.AssessmentTaskVersionWhereInput[] {
     const filters: Prisma.AssessmentTaskVersionWhereInput[] = [];
@@ -30,13 +30,13 @@ export class AssessmentBankReadService {
     const [rows, total, topics, sources] = await this.prisma.$transaction([
       this.prisma.assessmentBankTask.findMany({ where, include: { latestVersion: true }, orderBy: { stableId: 'asc' }, skip: (query.page - 1) * assessmentPolicy.pageSize, take: assessmentPolicy.pageSize }),
       this.prisma.assessmentBankTask.count({ where }),
-      this.prisma.assessmentTaskVersion.findMany({ where: { currentFor: { is: { teacherId, deletedAt: null } }, ...(query.gradeBand ? { gradeBand: query.gradeBand } : {}) }, select: { topicPath: true }, distinct: ['topicPath'] }),
-      this.prisma.$queryRaw<{ provider: string }[]>(Prisma.sql`SELECT DISTINCT v.data #>> '{task,source,provider}' AS provider FROM assessment_bank_tasks b JOIN assessment_task_versions v ON v.id = b.latest_version_id WHERE b.teacher_id = ${teacherId}::uuid AND b.deleted_at IS NULL ${query.gradeBand ? Prisma.sql`AND v.grade_band::text = ${query.gradeBand}` : Prisma.empty}`),
+      this.prisma.assessmentTaskVersion.findMany({ where: { currentFor: { is: { deletedAt: null } }, ...(query.gradeBand ? { gradeBand: query.gradeBand } : {}) }, select: { topicPath: true }, distinct: ['topicPath'] }),
+      this.prisma.$queryRaw<{ provider: string }[]>(Prisma.sql`SELECT DISTINCT v.data #>> '{task,source,provider}' AS provider FROM assessment_bank_tasks b JOIN assessment_task_versions v ON v.id = b.latest_version_id WHERE b.deleted_at IS NULL ${query.gradeBand ? Prisma.sql`AND v.grade_band::text = ${query.gradeBand}` : Prisma.empty}`),
     ]);
     return { tasks: rows.flatMap((row) => row.latestVersion ? [{ ...mapAssessmentSummary(row.id, row.latestVersion.version, StoredAssessmentTaskSchema.parse(row.latestVersion.data)), lifecycleRevision: row.lifecycleRevision }] : []), total, pageSize: assessmentPolicy.pageSize, topicPaths: topics.map((row) => row.topicPath), topics: [...new Set(topics.flatMap((row) => row.topicPath))].sort((a, b) => a.localeCompare(b, 'ru')), sources: sources.map((row) => row.provider).sort((a, b) => a.localeCompare(b, 'ru')) };
   }
-  async getStored(teacherId: string, taskId: string, version?: number) {
-    const row = await this.prisma.assessmentBankTask.findFirst({ where: { id: taskId, teacherId }, include: { latestVersion: true } });
+  async getStored(_teacherId: string, taskId: string, version?: number) {
+    const row = await this.prisma.assessmentBankTask.findFirst({ where: { id: taskId }, include: { latestVersion: true } });
     if (!row?.latestVersion || (row.deletedAt && version === undefined)) throw new NotFoundException('Задача не найдена.');
     const record = version ? await this.prisma.assessmentTaskVersion.findUnique({ where: { taskId_version: { taskId, version } } }) : row.latestVersion;
     if (!record) throw new NotFoundException('Версия не найдена.');

@@ -85,8 +85,9 @@ describe('school classes: real PostgreSQL, HTTP and Better Auth', () => {
     await login(first.login, reset.data.credential.password);
     expect((await api(`/teacher/students/${first.id}/password-reset`, 'POST', { requestId: resetId })).data).toEqual({ credential: null, replayed: true });
     expect((await api('/teacher/classes', 'GET', undefined, otherCookie)).data.classes).toEqual(expect.arrayContaining([expect.objectContaining({ id: created.data.classId })]));
-    expect((await api('/teacher/students', 'GET', undefined, otherCookie)).data.students).toEqual(expect.arrayContaining([expect.objectContaining({ id: first.id })]));
+    expect((await api('/teacher/students', 'GET', undefined, otherCookie)).data.students).toEqual(expect.arrayContaining([expect.objectContaining({ id: first.id, gradeBands: ['grade_7', 'grade_8'] })]));
     expect((await api(`/teacher/students/${first.id}/class`, 'PATCH', { classId: created.data.classId }, otherCookie)).status).toBe(200);
+    expect((await prisma.accessGrant.findUniqueOrThrow({ where: { studentId_gradeBand: { studentId: first.id, gradeBand: 'grade_8' } } })).grantedById).toBe(teacherIds[0]);
     expect((await api(`/teacher/students/${first.id}/password-reset`, 'POST', { requestId: randomUUID() }, otherCookie)).status).toBe(201);
     expect((await api('/teacher/classes/students', 'POST', { requestId: randomUUID(), classId: created.data.classId, students: names }, otherCookie)).status).toBe(201);
     expect((await api(`/teacher/classes/${created.data.classId}`, 'PATCH', { title: title('Общий 8А') }, otherCookie)).status).toBe(200);

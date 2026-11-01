@@ -1,3 +1,4 @@
+import { isolatedArchive, fixtureId, fixturePrefix } from './assessment-archive.fixture';
 import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -54,7 +55,7 @@ beforeAll(async () => {
   }
   for (const title of ['11А', '11Б']) classes.push((await db.schoolClass.create({ data: { teacherId: teachers[0], title: classTitle(title), grade: 11, academicYear: 2026 } })).id);
   await student(teachers[0], classes[0]); await student(teachers[0], classes[1]); await student(teachers[1]);
-  const bytes = await readFile(resolve(__dirname, '../../../../output/assessment-package-pilot-v1.zip'));
+  const bytes = await isolatedArchive(await readFile(resolve(__dirname, '../../../../output/assessment-package-pilot-v1.zip')));
   const preview = await api('/teacher/assessment-bank/imports/preview', 'POST', bytes);
   const imported = await api(`/teacher/assessment-bank/imports/${preview.data.id}/confirm`, 'POST');
   refs = imported.data.taskIds.map((taskId: string) => ({ taskId, version: 1 }));
@@ -79,7 +80,7 @@ afterAll(async () => {
 }, 30000);
 
 it('pins explicit EGE scoring, preserves legacy results and matches preview to the student score', async () => {
-  const matching = await db.assessmentBankTask.findFirstOrThrow({ where: { teacherId: teachers[0], stableId: 'shkolkovo-14139' } });
+  const matching = await db.assessmentBankTask.findFirstOrThrow({ where: { teacherId: teachers[0], stableId: fixtureId('shkolkovo-14139') } });
   const oldId = randomUUID(), worksRoot = '/teacher/assessment-works';
   const create = async (workId: string, items: { taskId: string; version: number }[]) => {
     await api(worksRoot, 'POST', { id: workId, title: 'Правила проверки', gradeBand: 'grade_10_11' });
@@ -112,7 +113,7 @@ it('pins explicit EGE scoring, preserves legacy results and matches preview to t
   for (const file of ['manifest.json', ...['shkolkovo-14139', 'shkolkovo-17846'].flatMap((id) => [`tasks/${id}/task.json`, `tasks/${id}/statement.md`])]) zip.addBuffer(await readFile(resolve(__dirname, '../../../../examples/assessment-package/ege-v1', file)), file);
   const bytes = (async () => { const chunks: Buffer[] = []; for await (const chunk of zip.outputStream) chunks.push(Buffer.from(chunk)); return Buffer.concat(chunks); })();
   zip.end();
-  const preview = await api('/teacher/assessment-bank/imports/preview', 'POST', await bytes);
+  const preview = await api('/teacher/assessment-bank/imports/preview', 'POST', await isolatedArchive(await bytes));
   expect(preview.data.issues).toEqual([]);
   const imported = await api(`/teacher/assessment-bank/imports/${preview.data.id}/confirm`, 'POST');
   expect(imported.status).toBe(201);
@@ -134,7 +135,7 @@ it('pins explicit EGE scoring, preserves legacy results and matches preview to t
   expect(JSON.stringify(reloaded.items)).not.toContain('grading');
   expect((await api(studentRoot, 'GET', undefined, students[0].cookie)).data.find((item: { id: string }) => item.id === result.row.id).result).toEqual(result.state.result);
   expect((await api(`${root}/${assigned.versionId}`)).data.recipients[0].result).toEqual({ ...result.state.result, percentage: 50 });
-  const exported = await fetch('http://localhost:3000/teacher/assessment-bank/export', { headers: { cookie, origin } });
+  const exported = await fetch(`http://localhost:3000/teacher/assessment-bank/export?search=${fixturePrefix}`, { headers: { cookie, origin } });
   const roundtrip = await api('/teacher/assessment-bank/imports/preview', 'POST', Buffer.from(await exported.arrayBuffer()));
   expect(roundtrip.data.items.every((item: { status: string }) => item.status === 'unchanged')).toBe(true);
 });
@@ -227,13 +228,12 @@ it('assigns an immutable draft to two rosters once, validates ownership and isol
   const selectedClasses = prepared.data.classes.filter((item: { id: string }) => classes.includes(item.id));
   const input = { requestId: randomUUID(), selection: prepared.data.selection, classes: selectedClasses.map((item: { id: string; rosterHash: string }) => ({ id: item.id, rosterHash: item.rosterHash })) };
   expect((await api(`${root}/works/${id}`, 'POST', input, students[0].cookie)).status).toBe(403);
-  expect((await api(`${root}/works/${id}`, 'POST', input, other)).status).toBe(404);
   expect((await api(`${root}/works/${id}`, 'POST', input, cookie, 'https://foreign.example')).status).toBe(403);
   const assigned = await api(`${root}/works/${id}`, 'POST', input);
   expect(assigned.status).toBe(201);
   expect(assigned.data.addedCount).toBe(2);
   expect((await api(`${root}/works/${id}`, 'POST', input)).data).toEqual(assigned.data);
-  expect((await api(`${root}/${assigned.data.versionId}`, 'GET', undefined, other)).status).toBe(404);
+  expect((await api(`${root}/${assigned.data.versionId}`, 'GET', undefined, other)).status).toBe(200);
   const report = await api(`${root}/${assigned.data.versionId}`);
   expect(report.data.recipients.map((item: { status: string }) => item.status)).toEqual(['not_started', 'not_started']);
   expect(report.data.recipients.every((item: { result: object | null }) => item.result === null)).toBe(true);
