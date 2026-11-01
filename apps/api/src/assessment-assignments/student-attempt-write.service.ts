@@ -6,6 +6,7 @@ import { WorkSnapshotSchema } from '../assessment-works/assessment-works-read.se
 import { StudentAttemptReadService } from './student-attempt-read.service';
 import { answersSchema, attemptState, inputHash, json } from './assignment-data';
 import { applyAssessmentPresentations } from '../common/assessment-presentation';
+import { lockAssessmentBank } from '../common/assessment-bank-lock';
 import { answerIsFilled, gradeAssessmentAnswer, validateAssessmentAnswer } from '../common/assessment-grading';
 
 @Injectable()
@@ -49,9 +50,7 @@ export class StudentAttemptWriteService {
   }
   finish(studentId: string, id: string, expectedRevision: number) {
     return this.db.$transaction(async (tx) => {
-      const owned = await this.reads.owned(studentId, id, tx);
-      const owner = await tx.assessmentWork.findUniqueOrThrow({ where: { id: owned.version.workId }, select: { teacherId: true } });
-      await tx.$queryRaw`SELECT id FROM users WHERE id = ${owner.teacherId}::uuid FOR UPDATE`;
+      await lockAssessmentBank(tx, 'read');
       const row = await this.lock(tx, studentId, id);
       const snapshot = WorkSnapshotSchema.parse(row.version.data);
       snapshot.items = await applyAssessmentPresentations(tx, snapshot.items);

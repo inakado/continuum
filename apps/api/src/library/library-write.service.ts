@@ -29,7 +29,7 @@ export class LibraryWriteService {
 
   async createSection(teacherId: string, input: CreateSectionInput): Promise<LibrarySection> {
     const order = await this.prisma.section.aggregate({
-      where: { createdById: teacherId, gradeBand: input.gradeBand },
+      where: { gradeBand: input.gradeBand },
       _max: { sortOrder: true },
     });
     const section = await this.prisma.section.create({
@@ -47,14 +47,14 @@ export class LibraryWriteService {
 
   async createLesson(teacherId: string, input: CreateLessonInput): Promise<LessonSummary> {
     const section = await this.prisma.section.findFirst({
-      where: { id: input.sectionId, createdById: teacherId },
+      where: { id: input.sectionId },
       select: { id: true },
     });
     if (!section) throw this.sectionNotFound();
 
     const lesson = await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM sections WHERE id = ${section.id}::uuid FOR UPDATE`;
-      if (!await tx.section.findFirst({ where: { id: section.id, createdById: teacherId } })) throw this.sectionNotFound();
+      if (!await tx.section.findFirst({ where: { id: section.id } })) throw this.sectionNotFound();
       const order = await tx.lesson.aggregate({
         where: { sectionId: section.id },
         _max: { sortOrder: true },
@@ -76,9 +76,9 @@ export class LibraryWriteService {
     };
   }
 
-  async publishSection(teacherId: string, sectionId: string): Promise<PublicationResult> {
+  async publishSection(_teacherId: string, sectionId: string): Promise<PublicationResult> {
     const section = await this.prisma.section.findFirst({
-      where: { id: sectionId, createdById: teacherId },
+      where: { id: sectionId },
       select: { id: true },
     });
     if (!section) throw this.sectionNotFound();
@@ -90,9 +90,9 @@ export class LibraryWriteService {
     });
   }
 
-  async publishLesson(teacherId: string, lessonId: string): Promise<PublicationResult> {
+  async publishLesson(_teacherId: string, lessonId: string): Promise<PublicationResult> {
     const lesson = await this.prisma.lesson.findFirst({
-      where: { id: lessonId, createdById: teacherId },
+      where: { id: lessonId },
       select: { id: true, section: { select: { status: true } } },
     });
     if (!lesson) throw this.lessonNotFound();
@@ -140,12 +140,12 @@ export class LibraryWriteService {
   }
 
   async updateSection(
-    teacherId: string,
+    _teacherId: string,
     sectionId: string,
     input: UpdateSectionInput,
   ): Promise<LibrarySection> {
     const section = await this.prisma.section.findFirst({
-      where: { id: sectionId, createdById: teacherId },
+      where: { id: sectionId },
       select: { id: true },
     });
     if (!section) throw this.sectionNotFound();
@@ -158,12 +158,12 @@ export class LibraryWriteService {
   }
 
   async updateLesson(
-    teacherId: string,
+    _teacherId: string,
     lessonId: string,
     input: UpdateLessonInput,
   ): Promise<LessonSummary> {
     const lesson = await this.prisma.lesson.findFirst({
-      where: { id: lessonId, createdById: teacherId },
+      where: { id: lessonId },
       select: { id: true },
     });
     if (!lesson) throw this.lessonNotFound();
@@ -192,7 +192,7 @@ export class LibraryWriteService {
         message: 'Размер файла не совпадает с запросом.',
       });
     }
-    await this.assertOwnedLesson(teacherId, lessonId);
+    await this.assertLesson(lessonId);
 
     const filename = safeArtifactFilename(input.filename);
     const objectKey = `${this.artifactPrefix(teacherId, lessonId, input.type)}/${randomUUID()}-${filename}`;
@@ -211,7 +211,7 @@ export class LibraryWriteService {
     input: LessonArtifactFileInput & { objectKey: string },
   ): Promise<LessonArtifact> {
     assertLessonArtifactFile(input);
-    await this.assertOwnedLesson(teacherId, lessonId);
+    await this.assertLesson(lessonId);
     const expectedPrefix = `${this.artifactPrefix(teacherId, lessonId, input.type)}/`;
     if (!input.objectKey.startsWith(expectedPrefix)) {
       throw new BadRequestException({
@@ -252,7 +252,7 @@ export class LibraryWriteService {
 
     const result = await this.prisma.$transaction(async (transaction) => {
       await transaction.$queryRaw`SELECT id FROM lessons WHERE id = ${lessonId}::uuid FOR UPDATE`;
-      await this.assertOwnedLesson(teacherId, lessonId, transaction);
+      await this.assertLesson(lessonId, transaction);
       const current = await transaction.lessonArtifact.aggregate({
         where: { lessonId, type: input.type as DbLessonArtifactType },
         _max: { version: true },
@@ -312,7 +312,7 @@ export class LibraryWriteService {
 
     if (!input.enabled) {
       await this.prisma.accessGrant.deleteMany({
-        where: { studentId: student.id, gradeBand: input.gradeBand, grantedById: teacherId },
+        where: { studentId: student.id, gradeBand: input.gradeBand },
       });
       return { grant: null };
     }
@@ -326,7 +326,7 @@ export class LibraryWriteService {
         gradeBand: input.gradeBand,
         grantedById: teacherId,
       },
-      update: { grantedById: teacherId },
+      update: {},
     });
 
     return { grant: this.mapGrant(grant) };
@@ -344,9 +344,9 @@ export class LibraryWriteService {
     };
   }
 
-  private async assertOwnedLesson(teacherId: string, lessonId: string, tx: Prisma.TransactionClient = this.prisma) {
+  private async assertLesson(lessonId: string, tx: Prisma.TransactionClient = this.prisma) {
     const lesson = await tx.lesson.findFirst({
-      where: { id: lessonId, createdById: teacherId },
+      where: { id: lessonId },
       select: { id: true },
     });
     if (!lesson) throw this.lessonNotFound();

@@ -7,6 +7,7 @@ import { ObjectStorageService } from '../infra/storage/object-storage.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AssessmentArchiveError, parseAssessmentArchive } from './assessment-archive';
 import { assessmentBaseline, BaselineSchema, StoredAssessmentImportSchema, type StoredAssessmentTask } from './assessment-bank.mapper';
+import { lockAssessmentBank } from '../common/assessment-bank-lock';
 import { assessmentPolicy } from './assessment-policy';
 import { assessmentCorrectionImpact } from './assessment-correction-impact';
 import { validateAssessmentCorrection, type BankCorrection } from './assessment-correction';
@@ -17,9 +18,6 @@ const json = (value: object): Prisma.InputJsonValue => JSON.parse(JSON.stringify
 export class AssessmentBankWriteService {
   private readonly logger = new Logger(AssessmentBankWriteService.name);
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService, @Inject(ObjectStorageService) private readonly storage: ObjectStorageService) {}
-  private async lock(tx: Prisma.TransactionClient, teacherId: string) {
-    await tx.$queryRaw`SELECT id FROM users WHERE id = ${teacherId}::uuid FOR UPDATE`;
-  }
   private async deleteFiles(entries: StoredAssessmentTask[]) {
     for (const entry of entries) for (const image of entry.images) await this.storage.deleteObject(image.key);
   }
@@ -31,7 +29,7 @@ export class AssessmentBankWriteService {
   }
   async removeMany(teacherId: string, input: AssessmentBankBulkDelete) {
     return this.prisma.$transaction(async tx => {
-      await this.lock(tx, teacherId);
+      await lockAssessmentBank(tx, 'write');
       const items = [];
       for (const item of input.items) items.push(await this.removeTask(tx, teacherId, item.id, item));
       return { items };
@@ -39,14 +37,14 @@ export class AssessmentBankWriteService {
   }
   async restoreMany(teacherId: string, input: AssessmentBankBulkRestore) {
     return this.prisma.$transaction(async tx => {
-      await this.lock(tx, teacherId);
+      await lockAssessmentBank(tx, 'write');
       const items = [];
       for (const item of input.items) items.push(await this.restoreTask(tx, teacherId, item.id, item));
       return { items };
     }, { timeout: 30000 });
   }
-  private async removeTask(tx: Prisma.TransactionClient, teacherId: string, id: string, input: AssessmentBankDelete) {
-    const row = await tx.assessmentBankTask.findFirst({ where: { id, teacherId }, include: { latestVersion: { select: { version: true } } } });
+  private async removeTask(tx: Prisma.TransactionClient, _teacherId: string, id: string, input: AssessmentBankDelete) {
+    const row = await tx.assessmentBankTask.findFirst({ where: { id }, include: { latestVersion: { select: { version: true } } } });
     if (!row) throw new NotFoundException('Задача не найдена.');
     if (row.latestVersion?.version !== input.expectedVersion) throw new ConflictException('Задание изменилось. Закройте окно и проверьте актуальную версию.');
     if (row.deletedAt && row.lifecycleRevision === input.expectedLifecycleRevision + 1) return { id, version: input.expectedVersion, deletionRevision: row.lifecycleRevision };
@@ -54,8 +52,8 @@ export class AssessmentBankWriteService {
     const removed = await tx.assessmentBankTask.update({ where: { id }, data: { deletedAt: new Date(), lifecycleRevision: { increment: 1 } } });
     return { id, version: input.expectedVersion, deletionRevision: removed.lifecycleRevision };
   }
-  private async restoreTask(tx: Prisma.TransactionClient, teacherId: string, id: string, input: AssessmentBankRestore) {
-    const row = await tx.assessmentBankTask.findFirst({ where: { id, teacherId }, include: { latestVersion: { select: { version: true } } } });
+  private async restoreTask(tx: Prisma.TransactionClient, _teacherId: string, id: string, input: AssessmentBankRestore) {
+    const row = await tx.assessmentBankTask.findFirst({ where: { id }, include: { latestVersion: { select: { version: true } } } });
     if (!row) throw new NotFoundException('Задача не найдена.');
     if (row.latestVersion?.version !== input.expectedVersion) throw new ConflictException('Задание изменилось после удаления. Обновите банк, чтобы увидеть актуальную версию.');
     if (!row.deletedAt && row.lifecycleRevision === input.expectedDeletionRevision + 1) return { id };
@@ -70,11 +68,11 @@ export class AssessmentBankWriteService {
   }
   async discard(teacherId: string, id: string) {
     await this.prisma.$transaction(async (tx) => {
-      await this.lock(tx, teacherId);
+      await lockAssessmentBank(tx, 'write');
       const row = await tx.assessmentBankImport.findFirst({ where: { id, teacherId } });
       if (!row) return;
       const entries = StoredAssessmentImportSchema.parse(row.data);
-      const used = row.result ? await tx.assessmentTaskVersion.findMany({ where: { task: { teacherId, stableId: { in: entries.map((entry) => entry.task.id) } } }, select: { data: true } }) : [];
+      const used = row.result ? await tx.assessmentTaskVersion.findMany({ where: { task: { stableId: { in: entries.map((entry) => entry.task.id) } } }, select: { data: true } }) : [];
       const referenced = new Set(used.flatMap((version) => StoredAssessmentImportSchema.element.parse(version.data).images.map((image) => image.key)));
       await this.deleteFiles(entries.map((entry) => ({ ...entry, images: entry.images.filter((image) => !referenced.has(image.key)) })));
       await tx.assessmentBankImport.delete({ where: { id } });
@@ -107,7 +105,7 @@ export class AssessmentBankWriteService {
           await this.storage.putObject({ key, body: image.bytes, contentType: image.contentType, cacheControl: 'private, no-store' });
         }
       }
-      const current = await this.prisma.assessmentBankTask.findMany({ where: { teacherId, stableId: { in: entries.map((entry) => entry.task.id) } }, select: { stableId: true, deletedAt: true, latestVersion: { select: { contentHash: true, version: true } } } });
+      const current = await this.prisma.assessmentBankTask.findMany({ where: { stableId: { in: entries.map((entry) => entry.task.id) } }, select: { stableId: true, deletedAt: true, latestVersion: { select: { contentHash: true, version: true } } } });
       const byId = new Map(current.map((row) => [row.stableId, row]));
       const baseline = Object.fromEntries(entries.map((entry) => { const previous = byId.get(entry.task.id); return [entry.task.id, assessmentBaseline(previous?.latestVersion?.contentHash, previous?.deletedAt)]; }));
       await this.prisma.assessmentBankImport.update({ where: { id }, data: { baseline: json(baseline) } });
@@ -134,7 +132,7 @@ export class AssessmentBankWriteService {
   }
   async confirm(teacherId: string, id: string, correction?: BankCorrection) {
     const result = await this.prisma.$transaction(async (tx) => {
-      await this.lock(tx, teacherId);
+      await lockAssessmentBank(tx, 'write');
       const preview = await tx.assessmentBankImport.findFirst({ where: { id, teacherId } });
       if (!preview) throw new NotFoundException('Проверка пакета не найдена.');
       if (preview.result) {
@@ -149,7 +147,7 @@ export class AssessmentBankWriteService {
       if (regrade && correction?.expectedImpactHash !== regrade.impact.hash) throw new ConflictException('Результаты изменились после предпросмотра. Обновите предварительный пересчёт и подтвердите его заново.');
       const baseline = BaselineSchema.parse(preview.baseline);
       if (entries.some((entry) => !(entry.task.id in baseline))) throw new ConflictException('Загрузка пакета ещё не завершена.');
-      const current = await tx.assessmentBankTask.findMany({ where: { teacherId, stableId: { in: entries.map((entry) => entry.task.id) } }, select: { id: true, stableId: true, deletedAt: true, latestVersion: { select: { contentHash: true, version: true } } } });
+      const current = await tx.assessmentBankTask.findMany({ where: { stableId: { in: entries.map((entry) => entry.task.id) } }, select: { id: true, stableId: true, deletedAt: true, latestVersion: { select: { contentHash: true, version: true } } } });
       const byId = new Map(current.map((row) => [row.stableId, row]));
       const result = { added: 0, updated: 0, unchanged: 0, taskIds: [] as string[], items: [] as { taskId: string; version: number }[], gradeBands: [...new Set(entries.map((entry) => entry.task.gradeBand))],
         ...(correction ? { correction: { taskId: correction.taskId, sourceVersion: correction.expectedVersion, ...(regrade ? { impact: regrade.impact } : {}) } } : {}) };

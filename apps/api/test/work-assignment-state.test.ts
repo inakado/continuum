@@ -20,5 +20,5 @@ it('projects assignment presence independently of editing revisions and archive 
     { id: 'assigned', hasAssignments: true, isArchived: false, canDelete: false },
     { id: 'archived-assigned', hasAssignments: true, isArchived: true, canDelete: false },
   ]);
-  expect(db.assessmentWork.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { teacherId: 'teacher', deletedAt: null } }));
+  expect(db.assessmentWork.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { deletedAt: null } }));
 });

@@ -13,9 +13,9 @@ export class LibraryDeleteService {
       throw new ConflictException({ code: 'LIBRARY_CONTENT_CHANGED', message: 'Содержимое изменилось. Закройте окно и повторите удаление.' });
     }
   }
-  private async lesson(tx: Prisma.TransactionClient, teacherId: string, id: string) {
-    await tx.$queryRaw`SELECT id FROM lessons WHERE id = ${id}::uuid AND created_by_id = ${teacherId}::uuid FOR UPDATE`;
-    const row = await tx.lesson.findFirst({ where: { id, createdById: teacherId }, include: { artifacts: true, tasks: true } });
+  private async lesson(tx: Prisma.TransactionClient, id: string) {
+    await tx.$queryRaw`SELECT id FROM lessons WHERE id = ${id}::uuid FOR UPDATE`;
+    const row = await tx.lesson.findFirst({ where: { id }, include: { artifacts: true, tasks: true } });
     if (!row) throw new NotFoundException('Занятие не найдено.');
     return row;
   }
@@ -28,9 +28,9 @@ export class LibraryDeleteService {
   private lessonAssets(row: { artifacts: { assetId: string }[]; tasks: { imageAssetId: string | null; diagramSceneAssetId: string | null; diagramPreviewAssetId: string | null }[] }) {
     return [...row.artifacts.map((file) => file.assetId), ...row.tasks.flatMap((task) => [task.imageAssetId, task.diagramSceneAssetId, task.diagramPreviewAssetId].filter((id): id is string => id !== null))];
   }
-  async pdf(teacherId: string, id: string, type: 'pdf' | 'tasks_pdf', input: DeleteLibraryInput) {
+  async pdf(_teacherId: string, id: string, type: 'pdf' | 'tasks_pdf', input: DeleteLibraryInput) {
     await this.db.$transaction(async (tx) => {
-      const lesson = await this.lesson(tx, teacherId, id);
+      const lesson = await this.lesson(tx, id);
       const artifacts = lesson.artifacts.filter((file) => file.type === type);
       this.matches(artifacts.map((file) => file.id), input);
       await tx.lessonArtifact.deleteMany({ where: { lessonId: id, type } });
@@ -39,9 +39,9 @@ export class LibraryDeleteService {
     this.cleanup.kick();
     return { id };
   }
-  async removeLesson(teacherId: string, id: string, input: DeleteLibraryInput) {
+  async removeLesson(_teacherId: string, id: string, input: DeleteLibraryInput) {
     await this.db.$transaction(async (tx) => {
-      const row = await this.lesson(tx, teacherId, id);
+      const row = await this.lesson(tx, id);
       this.matches(row.artifacts.map((file) => file.id), input);
       await tx.lesson.delete({ where: { id } });
       await this.assets(tx, this.lessonAssets(row));
@@ -49,15 +49,15 @@ export class LibraryDeleteService {
     this.cleanup.kick();
     return { id };
   }
-  async section(teacherId: string, id: string, input: DeleteLibraryInput) {
+  async section(_teacherId: string, id: string, input: DeleteLibraryInput) {
     await this.db.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT id FROM sections WHERE id = ${id}::uuid AND created_by_id = ${teacherId}::uuid FOR UPDATE`;
-      if (!await tx.section.findFirst({ where: { id, createdById: teacherId } })) throw new NotFoundException('Раздел не найден.');
+      await tx.$queryRaw`SELECT id FROM sections WHERE id = ${id}::uuid FOR UPDATE`;
+      if (!await tx.section.findFirst({ where: { id } })) throw new NotFoundException('Раздел не найден.');
       const lessons = await tx.lesson.findMany({ where: { sectionId: id }, orderBy: { id: 'asc' } });
       this.matches(lessons.map((row) => row.id), input);
       const assets: string[] = [];
       for (const item of lessons) {
-        const row = await this.lesson(tx, teacherId, item.id);
+        const row = await this.lesson(tx, item.id);
         assets.push(...this.lessonAssets(row));
         await tx.lesson.delete({ where: { id: row.id } });
       }

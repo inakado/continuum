@@ -25,9 +25,9 @@ async function login(username: string, password: string) {
   expect(response.status).toBe(200);
   return response.headers.getSetCookie().map((value) => value.split(';')[0]).join('; ');
 }
-async function upload(type: 'pdf' | 'tasks_pdf', id = lesson) {
+async function upload(type: 'pdf' | 'tasks_pdf', id = lesson, session = cookie) {
   const bytes = Buffer.from('%PDF-1.4\nfixture deletion test');
-  const response = await fetch(`http://localhost:3000${root}/lessons/${id}/artifacts/upload?${new URLSearchParams({ type, filename: 'fixture.pdf', sizeBytes: String(bytes.length) })}`, { method: 'PUT', headers: { cookie, origin, 'Content-Type': 'application/pdf' }, body: bytes });
+  const response = await fetch(`http://localhost:3000${root}/lessons/${id}/artifacts/upload?${new URLSearchParams({ type, filename: 'fixture.pdf', sizeBytes: String(bytes.length) })}`, { method: 'PUT', headers: { cookie: session, origin, 'Content-Type': 'application/pdf' }, body: bytes });
   const data = await response.json(); expect(response.status).toBe(200);
   const artifact = await db.lessonArtifact.findUniqueOrThrow({ where: { id: data.id }, include: { asset: true } });
   keys.push(artifact.asset.objectKey);
@@ -65,18 +65,41 @@ describe('library deletion: HTTP + PostgreSQL + S3', () => {
     await db.user.deleteMany({ where: { id: { in: [...teachers, ...students] } } });
     await db.$disconnect();
   }, 30000);
-  it('проверяет роль, владельца, origin и строгий контракт', async () => {
+  it('проверяет роль, origin и строгий контракт', async () => {
     const path = `${root}/lessons/${lesson}`, body = { expectedIds: [] };
     expect((await request(path, 'DELETE', body, '')).status).toBe(401);
     expect((await request(path, 'DELETE', body, student)).status).toBe(403);
-    expect((await request(path, 'DELETE', body, other)).status).toBe(404);
+    expect((await request(path, 'GET', undefined, other)).status).toBe(200);
     expect((await request(path, 'DELETE', body, cookie, 'https://foreign.example')).status).toBe(403);
     expect((await request(path, 'DELETE', {})).status).toBe(400);
     expect((await request(path, 'DELETE', { expectedIds: [randomUUID(), 'broken'] })).status).toBe(400);
     expect((await request(`${path}/artifacts/interactive`, 'DELETE', body)).status).toBe(400);
     expect(await db.lesson.count({ where: { id: lesson } })).toBe(1);
   });
+  it('делит черновики, изменения и доступ к параллели между преподавателями', async () => {
+    const studentId = students[0];
+    expect((await request(root, 'GET', undefined, other)).data.gradeBands.flatMap((band: { sections: { id: string }[] }) => band.sections)).toEqual(expect.arrayContaining([expect.objectContaining({ id: section })]));
+    expect((await request(`/student/library/lessons/${lesson}`, 'GET', undefined, student)).status).toBe(404);
+    expect((await request(`${root}/lessons/${lesson}`, 'PATCH', { title: 'Общее занятие' }, other)).status).toBe(200);
+    expect((await request(`${root}/sections/${section}`, 'PATCH', { title: 'Общий раздел' }, other)).status).toBe(200);
+    expect((await request(`${root}/access-grants`, 'PUT', { studentId, gradeBand: 'grade_10_11', enabled: true }, other)).status).toBe(200);
+    expect((await db.accessGrant.findUniqueOrThrow({ where: { studentId_gradeBand: { studentId, gradeBand: 'grade_10_11' } } })).grantedById).toBe(teachers[0]);
+    for (const session of [cookie, other]) expect((await request('/teacher/students', 'GET', undefined, session)).data.students).toEqual(expect.arrayContaining([expect.objectContaining({ id: studentId, gradeBands: ['grade_10_11'] })]));
+    const artifact = await upload('pdf', lesson, other);
+    expect((await request(`${root}/artifacts/${artifact}/view`)).status).toBe(200);
+    await request(`${root}/sections/${section}/publish`, 'PATCH', undefined, other);
+    await request(`${root}/lessons/${lesson}/publish`, 'PATCH', undefined, other);
+    expect((await request(`/student/library/artifacts/${artifact}/view`, 'GET', undefined, student)).status).toBe(200);
+    await request(`${root}/access-grants`, 'PUT', { studentId, gradeBand: 'grade_10_11', enabled: false }, other);
+    expect((await request(`/student/library/lessons/${lesson}`, 'GET', undefined, student)).status).toBe(404);
+    expect((await request(`/student/library/artifacts/${artifact}/view`, 'GET', undefined, student)).status).toBe(404);
+    await request(`${root}/access-grants`, 'PUT', { studentId, gradeBand: 'grade_10_11', enabled: true }, other);
+    // The grantor changed after a real revoke/regrant; the library stays the same.
+    expect((await request(`/student/library/lessons/${lesson}`, 'GET', undefined, student)).status).toBe(200);
+    await request(`${root}/lessons/${lesson}/artifacts/pdf`, 'DELETE', { expectedIds: [artifact] }, other);
+  }, 30000);
   it('удаляет все версии конспекта, не возвращает старую при публикации и сохраняет задачи', async () => {
+    const start = keys.length;
     const first = await upload('pdf'), second = await upload('pdf'), tasks = await upload('tasks_pdf');
     await request(`${root}/sections/${section}/publish`, 'PATCH');
     await request(`${root}/lessons/${lesson}/publish`, 'PATCH');
@@ -84,15 +107,15 @@ describe('library deletion: HTTP + PostgreSQL + S3', () => {
     const path = `${root}/lessons/${lesson}/artifacts/pdf`;
     expect((await request(path, 'DELETE', { expectedIds: [first] })).status).toBe(409);
     expect((await request(path, 'DELETE', { expectedIds: [first, first] })).status).toBe(400);
-    expect((await request(path, 'DELETE', { expectedIds: [first, second] })).status).toBe(200);
+    expect((await request(path, 'DELETE', { expectedIds: [first, second] }, other)).status).toBe(200);
     expect(await db.lessonArtifact.count({ where: { lessonId: lesson, type: 'pdf' } })).toBe(0);
     await request(`${root}/lessons/${lesson}/publish`, 'PATCH');
     expect((await request(`/student/library/artifacts/${second}/view`, 'GET', undefined, student)).status).toBe(404);
     expect((await request(`/student/library/artifacts/${tasks}/view`, 'GET', undefined, student)).status).toBe(200);
     await new LibraryAssetCleanupService(db, storage).flush();
-    expect((await storage.getObjectMeta(keys[0])).exists).toBe(false);
-    expect((await storage.getObjectMeta(keys[1])).exists).toBe(false);
-    expect((await storage.getObjectMeta(keys[2])).exists).toBe(true);
+    expect((await storage.getObjectMeta(keys[start])).exists).toBe(false);
+    expect((await storage.getObjectMeta(keys[start + 1])).exists).toBe(false);
+    expect((await storage.getObjectMeta(keys[start + 2])).exists).toBe(true);
   }, 30000);
   it('не удаляет изменённое занятие и сохраняет общий asset с другой живой ссылкой', async () => {
     const before = await db.lessonArtifact.findMany({ where: { lessonId: lesson } });

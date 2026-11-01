@@ -1,3 +1,4 @@
+import { isolatedArchive, fixtureId } from './assessment-archive.fixture';
 import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -42,7 +43,7 @@ beforeAll(async () => {
     else { student = await login(username); await db.studentProfile.update({ where: { userId: result.user.id }, data: { classId } }); }
   }
   for (const name of ['extended', 'pilot']) {
-    const bytes = await readFile(resolve(__dirname, `../../../../output/assessment-package-${name}-v1.zip`));
+    const bytes = await isolatedArchive(await readFile(resolve(__dirname, `../../../../output/assessment-package-${name}-v1.zip`)));
     const preview = await api('/teacher/assessment-bank/imports/preview', 'POST', bytes, teacher, 'application/zip');
     expect(preview.data.issues).toEqual([]);
     const imported = await api(`/teacher/assessment-bank/imports/${preview.data.id}/confirm`, 'POST');
@@ -93,14 +94,14 @@ it('imports an extended task, receives several photos, isolates access and keeps
   expect(first.status).toBe(200);
   expect(first.data[0]).toMatchObject({ taskId: extendedId, revision: 1, maxPoints: 2, photos: [{ id: photoId }] });
   expect((await api(upload, 'PUT', image, student, 'image/png')).data[0].revision).toBe(1);
-  expect((await api(work.root, 'GET', undefined, otherTeacher)).status).toBe(404);
+  expect((await api(work.root, 'GET', undefined, otherTeacher)).status).toBe(200);
   expect((await api(work.root, 'GET', undefined, otherStudent)).status).toBe(404);
   expect((await api(work.root)).data).toEqual(first.data);
-  const exported = await fetch('http://localhost:3000/teacher/assessment-bank/export?type=extended', { headers: { cookie: teacher, origin } });
+  const exported = await fetch('http://localhost:3000/teacher/assessment-bank/export?type=extended&search=' + fixtureId('shkolkovo-14449'), { headers: { cookie: teacher, origin } });
   expect(exported.status).toBe(200);
   const roundtrip = await api('/teacher/assessment-bank/imports/preview', 'POST', Buffer.from(await exported.arrayBuffer()), teacher, 'application/zip');
   expect(roundtrip.data.issues).toEqual([]);
-  expect(roundtrip.data.items).toEqual([expect.objectContaining({ stableId: 'shkolkovo-14449', status: 'unchanged' })]);
+  expect(roundtrip.data.items).toEqual([expect.objectContaining({ stableId: fixtureId('shkolkovo-14449'), status: 'unchanged' })]);
   const photoUrl = `http://localhost:3000${first.data[0].photos[0].url}`;
   const picture = await fetch(photoUrl, { headers: { cookie: teacher, origin } });
   expect(picture.status).toBe(200);

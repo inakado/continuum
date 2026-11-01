@@ -31,7 +31,7 @@ export default function TeacherWorksScreen() {
     if (work) router.push(`/teacher/works/${work.id}`);
   }
   const works = query.data?.filter((work) => Boolean(work.isArchived) === archived && work.title.toLocaleLowerCase('ru').includes(search.toLocaleLowerCase('ru'))) ?? [];
-  return <WorksShell><div className={styles.heading}><div><h1>Работы</h1><p>Состав и порядок заданий из вашего банка</p></div><button className={styles.primary} disabled={create.isPending} onClick={() => void newWork()}><Plus size={18} />{create.isPending ? 'Создаём…' : create.error ? 'Повторить создание' : 'Создать работу'}</button></div>
+  return <WorksShell><div className={styles.heading}><div><h1>Работы</h1><p>Состав и порядок заданий из общего банка</p></div><button className={styles.primary} disabled={create.isPending} onClick={() => void newWork()}><Plus size={18} />{create.isPending ? 'Создаём…' : create.error ? 'Повторить создание' : 'Создать работу'}</button></div>
     <WorkTabs active="works" />
     {create.error && <p role="alert" className={styles.error}>{apiErrorMessage(create.error, 'Не удалось создать работу. Повторите попытку.')}</p>}
     <div className={styles.listFilters}><label className={styles.search}>Поиск<SearchField inputRef={searchInput} placeholder="Название работы" label="Поиск работ" maxLength={200} value={search} onValueChange={(search) => update({ search }, true)} /></label><label className={styles.stateFilter}>Показывать<WorkSelect value={archived ? 'archived' : 'active'} onChange={(event) => update({ archived: event.target.value === 'archived' })}><option value="active">Текущие работы</option><option value="archived">Архив</option></WorkSelect></label></div>

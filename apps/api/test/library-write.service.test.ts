@@ -27,7 +27,7 @@ const makePrisma = () => ({
 });
 
 describe('LibraryWriteService', () => {
-  it('does not create a lesson in another teacher section', async () => {
+  it('does not create a lesson in a missing section', async () => {
     const prisma = makePrisma();
     prisma.section.findFirst.mockResolvedValue(null);
     const service = new LibraryWriteService(prisma as unknown as PrismaService);
@@ -36,7 +36,7 @@ describe('LibraryWriteService', () => {
       service.createLesson(teacherId, { sectionId, title: 'Кинематика' }),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(prisma.section.findFirst).toHaveBeenCalledWith({
-      where: { id: sectionId, createdById: teacherId },
+      where: { id: sectionId },
       select: { id: true },
     });
     expect(prisma.lesson.create).not.toHaveBeenCalled();
@@ -57,7 +57,7 @@ describe('LibraryWriteService', () => {
     expect(storage.putObject).not.toHaveBeenCalled();
   });
 
-  it('does not store a file for another teacher lesson', async () => {
+  it('does not store a file for a missing lesson', async () => {
     const prisma = makePrisma();
     prisma.lesson.findFirst.mockResolvedValue(null);
     const storage = { putObject: vi.fn() };
@@ -86,7 +86,7 @@ describe('LibraryWriteService', () => {
     expect(prisma.lesson.update).not.toHaveBeenCalled();
   });
 
-  it('does not grant access to another teacher student', async () => {
+  it('does not grant access to a missing or inactive student', async () => {
     const prisma = makePrisma();
     prisma.user.findFirst.mockResolvedValue(null);
     const service = new LibraryWriteService(prisma as unknown as PrismaService);

@@ -10,7 +10,7 @@ export function grantClassLibrary(tx: Prisma.TransactionClient, studentId: strin
   const gradeBand = classGradeBand(grade);
   return tx.accessGrant.upsert({
     where: { studentId_gradeBand: { studentId, gradeBand } },
-    create: { studentId, gradeBand, grantedById: teacherId }, update: { grantedById: teacherId },
+    create: { studentId, gradeBand, grantedById: teacherId }, update: {},
   });
 }
 

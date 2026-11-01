@@ -5,6 +5,7 @@ import { isTransactionWriteConflict, retryTransaction } from '../prisma/transact
 import { AssessmentWorksReadService } from '../assessment-works/assessment-works-read.service';
 import { AssessmentWorksWriteService } from '../assessment-works/assessment-works-write.service';
 import { AssignmentRosterService } from './assignment-roster.service';
+import { lockAssessmentBank } from '../common/assessment-bank-lock';
 import { inputHash, json } from './assignment-data';
 
 export const isAssignmentWriteConflict = isTransactionWriteConflict;
@@ -25,10 +26,11 @@ export class AssignmentWriteService {
   }
   private assignOnce(teacherId: string, workId: string, input: AssignmentCreate) {
     return this.db.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT id FROM assessment_works WHERE id = ${workId}::uuid AND teacher_id = ${teacherId}::uuid FOR UPDATE`;
-      const current = await this.works.owned(teacherId, workId, tx);
+      await lockAssessmentBank(tx, 'read');
+      await tx.$queryRaw`SELECT id FROM assessment_works WHERE id = ${workId}::uuid FOR UPDATE`;
+      const current = await this.works.accessible(teacherId, workId, tx);
       const previous = await tx.assessmentAssignmentRequest.findUnique({ where: { id: input.requestId } });
-      const hash = inputHash(input);
+      const hash = inputHash({ teacherId, input });
       if (previous) {
         if (previous.workId !== workId || previous.inputHash !== hash) throw new ConflictException('Ключ назначения уже использован с другими данными.');
         if (previous.invalidatedAt) throw new ConflictException('Назначения этой работы изменились после отзыва. Проверьте получателей и назначьте работу заново.');

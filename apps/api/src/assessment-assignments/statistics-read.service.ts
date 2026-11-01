@@ -17,8 +17,8 @@ const recipientFields = { id: true, assignmentId: true, studentName: true, stude
 @Injectable()
 export class StatisticsReadService {
   constructor(@Inject(PrismaService) private readonly db: PrismaService, @Inject(SolutionReadService) private readonly solutions: SolutionReadService) {}
-  private async owned(tx: Prisma.TransactionClient, teacherId: string, id: string) {
-    const row = await tx.assessmentWorkVersion.findFirst({ where: { id, work: { teacherId }, assignments: { some: {} } }, include });
+  private async accessible(tx: Prisma.TransactionClient, _teacherId: string, id: string) {
+    const row = await tx.assessmentWorkVersion.findFirst({ where: { id, assignments: { some: {} } }, include });
     if (!row) throw new NotFoundException('Статистика работы недоступна.');
     return row;
   }
@@ -41,7 +41,7 @@ export class StatisticsReadService {
   }
   report(teacherId: string, id: string): Promise<AssessmentStatistics> {
     return this.db.$transaction(async (tx) => {
-      const row = await this.owned(tx, teacherId, id);
+      const row = await this.accessible(tx, teacherId, id);
       const snapshot = WorkSnapshotSchema.parse(row.data);
       const items = await applyAssessmentPresentations(tx, snapshot.items);
       snapshot.items = items;
@@ -61,7 +61,7 @@ export class StatisticsReadService {
   }
   detail(teacherId: string, id: string, taskId: string, recipientId?: string): Promise<StatisticsTaskDetail> {
     return this.db.$transaction(async (tx) => {
-      const row = await this.owned(tx, teacherId, id);
+      const row = await this.accessible(tx, teacherId, id);
       const snapshot = WorkSnapshotSchema.parse(row.data);
       const items = await applyAssessmentPresentations(tx, snapshot.items);
       snapshot.items = items;

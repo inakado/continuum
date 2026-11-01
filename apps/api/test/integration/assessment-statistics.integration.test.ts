@@ -60,9 +60,9 @@ it('loads the pinned condition, selected answer and actual published review only
   expect(StatisticsTaskDetailSchema.parse((await api(`/items/${fixture.items[2].taskId}?recipient=${stored.id}`)).data).student?.solution?.publishedReview?.points).toBe(1);
   expect(await db.assessmentRecipient.findUniqueOrThrow({ where: { id: stored.id } })).toEqual(stored);
 });
-it('enforces teacher ownership, role, task membership and recipient membership on every route', async () => {
+it('shares teacher reports and enforces role, task membership and recipient membership on every route', async () => {
   for (const path of ['', `/items/${fixture.items[0].taskId}`]) {
-    expect((await api(path, other)).status).toBe(404);
+    expect((await api(path, other)).status).toBe(200);
     expect((await api(path, learner)).status).toBe(403);
     expect((await api(path, '')).status).toBe(401);
   }

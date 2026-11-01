@@ -42,7 +42,7 @@ export class AssessmentDuplicateReadService {
 }
 
 export type DuplicateInput = { stable_id: string; title: string; source: AssessmentPackageTask['source']; statement: string };
-export function assessmentDuplicateQuery(teacherId: string, input: DuplicateInput[]) {
+export function assessmentDuplicateQuery(_teacherId: string, input: DuplicateInput[]) {
   return Prisma.sql`
           WITH normalized AS MATERIALIZED (
             SELECT stable_id, title, source,
@@ -57,7 +57,7 @@ export function assessmentDuplicateQuery(teacherId: string, input: DuplicateInpu
                 (lower(btrim(normalize(v.data#>>'{task,source,provider}', NFC))) = i.provider AND lower(btrim(normalize(v.data#>>'{task,source,externalId}', NFC))) = i.external_id) IS TRUE AS same_source,
                 btrim(regexp_replace(normalize(v.data->>'statement', NFC), '[[:space:]]+', ' ', 'g')) = i.statement AS same_statement
               FROM assessment_task_versions v JOIN assessment_bank_tasks b ON b.latest_version_id = v.id
-              WHERE b.teacher_id = ${teacherId}::uuid AND b.deleted_at IS NULL AND b.stable_id <> i.stable_id
+              WHERE b.deleted_at IS NULL AND b.stable_id <> i.stable_id
                 AND ((lower(btrim(normalize(v.data#>>'{task,source,provider}', NFC))) = i.provider AND lower(btrim(normalize(v.data#>>'{task,source,externalId}', NFC))) = i.external_id)
                   OR (md5(btrim(regexp_replace(normalize(v.data->>'statement', NFC), '[[:space:]]+', ' ', 'g'))) = i.statement_hash
                     AND btrim(regexp_replace(normalize(v.data->>'statement', NFC), '[[:space:]]+', ' ', 'g')) = i.statement))

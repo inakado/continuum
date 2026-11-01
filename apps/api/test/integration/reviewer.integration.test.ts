@@ -205,7 +205,7 @@ it('downloads actual photos/images and publishes only complete current reviews; 
   expect(published.status).toBe(201); expect(published.data.items[0].points).toBe(0);
   expect((await api('/reviewer/v1/publications', 'POST', publishInput, secondKey)).data).toEqual(published.data);
   expect((await api(studentPath, 'GET', undefined, '', student)).data).toEqual(pdf);
-  expect((await api(studentPath, 'GET', undefined, '', colleague)).status).toBe(404);
+  expect((await api(studentPath, 'GET', undefined, '', colleague)).status).toBe(200);
   expect((await api(`/assessment-solutions/${recipientId}/items/${taskId}/photos/${randomUUID()}?revision=2`, 'PUT', photo, '', student, 'image/png')).status).toBe(409);
   const other = (await api(`/reviewer/v1/solutions/${solutions[1]}`)).data;
   expect((await api(`/assessment-solutions/${recipientId}/items/${other.taskId}/photos/${randomUUID()}?revision=1`, 'PUT', photo, '', student, 'image/png')).status).toBe(200);

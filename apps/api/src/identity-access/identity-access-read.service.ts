@@ -16,7 +16,7 @@ type ManagedStudentRecord = {
 export class IdentityAccessReadService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
-  async getStudents(teacherId: string): Promise<TeacherStudents> {
+  async getStudents(_teacherId: string): Promise<TeacherStudents> {
     const students = await this.prisma.user.findMany({
       where: {
         role: Role.student,
@@ -30,7 +30,6 @@ export class IdentityAccessReadService {
         isActive: true,
         studentProfile: { select: { lifecycleRevision: true, firstName: true, lastName: true, middleName: true, classId: true } },
         accessGrants: {
-          where: { grantedById: teacherId },
           orderBy: { gradeBand: 'asc' },
           select: { gradeBand: true },
         },

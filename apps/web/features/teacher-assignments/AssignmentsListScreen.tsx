@@ -22,6 +22,6 @@ export default function AssignmentsListScreen() {
         {item.automaticTaskCount > 0 && <span>Тест завершили: {item.completedCount} из {item.studentCount}</span>}
         {item.extendedTaskCount > 0 && <><span>Все решения: {item.allPhotosCount} из {item.studentCount} учеников</span><span>Решения проверены: {item.allReviewsPublishedCount} из {item.studentCount} учеников</span></>}
       </div>
-    </Link></li>)}</ul> : query.data && <div className={ui.empty}><h2>{search ? 'Ничего не найдено' : 'Пока нет назначений'}</h2>{!search && <p>Выберите работу во вкладке «Мои работы» и назначьте её классам.</p>}</div>}
+    </Link></li>)}</ul> : query.data && <div className={ui.empty}><h2>{search ? 'Ничего не найдено' : 'Пока нет назначений'}</h2>{!search && <p>Выберите работу во вкладке «Библиотека работ» и назначьте её классам.</p>}</div>}
   </WorksShell>;
 }

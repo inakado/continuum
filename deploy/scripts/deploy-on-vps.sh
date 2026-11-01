@@ -15,7 +15,9 @@ activation_started=no
 finish() {
   local status=$?
   trap - EXIT
-  if [ "$status" -ne 0 ] && [ "$activation_started" = yes ]; then rollback || true; fi
+  if [ "$status" -ne 0 ] && [ "$activation_started" = yes ]; then
+    echo "Activation failed for $fingerprint; runtime and database are preserved. Deploy a corrected release." >&2
+  fi
   if ! python3 deploy/scripts/prune-releases.py "$APP_DIR/deploy" --temporary-only; then
     echo 'Temporary deployment cleanup failed' >&2
     if [ "$status" -eq 0 ]; then status=1; fi
@@ -107,17 +109,6 @@ fi
 cp "$prepared/release.json" "$state/candidate.json"
 if [ "${PREPARE_ONLY:-no}" = yes ]; then echo "Prepared $fingerprint; runtime unchanged"; exit 0; fi
 export CONTINUUM_API_IMAGE="$image"
-rollback() {
-  echo 'Activation failed; restoring previous runtime (database is not reset)' >&2
-  if [ -n "$old_web" ]; then
-    ln -sfn "$old_web" "$state/web-rollback"
-    mv -Tf "$state/web-rollback" "$APP_DIR/deploy/current"
-  else
-    rm -f "$APP_DIR/deploy/current"
-  fi
-  CONTINUUM_API_IMAGE="$old_image" "${compose[@]}" up -d --no-build --pull never --no-deps api || true
-  sudo -n systemctl restart continuum-web || true
-}
 activation_started=yes
 if [ -n "$pending" ]; then
   "${compose[@]}" stop api

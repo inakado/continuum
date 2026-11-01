@@ -18,6 +18,7 @@ beforeAll(async () => {
   for (let owner = 0; owner < 2; owner++) {
     const result = await new IdentityProvisioningService(prisma).createTeacher({ login: `topics-${randomUUID()}`, password: 'Topics-test-12345', firstName: 'Тест', lastName: 'Темы', middleName: null });
     teacherIds.push(result.user.id);
+    if (owner > 0) continue;
     for (const [index, topicPath] of paths.entries()) {
       const taskId = randomUUID(), id = `topics-${index}`;
       const task = { id, title: id, type: 'short_number', gradeBand: 'grade_10_11', topicPath, maxPoints: 1, source: { provider: 'Проверка тем', exam: 'none' }, grading: { answer: '1', absoluteTolerance: 0 } };
@@ -36,6 +37,7 @@ it('matches a path prefix, including its own tasks, with the same semantics in e
   const query = AssessmentBankQuerySchema.parse({ topicPath: JSON.stringify(['Механика']), source: 'Проверка тем', exam: 'none' });
   const list = await service.list(teacherIds[0], query);
   expect(list.total).toBe(3);
+  expect(await service.list(teacherIds[1], query)).toEqual(list);
   expect(list.tasks.map((task) => task.stableId)).toEqual(['topics-0', 'topics-1', 'topics-2']);
   expect(list.topicPaths).toEqual(expect.arrayContaining(paths));
   const exported = await parseAssessmentArchive(await service.export(teacherIds[0], query));

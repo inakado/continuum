@@ -1,3 +1,4 @@
+import { isolatedArchive, fixturePrefix } from './assessment-archive.fixture';
 import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -39,7 +40,7 @@ beforeAll(async () => {
   studentId = student.user.id;
   const studentSession = await createBetterAuth(db).api.signInUsername({ body: { username: studentLogin, password: 'Local-works-123' }, asResponse: true, headers: new Headers({ origin }) });
   studentCookie = studentSession.headers.getSetCookie().map((value) => value.split(';')[0]).join('; ');
-  const pilot = await readFile(resolve(__dirname, '../../../../output/assessment-package-pilot-v1.zip'));
+  const pilot = await isolatedArchive(await readFile(resolve(__dirname, '../../../../output/assessment-package-pilot-v1.zip')));
   const preview = await api('/teacher/assessment-bank/imports/preview', 'POST', pilot);
   const imported = await api(`/teacher/assessment-bank/imports/${preview.data.id}/confirm`, 'POST');
   refs = imported.data.taskIds.map((taskId: string) => ({ taskId, version: 1 }));
@@ -82,7 +83,6 @@ it('checks trial answers using server grading without persisting work, attempts,
   const before = await db.assessmentWork.findUniqueOrThrow({ where: { id: workId } });
   expect((await api(checkPath, 'POST', input, '')).status).toBe(401);
   expect((await api(checkPath, 'POST', input, studentCookie)).status).toBe(403);
-  expect((await api(checkPath, 'POST', input, other)).status).toBe(404);
   expect((await api(checkPath, 'POST', input, cookie, 'https://foreign.example')).status).toBe(403);
   for (const invalid of [{ ...input, grading: {} }, { ...input, taskId: randomUUID() }, { ...input, answer: { type: 'short_text', value: 'wrong type' } }]) expect((await api(checkPath, 'POST', invalid)).status).toBe(400);
   for (const item of detail.items) {
@@ -112,7 +112,7 @@ it('checks trial answers using server grading without persisting work, attempts,
   expect(await db.assessmentRecipient.count({ where: { version: { workId } } })).toBe(0);
 });
 
-it('creates a resumable draft, isolates owners and rejects empty immutable versions', async () => {
+it('creates a resumable draft, shares drafts across teachers and rejects empty immutable versions', async () => {
   expect((await api(root, 'GET', undefined, '')).status).toBe(401);
   expect((await api(root, 'GET', undefined, studentCookie)).status).toBe(403);
   const body = { id, title: 'Проверочная работа', gradeBand: 'grade_10_11' };
@@ -120,7 +120,7 @@ it('creates a resumable draft, isolates owners and rejects empty immutable versi
   expect(created.status).toBe(201);
   expect(created.data).toMatchObject({ id, revision: 1, taskCount: 0, items: [] });
   expect((await api(root, 'POST', body)).data.id).toBe(id);
-  expect((await api(`${root}/${id}`, 'GET', undefined, other)).status).toBe(404);
+  expect((await api(`${root}/${id}`, 'GET', undefined, other)).status).toBe(200);
   expect((await api(`${root}/${id}`, 'GET', undefined, studentCookie)).status).toBe(403);
   expect((await api(`${root}/${id}/versions`, 'POST', { expectedRevision: 1 })).status).toBe(400);
 });
@@ -132,7 +132,6 @@ it('deletes from the bank without losing existing work versions or images and re
   const body = { expectedVersion: view.data.version, expectedLifecycleRevision: view.data.lifecycleRevision };
   expect((await api(deletePath, 'DELETE', body, '')).status).toBe(401);
   expect((await api(deletePath, 'DELETE', body, studentCookie)).status).toBe(403);
-  expect((await api(deletePath, 'DELETE', body, other)).status).toBe(404);
   expect((await api(deletePath, 'DELETE', body, cookie, 'https://foreign.example')).status).toBe(403);
   expect((await api(deletePath, 'DELETE', {})).status).toBe(400);
   expect((await api(deletePath, 'DELETE', { ...body, unexpected: true })).status).toBe(400);
@@ -142,7 +141,7 @@ it('deletes from the bank without losing existing work versions or images and re
   const update = { title: 'Сохранность удаления', instructions: '', gradeBand: 'grade_10_11', items: [refs[2]], expectedRevision: 1, requestId: randomUUID() };
   expect((await api(`${root}/${workId}`, 'PATCH', update)).status).toBe(200);
   const frozen = await api(`${root}/${workId}/versions`, 'POST', { expectedRevision: 2 });
-  const pilot = await readFile(resolve(__dirname, '../../../../output/assessment-package-pilot-v1.zip'));
+  const pilot = await isolatedArchive(await readFile(resolve(__dirname, '../../../../output/assessment-package-pilot-v1.zip')));
   const stale = await api('/teacher/assessment-bank/imports/preview', 'POST', pilot);
   expect((await api(deletePath, 'DELETE', body)).status).toBe(200);
   expect((await api(deletePath, 'DELETE', body)).status).toBe(200);
@@ -156,7 +155,7 @@ it('deletes from the bank without losing existing work versions or images and re
     const response = await fetch(`http://localhost:3000${image}`, { headers: { cookie, origin } });
     expect(response.status).toBe(200);
   }
-  const exported = await fetch('http://localhost:3000/teacher/assessment-bank/export', { headers: { cookie, origin } });
+  const exported = await fetch(`http://localhost:3000/teacher/assessment-bank/export?search=${fixturePrefix}`, { headers: { cookie, origin } });
   expect(exported.status).toBe(200);
   const exportPreview = await api('/teacher/assessment-bank/imports/preview', 'POST', Buffer.from(await exported.arrayBuffer()));
   expect(exportPreview.data.items.some((task: { stableId: string }) => task.stableId === view.data.task.id)).toBe(false);
@@ -173,7 +172,7 @@ it('deletes from the bank without losing existing work versions or images and re
   expect(await db.assessmentTaskVersion.count({ where: { taskId } })).toBe(1);
 }, 30000);
 
-it('saves ordered pinned tasks once, rejects races, duplicate tasks and foreign writes', async () => {
+it('saves ordered pinned tasks once, rejects races, duplicate tasks and student writes', async () => {
   const body = { title: 'МКТ и электродинамика', instructions: 'Выполните задания.', gradeBand: 'grade_10_11', items: [refs[2], refs[0]], expectedRevision: 1, requestId: randomUUID() };
   const result = await api(`${root}/${id}`, 'PATCH', body);
   expect(result.status).toBe(200);
@@ -182,13 +181,12 @@ it('saves ordered pinned tasks once, rejects races, duplicate tasks and foreign 
   expect((await api(`${root}/${id}`, 'PATCH', body)).data.revision).toBe(2);
   expect((await api(`${root}/${id}`, 'PATCH', { ...body, requestId: randomUUID() })).status).toBe(409);
   expect((await api(`${root}/${id}`, 'PATCH', { ...body, items: [refs[0], refs[0]], expectedRevision: 2 })).status).toBe(400);
-  expect((await api(`${root}/${id}`, 'PATCH', { ...body, expectedRevision: 2 }, other)).status).toBe(404);
   expect((await api(`${root}/${id}`, 'PATCH', { ...body, expectedRevision: 2 }, studentCookie)).status).toBe(403);
   expect((await api(`${root}/${id}`, 'PATCH', { ...body, expectedRevision: 2 }, cookie, 'https://foreign.example')).status).toBe(403);
   const foreignWork = randomUUID();
   await api(root, 'POST', { id: foreignWork, title: 'Чужая', gradeBand: 'grade_10_11' }, other);
-  expect((await api(`${root}/${foreignWork}`, 'PATCH', { ...body, expectedRevision: 1, requestId: randomUUID() }, other)).status).toBe(400);
-  const competing = [1, 2].map(() => api(`${root}/${id}`, 'PATCH', { ...body, expectedRevision: 2, requestId: randomUUID() }));
+  expect((await api(`${root}/${foreignWork}`, 'PATCH', { ...body, expectedRevision: 1, requestId: randomUUID() }, other)).status).toBe(200);
+  const competing = [cookie, other].map(session => api(`${root}/${id}`, 'PATCH', { ...body, expectedRevision: 2, requestId: randomUUID() }, session));
   expect((await Promise.all(competing)).map((r) => r.status).sort()).toEqual([200, 409]);
 });
 
@@ -216,7 +214,7 @@ it('freezes immutable versions idempotently and keeps image/content after bank c
   expect(revised.status).toBe(200);
   expect((await api(`${root}/${id}/versions`, 'POST', { expectedRevision: 4 })).data.number).toBe(2);
   expect((await api(`${root}/${id}/versions/1`)).data).toEqual(frozen.data);
-  expect((await api(`${root}/${id}/versions/1`, 'GET', undefined, other)).status).toBe(404);
+  expect((await api(`${root}/${id}/versions/1`, 'GET', undefined, other)).status).toBe(200);
 });
 
 it('copies pinned saved content into an independent draft, never copies assignments and safely replays', async () => {
@@ -232,7 +230,6 @@ it('copies pinned saved content into an independent draft, never copies assignme
   const path = `${root}/${sourceId}/copy`, input = { id: destination, expectedRevision: 2 };
   expect((await api(path, 'POST', input, '')).status).toBe(401);
   expect((await api(path, 'POST', input, studentCookie)).status).toBe(403);
-  expect((await api(path, 'POST', input, other)).status).toBe(404);
   expect((await api(path, 'POST', input, cookie, 'https://foreign.example')).status).toBe(403);
   for (const body of [{ ...input, items: [] }, { id: destination }, { ...input, expectedRevision: 0 }, { ...input, id: 'wrong' }]) expect((await api(path, 'POST', body)).status).toBe(400);
   expect((await api(`${root}/${randomUUID()}/copy`, 'POST', input)).status).toBe(404);
@@ -295,7 +292,6 @@ it('archives and restores without changing content revisions and rejects delayed
   const archive = { isArchived: true, expectedLifecycleRevision: 1 };
   expect((await api(`${path}/archive`, 'PATCH', archive, '')).status).toBe(401);
   expect((await api(`${path}/archive`, 'PATCH', archive, studentCookie)).status).toBe(403);
-  expect((await api(`${path}/archive`, 'PATCH', archive, other)).status).toBe(404);
   expect((await api(`${path}/archive`, 'PATCH', archive, cookie, 'https://foreign.example')).status).toBe(403);
   for (const input of [{ ...archive, extra: 1 }, { isArchived: true }, { ...archive, expectedLifecycleRevision: 0 }]) expect((await api(`${path}/archive`, 'PATCH', input)).status).toBe(400);
   const results = await Promise.all([api(`${path}/archive`, 'PATCH', archive), api(`${path}/archive`, 'PATCH', archive)]);
@@ -325,7 +321,6 @@ it('deletes unused frozen drafts without deleting bank content or copies and nev
   const input = { expectedRevision: 2, expectedLifecycleRevision: 1 };
   expect((await api(path, 'DELETE', input, '')).status).toBe(401);
   expect((await api(path, 'DELETE', input, studentCookie)).status).toBe(403);
-  expect((await api(path, 'DELETE', input, other)).status).toBe(404);
   expect((await api(path, 'DELETE', input, cookie, 'https://foreign.example')).status).toBe(403);
   expect((await api(path, 'DELETE', { ...input, cascade: true })).status).toBe(400);
   expect((await api(path, 'DELETE', { ...input, expectedRevision: 1 })).status).toBe(409);
@@ -350,4 +345,41 @@ it('deletes unused frozen drafts without deleting bank content or copies and nev
   expect((await api(`${root}/${next.id}`, 'DELETE', { expectedRevision: 1, expectedLifecycleRevision: 1 })).status).toBe(200);
   expect((await api(`${root}/${copy.id}/copy`, 'POST', { id: next.id, expectedRevision: 1 })).status).toBe(410);
   expect((await api(root, 'POST', { ...create, id: next.id })).status).toBe(404);
+});
+
+it('lets a colleague edit, freeze, copy and archive a common work while preserving revisions and actor-bound retries', async () => {
+  const workId = randomUUID(), path = `${root}/${workId}`;
+  expect((await api(root, 'POST', { id: workId, title: 'Общая работа', gradeBand: 'grade_10_11' })).status).toBe(201);
+  const input = { title: 'Изменено коллегой', instructions: '', gradeBand: 'grade_10_11', items: [refs[4]], expectedRevision: 1, requestId: randomUUID() };
+  const changed = await api(path, 'PATCH', input, other);
+  expect(changed.status).toBe(200); expect(changed.data.revision).toBe(2);
+  expect((await api(path, 'PATCH', input, other)).data).toEqual(changed.data);
+  expect((await api(path, 'PATCH', input)).status).toBe(409);
+  expect((await api(path)).data).toEqual(changed.data);
+  expect((await api(`${path}/versions`, 'POST', { expectedRevision: 2 }, other)).status).toBe(201);
+  const copy = await api(`${path}/copy`, 'POST', { id: randomUUID(), expectedRevision: 2 }, other);
+  expect(copy.status).toBe(201); expect(copy.data.items).toHaveLength(1);
+  expect((await api(`${root}/${copy.data.id}`)).status).toBe(200);
+  expect((await api(`${path}/archive`, 'PATCH', { isArchived: true, expectedLifecycleRevision: 1 }, other)).status).toBe(200);
+  expect((await api(path)).data.isArchived).toBe(true);
+  expect((await api(`${path}/archive`, 'PATCH', { isArchived: false, expectedLifecycleRevision: 2 })).status).toBe(200);
+  expect((await api(path, 'DELETE', { expectedRevision: 2, expectedLifecycleRevision: 3 }, other)).status).toBe(200);
+  expect((await api(path)).status).toBe(404);
+  expect(await db.assessmentWorkVersion.count({ where: { workId } })).toBe(1);
+  expect((await db.assessmentWork.findUniqueOrThrow({ where: { id: workId } })).teacherId).toBe(teachers[0]);
+});
+
+it('returns the persisted composition to concurrent create retries with the same UUID', async () => {
+  const active = await db.assessmentBankTask.findMany({ where: { id: { in: refs.map(ref => ref.taskId) }, deletedAt: null }, select: { id: true } });
+  const available = refs.filter(ref => active.some(task => task.id === ref.taskId));
+  expect(available.length).toBeGreaterThanOrEqual(2);
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const workId = randomUUID();
+    const results = await Promise.all([0, 1].map(index => api(root, 'POST', {
+      id: workId, title: `Создание ${index}`, gradeBand: 'grade_10_11', items: [available[index]],
+    })));
+    const stored = await api(`${root}/${workId}`);
+    expect(results.map(result => result.status)).toEqual([201, 201]);
+    for (const result of results) expect(result.data).toEqual(stored.data);
+  }
 });

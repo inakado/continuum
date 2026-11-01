@@ -36,9 +36,8 @@ export class LibraryReadService {
     @Inject(ObjectStorageService) private readonly storage: ObjectStorageService,
   ) {}
 
-  async getTeacherLibrary(teacherId: string): Promise<TeacherLibrary> {
+  async getTeacherLibrary(_teacherId: string): Promise<TeacherLibrary> {
     const sections = await this.prisma.section.findMany({
-      where: { createdById: teacherId },
       orderBy: [{ gradeBand: 'asc' }, { sortOrder: 'asc' }, { id: 'asc' }],
       include: {
         lessons: {
@@ -59,7 +58,7 @@ export class LibraryReadService {
   async getStudentLibrary(studentId: string): Promise<StudentLibrary> {
     const grants = await this.prisma.accessGrant.findMany({
       where: { studentId },
-      select: { gradeBand: true, grantedById: true },
+      select: { gradeBand: true },
       orderBy: { gradeBand: 'asc' },
     });
 
@@ -68,10 +67,7 @@ export class LibraryReadService {
     const sections = await this.prisma.section.findMany({
       where: {
         status: PublicationStatus.published,
-        OR: grants.map((grant) => ({
-          gradeBand: grant.gradeBand,
-          createdById: grant.grantedById,
-        })),
+        gradeBand: { in: grants.map((grant) => grant.gradeBand) },
       },
       orderBy: [{ gradeBand: 'asc' }, { sortOrder: 'asc' }, { id: 'asc' }],
       include: {
@@ -96,7 +92,7 @@ export class LibraryReadService {
   async getStudentLesson(studentId: string, lessonId: string): Promise<LessonDetail> {
     const grants = await this.prisma.accessGrant.findMany({
       where: { studentId },
-      select: { gradeBand: true, grantedById: true },
+      select: { gradeBand: true },
     });
 
     if (grants.length === 0) throw this.lessonNotFound();
@@ -108,10 +104,7 @@ export class LibraryReadService {
         section: {
           is: {
             status: PublicationStatus.published,
-            OR: grants.map((grant) => ({
-              gradeBand: grant.gradeBand,
-              createdById: grant.grantedById,
-            })),
+            gradeBand: { in: grants.map((grant) => grant.gradeBand) },
           },
         },
       },
@@ -131,9 +124,9 @@ export class LibraryReadService {
     return mapLessonDetail(lesson);
   }
 
-  async getTeacherLesson(teacherId: string, lessonId: string): Promise<TeacherLessonDetail> {
+  async getTeacherLesson(_teacherId: string, lessonId: string): Promise<TeacherLessonDetail> {
     const lesson = await this.prisma.lesson.findFirst({
-      where: { id: lessonId, createdById: teacherId },
+      where: { id: lessonId },
       include: {
         section: { select: { id: true, gradeBand: true, title: true } },
         artifacts: {
@@ -150,11 +143,11 @@ export class LibraryReadService {
   }
 
   async getTeacherArtifactView(
-    teacherId: string,
+    _teacherId: string,
     artifactId: string,
   ): Promise<LessonArtifactViewResult> {
     const artifact = await this.prisma.lessonArtifact.findFirst({
-      where: { id: artifactId, lesson: { is: { createdById: teacherId } } },
+      where: { id: artifactId },
       select: { asset: { select: { objectKey: true, contentType: true } } },
     });
     if (!artifact) throw this.lessonNotFound();
@@ -174,7 +167,7 @@ export class LibraryReadService {
   ): Promise<LessonArtifactViewResult> {
     const grants = await this.prisma.accessGrant.findMany({
       where: { studentId },
-      select: { gradeBand: true, grantedById: true },
+      select: { gradeBand: true },
     });
     if (grants.length === 0) throw this.lessonNotFound();
 
@@ -190,10 +183,7 @@ export class LibraryReadService {
             section: {
               is: {
                 status: PublicationStatus.published,
-                OR: grants.map((grant) => ({
-                  gradeBand: grant.gradeBand,
-                  createdById: grant.grantedById,
-                })),
+                gradeBand: { in: grants.map((grant) => grant.gradeBand) },
               },
             },
           },

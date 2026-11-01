@@ -58,13 +58,13 @@
 ### AssessmentBankTask
 
 - Таблица: `assessment_bank_tasks`
-- Model attributes: `@@unique([teacherId, stableId])`, `@@index([teacherId, deletedAt])`, `@@map("assessment_bank_tasks")`
+- Model attributes: `@@index([teacherId, deletedAt])`, `@@index([deletedAt])`, `@@map("assessment_bank_tasks")`
 
 | Field | Type | Attributes |
 | --- | --- | --- |
 | `id` | `String` | `@id @default(uuid()) @db.Uuid` |
 | `teacherId` | `String` | `@map("teacher_id") @db.Uuid` |
-| `stableId` | `String` | `@map("stable_id")` |
+| `stableId` | `String` | `@unique @map("stable_id")` |
 | `latestVersionId` | `String?` | `@unique @map("latest_version_id") @db.Uuid` |
 | `createdAt` | `DateTime` | `@default(now()) @map("created_at")` |
 | `deletedAt` | `DateTime?` | `@map("deleted_at")` |

@@ -6,9 +6,9 @@ import { PrismaService } from '../prisma/prisma.service';
 @Injectable()
 export class AssessmentWorkLifecycleService {
   constructor(@Inject(PrismaService) private readonly db: PrismaService) {}
-  private async lock(tx: Prisma.TransactionClient, teacherId: string, id: string) {
-    await tx.$queryRaw`SELECT id FROM assessment_works WHERE id = ${id}::uuid AND teacher_id = ${teacherId}::uuid FOR UPDATE`;
-    const row = await tx.assessmentWork.findFirst({ where: { id, teacherId } });
+  private async lock(tx: Prisma.TransactionClient, _teacherId: string, id: string) {
+    await tx.$queryRaw`SELECT id FROM assessment_works WHERE id = ${id}::uuid FOR UPDATE`;
+    const row = await tx.assessmentWork.findFirst({ where: { id } });
     if (!row) throw new NotFoundException('Работа не найдена.');
     return row;
   }

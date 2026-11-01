@@ -13,6 +13,14 @@
 
 Startup guard в `docker-compose.yml` обязан проверять `@thallesp/nestjs-better-auth` и `better-auth` до решения пропустить установку зависимостей.
 
+### Версия зависимости в dev API volume отстаёт от lockfile
+
+- **Симптом:** integration-тест HTTP 429 ожидает JSON, но получает `text/plain`; на хосте и в Docker разный Better Auth.
+- **Причина:** named volumes переживают пересборку image. Наличие модуля в startup guard не подтверждает совпадение его версии с package.json/lockfile.
+- **Диагностика:** сравнить `apps/api/package.json` с версией `/app/apps/api/node_modules/better-auth/package.json` внутри тестового контейнера. Better Auth 1.6.23 не задаёт JSON Content-Type у лимитера; закреплённая 1.7.14 задаёт.
+- **Исправление:** собрать API builder по текущему frozen lockfile и проверять в новом контейнере без старых dependency volumes. Не переносить macOS node_modules в Linux и не удалять postgres/S3 volumes. Для integration в builder подключить read-only examples и демонстрационные ZIP из output.
+- **Проверка:** реальный лимит пяти входов, Content-Type, Origin и полный integration-проход. Внешний HTTP API для проверки Origin запускается в обычном development-режиме: Better Auth 1.7.14 автоматически отключает Origin check при NODE_ENV=test.
+
 ### macOS блокирует нативные Node binaries
 
 - **Симптом:** Vitest или Next.js сообщает `ERR_DLOPEN_FAILED` и `library load disallowed by system policy` для Rollup/SWC.

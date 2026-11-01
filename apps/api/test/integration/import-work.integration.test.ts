@@ -84,11 +84,12 @@ it('serializes double creation and never overwrites a later edit on retry', asyn
   expect(retried.title).toBe('Другое название'); expect(retried.revision).toBe(edited.revision);
   expect(retried.items.map((item) => item.id)).toEqual(edited.items.map((item) => item.id));
 });
-it('rejects deleted, foreign and unavailable versions atomically; preserves plain create', async () => {
+it('shares imported tasks and rejects deleted and unavailable versions atomically; preserves plain create', async () => {
   const { result } = await importTasks('invalid');
   const foreign = await importTasks('foreign', teachers[1]);
+  expect((await works.create(teachers[0], { id: randomUUID(), title: 'Общая задача', gradeBand: 'grade_10_11', items: [foreign.result.items![0]] })).taskCount).toBe(1);
   await prisma.assessmentBankTask.update({ where: { id: result.taskIds[0] }, data: { deletedAt: new Date() } });
-  for (const items of [[result.items![0]], [foreign.result.items![0]], [{ ...result.items![1], version: 999 }]]) {
+  for (const items of [[result.items![0]], [{ ...result.items![1], version: 999 }]]) {
     const input = { id: randomUUID(), title: 'Не создавать частично', gradeBand: 'grade_10_11' as const, items };
     await expect(works.create(teachers[0], input)).rejects.toThrow();
     expect(await prisma.assessmentWork.findUnique({ where: { id: input.id } })).toBeNull();

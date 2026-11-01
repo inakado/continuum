@@ -4,9 +4,9 @@ import { assessmentPresentationCompatible, assessmentGradingCompatible } from '.
 import { StoredAssessmentTaskSchema, type StoredAssessmentTask } from './assessment-bank.mapper';
 
 export type BankCorrection = { taskId: string; expectedVersion: number; expectedImpactHash?: string };
-export async function validateAssessmentCorrection(tx: Prisma.TransactionClient, teacherId: string, input: BankCorrection, entries: StoredAssessmentTask[]) {
-  const row = await tx.assessmentBankTask.findFirst({ where: { id: input.taskId, teacherId, deletedAt: null }, include: { latestVersion: true } });
-  if (!row?.latestVersion) throw new NotFoundException('Задание недоступно в вашем банке.');
+export async function validateAssessmentCorrection(tx: Prisma.TransactionClient, _teacherId: string, input: BankCorrection, entries: StoredAssessmentTask[]) {
+  const row = await tx.assessmentBankTask.findFirst({ where: { id: input.taskId, deletedAt: null }, include: { latestVersion: true } });
+  if (!row?.latestVersion) throw new NotFoundException('Задание недоступно в банке.');
   if (row.latestVersion.version !== input.expectedVersion) throw new ConflictException('Задание изменилось. Закройте исправление и откройте его заново.');
   if (entries.length !== 1 || entries[0].task.id !== row.stableId) throw new BadRequestException(`В ZIP должна быть только задача ${row.stableId} с прежним ID.`);
   const original = StoredAssessmentTaskSchema.parse(row.latestVersion.data);
