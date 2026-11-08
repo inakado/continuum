@@ -3,6 +3,7 @@ import type { Prisma } from '@prisma/client';
 import type { DeleteLibraryInput } from '@continuum/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { LibraryAssetCleanupService } from './library-asset-cleanup.service';
+import { lockSectionLessons, lockSectionOrder } from './library-order.service';
 
 @Injectable()
 export class LibraryDeleteService {
@@ -40,7 +41,10 @@ export class LibraryDeleteService {
     return { id };
   }
   async removeLesson(_teacherId: string, id: string, input: DeleteLibraryInput) {
+    const parent = await this.db.lesson.findFirst({ where: { id }, select: { sectionId: true } });
+    if (!parent) throw new NotFoundException('Занятие не найдено.');
     await this.db.$transaction(async (tx) => {
+      await lockSectionLessons(tx, parent.sectionId);
       const row = await this.lesson(tx, id);
       this.matches(row.artifacts.map((file) => file.id), input);
       await tx.lesson.delete({ where: { id } });
@@ -50,7 +54,10 @@ export class LibraryDeleteService {
     return { id };
   }
   async section(_teacherId: string, id: string, input: DeleteLibraryInput) {
+    const parent = await this.db.section.findFirst({ where: { id }, select: { gradeBand: true } });
+    if (!parent) throw new NotFoundException('Раздел не найден.');
     await this.db.$transaction(async (tx) => {
+      await lockSectionOrder(tx, parent.gradeBand);
       await tx.$queryRaw`SELECT id FROM sections WHERE id = ${id}::uuid FOR UPDATE`;
       if (!await tx.section.findFirst({ where: { id } })) throw new NotFoundException('Раздел не найден.');
       const lessons = await tx.lesson.findMany({ where: { sectionId: id }, orderBy: { id: 'asc' } });

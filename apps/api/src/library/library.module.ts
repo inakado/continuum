@@ -6,10 +6,11 @@ import { StudentLibraryController } from './student-library.controller';
 import { TeacherLibraryController } from './teacher-library.controller';
 import { LibraryDeleteService } from './library-delete.service';
 import { LibraryAssetCleanupService } from './library-asset-cleanup.service';
+import { LibraryOrderService } from './library-order.service';
 
 @Module({
   imports: [ObjectStorageModule],
   controllers: [StudentLibraryController, TeacherLibraryController],
-  providers: [LibraryReadService, LibraryWriteService, LibraryDeleteService, LibraryAssetCleanupService],
+  providers: [LibraryReadService, LibraryWriteService, LibraryDeleteService, LibraryAssetCleanupService, LibraryOrderService],
 })
 export class LibraryModule {}

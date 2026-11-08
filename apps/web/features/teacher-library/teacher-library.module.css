@@ -181,7 +181,7 @@
 
 .sectionHeading {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto auto 44px;
+  grid-template-columns: 28px 28px minmax(0, 1fr) auto auto 44px;
   gap: 9px;
   align-items: center;
   min-height: 65px;
@@ -272,7 +272,7 @@
 
 .lessons li {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 30px;
+  grid-template-columns: 32px minmax(0, 1fr);
   align-items: center;
   min-height: 51px;
   border-bottom: 1px solid #e1e3e6;
@@ -285,7 +285,7 @@
 
 .lessonSelect {
   display: grid;
-  grid-template-columns: 34px minmax(150px, 1fr) 244px 92px;
+  grid-template-columns: 34px minmax(0, 1fr) 244px 92px;
   gap: 9px;
   align-items: center;
   min-width: 0;
@@ -553,7 +553,7 @@
   }
 
   .lessonSelect {
-    grid-template-columns: 30px minmax(120px, 1fr) 178px 82px;
+    grid-template-columns: 30px minmax(0, 1fr) 178px 82px;
   }
 
   .formatColumns {
@@ -620,35 +620,41 @@
   }
 
   .sectionHeading {
-    grid-template-columns: 24px minmax(0, 1fr) 28px;
+    grid-template-columns: 44px 24px minmax(0, 1fr) 32px;
     padding: 9px 0;
   }
 
+  .sectionTitleLine { align-items: flex-start; }
+  .sectionTitleLine h2 { white-space: normal; overflow-wrap: anywhere; font-size: 18px; }
+  .sectionTitleLine .iconButton { flex: 0 0 28px; }
+
   .sectionMeta,
   .textAction {
-    grid-column: 2 / -1;
+    grid-column: 3 / -1;
     justify-self: start;
-  }
-
-  .sectionHeading > .iconButton:last-child {
-    grid-column: 3;
-    grid-row: 1;
+    white-space: normal;
   }
 
   .lessonSelect {
-    grid-template-columns: 28px minmax(0, 1fr) auto;
+    grid-template-columns: 22px minmax(0, 1fr);
     padding: 7px 0 7px 9px;
+    gap: 4px 8px;
   }
+
+  .lessons li { grid-template-columns: 44px minmax(0, 1fr); }
+  .lessonTitle { white-space: normal; overflow-wrap: anywhere; }
 
   .formatColumns {
     grid-column: 2 / -1;
     grid-row: 2;
-    grid-template-columns: 50px 92px 60px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
   }
 
   .lessonStatus {
-    grid-column: 3;
-    grid-row: 1;
+    grid-column: 2;
+    grid-row: 3;
   }
 
   .lessonForm {
@@ -676,3 +682,26 @@
 .previewLink:hover { background: var(--catalog-selected); border-color: var(--catalog-accent); }
 .previewState { width: calc(100% - 40px); max-width: 960px; margin: 32px auto; }
 .previewState > a { display: inline-flex; align-items: center; min-height: 44px; color: var(--catalog-accent); }
+
+.orderInfo { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; padding: 12px 0; color: var(--catalog-muted); font-size: 12px; line-height: 1.5; }
+.orderInfo p { margin: 0; max-width: 65ch; }
+.orderInfo [role="status"] { color: var(--catalog-accent); }
+.orderError { margin: 0 0 12px; color: var(--catalog-danger); font-size: 13px; }
+.orderHandle { display: inline-grid; place-items: center; width: 28px; min-height: 40px; padding: 0; border: 0; border-radius: var(--catalog-control-radius); background: transparent; color: var(--catalog-muted); cursor: grab; }
+.orderHandle:active { cursor: grabbing; }
+.orderHandle:hover:not(:disabled), .orderHandle[data-state="open"] { background: var(--catalog-selected); color: var(--catalog-accent); }
+.orderHandle:focus-visible { outline: 2px solid var(--catalog-accent); outline-offset: 2px; }
+.orderHandle:disabled { cursor: default; }
+.orderMenu { z-index: var(--z-shell-popover); min-width: 176px; padding: 4px; border: 1px solid var(--catalog-border-strong); border-radius: var(--catalog-control-radius); background: var(--catalog-paper); color: var(--catalog-ink); box-shadow: 0 8px 24px #2026331f; font-family: var(--font-ui), system-ui, sans-serif; font-size: 13px; }
+.orderMenu [role="menuitem"] { min-height: 36px; display: flex; align-items: center; padding: 6px 10px; border-radius: var(--catalog-control-radius); cursor: pointer; outline: none; }
+.orderMenu [data-highlighted] { background: var(--catalog-selected); color: var(--catalog-accent); }
+.orderMenu [data-disabled] { opacity: .45; cursor: default; }
+.orderMenuLabel { padding: 6px 10px; color: var(--catalog-muted); font-size: 12px; }
+.orderMenuRule { height: 1px; margin: 4px 0; background: var(--catalog-border); }
+.sectionHeading, .lessons li { position: relative; }
+.section[data-order-drop] > .sectionHeading::after, .lessons li[data-order-drop]::after { position: absolute; left: 0; right: 0; height: 2px; background: var(--catalog-accent); pointer-events: none; content: ""; }
+.section[data-order-drop="before"] > .sectionHeading::after, .lessons li[data-order-drop="before"]::after { top: 0; }
+.section[data-order-drop="after"] > .sectionHeading::after, .lessons li[data-order-drop="after"]::after { bottom: 0; }
+@media (max-width: 680px), (pointer: coarse) { .orderHandle { width: 44px; min-height: 44px; } .orderMenu [role="menuitem"] { min-height: 44px; } }
+@media (pointer: coarse) and (min-width: 681px) { .sectionHeading { grid-template-columns: 44px 28px minmax(0, 1fr) auto auto 44px; } .lessons li { grid-template-columns: 44px minmax(0, 1fr); } }
+.orderHandle[aria-disabled="true"] { opacity: .45; cursor: default; }

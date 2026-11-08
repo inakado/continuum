@@ -5,11 +5,25 @@ import {
   LessonDetailSchema,
   StudentLibrarySchema,
   UploadLessonArtifactQuerySchema,
+  ReorderLibraryInputSchema,
+  ReorderSectionsInputSchema,
 } from "../src/contracts/library";
 
 const id = "123e4567-e89b-12d3-a456-426614174000";
 
 describe("library contracts", () => {
+  it('accepts only a complete, unique permutation and a supported ordering scope', () => {
+    const second = '123e4567-e89b-12d3-a456-426614174001';
+    const foreign = '123e4567-e89b-12d3-a456-426614174002';
+    const valid = { expectedIds: [id, second], orderedIds: [second, id] };
+    expect(ReorderSectionsInputSchema.parse({ ...valid, gradeBand: 'grade_8' }).orderedIds).toEqual([second, id]);
+    for (const input of [
+      { ...valid, orderedIds: [second] }, { ...valid, orderedIds: [id, id] },
+      { ...valid, orderedIds: [id, foreign] }, { ...valid, expectedIds: [id, id] },
+      { expectedIds: [], orderedIds: [] }, { ...valid, unexpected: true },
+    ]) expect(ReorderLibraryInputSchema.safeParse(input).success).toBe(false);
+    expect(ReorderSectionsInputSchema.safeParse({ ...valid, gradeBand: 'grade_10' }).success).toBe(false);
+  });
   it("fixes the supported grade bands", () => {
     expect(GradeBandSchema.options).toEqual([
       "grade_7",
