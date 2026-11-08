@@ -1,0 +1,39 @@
+.figure { max-width: 600px; margin: 12px auto 32px; scroll-margin-top: 96px; font-size: 14px; line-height: 1.5; }
+.trajectoryArt, .orbitArt { composes: art from './mechanical-motion.module.css'; }
+.axisLabel { fill: var(--catalog-muted); font-size: 14px; font-style: italic; }
+.radius { fill: none; stroke: var(--catalog-accent); stroke-width: 1.5; }
+.arrow { fill: var(--catalog-accent); }
+.vectorLabel { fill: var(--catalog-accent); font-size: 17px; font-style: italic; }
+.vectorAccent { fill: none; stroke: var(--catalog-accent); stroke-width: 1; }
+.point { fill: var(--catalog-accent); stroke: white; stroke-width: 1; }
+.pointLabel { fill: var(--catalog-accent); font-size: 16px; font-style: italic; }
+.timeArgument { font-style: normal; font-variant-numeric: tabular-nums; }
+.vectorLabel, .pointLabel { paint-order: stroke; stroke: white; stroke-width: 4px; stroke-linejoin: round; }
+.vectorAccent { filter: drop-shadow(0 0 1px white) drop-shadow(0 0 1px white); }
+.orbitFigure { margin: 24px 0 32px; scroll-margin-top: 96px; font-size: 14px; line-height: 1.5; }
+.orbitScenes { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 24px; }
+.orbitScene { min-width: 0; }
+.orbitScene h3 { margin: 0; color: var(--catalog-muted); text-align: center; font-size: 14px; line-height: 1.5; font-weight: 400; }
+.orbitGuide { fill: none; stroke: #d9e1ee; stroke-width: 1; }
+.earthOrbit { fill: none; stroke: #b6c4d8; stroke-width: 1; stroke-dasharray: 3 5; }
+.orbitTrail { fill: none; stroke: var(--catalog-accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.bodyLabel { fill: var(--catalog-muted); font-size: 13px; }
+.moon :global(.iso-fill), .moon :global(.iso-shade[data-shade="0"]) { fill: #a4a9b8; }
+.moon :global(.iso-shade[data-shade="1"]) { fill: #b7bdca; }
+.moon :global(.iso-shade[data-shade="2"]) { fill: #cbd0db; }
+.moon :global(.iso-shade[data-shade="3"]) { fill: #e2e5ed; }
+.moon :global(.iso-line) { stroke: #8f98ae; stroke-width: .55; }
+.moon :global(.orbit-crater) { fill: #8e98ac; fill-opacity: .3; }
+.sun :global(.iso-fill), .sun :global(.iso-shade[data-shade="0"]) { fill: #cfb78c; }
+.sun :global(.iso-shade[data-shade="1"]) { fill: #dfc89f; }
+.sun :global(.iso-shade[data-shade="2"]) { fill: #ecd9b7; }
+.sun :global(.iso-shade[data-shade="3"]) { fill: #f5e9ce; }
+.sun :global(.iso-line) { stroke: #c2ab80; stroke-width: .65; }
+.caption { max-width: 560px; margin: 8px auto 0; text-align: center; color: var(--catalog-muted); font-size: 12px; line-height: 1.5; }
+@media (max-width: 600px) {
+  .bodyLabel { font-size: 16px; }
+  .axisLabel { font-size: 18px; }
+  .orbitScenes { grid-template-columns: minmax(0,1fr); gap: 24px; }
+  .orbitScene { width: min(100%,440px); margin-inline: auto; }
+  .caption { text-align: left; }
+}

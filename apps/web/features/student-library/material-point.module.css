@@ -1,0 +1,42 @@
+.figure { margin: 24px 0 32px; scroll-margin-top: 96px; font-size: 14px; line-height: 1.5; }
+.choices { display: flex; justify-content: center; gap: 28px; }
+.choices button { min-height: 44px; padding: 8px 0; border: 0; border-bottom: 1.5px solid transparent; border-radius: 0; background: transparent; color: var(--catalog-muted); font: inherit; cursor: pointer; }
+.choices button[aria-pressed="true"] { border-bottom-color: var(--catalog-accent); color: var(--catalog-accent); }
+.choices button:hover { color: var(--catalog-accent); }
+.choices button:focus-visible, .play:focus-visible, .controls input:focus-visible { outline: 2px solid var(--catalog-accent); outline-offset: 4px; }
+.scene { padding: 12px 24px 0; }
+.art { composes: art from './mechanical-motion.module.css'; }
+.cartBody { transition: opacity 600ms cubic-bezier(.16, 1, .3, 1); }
+.figure[data-mode="motion"][data-abstracted="true"] .cartBody { opacity: .18; }
+.gate, .dimensions { opacity: 0; transition: opacity 350ms ease-out; pointer-events: none; }
+.figure[data-mode="aperture"] :is(.gate, .dimensions) { opacity: 1; }
+.figure[data-mode="aperture"] .trail { opacity: 0; }
+.backBlocked { display: none; }
+.figure[data-mode="aperture"]:not([data-clearance="wide"]) .backClear { display: none; }
+.figure[data-mode="aperture"]:not([data-clearance="wide"]) .backBlocked { display: inline; }
+.beam0 { fill: #f6f8fc; stroke: #a5b3c8; stroke-width: .6; stroke-linejoin: round; }
+.beam1 { fill: #d0d8e4; stroke: #a5b3c8; stroke-width: .6; stroke-linejoin: round; }
+.beam2 { fill: #c0cad9; stroke: #a5b3c8; stroke-width: .6; stroke-linejoin: round; }
+.trail { fill: none; stroke-width: 3; stroke-linecap: round; transition: opacity 250ms ease-out; }
+.dimensions path { fill: none; stroke: #8299bc; stroke-width: 1.2; stroke-dasharray: 3 3; }
+.point { fill: var(--catalog-accent); stroke: white; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.controls { display: flex; align-items: center; justify-content: center; gap: 12px; width: min(100%, 400px); min-height: 44px; margin: 8px auto 0; color: var(--catalog-muted); font-size: 12px; }
+.controls label, .controls output { white-space: nowrap; }
+.controls output { min-width: 48px; font-variant-numeric: tabular-nums; }
+.controls input { appearance: none; flex: 1; min-width: 0; height: 44px; margin: 0; background: transparent; cursor: pointer; }
+.controls input::-webkit-slider-runnable-track { height: 2px; background: #d6deea; }
+.controls input::-moz-range-track { height: 2px; background: #d6deea; }
+.controls input::-webkit-slider-thumb { appearance: none; width: 12px; height: 12px; margin-top: -5px; border: 0; border-radius: 50%; background: var(--catalog-accent); }
+.controls input::-moz-range-thumb { width: 12px; height: 12px; border: 0; border-radius: 50%; background: var(--catalog-accent); }
+.play { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--catalog-accent); cursor: pointer; }
+.play:hover { background: var(--catalog-selected, #edf2fa); }
+.caption { min-height: 21px; margin-top: 2px; text-align: center; color: var(--catalog-muted); font-size: 13px; }
+@media (max-width: 600px) {
+  .choices { gap: 20px; }
+  .choices button { flex: 1; font-size: 12px; line-height: 1.4; }
+  .scene { padding-inline: 0; }
+  .caption { min-height: 36px; font-size: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cartBody, .gate, .dimensions, .trail { transition: none; }
+}

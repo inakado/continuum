@@ -3,10 +3,10 @@
 import { useState } from "react";
 import type { LessonArtifact } from "@continuum/shared";
 import Link from "next/link";
-import { ArrowLeft, ArrowUpRight, FileText } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, ChevronRight, FileText, Play } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { StudentChrome } from "@/features/student-works/StudentWorksShell";
-import { gradeLabels, libraryHref } from "./library-navigation";
+import { gradeLabels, libraryHref, libraryParams } from "./library-navigation";
 import { studentLibraryApi } from "./student-library.api";
 import { useStudentLesson } from "./use-student-library";
 import styles from "./student-library.module.css";
@@ -17,7 +17,7 @@ const artifactLabel = (type: "pdf" | "interactive" | "tasks_pdf") => {
   return "Конспект PDF";
 };
 
-function MaterialRow({ artifact, lessonTitle }: { artifact: LessonArtifact; lessonTitle: string }) {
+function MaterialRow({ artifact, lessonTitle, interactiveHref }: { artifact: LessonArtifact; lessonTitle: string; interactiveHref: string }) {
   const [error, setError] = useState(false);
   const [opening, setOpening] = useState(false);
   const open = async () => {
@@ -40,7 +40,7 @@ function MaterialRow({ artifact, lessonTitle }: { artifact: LessonArtifact; less
 
   return (
     <li>
-      {artifact.type === "interactive" ? <div className={styles.unavailableMaterial}><strong>{artifactLabel(artifact.type)}</strong><small>Интерактивная версия пока недоступна</small></div> : <button className={styles.materialAction} disabled={opening} aria-label={`${artifactLabel(artifact.type)}: ${lessonTitle} (в новой вкладке)`} onClick={() => void open()} type="button">
+      {artifact.type === "interactive" ? <Link className={styles.materialAction} href={interactiveHref}><Play size={22} aria-hidden="true" /><span><strong>{artifactLabel(artifact.type)}</strong><small>Читать и исследовать</small></span><ChevronRight size={18} aria-hidden="true" /></Link> : <button className={styles.materialAction} disabled={opening} aria-label={`${artifactLabel(artifact.type)}: ${lessonTitle} (в новой вкладке)`} onClick={() => void open()} type="button">
         <FileText size={22} aria-hidden="true" /><span><strong>{opening ? "Открываем…" : artifactLabel(artifact.type)}</strong><small>Откроется в новой вкладке</small></span><ArrowUpRight size={18} aria-hidden="true" />
       </button>}
       {error ? <small role="alert">Не удалось открыть файл. Попробуйте ещё раз.</small> : null}
@@ -52,6 +52,8 @@ export default function StudentLessonScreen({ lessonId }: { lessonId: string }) 
   const query = useStudentLesson(lessonId);
   const params = useSearchParams();
   const backHref = libraryHref(params.get('grade') ?? query.data?.section.gradeBand ?? null, params.get('q'), lessonId);
+  const context = libraryParams(params.get('grade') ?? query.data?.section.gradeBand ?? null, params.get('q'));
+  const interactiveHref = `/student/lessons/${lessonId}/interactive${context.size ? `?${context}` : ''}`;
 
   return (
     <div className={styles.page}>
@@ -78,7 +80,7 @@ export default function StudentLessonScreen({ lessonId }: { lessonId: string }) 
                 <p className={styles.gradeEmpty}>Файлы к занятию пока не опубликованы.</p>
               ) : (
                 <ul className={styles.materialList}>
-                  {query.data.artifacts.map((artifact) => <MaterialRow artifact={artifact} lessonTitle={query.data!.title} key={artifact.id} />)}
+                  {query.data.artifacts.map((artifact) => <MaterialRow artifact={artifact} lessonTitle={query.data!.title} interactiveHref={interactiveHref} key={artifact.id} />)}
                 </ul>
               )}
               {query.data.artifacts.length > 0 && <details className={styles.fileDetails}><summary>Сведения о файлах</summary><ul>{query.data.artifacts.map(artifact => <li key={artifact.id}><span>{artifactLabel(artifact.type)}</span><p>{artifact.filename}</p></li>)}</ul></details>}

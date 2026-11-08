@@ -36,7 +36,7 @@ class DeployCleanupTests(unittest.TestCase):
             bin_dir = root/'bin'; bin_dir.mkdir()
             shims = {
                 'id': 'echo 1001', 'git': 'exit 0', 'flock': 'exit 0',
-                'systemctl': 'echo /srv/continuum/deploy/scripts/start-web.sh',
+                'systemctl': 'echo "$APP_DIR/deploy/scripts/start-web.sh"',
                 'docker': 'printf "%s|%s\\n" "${CONTINUUM_API_IMAGE:-unset}" "$*" >> "$QA_DOCKER_LOG"\ncase "$*" in *"ps -q api"*) echo running;; *"image inspect"*) echo '+new_image+';; *"inspect running"*) echo '+old_image+';; *"exec -T"*) echo "[]";; esac',
                 'node': 'if [ "$2" = fingerprint ]; then echo '+new_fp+'; else cp "$QA_RELEASE" "$3/release.json"; fi',
                 'mv': 'python3 -c \'import os,sys; os.replace(sys.argv[-2],sys.argv[-1])\' "$@"',

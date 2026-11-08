@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Headers, Inject, Param, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Headers, Inject, Param, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import {
   CreateLessonInputSchema,
   CreateSectionInputSchema,
@@ -112,6 +112,7 @@ export class TeacherLibraryController {
     @Headers('content-type') contentType: string | undefined,
     @Headers('content-length') contentLength: string | undefined,
   ) {
+    assertWriteOrigin(request);
     return this.writes.uploadArtifact(request.user.id, params.id, {
       ...input,
       contentType: contentType ?? '',
@@ -131,7 +132,14 @@ export class TeacherLibraryController {
     @Req() request: AuthRequest,
     @Param(new ZodValidationPipe(ResourceIdParamsSchema)) params: ResourceIdParams,
   ) {
+    assertWriteOrigin(request);
     return this.writes.publishLesson(request.user.id, params.id);
+  }
+
+  @Get('artifacts/:id/interactive')
+  @Header('Cache-Control', 'no-store')
+  getInteractive(@Req() request: AuthRequest, @Param(new ZodValidationPipe(ResourceIdParamsSchema)) params: ResourceIdParams) {
+    return this.reads.getTeacherInteractive(request.user.id, params.id);
   }
 
   @Put('access-grants')

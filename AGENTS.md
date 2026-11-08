@@ -21,6 +21,8 @@
 ## 3) Как выбирать документ
 
 - Архитектурная карта и bounded contexts: `documents/ARCHITECTURE.md`
+- При переносе, создании или доработке интерактивной лекции сначала прочитать [documents/INTERACTIVE-LESSONS.md](documents/INTERACTIVE-LESSONS.md).
+- При сборке/импорте пакета или изменении проигрывателя также прочитать [documents/INTERACTIVE-PACKAGE.md](documents/INTERACTIVE-PACKAGE.md).
 - Инженерные принципы и guardrails: `documents/ARCHITECTURE-PRINCIPLES.md`
 - Dev/test/build/deploy runbook: `documents/DEVELOPMENT.md`
 - Повторяемые dev/run/build/test сбои: `documents/ops/TROUBLESHOOTING.md`

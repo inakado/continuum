@@ -6,14 +6,17 @@ import type {
   StudentLibrary,
   TeacherLessonDetail,
   TeacherLibrary,
+  InteractiveLessonDocument,
 } from '@continuum/shared';
 import { LessonArtifactType as DbLessonArtifactType, PublicationStatus } from '@prisma/client';
 import { ObjectStorageService } from '../infra/storage/object-storage.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { mapLessonDetail, mapLibrarySection } from './library.mapper';
+import { assertInteractiveSize, interactiveHash, interactivePackageError, parseInteractiveArchive, readInteractiveBytes } from './interactive-archive';
 
 const gradeBandOrder: GradeBand[] = ['grade_7', 'grade_8', 'grade_9', 'grade_10_11'];
 const studentPdfTypes = [DbLessonArtifactType.pdf, DbLessonArtifactType.tasks_pdf];
+const studentMaterialTypes = [...studentPdfTypes, DbLessonArtifactType.interactive];
 
 const lessonSummaryInclude = {
   artifacts: {
@@ -24,7 +27,7 @@ const lessonSummaryInclude = {
 
 const studentLessonSummaryInclude = {
   artifacts: {
-    where: { status: PublicationStatus.published, isActive: true, type: { in: studentPdfTypes } },
+    where: { status: PublicationStatus.published, isActive: true, type: { in: studentMaterialTypes } },
     select: { type: true },
   },
 } as const;
@@ -111,7 +114,7 @@ export class LibraryReadService {
       include: {
         section: { select: { id: true, gradeBand: true, title: true } },
         artifacts: {
-          where: { status: PublicationStatus.published, isActive: true, type: { in: studentPdfTypes } },
+          where: { status: PublicationStatus.published, isActive: true, type: { in: studentMaterialTypes } },
           orderBy: [{ type: 'asc' }, { version: 'desc' }],
           include: {
             asset: { select: { filename: true, contentType: true, sizeBytes: true } },
@@ -200,6 +203,41 @@ export class LibraryReadService {
         artifact.asset.contentType,
       ),
     };
+  }
+
+  async getTeacherInteractive(_teacherId: string, artifactId: string): Promise<InteractiveLessonDocument> {
+    const artifact = await this.prisma.lessonArtifact.findFirst({
+      where: { id: artifactId, type: DbLessonArtifactType.interactive },
+      select: { asset: { select: { objectKey: true, sizeBytes: true, contentHash: true } } },
+    });
+    if (!artifact) throw this.lessonNotFound();
+    return this.interactiveDocument(artifactId, artifact.asset);
+  }
+
+  async getStudentInteractive(studentId: string, artifactId: string): Promise<InteractiveLessonDocument> {
+    const grants = await this.prisma.accessGrant.findMany({ where: { studentId }, select: { gradeBand: true } });
+    if (!grants.length) throw this.lessonNotFound();
+    const artifact = await this.prisma.lessonArtifact.findFirst({
+      where: {
+        id: artifactId, type: DbLessonArtifactType.interactive,
+        status: PublicationStatus.published, isActive: true,
+        lesson: { is: {
+          status: PublicationStatus.published,
+          section: { is: { status: PublicationStatus.published, gradeBand: { in: grants.map((grant) => grant.gradeBand) } } },
+        } },
+      },
+      select: { asset: { select: { objectKey: true, sizeBytes: true, contentHash: true } } },
+    });
+    if (!artifact) throw this.lessonNotFound();
+    return this.interactiveDocument(artifactId, artifact.asset);
+  }
+
+  private async interactiveDocument(artifactId: string, asset: { objectKey: string; sizeBytes: bigint; contentHash: string | null }): Promise<InteractiveLessonDocument> {
+    assertInteractiveSize(Number(asset.sizeBytes));
+    const object = await this.storage.getObjectStream(asset.objectKey);
+    const bytes = await readInteractiveBytes(object.stream, Number(asset.sizeBytes));
+    if (interactiveHash(bytes) !== asset.contentHash) interactivePackageError('Содержимое ZIP изменилось после загрузки.');
+    return { artifactId, ...await parseInteractiveArchive(bytes) };
   }
 
   private lessonNotFound() {

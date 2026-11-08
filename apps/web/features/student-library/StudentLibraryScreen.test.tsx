@@ -115,3 +115,14 @@ it('returns to the referenced lesson with keyboard focus after opening a materia
   render(<StudentLibraryView library={catalog} />);
   expect(screen.getByRole('link', { name: /Равноускоренное/ })).toHaveFocus();
 });
+it('opens an interactive lecture directly and preserves the catalog context', () => {
+  history.replaceState(null, '', '/student?grade=grade_10_11&q=равномерное');
+  const lesson = { ...catalog.gradeBands[0].sections[0].lessons[0], formats: { pdf: true, tasks: true, interactive: true } };
+  const library = { gradeBands: [{ ...catalog.gradeBands[0], sections: [{ ...catalog.gradeBands[0].sections[0], lessons: [lesson] }] }] };
+  render(<StudentLibraryView library={library} />);
+  const link = screen.getByRole('link', { name: 'Интерактив' });
+  const url = new URL(link.getAttribute('href')!, location.origin);
+  expect(url.pathname).toBe('/student/lessons/lesson-1/interactive');
+  expect(url.searchParams.get('grade')).toBe('grade_10_11');
+  expect(url.searchParams.get('q')).toBe('равномерное');
+});

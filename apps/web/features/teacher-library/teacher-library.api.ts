@@ -2,6 +2,7 @@ import {
   LessonSummarySchema,
   LessonArtifactSchema,
   LessonArtifactViewResultSchema,
+  InteractiveLessonDocumentSchema,
   LibrarySectionSchema,
   PublicationResultSchema,
   TeacherLessonDetailSchema,
@@ -82,6 +83,8 @@ export const teacherLibraryApi = {
       `/teacher/library/artifacts/${artifactId}/view`,
       LessonArtifactViewResultSchema,
     ),
+  getInteractiveArtifact: (artifactId: string, signal?: AbortSignal) =>
+    apiRequestParsed(`/teacher/library/artifacts/${artifactId}/interactive`, InteractiveLessonDocumentSchema, { signal }),
 };
 
 export type LibraryDeletion = { kind: 'section' | 'lesson' | 'pdf' | 'tasks_pdf'; id: string; expectedIds: string[] };

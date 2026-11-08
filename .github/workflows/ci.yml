@@ -59,7 +59,7 @@ jobs:
       - name: Build web and shared
         if: steps.scope.outputs.docs_only != 'true' && steps.release.outputs.reused != 'true'
         env:
-          NEXT_PUBLIC_API_BASE_URL: https://vl-physics.ru/api
+          NEXT_PUBLIC_API_BASE_URL: https://${{ vars.APP_DOMAIN || 'app.example.invalid' }}/api
         run: pnpm build:web
       - name: Typecheck and test
         if: steps.scope.outputs.docs_only != 'true' && steps.release.outputs.reused != 'true'
@@ -67,6 +67,7 @@ jobs:
           pnpm typecheck
           pnpm test
           node --test scripts/ci/release.test.mjs
+          node --test apps/api/scripts/bootstrap-teachers.test.mjs
           python3 -m unittest discover -s deploy/scripts -p 'test_*.py'
       - name: Record checked source
         if: steps.scope.outputs.docs_only != 'true' && steps.release.outputs.reused != 'true'

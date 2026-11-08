@@ -1,0 +1,52 @@
+.section h2 { margin: 36px 0 16px; color: var(--catalog-heading); font-size: calc(28px * var(--lesson-reading-scale, 1)); font-weight: 650; line-height: 1.2; letter-spacing: -.02em; }
+.section h3 { margin: 24px 0 12px; color: var(--catalog-heading); font-size: calc(21px * var(--lesson-reading-scale, 1)); font-weight: 600; line-height: 1.35; }
+.figure { max-width: 600px; margin: 12px auto 24px; scroll-margin-top: 96px; font-size: 14px; line-height: 1.5; }
+.drawing { position: relative; }
+.art { composes: art from './mechanical-motion.module.css'; }
+.plane { fill: #edf2fa; fill-opacity: .62; }
+.projections { fill: none; stroke: #9eb3d2; stroke-width: 1; stroke-dasharray: 3 5; stroke-linecap: round; }
+.coordinate { fill: none; stroke: #718eb9; stroke-width: 2; }
+.foot { fill: #819cc4; stroke: white; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.radius { fill: none; stroke: var(--catalog-accent); stroke-width: 2.5; }
+.arrow { fill: var(--catalog-accent); }
+.angle { fill: none; stroke-width: 1.5; stroke-linecap: round; }
+.angle0 { color: #445f92; stroke: #718dbb; }
+.angle1 { color: #69618b; stroke: #8c80a6; }
+.angle2 { color: #766343; stroke: #a08b62; }
+.angleLabel { position: absolute; transform: translate(-50%, -50%); font-size: 13px; font-style: italic; line-height: 1; white-space: nowrap; pointer-events: none; text-shadow: 0 0 3px white, 0 0 3px white; }
+.angleLabel sub { font-size: .7em; }
+.axisLabel, .origin, .vectorLabel { position: absolute; font-style: italic; line-height: 1; pointer-events: none; }
+.axisLabel { color: var(--catalog-muted); font-size: 15px; }
+.axis0 { transform: translate(-20px, 5px); }
+.axis1 { transform: translate(9px, -50%); }
+.axis2 { transform: translate(-50%, -25px); }
+.origin { transform: translate(-22px, 8px); color: var(--catalog-muted); font-size: 13px; }
+.vectorLabel { transform: translate(-50%, -24px); color: var(--catalog-accent); font-size: 18px; }
+.vectorLabel::before { content: ''; position: absolute; top: -3px; left: -1px; right: -2px; border-top: 1px solid currentColor; }
+.vectorLabel::after { content: ''; position: absolute; top: -5px; right: -2px; width: 4px; height: 4px; border-top: 1px solid currentColor; border-right: 1px solid currentColor; transform: rotate(45deg); }
+.pointHandle, .axisHandle { position: absolute; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; transform: translate(-50%, -50%); border: 0; border-radius: 0; background: transparent; cursor: grab; touch-action: none; -webkit-tap-highlight-color: transparent; }
+[data-dragging="true"] :is(.pointHandle, .axisHandle) { cursor: grabbing; }
+.pointDot { display: block; width: 11px; height: 11px; border-radius: 50%; background: radial-gradient(circle at 30% 25%, #e1e9f8, #91a9d0 35%, #445f92 80%); box-shadow: 0 2px 4px #445f9226; }
+.pointName { position: absolute; left: 32px; bottom: 28px; color: var(--catalog-accent); font-size: 16px; font-style: italic; line-height: 1; }
+.pointHandle.pointHandle:focus-visible, .axisHandle.axisHandle:focus-visible { outline: none; }
+.pointHandle:focus-visible .pointName { text-decoration: underline; text-underline-offset: 4px; }
+.axisHandle:focus-visible::after { content: ''; position: absolute; width: 12px; height: 2px; bottom: 11px; background: var(--catalog-accent); }
+.coordinateReadout, .vectorReadout { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 28px; margin: 8px 0 12px; font-size: 15px; font-variant-numeric: tabular-nums; }
+.coordinateReadout > span, .vectorReadout > span { display: inline-flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+.coordinateReadout i, .vectorReadout i { font-size: 16px; }
+.coordinateReadout output, .vectorReadout output { min-width: 35px; }
+.coordinateReadout small, .vectorReadout small { color: var(--catalog-muted); font-size: 12px; }
+.hint { margin-top: 2px; text-align: center; color: var(--catalog-muted); font-size: 12px; }
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 600px) {
+  .section h2 { margin-top: 32px; font-size: calc(24px * var(--lesson-reading-scale, 1)); }
+  .section h3 { font-size: calc(19px * var(--lesson-reading-scale, 1)); }
+  .figure { margin-bottom: 28px; }
+  .coordinateReadout, .vectorReadout { gap: 8px 16px; font-size: 14px; }
+  .vectorReadout { display: grid; grid-template-columns: repeat(2, max-content); }
+  .axisLabel { font-size: 14px; }
+  .axis0 { transform: translate(-15px, 3px); }
+  .axis1 { transform: translate(7px, -50%); }
+  .axis2 { transform: translate(-50%, -22px); }
+  .hint { font-size: 11px; }
+}

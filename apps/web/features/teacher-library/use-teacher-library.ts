@@ -23,6 +23,15 @@ export const useTeacherLesson = (lessonId: string | null) =>
     enabled: Boolean(lessonId),
   });
 
+export const useTeacherInteractiveArtifact = (artifactId: string, actorId: string | undefined) =>
+  useQuery({
+    queryKey: teacherLibraryQueryKeys.interactiveArtifact(actorId ?? "", artifactId),
+    queryFn: ({ signal }) => teacherLibraryApi.getInteractiveArtifact(artifactId, signal),
+    enabled: Boolean(artifactId && actorId),
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+  });
+
 export const useCreateSection = () => {
   const refresh = useRefreshTeacherLibrary();
   return useMutation({ mutationFn: teacherLibraryApi.createSection, onSuccess: refresh });

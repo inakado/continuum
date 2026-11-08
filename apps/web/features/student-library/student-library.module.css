@@ -37,7 +37,7 @@
 .lessonIntro > p:last-child:not(.eyebrow) { margin: 20px 0 0; color: var(--catalog-muted); font-size: 16px; line-height: 1.6; }
 .materials { margin-top: 28px; }
 .materialList li { border-bottom: 1px solid var(--catalog-border); }
-.materialAction { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 80px; padding: 16px 0; border: 0; background: transparent; color: var(--catalog-accent); text-align: left; font: inherit; cursor: pointer; }
+.materialAction { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 80px; padding: 16px 0; border: 0; background: transparent; color: var(--catalog-accent); text-align: left; text-decoration: none; font: inherit; cursor: pointer; }
 .materialAction > span { flex: 1; min-width: 0; }
 .materialAction strong { display: block; font-size: 16px; font-weight: 500; }
 .materialAction small, .unavailableMaterial small { display: block; margin-top: 4px; color: var(--catalog-muted); font-size: 12px; }

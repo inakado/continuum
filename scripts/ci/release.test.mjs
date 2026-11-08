@@ -5,6 +5,20 @@ import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { findRelease, fingerprint, isDocumentation, trustedRun } from './release.mjs';
+import { deploymentTarget, productionApiUrl } from '../../deploy/scripts/target.mjs';
+
+test('deployment target accepts a new domain and rejects URL/shell/path injection', () => {
+  assert.equal(productionApiUrl('cntm.space'), 'https://cntm.space/api');
+  assert.equal(productionApiUrl('app.another.example'), 'https://app.another.example/api');
+  for (const domain of ['', undefined, 'https://cntm.space', 'cntm.space/api', 'cntm.space:443', 'x;echo pwn', '127.0.0.1']) {
+    assert.throws(() => productionApiUrl(domain));
+  }
+  const env = { DEPLOY_CONFIG:'/nonexistent/target.env', APP_DOMAIN:'cntm.space', SSH_TARGET:'deploy@137.22.150.253' };
+  assert.equal(deploymentTarget(env).appDir, '/srv/continuum');
+  for (const bad of [{SSH_TARGET:'-oProxyCommand=bad'}, {APP_DIR:'/srv/../root'}, {APP_DIR:'/srv/space path'}]) {
+    assert.throws(() => deploymentTarget({...env,...bad}));
+  }
+});
 
 test('only explicit inert documentation skips builds; unknown and runtime paths fail closed', () => {
   for (const path of ['README.md', 'documents/SECURITY.md', 'deploy/README.md']) assert.equal(isDocumentation(path), true);

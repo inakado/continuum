@@ -106,4 +106,4 @@ Production migration выполняется только в составе яв�
 
 ## Поставка production
 
-CI fingerprint/provenance, доставка исходников и сборка с кешем VPS, восстановление исправленной сборкой и retention описаны в [deploy runbook](../deploy/README.md). Новый deploy проверяют тестами `node --test scripts/ci/release.test.mjs` и `python3 -m unittest discover -s deploy/scripts -p 'test_*.py'`. Бэкапы Beget не являются частью обычного deploy.
+CI fingerprint/provenance, target.env, первая установка на пустую БД, доставка исходников и сборка с кешем VPS, восстановление исправленной сборкой и retention описаны в [deploy runbook](../deploy/README.md). Deploy проверяют тестами `node --test scripts/ci/release.test.mjs`, `node --test apps/api/scripts/bootstrap-teachers.test.mjs` и `python3 -m unittest discover -s deploy/scripts -p 'test_*.py'`. Provider backup не является частью обычного deploy.

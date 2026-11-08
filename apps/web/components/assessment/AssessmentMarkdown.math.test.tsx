@@ -14,7 +14,10 @@ afterEach(() => {
 
 it('measures inline and display math in their real text context and retypesets after a width change', async () => {
   let width = 640;
-  const getMetricsFor = vi.fn((_node: HTMLElement, display: boolean) => ({ display, em: 18, ex: 9, containerWidth: width, scale: 1, family: 'Medeo Sans' }));
+  const getMetricsFor = vi.fn((node: HTMLElement, display: boolean) => {
+    const em = parseFloat(getComputedStyle(node.parentElement!).fontSize) || 18;
+    return { display, em, ex: em / 2, containerWidth: width, scale: 1, family: 'Medeo Sans' };
+  });
   let fontsReady!: () => void;
   Object.defineProperty(document, 'fonts', { configurable: true, value: { ready: new Promise<void>((resolve) => { fontsReady = resolve; }) } });
   const tex2chtmlPromise = vi.fn(async (tex: string, options: { containerWidth: number }) => {
@@ -76,8 +79,35 @@ it('measures inline and display math in their real text context and retypesets a
   await act(async () => { finishOld(stale); });
   expect(view.container.querySelector('[data-typeset="stale"]')).not.toBeInTheDocument();
   expect(updateDocument).toHaveBeenCalledTimes(4);
+  // Размер шрифта меняется без изменения ширины: метрики должны обновиться.
+  (observed.target as HTMLElement).style.fontSize = '20px';
+  act(() => observed.callback([{ target: observed.target!, contentRect: new DOMRect(0, 0, width, 100) } as ResizeObserverEntry], observed.observer));
+  await waitFor(() => expect(tex2chtmlPromise).toHaveBeenCalledWith('x^2.', expect.objectContaining({ em: 20, containerWidth: 240 })));
+  expect(updateDocument).toHaveBeenCalledTimes(5);
   view.unmount();
   expect(disconnect).toHaveBeenCalledTimes(2);
+});
+
+it('keeps fitting math inline when MathJax reserves two pixels inside the container', async () => {
+  vi.resetModules();
+  const { default: Markdown } = await import('./AssessmentMarkdown');
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(() => new DOMRect(0, 0, 320, 26));
+  const append = document.head.appendChild.bind(document.head);
+  vi.spyOn(document.head, 'appendChild').mockImplementation(function<T extends Node>(node: T): T {
+    const result = append(node);
+    if (node instanceof HTMLScriptElement && node.src.endsWith('/vendor/mathjax/tex-chtml.js')) {
+      Object.assign(window, { MathJax: {
+        startup: { promise: Promise.resolve(), document: { reset() {}, updateDocument() {} } },
+        getMetricsFor: () => ({ display: false, em: 18, ex: 9, containerWidth: 318, scale: 1, family: 'sans-serif' }),
+        tex2chtmlPromise: async () => { const output = document.createElement('span'); output.dataset.typeset = 'fitting'; return output; },
+      } });
+      queueMicrotask(() => node.dispatchEvent(new Event('load')));
+    }
+    return result;
+  });
+  const view = render(<Markdown images={{}} text="$x^2$" />);
+  await waitFor(() => expect(view.container.querySelector('[data-typeset="fitting"]')).toBeInTheDocument());
+  expect(view.container.querySelector('[data-typeset="fitting"]')?.parentElement).not.toHaveAttribute('data-overflow');
 });
 
 it('switches tasks with the same formula and changing punctuation after typesetting', async () => {

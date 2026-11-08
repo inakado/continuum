@@ -4,6 +4,7 @@ import { createElement, memo, useEffect, useRef } from 'react';
 import { parseAssessmentMarkdown, type AssessmentMarkdownNode } from '@continuum/shared';
 import AssessmentImage from './AssessmentImage';
 import styles from './assessment-content.module.css';
+import { useLessonFormulaRenderer } from '@/components/interactive-lesson/authoring/LessonEnvironment';
 
 const base = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
 const imageUrl = (path: string) => path.startsWith('/teacher/assessment-bank/') || path.startsWith('/student/assessment-works/') ? `${base}${path}` : '';
@@ -33,7 +34,12 @@ function loadMath() {
   });
   return mathReady;
 }
-function Formula({ value, display, punctuation }: { value: string; display: boolean; punctuation: string }) {
+type FormulaProps = { value: string; display: boolean; punctuation?: string };
+export function AssessmentFormula(props: FormulaProps) {
+  const render = useLessonFormulaRenderer();
+  return render ? <span className={props.display ? styles.displayMath : styles.inlineMath}>{render(props.value + (props.punctuation ?? ''), props.display)}</span> : <LiveAssessmentFormula {...props} />;
+}
+function LiveAssessmentFormula({ value, display, punctuation = '' }: FormulaProps) {
   const slot = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     if (slot.current) slot.current.textContent = value + punctuation;
@@ -41,6 +47,7 @@ function Formula({ value, display, punctuation }: { value: string; display: bool
     let revision = 0;
     const parent = slot.current?.parentElement;
     let width = parent?.getBoundingClientRect().width;
+    let fontSize = parent ? getComputedStyle(parent).fontSize : undefined;
     async function typeset() {
       const current = ++revision;
       try {
@@ -53,7 +60,13 @@ function Formula({ value, display, punctuation }: { value: string; display: bool
           slot.current.replaceChildren(node);
           runtime.startup!.document!.reset();
           runtime.startup!.document!.updateDocument();
-          slot.current.toggleAttribute('data-overflow', !display && node.getBoundingClientRect().width > metrics.containerWidth);
+          const container = slot.current.parentElement;
+          const style = container ? getComputedStyle(container) : undefined;
+          const contentWidth = container ? container.getBoundingClientRect().width
+            - (parseFloat(style?.paddingLeft ?? '0') || 0) - (parseFloat(style?.paddingRight ?? '0') || 0)
+            - (parseFloat(style?.borderLeftWidth ?? '0') || 0) - (parseFloat(style?.borderRightWidth ?? '0') || 0) : 0;
+          const availableWidth = contentWidth > 0 ? contentWidth : metrics.containerWidth;
+          slot.current.toggleAttribute('data-overflow', !display && node.getBoundingClientRect().width > availableWidth + 1);
           slot.current.removeAttribute('title');
         }
       } catch {
@@ -62,7 +75,10 @@ function Formula({ value, display, punctuation }: { value: string; display: bool
     }
     void typeset();
     const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(([entry]) => {
-      if (entry && entry.contentRect.width !== width) { width = entry.contentRect.width; void typeset(); }
+      const nextFontSize = parent ? getComputedStyle(parent).fontSize : undefined;
+      if (entry && (entry.contentRect.width !== width || nextFontSize !== fontSize)) {
+        width = entry.contentRect.width; fontSize = nextFontSize; void typeset();
+      }
     });
     if (parent) observer?.observe(parent);
     return () => { active = false; observer?.disconnect(); };
@@ -80,7 +96,7 @@ function renderNodes(nodes: AssessmentMarkdownNode[], images: Record<string, str
     if (node.kind === 'math') {
       const next = nodes[index + 1];
       const punctuation = !node.display && next?.kind === 'text' ? next.value.match(/^[.,;:!?…]+/)?.[0] ?? '' : '';
-      return <Formula key={`${key}-${node.value}`} value={node.value} display={node.display} punctuation={punctuation} />;
+      return <AssessmentFormula key={`${key}-${node.value}`} value={node.value} display={node.display} punctuation={punctuation} />;
     }
     if (node.kind === 'image') {
       const src = imageUrl(images[node.src] ?? '');

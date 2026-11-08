@@ -12,3 +12,5 @@ export * from './contracts/assessment-solutions';
 export * from './contracts/assessment-statistics';
 export * from './contracts/reviewer';
 export * from './contracts/bulk-actions';
+export * from './contracts/interactive-lesson';
+export * from './contracts/interactive-lesson-bridge';

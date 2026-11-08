@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type {
   AccessGrant,
   CreateLessonInput,
@@ -19,6 +19,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { ObjectStorageService } from '../infra/storage/object-storage.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { assertLessonArtifactFile, safeArtifactFilename } from './lesson-artifact.policy';
+import { assertInteractiveSize, interactiveHash, interactivePackageError, parseInteractiveArchive, readInteractiveBytes } from './interactive-archive';
 
 @Injectable()
 export class LibraryWriteService {
@@ -106,37 +107,50 @@ export class LibraryWriteService {
     const artifacts = await this.prisma.lessonArtifact.findMany({
       where: { lessonId: lesson.id },
       orderBy: [{ type: 'asc' }, { version: 'desc' }],
-      select: { id: true, type: true },
+      select: { id: true, type: true, asset: { select: { objectKey: true, sizeBytes: true, contentHash: true } } },
     });
     const latestByType = new Map<DbLessonArtifactType, string>();
     for (const artifact of artifacts) {
-      // ZIP packages must not be published before manifest validation and an isolated player exist.
-      if (artifact.type === DbLessonArtifactType.interactive) continue;
-      if (!latestByType.has(artifact.type)) latestByType.set(artifact.type, artifact.id);
+      if (latestByType.has(artifact.type)) continue;
+      if (artifact.type === DbLessonArtifactType.interactive) {
+        // Revalidate older drafts too: a ZIP header alone never permits publication.
+        assertInteractiveSize(Number(artifact.asset.sizeBytes));
+        const object = await this.storage.getObjectStream(artifact.asset.objectKey);
+        const bytes = await readInteractiveBytes(object.stream, Number(artifact.asset.sizeBytes));
+        if (interactiveHash(bytes) !== artifact.asset.contentHash) interactivePackageError('Содержимое ZIP изменилось после загрузки.');
+        await parseInteractiveArchive(bytes);
+      }
+      latestByType.set(artifact.type, artifact.id);
     }
 
-    const publishedAt = new Date();
-    const operations = [...latestByType.entries()].flatMap(([type, artifactId]) => [
-      this.prisma.lessonArtifact.updateMany({
-        where: { lessonId: lesson.id, type, isActive: true },
-        data: { isActive: false },
-      }),
-      this.prisma.lessonArtifact.update({
-        where: { id: artifactId },
-        data: { status: PublicationStatus.published, isActive: true, publishedAt },
-      }),
-    ]);
-
-    const results = await this.prisma.$transaction([
-      ...operations,
-      this.prisma.lesson.update({
+    // Same lock as upload/delete: concurrent publishers cannot leave two active versions.
+    // Slow object validation stays outside the transaction; its exact snapshot is checked under lock.
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM lessons WHERE id = ${lessonId}::uuid FOR UPDATE`;
+      const currentLesson = await tx.lesson.findFirst({ where: { id: lessonId }, select: { section: { select: { status: true } } } });
+      if (!currentLesson) throw this.lessonNotFound();
+      if (currentLesson.section.status !== PublicationStatus.published) {
+        throw new ForbiddenException({ code: 'SECTION_NOT_PUBLISHED', message: 'Сначала опубликуйте раздел.' });
+      }
+      const currentArtifacts = await tx.lessonArtifact.findMany({
+        where: { lessonId }, orderBy: [{ type: 'asc' }, { version: 'desc' }], select: { id: true, type: true },
+      });
+      const currentByType = new Map<DbLessonArtifactType, string>();
+      for (const artifact of currentArtifacts) if (!currentByType.has(artifact.type)) currentByType.set(artifact.type, artifact.id);
+      if (currentByType.size !== latestByType.size || [...latestByType].some(([type, id]) => currentByType.get(type) !== id)) {
+        throw new ConflictException({ code: 'LIBRARY_CONTENT_CHANGED', message: 'Материалы занятия изменились. Обновите занятие и повторите публикацию.' });
+      }
+      const publishedAt = new Date();
+      for (const [type, artifactId] of latestByType) {
+        await tx.lessonArtifact.updateMany({ where: { lessonId, type, isActive: true }, data: { isActive: false } });
+        await tx.lessonArtifact.update({ where: { id: artifactId }, data: { status: PublicationStatus.published, isActive: true, publishedAt } });
+      }
+      return tx.lesson.update({
         where: { id: lesson.id },
         data: { status: PublicationStatus.published, publishedAt },
         select: { id: true, status: true },
-      }),
-    ]);
-
-    return results[results.length - 1] as PublicationResult;
+      });
+    });
   }
 
   async updateSection(
@@ -194,10 +208,16 @@ export class LibraryWriteService {
     }
     await this.assertLesson(lessonId);
 
+    // Executable packages are bounded and fully validated before writing any object.
+    const uploadBody = input.type === 'interactive'
+      ? await readInteractiveBytes(body, input.sizeBytes)
+      : body;
+    if (Buffer.isBuffer(uploadBody)) await parseInteractiveArchive(uploadBody);
+
     const filename = safeArtifactFilename(input.filename);
     const objectKey = `${this.artifactPrefix(teacherId, lessonId, input.type)}/${randomUUID()}-${filename}`;
     try {
-      await this.storage.putObject({ key: objectKey, contentType: input.contentType, body });
+      await this.storage.putObject({ key: objectKey, contentType: input.contentType, body: uploadBody });
       return await this.completeArtifactUpload(teacherId, lessonId, { ...input, objectKey });
     } catch (error) {
       await this.storage.deleteObject(objectKey).catch(() => undefined);
@@ -236,6 +256,7 @@ export class LibraryWriteService {
     const hash = createHash('sha256');
     let actualSize = 0;
     let signature = Buffer.alloc(0);
+    const interactiveChunks: Buffer[] = [];
     for await (const chunk of uploaded.stream as AsyncIterable<Buffer | Uint8Array | string>) {
       const bytes = typeof chunk === 'string' ? Buffer.from(chunk) : Buffer.from(chunk);
       actualSize += bytes.length;
@@ -244,11 +265,13 @@ export class LibraryWriteService {
       }
       if (signature.length < 5) signature = Buffer.concat([signature, bytes]).subarray(0, 5);
       hash.update(bytes);
+      if (input.type === 'interactive') interactiveChunks.push(bytes);
     }
     const expectedSignature = input.type === 'interactive' ? 'PK' : '%PDF-';
     if (actualSize !== input.sizeBytes || !signature.toString().startsWith(expectedSignature)) {
       throw new BadRequestException({ code: 'ARTIFACT_CONTENT_INVALID', message: 'Содержимое файла не соответствует формату.' });
     }
+    if (input.type === 'interactive') await parseInteractiveArchive(Buffer.concat(interactiveChunks));
 
     const result = await this.prisma.$transaction(async (transaction) => {
       await transaction.$queryRaw`SELECT id FROM lessons WHERE id = ${lessonId}::uuid FOR UPDATE`;

@@ -44,3 +44,14 @@ it('closes the placeholder and offers retry when file opening fails', async () =
   expect(close).toHaveBeenCalledOnce();
   expect(button).toBeEnabled();
 });
+
+it('links the interactive material to the player while retaining PDF opening', () => {
+  const data = { ...lesson, formats: { ...lesson.formats, interactive: true }, artifacts: [...lesson.artifacts, { ...lesson.artifacts[0], id: 'interactive', type: 'interactive' as const, filename: 'kin.zip' }] };
+  vi.mocked(useStudentLesson).mockReturnValue({ data, isPending: false, isError: false } as ReturnType<typeof useStudentLesson>);
+  render(<StudentLessonScreen lessonId={lesson.id} />);
+  const url = new URL(screen.getByRole('link', { name: /Интерактивная лекция/ }).getAttribute('href')!, location.origin);
+  expect(url.pathname).toBe('/student/lessons/lesson-2/interactive');
+  expect(url.searchParams.get('q')).toBe('движение');
+  expect(screen.getByRole('button', { name: /Конспект PDF.*в новой вкладке/ })).toBeEnabled();
+  expect(screen.queryByText('Интерактивная версия пока недоступна')).not.toBeInTheDocument();
+});
