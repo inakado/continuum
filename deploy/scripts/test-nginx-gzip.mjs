@@ -55,7 +55,7 @@ test('production Nginx template compresses only allowed JSON reads without chang
       try { await request('/api/health'); break; }
       catch (error) { if (error.code !== 'ECONNREFUSED' || attempt === 19) throw error; await delay(50); }
     }
-    for (const path of ['/api/teacher/assessment-bank?search=gas', '/api/teacher/assessment-works', '/api/teacher/assessment-assignments/one', '/api/teacher/assessment-statistics/one', '/api/student/assessment-works/one']) {
+    for (const path of ['/api/teacher/assessment-bank?search=gas', '/api/teacher/assessment-works', '/api/teacher/assessment-assignments/one', '/api/teacher/assessment-statistics/one', '/api/student/assessment-works/one', '/api/teacher/library/artifacts/one/interactive', '/api/student/library/artifacts/one/interactive']) {
       await t.test(`gzip GET ${path}`, async () => {
         const compressed = await request(path);
         const identity = await request(path, 'GET', 'identity');
@@ -72,7 +72,7 @@ test('production Nginx template compresses only allowed JSON reads without chang
         console.log(`${path}: ${identity.body.length} -> ${compressed.body.length} bytes`);
       });
     }
-    for (const [method, path] of [['POST', '/api/teacher/assessment-bank/imports/confirm'], ['PATCH', '/api/student/assessment-works/one/answers/two'], ['DELETE', '/api/teacher/assessment-works/one'], ['GET', '/api/auth/get-session'], ['POST', '/api/teacher/students/one/password-reset'], ['GET', '/api/teacher/reviewer-access/keys'], ['POST', '/api/teacher/reviewer-access/keys'], ['GET', '/api/teacher/assessment-statistics-other'], ['GET', '/api/teacher/assessment-bank/tasks/one/images/test.png'], ['HEAD', '/api/teacher/assessment-bank'], ['GET', '/api/student/assessment-works/one/availability']]) {
+    for (const [method, path] of [['POST', '/api/teacher/assessment-bank/imports/confirm'], ['PATCH', '/api/student/assessment-works/one/answers/two'], ['DELETE', '/api/teacher/assessment-works/one'], ['GET', '/api/auth/get-session'], ['POST', '/api/teacher/students/one/password-reset'], ['GET', '/api/teacher/reviewer-access/keys'], ['POST', '/api/teacher/reviewer-access/keys'], ['GET', '/api/teacher/assessment-statistics-other'], ['GET', '/api/teacher/assessment-bank/tasks/one/images/test.png'], ['HEAD', '/api/teacher/assessment-bank'], ['GET', '/api/student/assessment-works/one/availability'], ['GET', '/api/teacher/library'], ['GET', '/api/teacher/library/artifacts/one/interactive/secret'], ['POST', '/api/teacher/library/artifacts/one/interactive']]) {
       await t.test(`no gzip ${method} ${path}`, async () => {
         const response = await request(path, method);
         assert.equal(response.status, 200);
