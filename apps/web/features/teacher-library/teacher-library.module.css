@@ -683,8 +683,8 @@
 .previewState { width: calc(100% - 40px); max-width: 960px; margin: 32px auto; }
 .previewState > a { display: inline-flex; align-items: center; min-height: 44px; color: var(--catalog-accent); }
 
-.orderInfo { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; padding: 12px 0; color: var(--catalog-muted); font-size: 12px; line-height: 1.5; }
-.orderInfo p { margin: 0; max-width: 65ch; }
+.orderInfo { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; padding: 0; color: var(--catalog-muted); font-size: 12px; line-height: 1.5; }
+.orderInfo:has([role="status"]:not(:empty)) { padding: 12px 0; }
 .orderInfo [role="status"] { color: var(--catalog-accent); }
 .orderError { margin: 0 0 12px; color: var(--catalog-danger); font-size: 13px; }
 .orderHandle { display: inline-grid; place-items: center; width: 28px; min-height: 40px; padding: 0; border: 0; border-radius: var(--catalog-control-radius); background: transparent; color: var(--catalog-muted); cursor: grab; }
