@@ -47,7 +47,9 @@ if [ "$INITIAL_DEPLOY" = yes ]; then
   "${compose[@]}" up -d --wait --wait-timeout 60 postgres
   table_count=$("${compose[@]}" exec -T postgres sh -c 'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT count(*) FROM information_schema.tables WHERE table_schema NOT IN ('"'"'pg_catalog'"'"','"'"'information_schema'"'"');"')
   [ "$table_count" = 0 ] || { echo 'Initial deploy refuses a non-empty database'; exit 1; }
-  CONTINUUM_API_IMAGE="$image" "${compose[@]}" build api
+  if [ ! -d "$releases/$fingerprint" ]; then
+    CONTINUUM_API_IMAGE="$image" "${compose[@]}" build api
+  fi
   manifest_image=$(docker image inspect "$image" --format '{{.Id}}')
   printf '[]\n' > "$state/applied.json"
 else

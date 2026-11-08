@@ -16,4 +16,5 @@ deploy/releases
 deploy/runtime
 deploy/current
 deploy/cache/
+deploy/env/*.env
 **/__pycache__
