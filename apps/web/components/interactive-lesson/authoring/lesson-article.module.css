@@ -1,0 +1,14 @@
+.page { --lesson-formula-ink: #27344a; min-height: 100dvh; background: var(--catalog-paper); color: var(--catalog-ink); }
+.main { width: min(960px, calc(100% - 96px)); margin: 0 auto; padding: 42px 0 80px; }
+.intro { margin-bottom: 32px; }
+.context { margin-bottom: 14px; min-width: 0; color: var(--catalog-muted); font-size: 14px; line-height: 1.5; }
+.intro h1 { margin: 0; color: var(--catalog-heading); font-size: calc(clamp(30px, 3.1vw, 42px) * var(--lesson-reading-scale, 1)); font-weight: 650; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+.page [data-lesson-section], .page [id] { scroll-margin-top: 24px; }
+.page:has([data-reading-question]) .main { padding-bottom: 260px; }
+.page:has([data-reading-question][data-result]) .main { padding-bottom: 180px; }
+@media (max-width: 760px) {
+  .main { width: calc(100% - 40px); padding: 28px 0 48px; }
+  .intro { margin-bottom: 26px; }
+  .context { font-size: 13px; }
+  .intro h1 { font-size: calc(30px * var(--lesson-reading-scale, 1)); }
+}

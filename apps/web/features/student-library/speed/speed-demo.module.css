@@ -1,0 +1,47 @@
+.figure { --speed-warm: #8a7048; max-width: 640px; margin: 16px auto 32px; font-size: 14px; line-height: 1.5; scroll-margin-top: 96px; }
+.art { display: block; width: 100%; height: auto; overflow: visible; }
+.axes { fill: #697486; font-size: 16px; font-style: italic; }
+.axis { color: #8a9ab2; }
+.vectorLine { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; }
+.vectorTip { fill: currentColor; }
+.axis .vectorLine { stroke-width: 1.1; }
+.radius { color: #7c90b0; }
+.chord { color: #445f92; }
+.chord .vectorLine { stroke-width: 1.7; }
+.velocity { color: var(--speed-warm); }
+.velocity .vectorLine { stroke-width: 2; }
+.vectorLabel { fill: currentColor; font-family: 'Times New Roman', serif; font-size: 18px; font-style: italic; }
+.vectorLabel text, .pointLabel { paint-order: stroke; stroke: white; stroke-width: 5px; stroke-linejoin: round; }
+.accent { fill: none; stroke: currentColor; stroke-width: .8; }
+.pointLabel { fill: #27344a; font-size: 16px; font-style: italic; }
+.point { fill: #445f92; stroke: white; stroke-width: 2; }
+.startPoint { fill: #8196b5; stroke: white; stroke-width: 2; }
+.guide { fill: none; stroke: #dce4ef; stroke-width: 1.5; stroke-linecap: round; }
+.trail { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.metrics { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 28px; margin: 6px 0 12px; color: #445f92; font-size: 15px; font-variant-numeric: tabular-nums; }
+.metrics > span { display: inline-flex; align-items: baseline; gap: 4px; }
+.metrics small { font-size: 12px; }
+.warm { color: var(--speed-warm); }
+.previousPath { fill: none; stroke: #9eb1cb; stroke-width: 2; stroke-dasharray: 2 4; }
+.pathCalculation { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 4px; margin: 8px 0; color: var(--catalog-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.returnTrail { fill: none; stroke: #9eb7d6; stroke-width: 3; }
+.ticks { fill: none; stroke: #8393ad; stroke-width: 1; }
+.tangent { fill: none; stroke: #b7c1ce; stroke-width: 1; }
+.secant { fill: none; stroke: #8498b7; stroke-width: 1; stroke-dasharray: 4 6; }
+.compare { display: flex; justify-content: center; align-items: center; gap: 8px; min-height: 44px; margin-top: 6px; color: var(--catalog-muted); font-size: 12px; cursor: pointer; }
+.compare input { accent-color: #445f92; width: 16px; height: 16px; }
+.number { color: var(--catalog-muted); font-size: 12px; white-space: nowrap; }
+.parameter { composes: controls from '../../../components/interactive-lesson/authoring/playback-controls.module.css'; max-width: 500px; margin: 0 auto; color: var(--catalog-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.parameter > span { flex: 0 0 68px; text-align: center; font-style: italic; }
+.parameter input { flex: 1; min-width: 0; min-height: 44px; margin: 0; accent-color: #445f92; cursor: pointer; }
+.parameter output { min-width: 68px; white-space: nowrap; }
+.figure input:focus-visible, .figure button:focus-visible { outline: 2px solid #445f92; outline-offset: 3px; }
+@media (max-width: 600px) {
+  .figure { margin-top: 8px; }
+  .pointLabel, .vectorLabel { font-size: 20px; }
+  .accent { transform: translateY(-3px); }
+  .axes { font-size: 21px; }
+  .metrics { gap: 6px 18px; font-size: 14px; }
+  .parameter { gap: 8px; }
+  .parameter > span { flex-basis: 62px; }
+}

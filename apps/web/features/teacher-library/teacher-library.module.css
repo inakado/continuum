@@ -672,3 +672,7 @@
 .inspectorState button:is(:hover, :focus-visible):not(:disabled) { color: var(--catalog-on-accent); }
 
 .artifactActions button[data-library-delete]:hover:not(:disabled) { color: var(--catalog-danger-hover); }
+.previewLink { display: inline-flex; align-items: center; min-height: 36px; padding: 6px 10px; border: 1px solid var(--catalog-action-border); border-radius: var(--catalog-control-radius); color: var(--catalog-accent); text-decoration: none; font-size: 13px; }
+.previewLink:hover { background: var(--catalog-selected); border-color: var(--catalog-accent); }
+.previewState { width: calc(100% - 40px); max-width: 960px; margin: 32px auto; }
+.previewState > a { display: inline-flex; align-items: center; min-height: 44px; color: var(--catalog-accent); }

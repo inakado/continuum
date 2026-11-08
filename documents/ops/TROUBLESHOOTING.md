@@ -4,6 +4,14 @@
 
 Здесь хранятся повторяемые dev/run/build/test/deploy сбои новой версии. Production-first диагностика находится в [deploy/README.md](../../deploy/README.md).
 
+### Chrome обрезает страницу после проверки адаптивности
+
+- **Симптом:** при сужении настоящего окна текст сохраняет широкую вёрстку и обрезается; например, `innerWidth=1440`, а `outerWidth=559`.
+- **Причина:** в видимой вкладке осталась эмуляция viewport от `page.setViewportSize`; размер окна меняется независимо от эмулированной области страницы.
+- **Диагностика:** сравнить `innerWidth`, `outerWidth`, `document.documentElement.clientWidth` и `page.viewportSize()`. До изменения CSS проверить ширину `main`.
+- **Исправление:** завершить эмуляцию в управляющей сессии либо открыть новую вкладку того же browser context без viewport override; cookies и localStorage сохраняются. Проверки фиксированных размеров проводить в отдельном временном контексте и закрывать только его.
+- **Проверка:** изменение нативного окна меняет `innerWidth` и ширину текста; переносы работают без перезагрузки. Вкладка для пользователя остается без эмуляции, `page.viewportSize() === null`.
+
 ### Better Auth dependency отсутствует в dev API volume
 
 - **Симптом:** API падает с `Cannot find module '@thallesp/nestjs-better-auth'`.

@@ -2,6 +2,7 @@
 
 import type { ChangeEvent, FormEvent } from "react";
 import { useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import type {
   GradeBand,
   LessonArtifact,
@@ -18,6 +19,7 @@ import {
   Upload,
 } from "lucide-react";
 import TeacherChrome from '@/features/teacher-shell/TeacherChrome';
+import { ApiError } from '@/lib/api/client';
 import { teacherLibraryApi } from "./teacher-library.api";
 import {
   useCreateLesson,
@@ -268,7 +270,7 @@ function ArtifactSlot({ artifact, lessonId, type, title, versions = [] }: Artifa
           <span>{isInteractive ? "Интерактивная лекция не добавлена" : "PDF-файл не добавлен"}</span>
         </div>
       )}
-      {isInteractive ? <p className={styles.artifactNote}>ZIP можно сохранить здесь. Публикация и просмотр учениками появятся после подключения защищённого проигрывателя.</p> : null}
+      {isInteractive ? <p className={styles.artifactNote}>Загрузите пакет лекции, проверьте предпросмотр и опубликуйте занятие.</p> : null}
       <div className={styles.artifactActions}>
         <input
           accept={isInteractive ? ".zip,application/zip,application/x-zip-compressed" : ".pdf,application/pdf"}
@@ -281,10 +283,11 @@ function ArtifactSlot({ artifact, lessonId, type, title, versions = [] }: Artifa
         <button disabled={uploadArtifact.isPending} onClick={() => inputRef.current?.click()} type="button">
           {uploadArtifact.isPending ? "Загружаем…" : artifact ? "Заменить" : isInteractive ? "Загрузить пакет" : "Загрузить PDF"}
         </button>
+        {artifact && isInteractive ? <Link className={styles.previewLink} href={`/teacher/materials/interactive/${artifact.id}`}>Предпросмотр</Link> : null}
         {artifact ? <button disabled={opening} onClick={() => void open()} type="button">{opening ? "Открываем…" : isInteractive ? "Скачать пакет" : "Открыть PDF"}</button> : null}
         {artifact && type !== 'interactive' && <LibraryDeleteAction disabled={uploadArtifact.isPending} target={{ kind: type, id: lessonId, expectedIds: versions.filter((file) => file.type === type).map((file) => file.id) }} title={artifact.filename} />}
       </div>
-      {uploadArtifact.isError ? <p className={styles.formError} role="alert">Не удалось загрузить файл.</p> : null}
+      {uploadArtifact.isError ? <p className={styles.formError} role="alert">{isInteractive && uploadArtifact.error instanceof ApiError ? uploadArtifact.error.message : "Не удалось загрузить файл."}</p> : null}
     </section>
   );
 }
@@ -344,7 +347,7 @@ function LessonInspector({ lessonId, sectionStatus }: { lessonId: string | null;
         )}
         <div className={styles.inspectorState}>
           <span>{query.data.status === "published" ? "Опубликовано" : "Черновик"}</span>
-          {query.data.status === "draft" || query.data.artifacts.some((artifact) => artifact.status === "draft" && artifact.type !== "interactive") ? (
+          {query.data.status === "draft" || query.data.artifacts.some((artifact) => artifact.status === "draft") ? (
             <button
               disabled={publishLesson.isPending || sectionStatus !== "published"}
               onClick={() => publishLesson.mutate(lessonId)}

@@ -16,3 +16,12 @@ export const useStudentLesson = (lessonId: string) =>
     queryFn: () => studentLibraryApi.getLesson(lessonId),
     enabled: lessonId.length > 0,
   });
+
+export const useStudentInteractiveArtifact = (artifactId: string | undefined, actorId: string | undefined) =>
+  useQuery({
+    queryKey: studentLibraryQueryKeys.interactiveArtifact(actorId ?? "", artifactId ?? ""),
+    queryFn: ({ signal }) => studentLibraryApi.getInteractiveArtifact(artifactId ?? "", signal),
+    enabled: Boolean(artifactId && actorId),
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+  });

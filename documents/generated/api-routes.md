@@ -28,6 +28,7 @@
 | `GET` | `/student/assessment-works/:id/items/:taskId/images/:name` | `image` | `apps/api/src/assessment-assignments/student-attempts.controller.ts:37` |
 | `POST` | `/student/assessment-works/:id/start` | `start` | `apps/api/src/assessment-assignments/student-attempts.controller.ts:26` |
 | `GET` | `/student/library` | `getLibrary` | `apps/api/src/library/student-library.controller.ts:16` |
+| `GET` | `/student/library/artifacts/:id/interactive` | `getInteractive` | `apps/api/src/library/student-library.controller.ts:37` |
 | `GET` | `/student/library/artifacts/:id/view` | `getArtifactView` | `apps/api/src/library/student-library.controller.ts:29` |
 | `GET` | `/student/library/lessons/:id` | `getLesson` | `apps/api/src/library/student-library.controller.ts:21` |
 | `GET` | `/teacher/assessment-assignments` | `list` | `apps/api/src/assessment-assignments/teacher-assignments.controller.ts:28` |
@@ -71,15 +72,16 @@
 | `PATCH` | `/teacher/classes/:id` | `updateClass` | `apps/api/src/identity-access/teacher-classes.controller.ts:30` |
 | `POST` | `/teacher/classes/students` | `createStudents` | `apps/api/src/identity-access/teacher-classes.controller.ts:35` |
 | `GET` | `/teacher/library` | `getLibrary` | `apps/api/src/library/teacher-library.controller.ts:52` |
-| `PUT` | `/teacher/library/access-grants` | `setAccessGrant` | `apps/api/src/library/teacher-library.controller.ts:137` |
-| `GET` | `/teacher/library/artifacts/:id/view` | `getArtifactView` | `apps/api/src/library/teacher-library.controller.ts:121` |
+| `PUT` | `/teacher/library/access-grants` | `setAccessGrant` | `apps/api/src/library/teacher-library.controller.ts:145` |
+| `GET` | `/teacher/library/artifacts/:id/interactive` | `getInteractive` | `apps/api/src/library/teacher-library.controller.ts:139` |
+| `GET` | `/teacher/library/artifacts/:id/view` | `getArtifactView` | `apps/api/src/library/teacher-library.controller.ts:122` |
 | `POST` | `/teacher/library/lessons` | `createLesson` | `apps/api/src/library/teacher-library.controller.ts:90` |
 | `DELETE` | `/teacher/library/lessons/:id` | `deleteLesson` | `apps/api/src/library/teacher-library.controller.ts:43` |
 | `GET` | `/teacher/library/lessons/:id` | `getLesson` | `apps/api/src/library/teacher-library.controller.ts:57` |
 | `PATCH` | `/teacher/library/lessons/:id` | `updateLesson` | `apps/api/src/library/teacher-library.controller.ts:98` |
 | `DELETE` | `/teacher/library/lessons/:id/artifacts/:type` | `deletePdf` | `apps/api/src/library/teacher-library.controller.ts:47` |
 | `PUT` | `/teacher/library/lessons/:id/artifacts/upload` | `uploadArtifact` | `apps/api/src/library/teacher-library.controller.ts:107` |
-| `PATCH` | `/teacher/library/lessons/:id/publish` | `publishLesson` | `apps/api/src/library/teacher-library.controller.ts:129` |
+| `PATCH` | `/teacher/library/lessons/:id/publish` | `publishLesson` | `apps/api/src/library/teacher-library.controller.ts:130` |
 | `POST` | `/teacher/library/sections` | `createSection` | `apps/api/src/library/teacher-library.controller.ts:65` |
 | `DELETE` | `/teacher/library/sections/:id` | `deleteSection` | `apps/api/src/library/teacher-library.controller.ts:39` |
 | `PATCH` | `/teacher/library/sections/:id` | `updateSection` | `apps/api/src/library/teacher-library.controller.ts:73` |

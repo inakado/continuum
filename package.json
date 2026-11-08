@@ -23,6 +23,7 @@
     "dev:backend": "docker compose up -d api",
     "dev:web": "PORT=3001 NEXT_PUBLIC_API_BASE_URL=http://localhost:3000 pnpm --filter web dev",
     "smoke": "node scripts/smoke.mjs",
+    "lesson:build": "node scripts/interactive-lessons/build-package.mjs",
     "docs:generate": "node scripts/docs/generate-db-schema.mjs && node scripts/docs/generate-api-routes.mjs",
     "docs:check": "pnpm docs:check:links && pnpm docs:check:index && pnpm docs:check:status && pnpm docs:check:generated",
     "docs:check:links": "node scripts/docs/check-links.mjs",

@@ -5,11 +5,13 @@ export const authQueryKeys = {
 export const studentLibraryQueryKeys = {
   all: () => ["student-library"] as const,
   lesson: (lessonId: string) => ["student-library", "lesson", lessonId] as const,
+  interactiveArtifact: (actorId: string, artifactId: string) => ["student-library", "interactive", actorId, artifactId] as const,
 } as const;
 
 export const teacherLibraryQueryKeys = {
   all: () => ["teacher-library"] as const,
   lesson: (lessonId: string) => ["teacher-library", "lesson", lessonId] as const,
+  interactiveArtifact: (actorId: string, artifactId: string) => ["teacher-library", "interactive", actorId, artifactId] as const,
 } as const;
 
 export const teacherStudentsQueryKeys = {

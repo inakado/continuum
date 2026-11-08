@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import type { LessonArtifactType } from '@continuum/shared';
+import { interactiveLessonPolicy, type LessonArtifactType } from '@continuum/shared';
 
 type ArtifactFile = {
   type: LessonArtifactType;
@@ -27,7 +27,7 @@ const policies: Record<
   interactive: {
     extensions: ['.zip'],
     contentTypes: ['application/zip', 'application/x-zip-compressed'],
-    maxSizeBytes: 200 * MEBIBYTE,
+    maxSizeBytes: interactiveLessonPolicy.zipBytes,
   },
 };
 
@@ -50,7 +50,7 @@ export const assertLessonArtifactFile = (file: ArtifactFile) => {
   if (file.sizeBytes > policy.maxSizeBytes) {
     throw new BadRequestException({
       code: 'ARTIFACT_FILE_TOO_LARGE',
-      message: file.type === 'interactive' ? 'Пакет больше 200 МБ.' : 'PDF больше 50 МБ.',
+      message: file.type === 'interactive' ? 'Пакет больше 16 МиБ.' : 'PDF больше 50 МБ.',
     });
   }
 };

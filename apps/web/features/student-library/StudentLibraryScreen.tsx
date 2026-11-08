@@ -72,7 +72,7 @@ export function StudentLibraryView({ library }: { library: StudentLibrary }) {
                         </span>
                         <span className={styles.formatSlot}>
                           {lesson.formats.interactive ? (
-                            <Link href={`/student/lessons/${lesson.id}?${libraryParams(grade.code, query)}`}>Интерактив</Link>
+                            <Link href={`/student/lessons/${lesson.id}/interactive?${libraryParams(grade.code, query)}`}>Интерактив</Link>
                           ) : null}
                         </span>
                         <span className={styles.formatSlot}>

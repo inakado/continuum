@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useRef, useState } from "react";
+import { memo, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useAuthLogout } from "@/features/auth/useAuthLogout";
@@ -8,7 +8,7 @@ import { useAuthSession } from "@/features/auth/useAuthSession";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/DropdownMenu";
 import styles from "./continuum-header.module.css";
 
-export default memo(function ContinuumHeader({ homeHref, beforeLogout }: { homeHref: string; beforeLogout?: () => Promise<boolean> }) {
+export default memo(function ContinuumHeader({ homeHref, beforeLogout, subject = 'Физика' }: { homeHref: string; beforeLogout?: () => Promise<boolean>; subject?: ReactNode }) {
   const session = useAuthSession();
   const logout = useAuthLogout();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -28,7 +28,7 @@ export default memo(function ContinuumHeader({ homeHref, beforeLogout }: { homeH
           Континуум
         </Link>
         <span className={styles.divider} aria-hidden="true" />
-        <span className={styles.subject}>Физика</span>
+        <div className={styles.subject}>{subject}</div>
       </div>
       <div className={styles.profile}>
         <DropdownMenu modal={false} open={menuOpen} onOpenChange={setMenuOpen}>

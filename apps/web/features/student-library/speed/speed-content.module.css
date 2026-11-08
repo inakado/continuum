@@ -1,0 +1,11 @@
+.fractionExpansion { container-type: inline-size; }
+.stacked { display: none; }
+.formulaLink { color: inherit; text-decoration: none; }
+.formulaLink:hover { text-decoration: underline; text-underline-offset: 3px; }
+.formulaLink:focus-visible { outline: 2px solid var(--catalog-accent); outline-offset: 3px; border-radius: 2px; }
+.annotatedTerm { display: inline-block; position: relative; min-width: 3.5em; padding-top: .8em; text-align: center; }
+.annotations { position: absolute; inset: 0 50% auto auto; display: flex; gap: .15em; width: max-content; transform: translateX(50%); font-size: .707em; line-height: 1; white-space: nowrap; }
+@container (max-width: 640px) {
+  .full { display: none; }
+  .stacked { display: block; }
+}

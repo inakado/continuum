@@ -8,6 +8,13 @@ vi.mock('@/features/auth/useAuthSession', () => ({ useAuthSession: () => ({ data
 vi.mock('@/features/auth/useAuthLogout', () => ({ useAuthLogout: () => state.logout }));
 beforeEach(() => { state.role = 'teacher'; state.logout.mockReset(); });
 
+it('accepts a lesson action in the subject slot while preserving the profile', () => {
+  render(<ContinuumHeader homeHref="/student" subject={<button type="button">Разделы</button>} />);
+  expect(screen.getByRole('button', { name: 'Разделы' })).toBeVisible();
+  expect(screen.queryByText('Физика')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Профиль: Александр' })).toBeVisible();
+});
+
 it('opens by keyboard, navigates the teacher menu and returns focus on Escape', async () => {
   const user = userEvent.setup(); render(<ContinuumHeader homeHref="/teacher" />);
   const trigger = screen.getByRole('button', { name: 'Профиль: Александр' });

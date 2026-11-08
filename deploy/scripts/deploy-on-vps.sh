@@ -3,6 +3,7 @@ set -euo pipefail
 : "${APP_DIR:=/srv/continuum}"
 : "${MIGRATIONS_APPROVED:=no}"
 : "${BACKUP_CONFIRMED:=no}"
+: "${INITIAL_DEPLOY:=no}"
 [ "$(id -u)" -ne 0 ] || { echo 'Run as deploy, not root'; exit 1; }
 cd "$APP_DIR"
 [ -z "$(git status --short)" ] || { echo 'Checkout must be clean'; exit 1; }
@@ -34,14 +35,31 @@ set +a
 : "${APP_DOMAIN:?APP_DOMAIN required}"
 [ "${#BETTER_AUTH_SECRET}" -ge 32 ]
 if [ "${PREPARE_ONLY:-no}" != yes ]; then
-  systemctl cat continuum-web | grep -Fq '/srv/continuum/deploy/scripts/start-web.sh' || { echo 'Install the verified release web launcher first'; exit 1; }
+  systemctl cat continuum-web | grep -Fq "$APP_DIR/deploy/scripts/start-web.sh" || { echo 'Install the verified release web launcher first'; exit 1; }
 fi
 fingerprint=$(node scripts/ci/release.mjs fingerprint)
 image="continuum-release-api:$fingerprint"
 compose=(docker compose -f docker-compose.prod.yml)
 old_container=$("${compose[@]}" ps -q api)
-[ -n "$old_container" ]
-old_image=$(docker inspect "$old_container" --format '{{.Image}}')
+old_image=''
+if [ "$INITIAL_DEPLOY" = yes ]; then
+  [ -z "$old_container" ] && [ ! -e "$state/current.json" ] && [ ! -e "$state/previous.json" ] && [ ! -e "$APP_DIR/deploy/current" ] && [ ! -L "$APP_DIR/deploy/current" ] || { echo 'Initial deploy requires no previous runtime'; exit 1; }
+  "${compose[@]}" up -d --wait --wait-timeout 60 postgres
+  table_count=$("${compose[@]}" exec -T postgres sh -c 'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT count(*) FROM information_schema.tables WHERE table_schema NOT IN ('"'"'pg_catalog'"'"','"'"'information_schema'"'"');"')
+  [ "$table_count" = 0 ] || { echo 'Initial deploy refuses a non-empty database'; exit 1; }
+  CONTINUUM_API_IMAGE="$image" "${compose[@]}" build api
+  manifest_image=$(docker image inspect "$image" --format '{{.Id}}')
+  printf '[]\n' > "$state/applied.json"
+else
+  [ -n "$old_container" ] || { echo 'No API runtime; use INITIAL_DEPLOY=yes only for a new empty installation'; exit 1; }
+  old_image=$(docker inspect "$old_container" --format '{{.Image}}')
+  manifest_image="$old_image"
+  "${compose[@]}" exec -T -w /app/apps/api api node -e '
+const {PrismaService}=require("./dist/prisma/prisma.service");const db=new PrismaService();
+db.$queryRawUnsafe("SELECT migration_name AS name, checksum, finished_at AS finished, rolled_back_at AS \"rolledBack\" FROM _prisma_migrations")
+.then(rows=>console.log(JSON.stringify(rows))).finally(()=>db.$disconnect()).catch(()=>process.exitCode=1);
+' > "$state/applied.json"
+fi
 old_web=$(readlink -f "$APP_DIR/deploy/current" || true)
 if [ ! -d "$old_web" ]; then old_web=''; fi
 if [ -n "$old_web" ]; then
@@ -62,16 +80,11 @@ if [ -f "$state/current.json" ] && [ "$(python3 -c 'import json,sys;d=json.load(
   echo 'This checked source is already deployed'
   exit 0
 fi
-NEXT_PUBLIC_API_BASE_URL="https://$APP_DOMAIN/api" node scripts/ci/release.mjs manifest "$state" "$old_image"
+NEXT_PUBLIC_API_BASE_URL="https://$APP_DOMAIN/api" node scripts/ci/release.mjs manifest "$state" "$manifest_image"
 mv "$state/release.json" "$state/candidate.json"
-"${compose[@]}" exec -T -w /app/apps/api api node -e '
-const {PrismaService}=require("./dist/prisma/prisma.service");const db=new PrismaService();
-db.$queryRawUnsafe("SELECT migration_name AS name, checksum, finished_at AS finished, rolled_back_at AS \"rolledBack\" FROM _prisma_migrations")
-.then(rows=>console.log(JSON.stringify(rows))).finally(()=>db.$disconnect()).catch(()=>process.exitCode=1);
-' > "$state/applied.json"
 pending=$(python3 deploy/scripts/release_state.py migrations "$state/candidate.json" "$state/applied.json")
-if [ -n "$pending" ] && { [ "$MIGRATIONS_APPROVED" != yes ] || [ "$BACKUP_CONFIRMED" != yes ]; }; then
-  echo 'New migrations require MIGRATIONS_APPROVED=yes and confirmed provider backup (BACKUP_CONFIRMED=yes)'
+if [ -n "$pending" ] && { [ "$MIGRATIONS_APPROVED" != yes ] || { [ "$INITIAL_DEPLOY" != yes ] && [ "$BACKUP_CONFIRMED" != yes ]; }; }; then
+  echo 'New migrations require MIGRATIONS_APPROVED=yes and BACKUP_CONFIRMED=yes (except verified empty initial deploy)'
   exit 1
 fi
 prepared="$releases/$fingerprint"
@@ -83,7 +96,7 @@ if [ ! -d "$prepared" ]; then
   stage=$(mktemp -d "$releases/.prepare-XXXXXX")
   mkdir "$stage/source"
   git archive HEAD | tar -x -C "$stage/source"
-  CONTINUUM_API_IMAGE="$image" "${compose[@]}" build api
+  if [ "$INITIAL_DEPLOY" != yes ]; then CONTINUUM_API_IMAGE="$image" "${compose[@]}" build api; fi
   pnpm --dir "$stage/source" install --frozen-lockfile --prefer-offline --prod=false
   if [ -d "$APP_DIR/deploy/cache/next" ]; then
     mkdir -p "$stage/source/apps/web/.next"
@@ -111,7 +124,7 @@ if [ "${PREPARE_ONLY:-no}" = yes ]; then echo "Prepared $fingerprint; runtime un
 export CONTINUUM_API_IMAGE="$image"
 activation_started=yes
 if [ -n "$pending" ]; then
-  "${compose[@]}" stop api
+  if [ -n "$old_container" ]; then "${compose[@]}" stop api; fi
   "${compose[@]}" run --rm -T --no-deps api sh -lc 'pnpm --filter @continuum/api exec prisma migrate deploy'
 fi
 "${compose[@]}" up -d --no-build --pull never --no-deps api
@@ -127,7 +140,8 @@ import json,sys
 from pathlib import Path
 state,old_image,old_web=Path(sys.argv[1]),sys.argv[2],sys.argv[3]
 old={'apiImageId':old_image,'webPath':old_web or None,'fingerprint':Path(old_web).name if old_web else None}
-(state/'previous.json').write_text(json.dumps(old))
+if old_image:
+    (state/'previous.json').write_text(json.dumps(old))
 (state/'candidate.json').replace(state/'current.json')
 PY
 activation_started=no

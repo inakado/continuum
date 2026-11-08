@@ -90,6 +90,9 @@
 - Пакет не получает cookie, auth headers или Better Auth session.
 - Package manifest, entry point, content hash, file count и общий размер проверяются до публикации.
 - Связь с платформой возможна только через версионированный allowlist `postMessage`-сообщений.
+- Пакет v1 — два ограниченных UTF-8 файла с проверкой CRC и SHA-256; исходный ZIP также проверяется по сохранённому hash при чтении/публикации. Legacy ZIP без валидного манифеста не публикуется. Контракт — [INTERACTIVE-PACKAGE](INTERACTIVE-PACKAGE.md).
+- Исполняемый HTML доставляется как данные авторизованного JSON-ответа `no-store`, затем только в `srcDoc` sandbox="allow-scripts". Host ставит свою CSP первой: внешняя сеть, формы, вложенные фреймы/объекты и base URL запрещены. Отсутствие `allow-same-origin` даёт opaque origin; frame messages принимаются только от собственного contentWindow с origin `null` и строгой shared-схемой. Основания: [iframe sandbox](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/iframe), [postMessage](https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage).
+- Bridge не передаёт идентификатор аккаунта, credentials или произвольное host storage. Сохраняются только масштаб и результаты известных самопроверок с учётом аккаунта/лекции/ревизии вопроса; это локальная помощь читателю, не оценивание. Sandbox не является CPU/memory quota.
 
 ### Excalidraw
 

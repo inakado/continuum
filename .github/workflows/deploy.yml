@@ -10,8 +10,12 @@ on:
         description: Approve new migrations (not required when schema is unchanged)
         type: boolean
         default: false
+      initial_deploy:
+        description: First installation into a verified empty database
+        type: boolean
+        default: false
       backup_confirmed:
-        description: Fresh provider backup confirmed before new migrations
+        description: Fresh recoverable data backup confirmed before new migrations
         type: boolean
         default: false
 
@@ -43,6 +47,9 @@ jobs:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
           DEPLOY_SHA: ${{ inputs.deploy_sha }}
+          APP_DOMAIN: ${{ vars.APP_DOMAIN }}
+          APP_DIR: ${{ vars.APP_DIR || '/srv/continuum' }}
+          INITIAL_DEPLOY: ${{ inputs.initial_deploy && 'yes' || 'no' }}
           MIGRATIONS_APPROVED: ${{ inputs.migrations_approved && 'yes' || 'no' }}
           BACKUP_CONFIRMED: ${{ inputs.backup_confirmed && 'yes' || 'no' }}
         run: |

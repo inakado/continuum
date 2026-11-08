@@ -1,4 +1,4 @@
-import { Controller, Get, Inject, Param, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Header, Inject, Param, Req, UseGuards } from '@nestjs/common';
 import { ResourceIdParamsSchema, type ResourceIdParams } from '@continuum/shared';
 import { Role } from '@prisma/client';
 import type { AuthRequest } from '../auth/auth.request';
@@ -32,5 +32,11 @@ export class StudentLibraryController {
     @Param(new ZodValidationPipe(ResourceIdParamsSchema)) params: ResourceIdParams,
   ) {
     return this.reads.getStudentArtifactView(request.user.id, params.id);
+  }
+
+  @Get('artifacts/:id/interactive')
+  @Header('Cache-Control', 'no-store')
+  getInteractive(@Req() request: AuthRequest, @Param(new ZodValidationPipe(ResourceIdParamsSchema)) params: ResourceIdParams) {
+    return this.reads.getStudentInteractive(request.user.id, params.id);
   }
 }

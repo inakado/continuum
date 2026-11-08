@@ -20,6 +20,25 @@ Production deploy выполняется только по явной коман
 - `deploy/env/api.env` и `deploy/env/postgres.env`;
 - permission на `sudo -n systemctl restart continuum-web`.
 
+## Новая установка и перенос на другой VPS
+
+Домен, SSH target и каталог не зашиты в код. На компьютере оператора скопировать `deploy/env/target.env.example` в игнорируемый `deploy/env/target.env` и задать `APP_DOMAIN`, `SSH_TARGET`, `APP_DIR`. Можно указать другой файл через `DEPLOY_CONFIG` или переопределить значения одноимёнными env. `APP_DOMAIN` — lowercase hostname без схемы, порта и пути; `SSH_TARGET` должен входить непосредственно пользователем `deploy`. В GitHub repository variable `APP_DOMAIN` задать тот же hostname для CI и кнопки Deploy; `APP_DIR` необязателен, default `/srv/continuum`.
+
+Порядок первичной установки:
+
+1. Сверить SSH host key с консолью провайдера; создать отдельный operator SSH key. Передать на новый VPS `bootstrap-vps.sh` и только публичную часть operator key.
+2. Выполнить bootstrap от root с `APP_DIR` и `DEPLOY_PUBLIC_KEY_FILE`. Скрипт ставит Docker из официального apt repository, Node 24/pnpm, Nginx/Certbot, создаёт `deploy`, ограниченное systemctl sudo, firewall 22/80/443, ротацию Docker logs и дополнительный swap 2 ГБ. Он не клонирует код и не запускает приложение.
+3. Проверить отдельную SSH-сессию `deploy`. На VPS создать отдельную пару для read-only GitHub deploy key; публичную часть добавить в Settings → Deploy keys нужного репозитория. Проверить GitHub host key по официальным fingerprints. Приватный ключ VPS не копировать на Mac/GitHub. Склонировать проверяемый репозиторий в `APP_DIR` от `deploy`.
+4. Создать закрытые env-файлы из примеров, права `600`; секреты не печатать и не передавать literal CLI-аргументами. PostgreSQL должен иметь одинаковые credentials в обоих env. Bucket заранее создать private у выбранного S3 provider и проверить SDK/подписанные ссылки.
+5. После клонирования повторить bootstrap с `APP_DOMAIN`: установятся systemd launcher и Nginx. Если сертификата ещё нет, используется HTTP-only ACME config, затем Certbot и HTTPS template. Нужны рабочие DNS и порты 80/443. Сертификат получается без контактного email; работает `certbot.timer`, проверять автоматическое продление и срок сертификата отдельно.
+6. Только после проверенного `deploy` SSH разрешён `HARDEN_SSH=yes`: отключаются password/keyboard-interactive SSH; root сохраняет только key-login для аварийного администрирования. Доступ Docker group фактически даёт root-возможности.
+7. Провести CI выбранного main revision и выполнить первый выпуск с `INITIAL_DEPLOY=yes MIGRATIONS_APPROVED=yes`. Этот режим допускается только без прежнего runtime/metadata и при **пустой целевой БД**. Непустая неизвестная БД блокирует запуск; никакого reset нет. `BACKUP_CONFIRMED` для действительно пустой установки не выдумывается. `PREPARE_ONLY=yes` позволяет сначала подготовить runtime без миграций/активации.
+8. Создать начальных преподавателей через `apps/api/scripts/bootstrap-teachers.mjs`: JSON-массив `{login,password}` передаётся stdin в `docker compose -f docker-compose.prod.yml exec -T api node apps/api/scripts/bootstrap-teachers.mjs`. Скрипт использует IdentityProvisioningService, создаёт teacher/credential/TeacherProfile; display name изначально равен login. Он отказывается от посторонних пользователей и не меняет пароль при повторе. `seed-users.mjs` для production не использовать: он создаёт демонстрационного ученика.
+
+При переезде создаётся новый target.env и новые серверные credentials; контейнерная архитектура и source delivery остаются прежними. `continuum-web.service` устанавливается bootstrap с выбранным `APP_DIR`. Web build и release manifest обязаны совпадать по `https://APP_DOMAIN/api`; одной смены runtime env недостаточно. Подготовленный web привязан к origin: на новом VPS он собирается заново; несоответствующий cached runtime не активируется.
+
+Если первый запуск прервался после миграций, не повторять initial mode поверх непустой БД: диагностировать историю, применить исправленную миграцию тем же image и запустить API, затем использовать обычный forward deploy. Не удалять volume ради повторения команды.
+
 ## Обязательные env
 
 В `deploy/env/api.env`:
@@ -60,7 +79,7 @@ CI определяет fingerprint отслеживаемого кода, вк�
 
 ## Ручной deploy исходников
 
-На компьютере оператора нужны Node.js 24, авторизованный `gh` и существующий SSH alias `continuum-vps` с проверенным host key:
+На компьютере оператора нужны Node.js 24, авторизованный `gh` и заполненный `deploy/env/target.env` с SSH target и проверенным host key:
 
 ```bash
 node deploy/scripts/release.mjs
@@ -74,7 +93,7 @@ API собирается Docker BuildKit. Web собирается из `git arc
 
 CI собирает API для тестового quality-контекста; VPS — production runtime. Это осознанный компромисс вместо передачи полного Docker-архива. Main не повторяет уже выполненный полный quality CI.
 
-Для первого перехода нужен launcher `deploy/systemd/continuum-web.service`, установленный администратором после staging-проверки. Он запускает выбранный standalone web; legacy launcher нужен только до первого перехода на standalone. `PREPARE_ONLY=yes` готовит runtime без переключения сервисов.
+Для первого перехода нужен launcher `deploy/systemd/continuum-web.service`, установленный bootstrap после подготовки сервера. Он запускает выбранный standalone web; legacy launcher нужен только до первого перехода на standalone. `PREPARE_ONLY=yes` готовит runtime без переключения сервисов.
 
 Кнопка `Deploy Production` вызывает тот же клиент. Для неё отдельно требуются production environment secrets `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`; host key проверяется строго. Локальная команда использует уже имеющийся SSH.
 
@@ -82,7 +101,7 @@ CI собирает API для тестового quality-контекста; VP
 
 Обычный deploy **не создаёт** dump, копию bucket или архив web. Он сохраняет PostgreSQL volume и S3, меняет только исполняемые сборки. Новые миграции требуют `MIGRATIONS_APPROVED=yes BACKUP_CONFIRMED=yes`; при неизменной схеме подтверждения не нужны. Неполная/изменённая история миграций блокирует переключение.
 
-По решению владельца основной механизм резервирования — Beget, отдельно от релизов. Автокопии VPS доступны в панели; их периодичность, актуальность и восстановимость проверяются там. Наличие файловой копии не является результатом проверочного восстановления live PostgreSQL; S3 — отдельное хранилище. Деплой не меняет настройки Beget/S3 и не удаляет существующую проверенную recovery-копию 28.10.2026.
+После переноса VPS и S3 могут принадлежать разным провайдерам. Provider snapshots не заменяют согласованный recovery-набор PostgreSQL + S3, а копия на том же VPS не переживёт потерю VPS. Актуальную схему, расписание и проверку восстановления фиксировать в active execution plan; наличие регулярного offsite-backup не подразумевается самим успешным deploy. Историческая копия на Beget не считается доступной резервной копией нового production.
 
 ## Хранение и восстановление
 
@@ -108,10 +127,10 @@ flock -n deploy/runtime/deploy.lock python3 deploy/scripts/prune-releases.py "$P
 ## Проверка после deploy
 
 ```bash
-curl -fsS https://vl-physics.ru/api/health
-curl -fsS https://vl-physics.ru/api/ready
-curl -fsS https://vl-physics.ru/login >/dev/null
+curl -fsS "https://$APP_DOMAIN/api/health"
+curl -fsS "https://$APP_DOMAIN/api/ready"
+curl -fsS "https://$APP_DOMAIN/login" >/dev/null
 docker compose -f docker-compose.prod.yml ps
 ```
 
-Library API уже работает: при приёмке выпуска проверять доступ к опубликованному занятию и запрет direct-link для ученика без доступа. Перед ученическим пилотом дополнительно проверить реальную загрузку и повторное открытие фото с телефона; health/login не подтверждают сохранность ответов и файлов.
+Library API уже работает: при приёмке выпуска проверять доступ к опубликованному занятию и запрет direct-link для ученика без доступа. `/ready` проверяет PostgreSQL, но не S3: отдельно выполнить реальный upload/readback и signed GET. Перед ученическим пилотом дополнительно проверить реальную загрузку и повторное открытие фото с телефона; health/login не подтверждают сохранность ответов и файлов.

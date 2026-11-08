@@ -1,0 +1,34 @@
+.page {
+  --lesson-formula-ink: #27344a;
+  min-height: 100dvh;
+  background: var(--catalog-paper);
+  color: var(--catalog-ink);
+}
+
+:global(body):has(.page) { overflow-x: clip; }
+
+.chrome {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.readingScale { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 2px; }
+.readingScale button { display: grid; place-items: center; min-width: 36px; height: 36px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--catalog-ink); font: inherit; font-size: 13px; cursor: pointer; }
+.readingScale button:hover:not(:disabled) { background: var(--catalog-selected); }
+.readingScale button:disabled { color: var(--catalog-disabled-text); cursor: default; }
+.readingScale .scaleReset { min-width: 56px; font-variant-numeric: tabular-nums; }
+
+.text { font-size: calc(20px * var(--lesson-reading-scale, 1)); line-height: 1.6; }
+.text p { margin: 0 0 calc(16px * var(--lesson-reading-scale, 1)); }
+.text :global(mjx-container) { color: var(--lesson-formula-ink); }
+.text p:last-child { margin-bottom: 0; }
+.text em { font-style: italic; font-weight: 550; }
+.page [data-lesson-section], .page article [id] { scroll-margin-top: 88px; }
+@media (max-width: 700px) { .page [data-lesson-section], .page article [id] { scroll-margin-top: 82px; } }
+@media (max-width: 360px) { .chrome header { padding-inline: 16px; } }
+
+@media (max-width: 760px) {
+  .text { font-size: calc(18px * var(--lesson-reading-scale, 1)); line-height: 1.6; }
+  .readingScale button { min-width: 44px; height: 44px; }
+}
