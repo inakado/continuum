@@ -95,6 +95,9 @@ EOF
   ln -sfn /etc/nginx/sites-available/continuum.conf /etc/nginx/sites-enabled/continuum.conf
   nginx -t
   systemctl reload nginx
+  install -d -m 755 /etc/letsencrypt/renewal-hooks/deploy
+  printf '#!/bin/sh\nset -eu\nnginx -t\nsystemctl reload nginx\n' > /etc/letsencrypt/renewal-hooks/deploy/continuum-nginx
+  chmod 755 /etc/letsencrypt/renewal-hooks/deploy/continuum-nginx
   systemctl enable --now certbot.timer
 fi
 if [ "${HARDEN_SSH:-no}" = yes ]; then
