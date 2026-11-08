@@ -10,6 +10,7 @@
     "typecheck": "node ../../scripts/ensure-docker-build.cjs && pnpm exec tsc -p tsconfig.json --noEmit",
     "test": "pnpm exec vitest run --config vitest.config.ts",
     "test:integration": "node ../../scripts/ensure-docker-build.cjs && pnpm exec vitest run --config vitest.integration.config.ts",
+    "test:library-order": "node scripts/test-library-order.mjs",
     "bootstrap:admin": "node scripts/bootstrap-admin.mjs",
     "smoke:auth": "node scripts/smoke-auth.mjs",
     "smoke:library": "node scripts/smoke-library.mjs",

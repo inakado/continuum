@@ -100,6 +100,20 @@ export const UpdateLessonInputSchema = z.object({
   title: z.string().trim().min(1).max(200),
 });
 
+const LibraryOrderIdsSchema = z.array(z.uuid()).min(1).max(10000)
+  .refine((ids) => new Set(ids).size === ids.length, 'IDs must be unique');
+export const ReorderLibraryInputSchema = z.strictObject({
+  expectedIds: LibraryOrderIdsSchema,
+  orderedIds: LibraryOrderIdsSchema,
+}).refine(({ expectedIds, orderedIds }) => {
+  const expected = new Set(expectedIds);
+  return expectedIds.length === orderedIds.length && orderedIds.every((id) => expected.has(id));
+}, 'Order must contain exactly the expected IDs');
+export const ReorderSectionsInputSchema = ReorderLibraryInputSchema.safeExtend({ gradeBand: GradeBandSchema });
+export const LibraryOrderResultSchema = z.object({ orderedIds: LibraryOrderIdsSchema });
+export type ReorderLibraryInput = z.infer<typeof ReorderLibraryInputSchema>;
+export type ReorderSectionsInput = z.infer<typeof ReorderSectionsInputSchema>;
+
 export const LessonArtifactFileInputSchema = z.object({
   type: LessonArtifactTypeSchema,
   filename: z.string().trim().min(1).max(240),

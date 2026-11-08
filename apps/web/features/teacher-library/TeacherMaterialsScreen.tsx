@@ -34,6 +34,9 @@ import {
 } from "./use-teacher-library";
 import styles from "./teacher-library.module.css";
 import LibraryDeleteAction from './LibraryDeleteAction';
+import LibraryOrderHandle from './LibraryOrderHandle';
+import { useLibraryDrag, useLibraryOrder } from './use-library-order';
+import type { LibraryOrderScope } from './library-order';
 
 const gradeTabs: Array<{ code: GradeBand; label: string }> = [
   { code: "grade_7", label: "7 класс" },
@@ -148,14 +151,25 @@ type SectionBlockProps = {
   selectedLessonId: string | null;
   onToggle: () => void;
   onSelectLesson: (lessonId: string) => void;
+  gradeBand: GradeBand;
+  index: number;
+  sectionIds: string[];
+  pending: boolean;
+  drag: ReturnType<typeof useLibraryDrag>;
+  onMove: (scope: LibraryOrderScope, id: string, position: number) => void;
 };
 
-function SectionBlock({ section, open, selectedLessonId, onToggle, onSelectLesson }: SectionBlockProps) {
+function SectionBlock({ section, open, selectedLessonId, onToggle, onSelectLesson, gradeBand, index, sectionIds, pending, drag, onMove }: SectionBlockProps) {
   const publishSection = usePublishSection();
+  const sectionScope: LibraryOrderScope = { kind: 'sections', gradeBand };
+  const lessonScope: LibraryOrderScope = { kind: 'lessons', sectionId: section.id };
 
   return (
-    <section className={styles.section}>
-      <div className={styles.sectionHeading}>
+    <section className={styles.section} data-order-drop={drag.edge(sectionScope, index)}
+      onDragOver={(event) => drag.over(event, sectionScope, index)} onDrop={(event) => drag.drop(event, sectionScope, sectionIds, index)}>
+      <div className={styles.sectionHeading} data-library-order-header>
+        <LibraryOrderHandle label={`раздел «${section.title}»`} index={index} count={sectionIds.length} disabled={pending}
+          onMove={(to) => onMove(sectionScope, section.id, to)} onDragStart={(event) => drag.start(event, sectionScope, section.id)} onDragEnd={drag.end} />
         <button
           aria-expanded={open}
           aria-label={`${open ? "Свернуть" : "Развернуть"} раздел «${section.title}»`}
@@ -184,9 +198,12 @@ function SectionBlock({ section, open, selectedLessonId, onToggle, onSelectLesso
 
       {open ? (
         <div className={styles.sectionBody}>
-          <ol className={styles.lessons}>
+          <ol className={styles.lessons} aria-label={`Занятия раздела «${section.title}»`}>
             {section.lessons.map((lesson, index) => (
-              <li key={lesson.id} className={lesson.id === selectedLessonId ? styles.selectedLesson : undefined}>
+              <li key={lesson.id} className={lesson.id === selectedLessonId ? styles.selectedLesson : undefined} data-library-order-header data-order-drop={drag.edge(lessonScope, index)}
+                onDragOver={(event) => drag.over(event, lessonScope, index)} onDrop={(event) => drag.drop(event, lessonScope, section.lessons.map((item) => item.id), index)}>
+                <LibraryOrderHandle label={`занятие «${lesson.title}»`} index={index} count={section.lessons.length} disabled={pending}
+                  onMove={(to) => onMove(lessonScope, lesson.id, to)} onDragStart={(event) => drag.start(event, lessonScope, lesson.id)} onDragEnd={drag.end} />
                 <button className={styles.lessonSelect} onClick={() => onSelectLesson(lesson.id)} type="button">
                   <span className={styles.number}>{index + 1}</span>
                   <span className={styles.lessonTitle}>{lesson.title}</span>
@@ -371,6 +388,7 @@ function LessonInspector({ lessonId, sectionStatus }: { lessonId: string | null;
 
 export default function TeacherMaterialsScreen() {
   const library = useTeacherLibrary();
+  const order = useLibraryOrder(library.data);
   const createSection = useCreateSection();
   const [selectedGrade, setSelectedGrade] = useState<GradeBand>("grade_10_11");
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
@@ -378,7 +396,7 @@ export default function TeacherMaterialsScreen() {
   const [showSectionForm, setShowSectionForm] = useState(false);
   const [sectionTitle, setSectionTitle] = useState("");
 
-  const activeGrade = library.data?.gradeBands.find((band) => band.code === selectedGrade);
+  const activeGrade = order.library?.gradeBands.find((band) => band.code === selectedGrade);
   const allLessons = useMemo(
     () => activeGrade?.sections.flatMap((section) => section.lessons) ?? [],
     [activeGrade],
@@ -392,6 +410,13 @@ export default function TeacherMaterialsScreen() {
   const resolvedExpandedSectionId = expandedSectionId === "none" ? null : expandedSectionId && activeGrade?.sections.some((section) => section.id === expandedSectionId)
     ? expandedSectionId
     : (selectedSection?.id ?? activeGrade?.sections[0]?.id ?? null);
+  const move = (scope: LibraryOrderScope, id: string, position: number) => {
+    if (order.move(scope, id, position)) {
+      setSelectedLessonId(resolvedLessonId);
+      setExpandedSectionId(resolvedExpandedSectionId ?? 'none');
+    }
+  };
+  const drag = useLibraryDrag(move);
 
   const submitSection = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -430,7 +455,7 @@ export default function TeacherMaterialsScreen() {
       </nav>
 
       <main className={styles.workspace}>
-        <div className={styles.catalogPane}>
+        <div className={styles.catalogPane} onKeyDown={(event) => { if (event.key === 'Escape') drag.end(); }}>
           <div className={styles.intro}>
             <div>
               <h1>Материалы</h1>
@@ -440,6 +465,12 @@ export default function TeacherMaterialsScreen() {
               Добавить раздел
             </button>
           </div>
+
+          <div className={styles.orderInfo}>
+            <p id="library-order-help">Перетащите раздел или занятие за ручку слева. Нажмите на ручку для меню; с клавиатуры — стрелки ↑ ↓.</p>
+            <span role="status" aria-live="polite">{order.message}</span>
+          </div>
+          {order.error ? <p className={styles.orderError} role="alert">{order.error}</p> : null}
 
           {showSectionForm ? (
             <form className={styles.sectionForm} onSubmit={submitSection}>
@@ -475,9 +506,15 @@ export default function TeacherMaterialsScreen() {
               </div>
             ) : (
               <div className={styles.sections}>
-                {activeGrade.sections.map((section) => (
+                {activeGrade.sections.map((section, index) => (
                   <SectionBlock
                     key={section.id}
+                    gradeBand={selectedGrade}
+                    index={index}
+                    sectionIds={activeGrade.sections.map((item) => item.id)}
+                    pending={order.pending}
+                    drag={drag}
+                    onMove={move}
                     onSelectLesson={(lessonId) => {
                       setSelectedLessonId(lessonId);
                       setExpandedSectionId(section.id);

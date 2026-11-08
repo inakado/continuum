@@ -15,6 +15,7 @@ import {
   type UpdateLessonInput,
   type UpdateSectionInput,
   DeleteLibraryInputSchema, DeleteLibraryPdfParamsSchema, type DeleteLibraryInput,
+  ReorderLibraryInputSchema, ReorderSectionsInputSchema, type ReorderLibraryInput, type ReorderSectionsInput,
 } from '@continuum/shared';
 import { Role } from '@prisma/client';
 import type { AuthRequest } from '../auth/auth.request';
@@ -24,6 +25,7 @@ import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { LibraryReadService } from './library-read.service';
 import { LibraryWriteService } from './library-write.service';
 import { LibraryDeleteService } from './library-delete.service';
+import { LibraryOrderService } from './library-order.service';
 import { assertWriteOrigin } from '../common/assert-write-origin';
 
 @Controller('teacher/library')
@@ -34,7 +36,18 @@ export class TeacherLibraryController {
     @Inject(LibraryReadService) private readonly reads: LibraryReadService,
     @Inject(LibraryWriteService) private readonly writes: LibraryWriteService,
     @Inject(LibraryDeleteService) private readonly deletes: LibraryDeleteService,
+    @Inject(LibraryOrderService) private readonly order: LibraryOrderService,
   ) {}
+
+  @Put('sections/order')
+  reorderSections(@Req() request: AuthRequest, @Body(new ZodValidationPipe(ReorderSectionsInputSchema)) input: ReorderSectionsInput) {
+    assertWriteOrigin(request); return this.order.sections(input);
+  }
+
+  @Put('sections/:id/lessons/order')
+  reorderLessons(@Req() request: AuthRequest, @Param(new ZodValidationPipe(ResourceIdParamsSchema)) params: ResourceIdParams, @Body(new ZodValidationPipe(ReorderLibraryInputSchema)) input: ReorderLibraryInput) {
+    assertWriteOrigin(request); return this.order.lessons(params.id, input);
+  }
 
   @Delete('sections/:id')
   deleteSection(@Req() request: AuthRequest, @Param(new ZodValidationPipe(ResourceIdParamsSchema)) params: ResourceIdParams, @Body(new ZodValidationPipe(DeleteLibraryInputSchema)) input: DeleteLibraryInput) {

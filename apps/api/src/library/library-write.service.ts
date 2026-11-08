@@ -20,6 +20,7 @@ import { ObjectStorageService } from '../infra/storage/object-storage.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { assertLessonArtifactFile, safeArtifactFilename } from './lesson-artifact.policy';
 import { assertInteractiveSize, interactiveHash, interactivePackageError, parseInteractiveArchive, readInteractiveBytes } from './interactive-archive';
+import { lockSectionOrder } from './library-order.service';
 
 @Injectable()
 export class LibraryWriteService {
@@ -29,18 +30,18 @@ export class LibraryWriteService {
   ) {}
 
   async createSection(teacherId: string, input: CreateSectionInput): Promise<LibrarySection> {
-    const order = await this.prisma.section.aggregate({
-      where: { gradeBand: input.gradeBand },
-      _max: { sortOrder: true },
-    });
-    const section = await this.prisma.section.create({
-      data: {
-        gradeBand: input.gradeBand,
-        title: input.title,
-        description: input.description ?? null,
-        sortOrder: (order._max.sortOrder ?? -1) + 1,
-        createdById: teacherId,
-      },
+    const section = await this.prisma.$transaction(async (tx) => {
+      await lockSectionOrder(tx, input.gradeBand);
+      const order = await tx.section.aggregate({ where: { gradeBand: input.gradeBand }, _max: { sortOrder: true } });
+      return tx.section.create({
+        data: {
+          gradeBand: input.gradeBand,
+          title: input.title,
+          description: input.description ?? null,
+          sortOrder: (order._max.sortOrder ?? -1) + 1,
+          createdById: teacherId,
+        },
+      });
     });
 
     return { ...section, lessons: [] };

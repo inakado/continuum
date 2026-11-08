@@ -11,6 +11,9 @@ import {
   type CreateLessonInput,
   type CreateSectionInput,
   DeleteLibraryResultSchema,
+  LibraryOrderResultSchema,
+  type ReorderLibraryInput,
+  type ReorderSectionsInput,
 } from "@continuum/shared";
 import { apiRequestParsed } from "@/lib/api/client";
 
@@ -26,6 +29,8 @@ const normalizedContentType = (type: LessonArtifactType, file: File) => {
 };
 
 export const teacherLibraryApi = {
+  reorderSections: (input: ReorderSectionsInput) => apiRequestParsed('/teacher/library/sections/order', LibraryOrderResultSchema, { method: 'PUT', body: input }),
+  reorderLessons: (sectionId: string, input: ReorderLibraryInput) => apiRequestParsed(`/teacher/library/sections/${sectionId}/lessons/order`, LibraryOrderResultSchema, { method: 'PUT', body: input }),
   delete: (input: LibraryDeletion) => apiRequestParsed(
     input.kind === 'section' ? `/teacher/library/sections/${input.id}` : input.kind === 'lesson' ? `/teacher/library/lessons/${input.id}` : `/teacher/library/lessons/${input.id}/artifacts/${input.kind}`,
     DeleteLibraryResultSchema, { method: 'DELETE', body: { expectedIds: input.expectedIds } },
