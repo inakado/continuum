@@ -1,6 +1,6 @@
 # Чистый production-запуск: AdminVPS и Cloud.ru
 
-Создан: 07.11.2026. Обновлён: 08.11.2026. Статус: по прямому поручению владельца выполняются переносимый deploy и выпуск приложения. Приложение запущено по HTTPS, оба преподавателя созданы и входят. Устранена скрытая AAAA; идут фактическая проверка материалов, продления сертификата и recovery-набор.
+Создан: 07.11.2026. Обновлён: 08.11.2026. Статус: по прямому поручению владельца выполняются переносимый deploy и выпуск приложения. Первый выпуск и обычное обновление завершены; приложение работает по HTTPS, два преподавателя входят. Материалы/S3 и продление TLS проверены, начальная копия БД восстановлена изолированно. Регулярный offsite recovery и приёмка 60 пользователей остаются открытыми.
 
 ## 1. Цель и принятые границы
 
@@ -271,7 +271,9 @@ Endpoint в конфиге без имени bucket: path-style добавляе
 - [x] Реализованы ограниченные domain/cold-start/teacher-init изменения и пройдены проверки.
 - [x] Новый сервер запускает выбранный immutable revision с успешным CI, HTTPS и закрытыми внутренними портами.
 - [x] Два teacher входят; ученики/материалы не восстановлены из старого проекта автоматически.
-- [ ] S3 прошёл реальные проверки; KIN-01/KIN-02 опубликованы по команде владельца.
+- [x] S3 прошёл реальные проверки SDK и production API с KIN-01/KIN-02.
+- [ ] KIN-01/KIN-02 опубликованы по отдельной команде владельца.
+- [x] Начальная копия PostgreSQL вне VPS успешно восстановлена в изолированном PostgreSQL 16.
 - [ ] Есть независимый recovery-набор и успешный restore drill; фактические RPO/RTO записаны.
 - [ ] Пройдена приёмка 60 пользователей и реального телефона/школьной сети.
 
@@ -344,3 +346,13 @@ Pre-release review: проверены first-install guards, неизменно�
 - Public login UI проверен Playwright на 390/1440: scrollWidth равен viewport, форма входа видима, JS errors отсутствуют. Автопроверка запретила передачу production session-cookie в Playwright как credential egress; авторизованный browser-flow не обходился, роли проверены HTTP API.
 - Первая live ZIP-проба успешно загрузила KIN-01, но 30-секундный тестовый AbortSignal прервал скачивание большого preview JSON. Nginx подтвердил 200 upload/preview; временные сущности удалены. Повтор с 180-секундным пределом подтвердил SHA-256 KIN-01; скачивание тела заняло 63,5 секунды на текущем Mac → VPS пути, headers — 2 секунды. Готовится ограниченный gzip только для GET lecture document; 22 проверки настоящего Nginx template прошли, включая auth/write/прочие library исключения.
 - Установлен root-owned deploy hook Certbot (`nginx -t`, затем reload): сам timer без hook обновлял бы файлы, но Nginx продолжал бы держать прежний сертификат. Hook проверен вручную; то же действие добавлено в bootstrap для воспроизводимости нового сервера.
+
+### Итог выпуска и границы приёмки
+
+- [PR #17](https://github.com/inakado/continuum/pull/17), `927b8370f857b3207d5442406ed7cecddc0342ff`: [полный CI](https://github.com/inakado/continuum/actions/runs/42456178604) успешен. Main `8a3f532ac0eaffbef6793c94069ffea6704ecf8e`, [main CI](https://github.com/inakado/continuum/actions/runs/42456596065) успешен. Выполнен **обычный** deploy без INITIAL_DEPLOY: код 0, fingerprint `953d47bcceae3009449a141f127876fcbb4dc88a925d1fdbe5a9fc5ba0179298`, API image ID `sha256:91c3fa66d3bd2e1010272fa27046403745cd8e6987413fa02360d8da22bf91d7`. Runtime metadata, Docker image и выбранный web согласованы. Предыдущий проверенный runtime сохранён; новых миграций не было, accounts/data не переинициализировались.
+- После обычного deploy обе ранее выданные QA-сессии продолжили читать teacher library. Foreign-origin logout — 403; затем выполнен обычный logout только этих известных QA-сессий и подтверждён 401. Пользовательские browser-сессии не отзывались. Финальное состояние: 2 users/2 TeacherProfile, 0 students/sections/lessons/assets/pending asset deletes; S3 ListObjectsV2 — 0, IsTruncated=false. Материалы не опубликованы автоматически.
+- Public login UI отрендерен и визуально проверен на 390×844 и 1440×900; форма видима, горизонтального overflow нет. Приватные страницы браузером не проверялись из-за отклонённого credential egress; авторизация/роли проверены настоящим HTTPS API.
+- После `nginx -t` и reload реальный gzip round-trip успешен для обоих ZIP: KIN-01 JSON `1 907 618 → 1 023 238` байт, KIN-02 `1 658 769 → 942 379` байт. Manifest и SHA-256 HTML совпали с исходными пакетами, Content-Encoding=gzip, Cache-Control=no-store, Vary содержит Accept-Encoding. На текущем Mac-сетевом пути скачивание заняло 46/40 с против прежних 64/61 с; это наблюдение конкретного подключения, не SLA. Все временные разделы/занятия и S3 objects удалены через штатный API/cleanup.
+- `certbot renew --dry-run --run-deploy-hooks --cert-name cntm.space --no-random-sleep-on-renew` успешно выполнил staging renewal и Nginx reload hook. Рабочий сертификат действителен до 06.02.2027, `certbot.timer` активен. Ручной DNS-01 не используется.
+- Закрытая начальная копия БД: machine-local `/Users/Alex/.config/continuum/recovery/2026-11-08-initial-db/continuum.dump`, 94 595 байт, SHA-256 `305c7afbb09baa7d18554f91e5df42b6b0a531f2c75e2b9314392452234bb640`; права каталога 700, dump/manifest 600. В отдельном локальном PostgreSQL 16 без опубликованного порта pg_restore --exit-on-error прошёл, проверены 2 users/2 teacher profiles/0 students/22 migrations; test container удалён, dev/production БД не менялись. Время фиксации результата 08.11.2026 06:58:47 UTC. Это ручная начальная копия PostgreSQL, не регулярное резервирование S3 и не измеренный full-stack RTO.
+- Осталось до ученического пилота: регулярный согласованный PostgreSQL+S3 offsite backup/retention/alert и полный restore drill; тарифные/S3 квоты; реальные 60 пользователей, школьная сеть и телефон, включая login rate limit. Эти пункты не объявляются выполненными на основании двух teacher-сессий и небольших ZIP-проверок.
