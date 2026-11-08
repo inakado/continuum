@@ -91,6 +91,8 @@ node deploy/scripts/release.mjs <40-character-main-sha>
 
 API собирается Docker BuildKit. Web собирается из `git archive HEAD` в отдельном временном каталоге; `pnpm install --prefer-offline --frozen-lockfile --prod=false` использует pnpm store, сохраняется один Next cache. Работающий `.next` не перезаписывается. Ресурсы `public` копируются с раскрытием symlink; перед переключением проверяются MathJax и отсутствие внешних/нерабочих ссылок. Из сборки сохраняются standalone web и image с неизменяемым тегом fingerprint; временные исходники и `node_modules` удаляются. Runtime переключается только после успешной сборки и проверки истории миграций. При ошибке активации скрипт завершается с ошибкой и сохраняет достигнутое состояние API/web и БД. Восстановление выполняется выпуском исправленной сборки.
 
+После `PREPARE_ONLY=yes` активация использует сохранённый image без повторной сборки, включая INITIAL_DEPLOY. Docker provenance может менять digest даже при неизменных исходниках; digest уже подготовленного runtime не подменяется. Закрытые `deploy/env/*.env` исключены из Docker build context.
+
 CI собирает API для тестового quality-контекста; VPS — production runtime. Это осознанный компромисс вместо передачи полного Docker-архива. Main не повторяет уже выполненный полный quality CI.
 
 Для первого перехода нужен launcher `deploy/systemd/continuum-web.service`, установленный bootstrap после подготовки сервера. Он запускает выбранный standalone web; legacy launcher нужен только до первого перехода на standalone. `PREPARE_ONLY=yes` готовит runtime без переключения сервисов.

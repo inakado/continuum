@@ -11,7 +11,7 @@ SCRIPTS = Path(__file__).resolve().parent
 
 
 class InitialDeployTests(unittest.TestCase):
-    def run_initial(self, table_count='0', migration_fail=False, initial='yes'):
+    def run_initial(self, table_count='0', migration_fail=False, initial='yes', changing_build=False):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         root = Path(temp.name).resolve()
@@ -34,7 +34,8 @@ class InitialDeployTests(unittest.TestCase):
             'systemctl':'echo "$APP_DIR/deploy/scripts/start-web.sh"',
             'docker': 'printf "%s\\n" "$*" >> "$QA_LOG"\ncase "$*" in\n'
                       '*"exec -T postgres"*) echo "$QA_TABLE_COUNT";;\n'
-                      '*"image inspect"*) echo '+digest+';;\n'
+                      '*"build api"*) if [ "$QA_CHANGING_BUILD" = yes ]; then touch "$QA_REBUILT"; fi;;\n'
+                      '*"image inspect"*) if [ -f "$QA_REBUILT" ]; then echo sha256:'+('c'*64)+'; else echo '+digest+'; fi;;\n'
                       '*"prisma migrate deploy"*) [ "$QA_MIGRATION_FAIL" != yes ] || exit 42;;\nesac',
             'node':'if [ "$2" = fingerprint ]; then echo '+fp+'; else cp "$QA_RELEASE" "$3/release.json"; fi',
             'mv':'python3 -c \'import os,sys; os.replace(sys.argv[-2],sys.argv[-1])\' "$@"',
@@ -45,6 +46,7 @@ class InitialDeployTests(unittest.TestCase):
         env={**os.environ, 'PATH':str(bin_dir)+os.pathsep+os.environ['PATH'], 'APP_DIR':str(root),
              'APP_DOMAIN':'fresh.example', 'INITIAL_DEPLOY':initial, 'MIGRATIONS_APPROVED':'yes',
              'BACKUP_CONFIRMED':'no', 'QA_LOG':str(root/'docker.log'), 'QA_RELEASE':str(release/'release.json'),
+             'QA_CHANGING_BUILD':'yes' if changing_build else 'no', 'QA_REBUILT':str(root/'rebuilt'),
              'QA_TABLE_COUNT':table_count, 'QA_MIGRATION_FAIL':'yes' if migration_fail else 'no'}
         result=subprocess.run(['bash',str(SCRIPTS/'deploy-on-vps.sh')],env=env,capture_output=True,text=True,timeout=20)
         return root, result
@@ -63,6 +65,13 @@ class InitialDeployTests(unittest.TestCase):
         log=(root/'docker.log').read_text()
         self.assertNotIn('build api',log)
         self.assertNotIn('prisma migrate deploy',log)
+
+    def test_initial_activation_preserves_prepared_image_when_build_provenance_changes_digest(self):
+        root, result=self.run_initial(changing_build=True)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+        self.assertFalse((root/'rebuilt').exists())
+        current=json.loads((root/'deploy/runtime/current.json').read_text())
+        self.assertEqual(current['apiImageId'],'sha256:'+'b'*64)
 
     def test_missing_runtime_requires_explicit_initial_mode(self):
         _, result=self.run_initial(initial='no')
