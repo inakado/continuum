@@ -2,6 +2,18 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, expect, it } from 'vitest';
 import type { AssessmentPackageTask } from '@continuum/shared';
 import BankTaskPreview from './BankTaskPreview';
+
+it('shows the original upload date at the bottom of task metadata and omits it in import previews', () => {
+  const data = { id: 'task', version: 2, task: { ...base, type: 'extended' as const }, statement: 'Условие.', images: {}, solution: null };
+  const view = render(<BankTaskPreview data={{ ...data, createdAt: '2026-11-13T12:00:00.000Z' }} />);
+  fireEvent.click(screen.getByText('Источник и сведения'));
+  const row = screen.getByText('Дата загрузки').parentElement!;
+  expect(row).toHaveTextContent('13.11.2026');
+  expect(row).toBe(row.parentElement!.lastElementChild);
+  expect(row.querySelector('time')).toHaveAttribute('dateTime', '2026-11-13T12:00:00.000Z');
+  view.rerender(<BankTaskPreview data={data} />);
+  expect(screen.queryByText('Дата загрузки')).not.toBeInTheDocument();
+});
 import { taskSourceDetails } from './task-source';
 
 const base = { id: 'ege-test', title: 'Пример', gradeBand: 'grade_10_11' as const, topicPath: ['Магнитное поле'], source: { provider: 'Авторское' }, maxPoints: 2 };

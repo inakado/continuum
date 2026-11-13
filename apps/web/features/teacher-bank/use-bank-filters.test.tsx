@@ -26,6 +26,13 @@ it('round-trips supported fields, omits defaults and never carries unrelated par
   expect(bankFilterParams(filters)).not.toContain('token');
   expect(bankFilterParams(readBankFilters(new URLSearchParams()))).toBe('');
 });
+
+it('preserves date bounds in links and ignores malformed dates independently', () => {
+  const filters = readBankFilters(new URLSearchParams('uploadedFrom=2026-11-12T14:00:00.000Z&uploadedBefore=2026-11-13T14:00:00.000Z&source=Школково'));
+  expect(readBankFilters(new URLSearchParams(bankFilterParams(filters)))).toEqual(filters);
+  expect(filters.uploadedFrom).toBe('2026-11-12T14:00:00.000Z');
+  expect(readBankFilters(new URLSearchParams('uploadedFrom=wrong&uploadedBefore=2026-02-30T00:00:00Z&source=Школково'))).toMatchObject({ uploadedFrom: undefined, uploadedBefore: undefined, source: 'Школково' });
+});
 it('restores direct links and remounts, uses replace for search and supports Back/Forward', async () => {
   history.replaceState({}, '', '/teacher/bank?grade=grade_8&topic=МКТ&exam=ege&source=Школково&page=2');
   const hook = renderHook(() => useBankFilters());
