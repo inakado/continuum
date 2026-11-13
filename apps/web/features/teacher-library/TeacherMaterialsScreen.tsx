@@ -466,8 +466,8 @@ export default function TeacherMaterialsScreen() {
             </button>
           </div>
 
+          <p className={styles.visuallyHidden} id="library-order-help">Перетащите раздел или занятие за ручку слева. Нажмите на ручку для меню; с клавиатуры — стрелки ↑ ↓.</p>
           <div className={styles.orderInfo}>
-            <p id="library-order-help">Перетащите раздел или занятие за ручку слева. Нажмите на ручку для меню; с клавиатуры — стрелки ↑ ↓.</p>
             <span role="status" aria-live="polite">{order.message}</span>
           </div>
           {order.error ? <p className={styles.orderError} role="alert">{order.error}</p> : null}

@@ -14,6 +14,15 @@ it('validates exam and exact provider filters', () => {
   for (const input of [{ exam: 'oge' }, { source: '' }, { source: 'x'.repeat(161) }]) expect(AssessmentBankQuerySchema.safeParse(input).success).toBe(false);
 });
 
+it('validates upload bounds as UTC timestamps', () => {
+  const range = { uploadedFrom: '2026-11-12T14:00:00.000Z', uploadedBefore: '2026-11-13T14:00:00.000Z' };
+  expect(AssessmentBankQuerySchema.parse(range)).toMatchObject(range);
+  for (const invalid of ['2026-02-30T00:00:00Z', '2026-11-13', 'invalid']) {
+    expect(AssessmentBankQuerySchema.safeParse({ uploadedFrom: invalid }).success).toBe(false);
+    expect(AssessmentBankQuerySchema.safeParse({ uploadedBefore: invalid }).success).toBe(false);
+  }
+});
+
 it('requires exact content and lifecycle revisions for deletion and undo', () => {
   expect(AssessmentBankDeleteSchema.safeParse({ expectedVersion: 1 }).success).toBe(false);
   expect(AssessmentBankDeleteSchema.parse({ expectedVersion: 1, expectedLifecycleRevision: 2 })).toEqual({ expectedVersion: 1, expectedLifecycleRevision: 2 });

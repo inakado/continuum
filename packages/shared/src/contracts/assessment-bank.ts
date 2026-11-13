@@ -17,9 +17,12 @@ export const AssessmentBankQuerySchema = z.object({
   type: AssessmentTaskTypeSchema.optional(),
   exam: z.enum(['ege', 'none']).optional(),
   source: z.string().trim().min(1).max(160).optional(),
+  uploadedFrom: z.iso.datetime().optional(),
+  uploadedBefore: z.iso.datetime().optional(),
   page: z.coerce.number().int().min(1).max(10000).default(1),
 });
 export const AssessmentTaskSummarySchema = z.object({
+  createdAt: z.iso.datetime().optional(),
   lifecycleRevision: z.number().int().positive().optional(),
   id: z.uuid(), stableId: z.string(), title: z.string(), gradeBand: GradeBandSchema,
   topicPath: z.array(z.string()), type: AssessmentTaskTypeSchema, maxPoints: z.number(),
@@ -30,6 +33,7 @@ export const AssessmentBankListSchema = z.object({
   tasks: z.array(AssessmentTaskSummarySchema), total: z.number(), topics: z.array(z.string()), sources: z.array(z.string()).optional(), topicPaths: z.array(AssessmentBankTopicPathSchema).default([]), pageSize: z.number(),
 });
 export const AssessmentTaskViewSchema = z.object({
+  createdAt: z.iso.datetime().optional(),
   task: AssessmentPackageTaskSchema, statement: z.string(), solution: z.string().nullable(),
   images: z.record(z.string(), z.string()), version: z.number().int().positive(), id: z.string(),
   lifecycleRevision: z.number().int().positive().optional(),

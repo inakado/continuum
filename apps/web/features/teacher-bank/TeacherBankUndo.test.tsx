@@ -12,7 +12,7 @@ vi.mock('next/navigation', async () => {
   return { useSearchParams: () => new URLSearchParams(useSyncExternalStore(subscribe, () => location.search)) };
 });
 vi.mock('@/components/ContinuumHeader', () => ({ default: () => null }));
-vi.mock('./BankTaskPreview', () => ({ default: ({ data }: { data: AssessmentTaskView }) => <h2>{data.task.title}</h2> }));
+vi.mock('./BankTaskPreview', () => ({ default: ({ data }: { data: AssessmentTaskView }) => <p>{data.task.title}</p> }));
 vi.mock('./teacher-bank.api', () => ({ teacherBankApi: { list: vi.fn(), view: vi.fn(), remove: vi.fn(), restore: vi.fn() } }));
 const tasks = ['Давление', 'Температура'].map((title, index) => ({ id: `00000000-0000-4000-8000-00000000000${index}`, title, version: 1, gradeBand: 'grade_10_11', topicPath: ['МКТ'], type: 'short_number', maxPoints: 1, source: { provider: 'Школково' } } as AssessmentTaskSummary));
 beforeEach(() => {

@@ -1,10 +1,24 @@
 import { cleanup, fireEvent, render, screen, within, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import BankFilters from './BankFilters';
+import { uploadDateFilter } from './upload-date';
 
 afterEach(cleanup);
 const paths = [['Механика'], ['Механика', 'Кинематика', 'Баллистика'], ['Механика', 'Кинематика', 'Ускорение', 'Прямолинейное движение', 'Графики'], ['Электродинамика', 'Графики']];
 const query = { search: '', topic: '', page: 1 };
+it('applies the calendar date and clears it independently or with all filters', () => {
+  const change = vi.fn();
+  const range = uploadDateFilter('2026-11-13');
+  render(<BankFilters query={{ ...query, ...range, source: 'Школково' }} onChange={change} />);
+  const calendar = screen.getByLabelText('Дата загрузки');
+  expect(calendar).toHaveValue('2026-11-13');
+  fireEvent.change(calendar, { target: { value: '2026-11-12' } });
+  expect(change).toHaveBeenLastCalledWith(uploadDateFilter('2026-11-12'));
+  fireEvent.click(screen.getByRole('button', { name: 'Сбросить Загружено 13.11.2026' }));
+  expect(change).toHaveBeenLastCalledWith({ uploadedFrom: undefined, uploadedBefore: undefined });
+  fireEvent.click(screen.getByRole('button', { name: 'Сбросить всё' }));
+  expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ uploadedFrom: undefined, uploadedBefore: undefined, source: undefined }));
+});
 it('browses without applying, selects the whole branch, and returns focus', async () => {
   const change = vi.fn(); render(<BankFilters query={query} topicPaths={paths} onChange={change} />);
   const trigger = screen.getByRole('button', { name: 'Все разделы и темы' });

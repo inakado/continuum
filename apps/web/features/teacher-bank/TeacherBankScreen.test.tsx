@@ -59,7 +59,7 @@ it('keeps source visible and separates collection, source section and EGE number
   render(<TeacherBankScreen />);
   const list = screen.getByRole('list', { name: 'Задания банка' });
   expect(within(list).getAllByText('Школково · № 11121')).toHaveLength(2);
-  fireEvent.click(screen.getByText('Источник и сведения'));
+  fireEvent.click(screen.getByRole('button', { name: 'Метаданные' }));
   expect(screen.getByText('Правило оценивания')).toBeVisible();
   expect(screen.getByText('Полное совпадение')).toBeVisible();
   expect(screen.getAllByText('Числовой ответ').length).toBeGreaterThan(0);
@@ -68,7 +68,7 @@ it('keeps source visible and separates collection, source section and EGE number
   expect(screen.getByText('Код подраздела')).toBeVisible();
   expect(screen.getByText('7.05')).toBeVisible();
   expect(screen.getByText('Номер задания ЕГЭ')).toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: 'Следующая' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Следующая задача' }));
   expect(screen.getByRole('heading', { name: 'Температура' })).toBeVisible();
 });
 it('passes grade and search filters to the server-state layer', () => {
@@ -101,18 +101,25 @@ it('clears only the search and returns keyboard focus without losing other filte
 });
 it('expands the reading area without losing the selected task', () => {
   render(<TeacherBankScreen />);
-  fireEvent.click(screen.getByRole('button', { name: 'Следующая' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Следующая задача' }));
   fireEvent.click(screen.getByRole('button', { name: 'Развернуть задание' }));
-  expect(screen.getByRole('button', { name: 'Вернуть список' })).toHaveAttribute('aria-expanded', 'true');
+  expect(screen.getByRole('button', { name: 'Свернуть задание' })).toHaveAttribute('aria-expanded', 'true');
+  expect(screen.queryByRole('heading', { name: 'Банк заданий' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Действия с заданием' })).not.toBeInTheDocument();
   expect(screen.getByRole('heading', { name: 'Температура' })).toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: 'Вернуть список' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Предыдущая задача' }));
+  expect(screen.getByRole('heading', { name: 'Давление газа' })).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Свернуть задание' }));
+  expect(screen.getByRole('heading', { name: 'Банк заданий' })).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Следующая задача' }));
   expect(screen.getByRole('heading', { name: 'Температура' })).toBeVisible();
 });
 it('preserves the list scroll and navigation focus while opening another condition from the top', () => {
   render(<TeacherBankScreen />);
   const list = screen.getByRole('list', { name: 'Задания банка' });
   const condition = screen.getByRole('region', { name: 'Условие выбранного задания' });
-  const next = screen.getByRole('button', { name: 'Следующая' });
+  const next = screen.getByRole('button', { name: 'Следующая задача' });
   list.scrollTop = 180;
   condition.scrollTop = 120;
   next.focus();
@@ -121,7 +128,7 @@ it('preserves the list scroll and navigation focus while opening another conditi
   expect(screen.getByRole('list', { name: 'Задания банка' })).toBe(list);
   expect(list.scrollTop).toBe(180);
   expect(screen.getByRole('region', { name: 'Условие выбранного задания' }).scrollTop).toBe(0);
-  expect(screen.getByRole('button', { name: 'Следующая' })).toBe(next);
+  expect(screen.getByRole('button', { name: 'Следующая задача' })).toBe(next);
   expect(next).toHaveFocus();
 });
 it('keeps source options available in an empty result and resets both filters', () => {
@@ -140,7 +147,7 @@ it('keeps source options available in an empty result and resets both filters', 
 });
 it('combines exam and exact source filters, resets selection and restores them on return', async () => {
   const view = render(<TeacherBankScreen />);
-  fireEvent.click(screen.getByRole('button', { name: 'Следующая' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Следующая задача' }));
   fireEvent.click(screen.getByRole('button', { name: /Фильтры/ }));
   fireEvent.change(screen.getByRole('combobox', { name: 'ЕГЭ / не ЕГЭ' }), { target: { value: 'ege' } });
   fireEvent.change(screen.getByRole('combobox', { name: 'Источник' }), { target: { value: 'Школково' } });
@@ -160,7 +167,7 @@ it('combines exam and exact source filters, resets selection and restores them o
 
 it('restores the selected task on remount, Back and Forward without changing the API query', async () => {
   const view = render(<TeacherBankScreen />);
-  fireEvent.click(screen.getByRole('button', { name: 'Следующая' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Следующая задача' }));
   expect(location.search).toBe('?task=00000000-0000-4000-8000-000000000001');
   expect(state.query).not.toHaveProperty('taskId');
   view.unmount(); render(<TeacherBankScreen />);
@@ -187,19 +194,24 @@ it('supports a reload into the mobile preview and returning to the list with the
   history.replaceState({}, '', '/teacher/bank?task=00000000-0000-4000-8000-000000000001');
   render(<TeacherBankScreen />);
   const preview = screen.getByRole('region', { name: 'Просмотр задания' });
-  expect(preview.parentElement?.className).toContain('showPreview');
+  expect(preview.closest('main')?.parentElement?.className).toContain('viewing');
   fireEvent.click(screen.getByRole('button', { name: 'К списку' }));
-  expect(preview.parentElement?.className).not.toContain('showPreview');
+  expect(preview.closest('main')?.parentElement?.className).not.toContain('viewing');
   expect(location.search).toBe('');
 });
 
-function render(ui: Parameters<typeof baseRender>[0]) { return baseRender(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>{ui}</QueryClientProvider>); }
+function render(ui: Parameters<typeof baseRender>[0]) {
+  const view = baseRender(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>{ui}</QueryClientProvider>);
+  const details = screen.queryByRole('region', { name: 'Ответ и информация о задаче' });
+  if (details) details.scrollIntoView = vi.fn();
+  return view;
+}
 
 it('does not treat the default desktop preview as an explicit mobile task choice', () => {
   render(<TeacherBankScreen />);
   const list = screen.getByRole('list', { name: 'Задания банка' });
   expect(within(list).queryByRole('button', { pressed: true })).not.toBeInTheDocument();
-  expect(list.querySelector('[data-preview-current="true"]')).not.toBeNull();
+  expect(list.querySelector('[data-current="true"]')).not.toBeNull();
   const row = within(list).getAllByRole('button')[1];
   fireEvent.click(row);
   expect(row).toHaveAttribute('aria-pressed', 'true');

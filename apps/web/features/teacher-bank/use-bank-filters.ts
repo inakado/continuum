@@ -15,6 +15,8 @@ export function readBankFilters(params: URLSearchParams) {
     type: fields.type.catch(undefined).parse(params.get('type') ?? undefined),
     exam: fields.exam.catch(undefined).parse(params.get('exam') ?? undefined),
     source: fields.source.catch(undefined).parse(params.get('source') ?? undefined),
+    uploadedFrom: fields.uploadedFrom.catch(undefined).parse(params.get('uploadedFrom') ?? undefined),
+    uploadedBefore: fields.uploadedBefore.catch(undefined).parse(params.get('uploadedBefore') ?? undefined),
     page: fields.page.catch(1).parse(params.get('page') ?? undefined),
     taskId: z.string().uuid().nullable().catch(null).parse(params.get('task')),
   };
@@ -29,6 +31,8 @@ export function bankFilterParams(filters: BankFilters) {
   if (filters.type) params.set('type', filters.type);
   if (filters.exam) params.set('exam', filters.exam);
   if (filters.source) params.set('source', filters.source);
+  if (filters.uploadedFrom) params.set('uploadedFrom', filters.uploadedFrom);
+  if (filters.uploadedBefore) params.set('uploadedBefore', filters.uploadedBefore);
   if (filters.page !== 1) params.set('page', String(filters.page));
   if (filters.taskId) params.set('task', filters.taskId);
   return params.toString();
