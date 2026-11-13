@@ -11,13 +11,12 @@ import { uploadDateLabel } from './upload-date';
 export default function BankTaskPreview({ data, compact = false, hideAnswers = false, conditionOnly = false, renderDetails }: { data: AssessmentTaskView; compact?: boolean; hideAnswers?: boolean; conditionOnly?: boolean; renderDetails?: (sections: { answer: ReactNode; metadata: ReactNode }) => ReactNode }) {
   const { task, images } = data;
   const graphPositions = task.type === 'matching' && task.rows.length === 2 && task.rows.every((row) => row.content.includes('!['));
-  const choice = (id: string) => 'options' in task ? task.options.find((option) => option.id === id)?.content ?? id : id;
   function correctAnswer() {
     switch (task.type) {
       case 'short_number': return `${task.grading.answer}${task.unit ? ` ${task.unit}` : ''}`;
       case 'short_text': return task.grading.acceptedAnswers.join('; ');
-      case 'single_choice': return choice(task.grading.correctOptionId);
-      case 'multiple_choice': return task.grading.correctOptionIds.map(choice).join('\n\n');
+      case 'single_choice': return String(task.options.findIndex(option => option.id === task.grading.correctOptionId) + 1);
+      case 'multiple_choice': return task.options.flatMap((option, index) => task.grading.correctOptionIds.includes(option.id) ? [index + 1] : []).join(', ');
       case 'matching': return task.rows.map((row, index) => `${matchingPositionLabel(index)} — ${task.options.findIndex((option) => option.id === task.grading.matches[row.id]) + 1}`).join('; ');
     }
   }

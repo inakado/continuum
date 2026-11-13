@@ -23,6 +23,19 @@ const tasks: [AssessmentPackageTask, string, string][] = [
   [{ ...base, type: 'multiple_choice', options, grading: { policy: 'ege_physics_multiple_choice_v1', correctOptionIds: ['one', 'two'] } }, 'Несколько вариантов', 'ЕГЭ: выбор утверждений · 0–2 балла'],
 ];
 afterEach(cleanup);
+it.each<[AssessmentPackageTask, string]>([
+  [{ ...base, type: 'single_choice', options: [{ id: 'third', content: 'Первое утверждение' }, { id: 'first', content: 'Второе утверждение' }, { id: 'second', content: 'Третье утверждение' }], grading: { correctOptionId: 'first' } }, '2'],
+  [{ ...base, type: 'multiple_choice', options: [{ id: 'third', content: 'Первое утверждение' }, { id: 'first', content: 'Второе утверждение' }, { id: 'second', content: 'Третье утверждение' }], grading: { correctOptionIds: ['second', 'third'] } }, '1, 3'],
+])('shows choice numbers in display order without repeating statements in the answer: %s', (task, expected) => {
+  render(<BankTaskPreview data={{ id: 'task', version: 1, task, statement: 'Выберите верные утверждения.', images: {}, solution: 'Текст разбора.' }} />);
+  const answer = screen.getByText('Ответ и проверка').parentElement!;
+  expect(within(answer).getByText(expected, { exact: true })).toBeVisible();
+  expect(within(answer).getByText('Текст разбора.')).toBeVisible();
+  for (const content of ['Первое утверждение', 'Второе утверждение', 'Третье утверждение']) {
+    expect(within(answer).queryByText(content)).not.toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Варианты ответа' })).getByText(content)).toBeVisible();
+  }
+});
 it.each(tasks)('keeps the actual choices and matching rows in condition-only comparison: %s', (task) => {
   render(<BankTaskPreview compact conditionOnly data={{ id: 'task', version: 1, task, statement: 'Условие для сравнения.', images: {}, solution: null }} />);
   expect(screen.getByText('Условие для сравнения.')).toBeVisible();
